@@ -27,7 +27,6 @@ class FLHalfClient(Client):
     
     def _generate_fake_examples(self):
         shape = list(self.dataset.dataset.data.shape)
-        shape[0] = shape[0] // 4
         fake_data = torch.rand(shape)
         fake_targets = self.model.forward_(fake_data)
         return fake_data, fake_targets
@@ -44,7 +43,7 @@ class FLHalfServer(Server):
                  n_epochs: int,
                  batch_size: int,
                  optimizer_cfg: OptimizerConfigurator,
-                 global_step: float=.01,
+                 global_step: float=.05,
                  elegibility_percentage: float=0.5, 
                  seed: int=42):
         super().__init__(model, clients, elegibility_percentage, seed)
@@ -141,7 +140,6 @@ class FLHalf(CentralizedFL):
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 
                                       local_epochs=self.n_epochs,
-                                      device=self.device,
                                       seed=self.seed) for i in range(self.n_clients)]
 
         self.server = FLHalfServer(self.model.to(self.device),
