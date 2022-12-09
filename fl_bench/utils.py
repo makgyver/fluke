@@ -35,3 +35,8 @@ class Log():
     def save(self, path: str):
         with open(path, 'w') as f:
             json.dump(self.history, f, indent=4)
+
+
+def print_params(model):
+    for name, param in model.named_parameters():
+        print(f"{name}: {param.data}")

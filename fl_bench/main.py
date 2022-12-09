@@ -10,6 +10,7 @@ from algorithms.fedavg import FedAVG
 from algorithms.fedsgd import FedSGD
 from algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
 from algorithms.fedprox import FedProx
+from algorithms.flhalf import FLHalf
 
 from data import Datasets
 from utils import OptimizerConfigurator, Log
@@ -38,6 +39,15 @@ class MLP(nn.Module):
         x = F.relu(self.fc2(x))
         #x = self.fc2_drop(x)
         return F.log_softmax(self.fc3(x), dim=1)
+    
+    def forward_(self, x):
+        x = x.view(-1, 28*28)
+        x = F.relu(self.fc1(x))
+        return x
+        #x = self.fc1_drop(x)
+        #x = F.relu(self.fc2(x))
+        #x = self.fc2_drop(x)
+        #return F.log_softmax(self.fc3(x), dim=1)
 
 # Define model
 class CNN(nn.Module):
@@ -110,19 +120,37 @@ logger = Log(ClassificationEval(test_loader, DEVICE, nn.CrossEntropyLoss()))
 # logger.save('./log/scaffold.json')
 
 
-fedprox = FedProx(n_clients=100,
+# fedprox = FedProx(n_clients=100,
+#        n_rounds=100, 
+#        n_epochs=5, 
+#        batch_size=225, 
+#        train_set=train_data, 
+#        model=MLP(), 
+#        client_mu = 0.1,
+#        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+#        loss_fn=nn.CrossEntropyLoss(), 
+#        elegibility_percentage=.5,
+#        device=DEVICE, 
+#        seed=42)
+
+# fedprox.prepare_data(MNISTDataset, transform=ToTensor())
+# fedprox.init_parties(logger)
+# fedprox.run(10)
+
+
+flhalf = FLHalf(n_clients=100,
        n_rounds=100, 
        n_epochs=5, 
        batch_size=225, 
        train_set=train_data, 
        model=MLP(), 
-       client_mu = 0.1,
        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
        loss_fn=nn.CrossEntropyLoss(), 
+       private_layers=["fc1"],
        elegibility_percentage=.5,
        device=DEVICE, 
        seed=42)
 
-fedprox.prepare_data(MNISTDataset, transform=ToTensor())
-fedprox.init_parties(logger)
-fedprox.run(10)
+flhalf.prepare_data(MNISTDataset, transform=ToTensor())
+flhalf.init_parties(logger)
+flhalf.run(10)

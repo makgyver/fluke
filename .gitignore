@@ -1,5 +1,6 @@
 
 .DS_Store
 *.pyc
-fl-bench/data
-fl-bench/log
+fl_bench/data
+fl_bench/log
+data
