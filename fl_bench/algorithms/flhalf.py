@@ -52,23 +52,22 @@ class FLHalfServer(Server):
         self.private_layers = private_layers
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-        self.optimizer_cfg = optimizer_cfg
+        self.optimizer = optimizer_cfg(self.model)
+        self.device = GlobalSettings().get_device()
     
     def _private_train(self, clients_fake_x, clients_fake_y):
         train = TensorDataset(clients_fake_x, clients_fake_y)
         train_loader = DataLoader(train, batch_size=self.batch_size, shuffle=True)
-        optimizer = self.optimizer_cfg(self.model)
-        device = GlobalSettings().get_device()
         loss_fn = MSELoss()
         for _ in range(self.n_epochs):
             loss = None
             for _, (X, y) in enumerate(train_loader):
-                X, y = X.to(device), y.to(device)
-                optimizer.zero_grad()
+                X, y = X.to(self.device), y.to(self.device)
+                self.optimizer.zero_grad()
                 y_hat = self.model.forward_(X)
                 loss = loss_fn(y_hat, y)
                 loss.backward(retain_graph=True)
-                optimizer.step()
+                self.optimizer.step()
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
