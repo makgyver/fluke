@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 
 from utils import OptimizerConfigurator
 
+import sys; sys.path.append(".")
+from fl_bench import GlobalSettings
 
 class Client(ABC):
 
@@ -15,7 +17,6 @@ class Client(ABC):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
                  local_epochs: int=3,
-                 device: torch.device=torch.device('cpu'),
                  seed: int=42):
 
         self.seed = seed
@@ -25,7 +26,6 @@ class Client(ABC):
         self.optimizer_cfg = optimizer_cfg
         self.loss_fn = loss_fn
         self.local_epochs = local_epochs
-        self.device = device
         self.stateful = False
         self.optimizer = None
 
@@ -43,12 +43,13 @@ class Client(ABC):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         total_step = len(self.dataset)
         self.model.train()
+        device = GlobalSettings().get_device()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.dataset):
-                X, y = X.to(self.device), y.to(self.device)
+                X, y = X.to(device), y.to(device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y)

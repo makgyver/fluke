@@ -15,6 +15,8 @@ __all__ = [
     'fedavg',
     'fedsgd',
     'scaffold'
+    'fedprox',
+    'flhalf'
 ]
 
 class FLEnvironment(ABC):

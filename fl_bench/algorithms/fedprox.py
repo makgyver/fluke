@@ -11,8 +11,10 @@ from algorithms import CentralizedFL
 from data import Datasets
 from server import Server
 
-from utils import OptimizerConfigurator
-from client import Client
+import sys; sys.path.append(".")
+from fl_bench.utils import OptimizerConfigurator
+from fl_bench.client import Client
+from fl_bench import GlobalSettings
 
 class FedProxClient(Client):
     def __init__(self,
@@ -21,9 +23,8 @@ class FedProxClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
                  local_epochs: int=3,
-                 device: torch.device=torch.device('cpu'),
                  seed: int=42):
-        super().__init__(dataset, optimizer_cfg, loss_fn, local_epochs, device, seed)
+        super().__init__(dataset, optimizer_cfg, loss_fn, local_epochs, seed)
         self.mu = mu
     
     def _proximal_loss(self, local_model, global_model):
@@ -36,13 +37,14 @@ class FedProxClient(Client):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         W = deepcopy(self.model)
         #total_step = len(self.dataset)
+        device = GlobalSettings().get_device()
         self.model.train()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.dataset):
-                X, y = X.to(self.device), y.to(self.device)
+                X, y = X.to(device), y.to(device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y) + (self.mu / 2) * self._proximal_loss(self.model, W)

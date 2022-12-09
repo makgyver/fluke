@@ -12,11 +12,13 @@ from algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
 from algorithms.fedprox import FedProx
 from algorithms.flhalf import FLHalf
 
+from fl_bench import GlobalSettings
 from data import Datasets
 from utils import OptimizerConfigurator, Log
 from evaluation import ClassificationEval
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+GlobalSettings().auto_device()
+DEVICE = GlobalSettings().get_device()
 
 # train_data, test_data = Datasets.FEMNIST()
 # train_data, test_data = Datasets.EMNIST()
@@ -81,7 +83,7 @@ class CNN(nn.Module):
         return output #, x    # return x for visualization
 
 test_loader = DataLoader(test_data, batch_size=100, shuffle=False)
-logger = Log(ClassificationEval(test_loader, DEVICE, nn.CrossEntropyLoss()))
+logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
 
 # fedavg = FedAVG(n_clients=100,
 #        n_rounds=100, 
@@ -92,14 +94,13 @@ logger = Log(ClassificationEval(test_loader, DEVICE, nn.CrossEntropyLoss()))
 #        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
 #        loss_fn=nn.CrossEntropyLoss(), 
 #        elegibility_percentage=.5,
-#        device=DEVICE, 
 #        seed=42)
 
 # fedavg.prepare_data(MNISTDataset, transform=ToTensor())
 # fedavg.init_parties(logger)
 # fedavg.run(10)
 
-# logger.save('./log/fedavg.json')
+# logger.save('../log/fedavg.json')
 
 # scaffold = SCAFFOLD(n_clients=100,
 #        n_rounds=100, 
@@ -110,14 +111,13 @@ logger = Log(ClassificationEval(test_loader, DEVICE, nn.CrossEntropyLoss()))
 #        optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
 #        loss_fn=nn.CrossEntropyLoss(), 
 #        elegibility_percentage=1.,
-#        device=DEVICE, 
 #        seed=42)
 
 # scaffold.prepare_data(MNISTDataset, transform=ToTensor())
 # scaffold.init_parties(global_step=1, callback=logger)
 # scaffold.run(10)
 
-# logger.save('./log/scaffold.json')
+# logger.save('../log/scaffold.json')
 
 
 # fedprox = FedProx(n_clients=100,
@@ -130,7 +130,6 @@ logger = Log(ClassificationEval(test_loader, DEVICE, nn.CrossEntropyLoss()))
 #        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
 #        loss_fn=nn.CrossEntropyLoss(), 
 #        elegibility_percentage=.5,
-#        device=DEVICE, 
 #        seed=42)
 
 # fedprox.prepare_data(MNISTDataset, transform=ToTensor())
@@ -148,9 +147,10 @@ flhalf = FLHalf(n_clients=100,
        loss_fn=nn.CrossEntropyLoss(), 
        private_layers=["fc1"],
        elegibility_percentage=.5,
-       device=DEVICE, 
        seed=42)
 
 flhalf.prepare_data(MNISTDataset, transform=ToTensor())
 flhalf.init_parties(logger)
 flhalf.run(10)
+
+logger.save('../log/flhalf.json')

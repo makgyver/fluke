@@ -1,14 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Callable
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 import torch
 from torch.utils.data import DataLoader
-import math
+
+import sys; sys.path.append(".")
+from fl_bench import GlobalSettings
 
 class Evaluator(ABC):
-    def __init__(self, data_loader: DataLoader, device: torch.device, loss_fn: Callable):
+    def __init__(self, data_loader: DataLoader, loss_fn: Callable):
         self.data_loader = data_loader
-        self.device = device
         self.loss_fn = loss_fn
     
     @abstractmethod
@@ -27,9 +28,9 @@ class ClassificationEval(Evaluator):
         recall = Recall(average='micro')
         f1 = F1Score(average='micro')
         loss = 0
-        
+        device = GlobalSettings().get_device()
         for X, y in self.data_loader:
-            X, y = X.to(self.device), y.to(self.device)
+            X, y = X.to(device), y.to(device)
             
             with torch.no_grad():
                 y_hat = model(X)

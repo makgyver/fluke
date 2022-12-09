@@ -8,7 +8,8 @@ from client import Client
 from server import Server
 from utils import OptimizerConfigurator
 
-from . import CentralizedFL
+import sys; sys.path.append(".")
+from fl_bench.algorithms import CentralizedFL
 
 
 class FedSGD(CentralizedFL):
@@ -20,7 +21,6 @@ class FedSGD(CentralizedFL):
                  model: Module,
                  loss_fn: Callable,
                  elegibility_percentage: float=0.5,
-                 device: torch.device=torch.device('cpu'),
                  seed: int=42):
         
         super().__init__(n_clients,
@@ -32,6 +32,5 @@ class FedSGD(CentralizedFL):
                          optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage,
-                         device, 
                          seed)
     

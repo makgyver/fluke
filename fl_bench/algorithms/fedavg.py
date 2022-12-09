@@ -4,11 +4,9 @@ import torch
 from torch.nn import Module
 from torch.utils.data import Dataset
 
-from client import Client
-from server import Server
-from utils import OptimizerConfigurator
-
-from . import CentralizedFL
+import sys; sys.path.append(".")
+from fl_bench.utils import OptimizerConfigurator
+from fl_bench.algorithms import CentralizedFL
 
 
 class FedAVG(CentralizedFL):
@@ -22,7 +20,6 @@ class FedAVG(CentralizedFL):
                  model: Module, 
                  loss_fn: Callable, 
                  elegibility_percentage: float=0.5,
-                 device: torch.device=torch.device('cpu'),
                  seed: int=42):
         
         super().__init__(n_clients,
@@ -34,6 +31,5 @@ class FedAVG(CentralizedFL):
                          optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage,
-                         device, 
                          seed)
     
