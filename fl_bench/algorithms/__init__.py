@@ -9,18 +9,16 @@ from client import Client
 from server import Server
 from utils import OptimizerConfigurator
 
-__all__ = [
-    'CentralizedFL',
-    'FLEnvironment',
-    'fedavg',
-    'fedsgd',
-    'scaffold'
-    'fedprox',
-    'flhalf'
-]
-
 class FLEnvironment(ABC):
-    pass
+    def prepare_data(self, callback: Callable=None, **kwargs):
+        raise NotImplementedError
+
+    def init_parties(self, callback: Callable=None, **kwargs):
+        raise NotImplementedError
+
+    def run(self, *args, **kwargs):
+        raise NotImplementedError
+
 
 class CentralizedFL(FLEnvironment):
     def __init__(self,
@@ -66,7 +64,7 @@ class CentralizedFL(FLEnvironment):
                                              num_workers=0) for c in range(self.n_clients)]
     
     def init_parties(self, callback: Callable=None):
-        assert self.client_loader is not None, 'You must prepare data before initializing clients'
+        assert self.client_loader is not None, 'You must prepare data before initializing parties'
         self.clients = [Client(dataset=self.client_loader[i], 
                                optimizer_cfg=self.optimizer_cfg, 
                                loss_fn=self.loss_fn, 

@@ -37,14 +37,13 @@ class FedProxClient(Client):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         W = deepcopy(self.model)
         #total_step = len(self.dataset)
-        device = GlobalSettings().get_device()
         self.model.train()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.dataset):
-                X, y = X.to(device), y.to(device)
+                X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y) + (self.mu / 2) * self._proximal_loss(self.model, W)
@@ -65,7 +64,6 @@ class FedProx(CentralizedFL):
                  client_mu: float,
                  loss_fn: Callable,
                  elegibility_percentage: float=0.5,
-                 device: torch.device=torch.device('cpu'),
                  seed: int=42):
         
         super().__init__(n_clients,
@@ -77,7 +75,6 @@ class FedProx(CentralizedFL):
                          optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage,
-                         device, 
                          seed)
         self.client_mu = client_mu
     
@@ -88,8 +85,7 @@ class FedProx(CentralizedFL):
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 
                                       local_epochs=self.n_epochs,
-                                      device=self.device,
                                       seed=self.seed) for i in range(self.n_clients)]
 
-        self.server = Server(self.model.to(self.device), self.clients, self.elegibility_percentage, seed=self.seed)
+        self.server = Server(self.model, self.clients, self.elegibility_percentage, seed=self.seed)
         self.server.register_callback(callback)

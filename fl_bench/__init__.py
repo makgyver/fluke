@@ -1,9 +1,5 @@
 import torch
 
-__all__ = [
-    'algorithms'
-]
-
 class Singleton(type):
     _instances = {}
     def __call__(cls, *args, **kwargs):

@@ -71,16 +71,14 @@ class ScaffoldClient(Client):
     
     def local_train(self, override_local_epochs: int=0, log_interval: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
-        total_step = len(self.dataset)
         server_model = deepcopy(self.model)
-        device = GlobalSettings().get_device()
         self.model.train()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.dataset):
-                X, y = X.to(device), y.to(device)
+                X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y)
@@ -194,7 +192,7 @@ class SCAFFOLD(CentralizedFL):
                                         local_epochs=self.n_epochs,
                                         seed=self.seed) for i in range(self.n_clients)]
 
-        self.server = ScaffoldServer(self.model.to(GlobalSettings().get_device()), 
+        self.server = ScaffoldServer(self.model, 
                                      self.clients, 
                                      global_step, 
                                      self.elegibility_percentage, 

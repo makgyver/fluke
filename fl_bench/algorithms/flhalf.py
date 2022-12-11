@@ -11,7 +11,6 @@ from fl_bench.server import Server
 from fl_bench.data import Datasets
 from fl_bench.utils import OptimizerConfigurator, print_params
 from fl_bench.algorithms import CentralizedFL
-from fl_bench import GlobalSettings
 
 
 class FLHalfClient(Client):
@@ -53,7 +52,6 @@ class FLHalfServer(Server):
         self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.optimizer = optimizer_cfg(self.model)
-        self.device = GlobalSettings().get_device()
     
     def _private_train(self, clients_fake_x, clients_fake_y):
         train = TensorDataset(clients_fake_x, clients_fake_y)
@@ -113,7 +111,6 @@ class FLHalf(CentralizedFL):
                  private_layers: Iterable,
                  loss_fn: Callable, 
                  elegibility_percentage: float=0.5,
-                 device: torch.device=torch.device('cpu'),
                  seed: int=42):
         
         super().__init__(n_clients,
@@ -125,7 +122,6 @@ class FLHalf(CentralizedFL):
                          client_optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage,
-                         device, 
                          seed)
         self.private_layers = private_layers
         self.server_n_epochs = server_n_epochs
@@ -141,7 +137,7 @@ class FLHalf(CentralizedFL):
                                       local_epochs=self.n_epochs,
                                       seed=self.seed) for i in range(self.n_clients)]
 
-        self.server = FLHalfServer(self.model.to(self.device),
+        self.server = FLHalfServer(self.model,
                                    self.clients, 
                                    private_layers=self.private_layers, 
                                    n_epochs=self.server_n_epochs,

@@ -28,6 +28,7 @@ class Client(ABC):
         self.local_epochs = local_epochs
         self.stateful = False
         self.optimizer = None
+        self.device = GlobalSettings().get_device()
 
     def send(self):
         return deepcopy(self.model)
@@ -41,15 +42,14 @@ class Client(ABC):
     
     def local_train(self, override_local_epochs: int=0, log_interval: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
-        total_step = len(self.dataset)
+        # total_step = len(self.dataset)
         self.model.train()
-        device = GlobalSettings().get_device()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.dataset):
-                X, y = X.to(device), y.to(device)
+                X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y)
