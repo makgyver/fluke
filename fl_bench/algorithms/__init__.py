@@ -56,3 +56,7 @@ class CentralizedFL(FLEnvironment):
         self.server.init()
         self.server.fit(n_rounds=self.n_rounds, log_interval=log_interval)
 
+    def save(self, path):
+        
+        self.__dict__
+        self.server.save(path)

@@ -11,7 +11,7 @@ from torch.optim import Optimizer
 from torch.utils.data import Dataset, DataLoader
 
 from client import Client
-from fl_bench.data import DataSplitter
+from fl_bench.data import DataSplitter, FastTensorDataLoader
 from server import Server
 from utils import OptimizerConfigurator
 
@@ -44,7 +44,7 @@ class ScaffoldOptimizer(Optimizer):
 
 class ScaffoldClient(Client):
     def __init__(self,
-                 dataset: DataLoader,
+                 dataset: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
                  local_epochs: int=3,
@@ -145,6 +145,7 @@ class ScaffoldServer(Server):
         delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
 
+        # tot_examples = sum([len(client.n_examples) for client in eligible])
         for client in eligible:
             cl_delta_y, cl_delta_c = client.send()
             for client_delta_c, client_delta_y, server_delta_c, server_delta_y in zip(cl_delta_c, cl_delta_y, delta_c, delta_y):
@@ -152,7 +153,7 @@ class ScaffoldServer(Server):
                 server_delta_c.data = server_delta_c.data + client_delta_c.data
             
         for server_delta_c, server_delta_y in zip(delta_c, delta_y):
-            server_delta_y.data = server_delta_y.data / len(eligible)
+            server_delta_y.data = server_delta_y.data / len(eligible) #* (eligible[i].n_examples / tot_examples)
             server_delta_c.data = server_delta_c.data / self.n_clients
 
         for param, server_control, server_delta_y, server_delta_c in zip(self.model.parameters(), self.control, delta_y, delta_c):

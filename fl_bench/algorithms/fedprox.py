@@ -3,10 +3,10 @@ from torch.optim import Optimizer
 from copy import deepcopy
 from typing import Callable
 
+import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from algorithms import CentralizedFL
-from data import Datasets
 from fl_bench.data import DataSplitter
 from server import Server
 
@@ -28,7 +28,7 @@ class FedProxClient(Client):
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), global_model.parameters()):
-            proximal_term += (w - w_t).norm(2)
+            proximal_term += torch.norm(w - w_t)**2
         return proximal_term
 
     def local_train(self, override_local_epochs: int=0, log_interval: int=0):

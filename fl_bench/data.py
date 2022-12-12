@@ -136,16 +136,19 @@ class FastTensorDataLoader:
     TensorDataset + DataLoader because dataloader grabs individual indices of
     the dataset and calls cat (slow).
     Source: https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
+
+    Parameters
+    ----------
+    *tensors : torch.Tensor
+        Tensors to store. Must have the same length @ dim 0.
+    batch_size : int
+        Batch size to load.
+    shuffle : bool
+        If True, shuffle the data *in-place* whenever an iterator is created
+        out of this object.
     """
+    
     def __init__(self, *tensors, batch_size=32, shuffle=False):
-        """
-        Initialize a FastTensorDataLoader.
-        :param *tensors: tensors to store. Must have the same length @ dim 0.
-        :param batch_size: batch size to load.
-        :param shuffle: if True, shuffle the data *in-place* whenever an
-            iterator is created out of this object.
-        :returns: A FastTensorDataLoader.
-        """
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
 
@@ -176,7 +179,9 @@ class FastTensorDataLoader:
     def __len__(self):
         return self.n_batches
 
+
 class Distribution(Enum):
+    """Enum for data distribution across clients."""
     IID = 1
     QUANTITY_SKEWED = 2
     CLASSWISE_QUANTITY_SKEWED = 3
@@ -185,8 +190,8 @@ class Distribution(Enum):
     LABEL_PATHOLOGICAL_SKEWED = 6
     COVARIATE_SHIFT = 7
 
-class DataSplitter():
 
+class DataSplitter:
     def __init__(self, 
                  X: torch.Tensor,
                  y: torch.Tensor, 
