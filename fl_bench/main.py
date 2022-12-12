@@ -87,6 +87,8 @@ N_CLIENTS = 100
 N_ROUNDS = 100
 N_EPOCHS = 5
 BATCH_SIZE = 225
+ELIGIBILITY_PERCENTAGE = .5
+MODEL = MLP()
 
 data_splitter = DataSplitter(train_data.data / 255., 
                              train_data.targets, 
@@ -94,14 +96,14 @@ data_splitter = DataSplitter(train_data.data / 255.,
                              distribution=Distribution.QUANTITY_SKEWED, 
                              batch_size=BATCH_SIZE)
 
-# fedavg = FedAVG(n_clients=100,
-#                 n_rounds=100, 
-#                 n_epochs=5, 
-#                 batch_size=225, 
-#                 model=MLP(), 
+# fedavg = FedAVG(n_clients=N_CLIENTS,
+#                 n_rounds=N_ROUNDS, 
+#                 n_epochs=N_EPOCHS, 
+#                 batch_size=BATCH_SIZE, 
+#                 model=MODEL, 
 #                 optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
 #                 loss_fn=nn.CrossEntropyLoss(), 
-#                 elegibility_percentage=.5,
+#                 elegibility_percentage=ELIGIBILITY_PERCENTAGE,
 #                 seed=42)
 
 # fedavg.init_parties(data_splitter, logger)
@@ -116,7 +118,7 @@ scaffold = SCAFFOLD(n_clients=N_CLIENTS,
                     model=MLP(), 
                     optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
                     loss_fn=nn.CrossEntropyLoss(), 
-                    elegibility_percentage=1.,
+                    elegibility_percentage=ELIGIBILITY_PERCENTAGE,
                     seed=42)
 
 scaffold.init_parties(data_splitter, global_step=1, callback=logger)
@@ -125,15 +127,15 @@ scaffold.run(10)
 logger.save('./log/scaffold.json')
 
 
-# fedprox = FedProx(n_clients=100,
-#        n_rounds=100, 
-#        n_epochs=5, 
-#        batch_size=225, 
-#        model=MLP(), 
+# fedprox = FedProx(n_clients=N_CLIENTS,
+#        n_rounds=N_ROUNDS, 
+#        n_epochs=N_EPOCHS, 
+#        batch_size=BACH_SIZE, 
+#        model=MODEL, 
 #        client_mu = 0.1,
 #        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
 #        loss_fn=nn.CrossEntropyLoss(), 
-#        elegibility_percentage=.5,
+#        elegibility_percentage=ELIGIBILITY_PERCENTAGE,
 #        seed=42)
 
 # fedprox.init_parties(data_splitter, logger)
@@ -146,12 +148,12 @@ logger.save('./log/scaffold.json')
 #                 server_n_epochs=2,
 #                 client_batch_size=BATCH_SIZE, 
 #                 server_batch_size=128, 
-#                 model=MLP(), 
+#                 model=MODEL, 
 #                 server_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
 #                 client_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.05), 
 #                 loss_fn=nn.CrossEntropyLoss(), 
 #                 private_layers=["fc1"],
-#                 elegibility_percentage=.5,
+#                 elegibility_percentage=ELIGIBILITY_PERCENTAGE,
 #                 seed=42)
 
 # flhalf.init_parties(data_splitter, logger)
