@@ -1,20 +1,18 @@
 from torch.optim import Optimizer
 
-from abc import ABC
 from copy import deepcopy
 from typing import Callable
 
-import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from algorithms import CentralizedFL
 from data import Datasets
+from fl_bench.data import DataSplitter
 from server import Server
 
 import sys; sys.path.append(".")
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.client import Client
-from fl_bench import GlobalSettings
 
 class FedProxClient(Client):
     def __init__(self,
@@ -58,7 +56,6 @@ class FedProx(CentralizedFL):
                  n_rounds: int, 
                  n_epochs: int,
                  batch_size: int, 
-                 train_set: Datasets,
                  optimizer_cfg: OptimizerConfigurator,
                  model: Module,
                  client_mu: float,
@@ -70,7 +67,6 @@ class FedProx(CentralizedFL):
                          n_rounds,
                          n_epochs,
                          batch_size, 
-                         train_set,
                          model, 
                          optimizer_cfg, 
                          loss_fn,
@@ -78,9 +74,9 @@ class FedProx(CentralizedFL):
                          seed)
         self.client_mu = client_mu
     
-    def init_parties(self, callback: Callable=None):
-        assert self.client_loader is not None, 'You must prepare data before initializing parties'
-        self.clients = [FedProxClient(dataset=self.client_loader[i], 
+    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
+        self.clients = [FedProxClient(dataset=data_splitter.client_loader[i], 
                                       mu=self.client_mu,
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 

@@ -1,8 +1,6 @@
 from typing import Callable
 
-import torch
 from torch.nn import Module
-from torch.utils.data import Dataset
 
 import sys; sys.path.append(".")
 from fl_bench.utils import OptimizerConfigurator
@@ -15,7 +13,6 @@ class FedAVG(CentralizedFL):
                  n_rounds: int, 
                  n_epochs: int, 
                  batch_size: int, 
-                 train_set: Dataset,
                  optimizer_cfg: OptimizerConfigurator, 
                  model: Module, 
                  loss_fn: Callable, 
@@ -26,7 +23,6 @@ class FedAVG(CentralizedFL):
                          n_rounds,
                          n_epochs,
                          batch_size,
-                         train_set,
                          model, 
                          optimizer_cfg, 
                          loss_fn,

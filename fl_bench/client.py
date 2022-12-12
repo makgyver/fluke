@@ -9,11 +9,12 @@ from utils import OptimizerConfigurator
 
 import sys; sys.path.append(".")
 from fl_bench import GlobalSettings
+from fl_bench.data import FastTensorDataLoader
 
 class Client(ABC):
 
     def __init__(self,
-                 dataset: DataLoader,
+                 dataset: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
                  local_epochs: int=3,
@@ -21,7 +22,7 @@ class Client(ABC):
 
         self.seed = seed
         self.dataset = dataset
-        self.n_examples = len(dataset.dataset)
+        self.n_examples = dataset.size
         self.model = None
         self.optimizer_cfg = optimizer_cfg
         self.loss_fn = loss_fn

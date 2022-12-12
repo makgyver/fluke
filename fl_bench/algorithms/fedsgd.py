@@ -1,11 +1,7 @@
 from typing import Callable
 
-import torch
 from torch.nn import Module
-from torch.utils.data import Dataset
 
-from client import Client
-from server import Server
 from utils import OptimizerConfigurator
 
 import sys; sys.path.append(".")
@@ -16,7 +12,6 @@ class FedSGD(CentralizedFL):
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 
-                 train_set: Dataset,
                  optimizer_cfg: OptimizerConfigurator,
                  model: Module,
                  loss_fn: Callable,
@@ -27,7 +22,6 @@ class FedSGD(CentralizedFL):
                          n_rounds,
                          1,
                          1,
-                         train_set,
                          model, 
                          optimizer_cfg, 
                          loss_fn,

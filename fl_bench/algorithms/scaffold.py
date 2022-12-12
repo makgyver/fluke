@@ -11,6 +11,7 @@ from torch.optim import Optimizer
 from torch.utils.data import Dataset, DataLoader
 
 from client import Client
+from fl_bench.data import DataSplitter
 from server import Server
 from utils import OptimizerConfigurator
 
@@ -166,7 +167,6 @@ class SCAFFOLD(CentralizedFL):
                  n_rounds: int, 
                  n_epochs: int,
                  batch_size: int, 
-                 train_set: Dataset,
                  optimizer_cfg: OptimizerConfigurator,
                  model: Module,
                  loss_fn: Callable,
@@ -177,16 +177,15 @@ class SCAFFOLD(CentralizedFL):
                          n_rounds,
                          n_epochs,
                          batch_size, 
-                         train_set,
                          model, 
                          optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage,
                          seed)
     
-    def init_parties(self, global_step: float, callback: Callable=None):
-        assert self.client_loader is not None, 'You must prepare data before initializing parties'
-        self.clients = [ScaffoldClient(dataset=self.client_loader[i], 
+    def init_parties(self, data_splitter: DataSplitter, global_step: float, callback: Callable=None):
+        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
+        self.clients = [ScaffoldClient(dataset=data_splitter.client_loader[i], 
                                         optimizer_cfg=self.optimizer_cfg, 
                                         loss_fn=self.loss_fn, 
                                         local_epochs=self.n_epochs,

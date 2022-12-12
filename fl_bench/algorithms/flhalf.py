@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import sys; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.data import Datasets
+from fl_bench.data import DataSplitter, Datasets
 from fl_bench.utils import OptimizerConfigurator, print_params
 from fl_bench.algorithms import CentralizedFL
 
@@ -25,7 +25,7 @@ class FLHalfClient(Client):
         self.private_layers = private_layers
     
     def _generate_fake_examples(self):
-        shape = list(self.dataset.dataset.data.shape)
+        shape = list(self.dataset.tensors[0].shape)
         fake_data = torch.rand(shape)
         fake_targets = self.model.forward_(fake_data)
         return fake_data, fake_targets
@@ -104,7 +104,6 @@ class FLHalf(CentralizedFL):
                  server_n_epochs: int,
                  client_batch_size: int, 
                  server_batch_size: int,
-                 train_set: Datasets,
                  client_optimizer_cfg: OptimizerConfigurator, 
                  server_optimizer_cfg: OptimizerConfigurator, 
                  model: Module, 
@@ -117,7 +116,6 @@ class FLHalf(CentralizedFL):
                          n_rounds,
                          client_n_epochs,
                          client_batch_size,
-                         train_set,
                          model, 
                          client_optimizer_cfg, 
                          loss_fn,
@@ -128,9 +126,9 @@ class FLHalf(CentralizedFL):
         self.server_batch_size = server_batch_size
         self.server_optimizer_cfg = server_optimizer_cfg
 
-    def init_parties(self, callback: Callable=None):
-        assert self.client_loader is not None, 'You must prepare data before initializing parties'
-        self.clients = [FLHalfClient (dataset=self.client_loader[i], 
+    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
+        self.clients = [FLHalfClient (dataset=data_splitter.client_loader[i], 
                                       private_layers=self.private_layers,
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 

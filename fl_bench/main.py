@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.functional import F
-from torchvision.transforms import ToTensor
-from data import MNISTDataset
 
 from algorithms.fedavg import FedAVG
 from algorithms.fedsgd import FedSGD
@@ -14,6 +12,7 @@ from algorithms.flhalf import FLHalf
 
 from fl_bench import GlobalSettings
 from data import Datasets
+from fl_bench.data import DataSplitter, Distribution
 from utils import OptimizerConfigurator, Log
 from evaluation import ClassificationEval
 
@@ -23,7 +22,6 @@ DEVICE = GlobalSettings().get_device()
 # train_data, test_data = Datasets.FEMNIST()
 # train_data, test_data = Datasets.EMNIST()
 train_data, test_data = Datasets.MNIST()
-
 
 class MLP(nn.Module):
     def __init__(self):
@@ -85,46 +83,52 @@ class CNN(nn.Module):
 test_loader = DataLoader(test_data, batch_size=100, shuffle=False)
 logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
 
-# fedavg = FedAVG(n_clients=100,
-#        n_rounds=100, 
-#        n_epochs=5, 
-#        batch_size=225, 
-#        train_set=train_data, 
-#        model=MLP(), 
-#        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-#        loss_fn=nn.CrossEntropyLoss(), 
-#        elegibility_percentage=.5,
-#        seed=42)
+N_CLIENTS = 100
+N_ROUNDS = 100
+N_EPOCHS = 5
+BATCH_SIZE = 225
 
-# fedavg.prepare_data(MNISTDataset, transform=ToTensor())
-# fedavg.init_parties(logger)
+data_splitter = DataSplitter(train_data.data / 255., 
+                             train_data.targets, 
+                             n_clients=N_CLIENTS, 
+                             distribution=Distribution.QUANTITY_SKEWED, 
+                             batch_size=BATCH_SIZE)
+
+# fedavg = FedAVG(n_clients=100,
+#                 n_rounds=100, 
+#                 n_epochs=5, 
+#                 batch_size=225, 
+#                 model=MLP(), 
+#                 optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+#                 loss_fn=nn.CrossEntropyLoss(), 
+#                 elegibility_percentage=.5,
+#                 seed=42)
+
+# fedavg.init_parties(data_splitter, logger)
 # fedavg.run(10)
 
-# logger.save('../log/fedavg.json')
+# logger.save('./log/fedavg_noniid.json')
 
-# scaffold = SCAFFOLD(n_clients=100,
-#        n_rounds=100, 
-#        n_epochs=5, 
-#        batch_size=225, 
-#        train_set=train_data, 
-#        model=MLP(), 
-#        optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
-#        loss_fn=nn.CrossEntropyLoss(), 
-#        elegibility_percentage=1.,
-#        seed=42)
+scaffold = SCAFFOLD(n_clients=N_CLIENTS,
+                    n_rounds=N_ROUNDS, 
+                    n_epochs=N_EPOCHS, 
+                    batch_size=BATCH_SIZE, 
+                    model=MLP(), 
+                    optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
+                    loss_fn=nn.CrossEntropyLoss(), 
+                    elegibility_percentage=1.,
+                    seed=42)
 
-# scaffold.prepare_data(MNISTDataset, transform=ToTensor())
-# scaffold.init_parties(global_step=1, callback=logger)
-# scaffold.run(10)
+scaffold.init_parties(data_splitter, global_step=1, callback=logger)
+scaffold.run(10)
 
-# logger.save('../log/scaffold.json')
+logger.save('./log/scaffold.json')
 
 
 # fedprox = FedProx(n_clients=100,
 #        n_rounds=100, 
 #        n_epochs=5, 
 #        batch_size=225, 
-#        train_set=train_data, 
 #        model=MLP(), 
 #        client_mu = 0.1,
 #        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
@@ -132,28 +136,25 @@ logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
 #        elegibility_percentage=.5,
 #        seed=42)
 
-# fedprox.prepare_data(MNISTDataset, transform=ToTensor())
-# fedprox.init_parties(logger)
+# fedprox.init_parties(data_splitter, logger)
 # fedprox.run(10)
 
 
-flhalf = FLHalf(n_clients=100,
-       n_rounds=100, 
-       client_n_epochs=5, 
-       server_n_epochs=2,
-       client_batch_size=225, 
-       server_batch_size=128, 
-       train_set=train_data, 
-       model=MLP(), 
-       server_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-       client_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.05), 
-       loss_fn=nn.CrossEntropyLoss(), 
-       private_layers=["fc1"],
-       elegibility_percentage=.5,
-       seed=42)
+# flhalf = FLHalf(n_clients=N_CLIENTS,
+#                 n_rounds=N_ROUNDS, 
+#                 client_n_epochs=N_EPOCHS, 
+#                 server_n_epochs=2,
+#                 client_batch_size=BATCH_SIZE, 
+#                 server_batch_size=128, 
+#                 model=MLP(), 
+#                 server_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+#                 client_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.05), 
+#                 loss_fn=nn.CrossEntropyLoss(), 
+#                 private_layers=["fc1"],
+#                 elegibility_percentage=.5,
+#                 seed=42)
 
-flhalf.prepare_data(MNISTDataset, transform=ToTensor())
-flhalf.init_parties(logger)
-flhalf.run(10)
+# flhalf.init_parties(data_splitter, logger)
+# flhalf.run(10)
 
-logger.save('../log/flhalf.json')
+# logger.save('./log/flhalf.json')
