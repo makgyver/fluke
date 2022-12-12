@@ -1,6 +1,4 @@
 from enum import Enum
-from torch.utils.data import Dataset
-from PIL import Image
 
 from torchvision.datasets import MNIST, utils
 import os
@@ -9,7 +7,7 @@ import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
-from typing import List, Tuple
+from typing import List
 import numpy as np
 from numpy.random import randint, shuffle, power, choice, dirichlet, normal, permutation
 from sklearn.decomposition import PCA
@@ -269,7 +267,7 @@ class DataSplitter():
                                  alpha: float=4.) -> List[np.ndarray]:
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
-        labels = list(range(len(set(y))))
+        labels = list(range(len(torch.unique(y).numpy())))
         lens = [np.where(y == l)[0].shape[0] for l in labels]
         min_lbl = min(lens)
         assert min_lbl >= n, "Under represented class!"
@@ -318,7 +316,7 @@ class DataSplitter():
         -------
         n-dimensional list of arrays. The examples' ids assignment.
         """
-        labels = set(y)
+        labels = set(torch.unique(y).numpy())
         assert 0 < class_per_client <= len(labels), "class_per_client must be > 0 and <= #classes"
         assert class_per_client * n >= len(labels), "class_per_client * n must be >= #classes"
         nlbl = [choice(len(labels), class_per_client, replace=False)  for u in range(n)]
@@ -363,7 +361,7 @@ class DataSplitter():
         n-dimensional list of arrays. The examples' ids assignment.
         """
         assert beta > 0, "beta must be > 0"
-        labels = set(y)
+        labels = set(torch.unique(y).numpy())
         pk = {c: dirichlet([beta]*n, size=1)[0] for c in labels}
         assignment = np.zeros(y.shape[0])
         for c in labels:
@@ -444,7 +442,7 @@ class DataSplitter():
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
 
         ids_mode = [[] for _ in range(modes)]
-        for lbl in set(y):
+        for lbl in set(torch.unique(y).numpy()):
             ids = np.where(y == lbl)[0]
             X_pca = PCA(n_components=2).fit_transform(X[ids])
             quantiles = mquantiles(X_pca[:, 0], prob=np.linspace(0, 1, num=modes+1)[1:-1])

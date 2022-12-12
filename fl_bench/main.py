@@ -93,7 +93,7 @@ MODEL = MLP()
 data_splitter = DataSplitter(train_data.data / 255., 
                              train_data.targets, 
                              n_clients=N_CLIENTS, 
-                             distribution=Distribution.QUANTITY_SKEWED, 
+                             distribution=Distribution.LABEL_QUANTITY_SKEWED, 
                              batch_size=BATCH_SIZE)
 
 # fedavg = FedAVG(n_clients=N_CLIENTS,
@@ -130,7 +130,7 @@ logger.save('./log/scaffold.json')
 # fedprox = FedProx(n_clients=N_CLIENTS,
 #        n_rounds=N_ROUNDS, 
 #        n_epochs=N_EPOCHS, 
-#        batch_size=BACH_SIZE, 
+#        batch_size=BATCH_SIZE, 
 #        model=MODEL, 
 #        client_mu = 0.1,
 #        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
