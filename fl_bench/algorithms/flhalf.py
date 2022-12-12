@@ -8,14 +8,14 @@ from torch.utils.data import DataLoader, TensorDataset
 import sys; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.data import DataSplitter, Datasets
-from fl_bench.utils import OptimizerConfigurator, print_params
+from fl_bench.data import DataSplitter, FastTensorDataLoader
+from fl_bench.utils import OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
 
 
 class FLHalfClient(Client):
     def __init__(self,
-                 dataset: DataLoader,
+                 dataset: FastTensorDataLoader,
                  private_layers: Iterable,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
@@ -54,8 +54,10 @@ class FLHalfServer(Server):
         self.optimizer = optimizer_cfg(self.model)
     
     def _private_train(self, clients_fake_x, clients_fake_y):
-        train = TensorDataset(clients_fake_x, clients_fake_y)
-        train_loader = DataLoader(train, batch_size=self.batch_size, shuffle=True)
+        train_loader = FastTensorDataLoader(clients_fake_x, 
+                                            clients_fake_y, 
+                                            batch_size=self.batch_size, 
+                                            shuffle=True)
         loss_fn = MSELoss()
         for _ in range(self.n_epochs):
             loss = None
@@ -92,8 +94,6 @@ class FLHalfServer(Server):
                     avg_model_sd[key] += client_sd[key]
             avg_model_sd[key] /= len(eligible)
         self.model.load_state_dict(avg_model_sd)
-        #print("AFTER AGGREGATE")
-        #print_params(self.model)
 
 
 class FLHalf(CentralizedFL):

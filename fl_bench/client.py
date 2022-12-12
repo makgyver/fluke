@@ -3,7 +3,6 @@ from copy import deepcopy
 from typing import Callable
 
 import torch
-from torch.utils.data import DataLoader
 
 from utils import OptimizerConfigurator
 

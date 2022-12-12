@@ -1,7 +1,6 @@
 from copy import deepcopy
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from torch.functional import F
 
 from algorithms.fedavg import FedAVG
@@ -12,7 +11,7 @@ from algorithms.flhalf import FLHalf
 
 from fl_bench import GlobalSettings
 from data import Datasets
-from fl_bench.data import DataSplitter, Distribution
+from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader
 from fl_bench.utils import plot_comparison
 from utils import OptimizerConfigurator, Log
 from evaluation import ClassificationEval
@@ -88,7 +87,7 @@ class CNN(nn.Module):
         output = self.out(x)
         return output #, x    # return x for visualization
 
-test_loader = DataLoader(test_data, batch_size=100, shuffle=False)
+test_loader = FastTensorDataLoader(test_data.data / 255., test_data.targets, batch_size=100, shuffle=False)
 logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
 
 N_CLIENTS = 100

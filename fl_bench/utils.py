@@ -6,6 +6,7 @@ from torch.optim import Optimizer
 
 from rich.pretty import pprint
 from evaluation import Evaluator
+from fl_bench.data import Distribution
 
 class OptimizerConfigurator:
     def __init__(self, optimizer_class: type[Optimizer], **optimizer_kwargs):
@@ -48,6 +49,10 @@ def print_params(model):
 def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=True):
     import matplotlib.pyplot as plt
     import json
+    
+    iidness = set([os.path.basename(path).split("_")[1].split(".")[0] for path in log_paths])
+    if len(iidness) > 1:
+        raise ValueError("Cannot compare algorithms on different data distributions")
 
     if show_loss:
         plt.figure(figsize=(10, 5))
@@ -74,4 +79,5 @@ def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=Tru
         values = [history[round][metric] for round in rounds]
         plt.plot(list(map(int, rounds)), values, label=os.path.basename(path).split("_")[0])
     plt.legend()
+    plt.get_current_fig_manager().set_window_title(f"{Distribution(int(iidness.pop())).name}")
     plt.show()

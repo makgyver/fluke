@@ -2,13 +2,13 @@ from abc import ABC, abstractmethod
 from typing import Callable
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 import torch
-from torch.utils.data import DataLoader
 
 import sys; sys.path.append(".")
 from fl_bench import GlobalSettings
+from fl_bench.data import FastTensorDataLoader
 
 class Evaluator(ABC):
-    def __init__(self, data_loader: DataLoader, loss_fn: Callable):
+    def __init__(self, data_loader: FastTensorDataLoader, loss_fn: Callable):
         self.data_loader = data_loader
         self.loss_fn = loss_fn
     
