@@ -213,8 +213,25 @@ class DataSplitter():
                 X: torch.Tensor,
                 y: torch.Tensor,
                 n: int) -> List[np.ndarray]:
+        """Distribute the examples uniformly across the users.
+
+        Parameters
+        ----------
+        X: torch.Tensor
+            The examples.
+        y: torch.Tensor
+            The labels.
+        n: int
+            The number of clients upon which the examples are distributed.
+
+        Returns
+        -------
+        List[np.ndarray]
+            The examples' ids assignment.
+        """
         ex_client = X.shape[0] // n
-        return [np.array(range(ex_client * n, ex_client*(n+1))) for n in range(n)]
+        idx = np.random.permutation(X.shape[0])
+        return [idx[range(ex_client*i, ex_client*(i+1))] for i in range(n)]
 
 
     def quantity_skew(self,
@@ -248,7 +265,8 @@ class DataSplitter():
 
         Returns
         -------
-        n-dimensional list of arrays. The examples' ids assignment.
+        List[np.ndarray]
+            The examples' ids assignment.
         """
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
@@ -314,7 +332,8 @@ class DataSplitter():
 
         Returns
         -------
-        n-dimensional list of arrays. The examples' ids assignment.
+        List[np.ndarray]
+            The examples' ids assignment.
         """
         labels = set(torch.unique(y).numpy())
         assert 0 < class_per_client <= len(labels), "class_per_client must be > 0 and <= #classes"
@@ -358,7 +377,8 @@ class DataSplitter():
 
         Returns
         -------
-        n-dimensional list of arrays. The examples' ids assignment.
+        List[np.ndarray]
+            The examples' ids assignment.
         """
         assert beta > 0, "beta must be > 0"
         labels = set(torch.unique(y).numpy())
@@ -398,7 +418,8 @@ class DataSplitter():
 
         Returns
         -------
-        n-dimensional list of arrays. The examples' ids assignment.
+        List[np.ndarray]
+            The examples' ids assignment.
         """
         sorted_ids = np.argsort(y)
         n_shards = int(shards_per_client * n)
@@ -437,7 +458,8 @@ class DataSplitter():
         
         Returns
         -------
-        n-dimensional list of arrays. The examples' ids assignment.
+        List[np.ndarray]
+            The examples' ids assignment.
         """
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
 
