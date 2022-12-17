@@ -21,8 +21,7 @@ class CentralizedFL(FLEnvironment):
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 
-                 n_epochs: int, 
-                 batch_size: int, 
+                 n_epochs: int,
                  model: Module, 
                  optimizer_cfg: OptimizerConfigurator, 
                  loss_fn: Callable,
@@ -32,7 +31,6 @@ class CentralizedFL(FLEnvironment):
         self.n_clients = n_clients
         self.n_rounds = n_rounds
         self.n_epochs = n_epochs
-        self.batch_size = batch_size
         self.seed = seed
         self.model = model
         self.optimizer_cfg = optimizer_cfg
@@ -55,4 +53,7 @@ class CentralizedFL(FLEnvironment):
     def run(self, log_interval=0):
         self.server.init()
         self.server.fit(n_rounds=self.n_rounds, log_interval=log_interval)
-        
+    
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
+               f"P={self.elegibility_percentage},seed={self.seed})"

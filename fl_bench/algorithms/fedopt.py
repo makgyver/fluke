@@ -88,7 +88,6 @@ class FedOpt(CentralizedFL):
                  n_clients: int,
                  n_rounds: int, 
                  n_epochs: int, 
-                 batch_size: int, 
                  optimizer_cfg: OptimizerConfigurator, 
                  mode: FedOptMode,
                  server_lr: float,
@@ -103,7 +102,6 @@ class FedOpt(CentralizedFL):
         super().__init__(n_clients,
                          n_rounds,
                          n_epochs,
-                         batch_size,
                          model, 
                          optimizer_cfg, 
                          loss_fn,
@@ -136,4 +134,9 @@ class FedOpt(CentralizedFL):
 
         self.server.register_callback(callback)
 
+    def __str__(self) -> str:
+        return f"{self.mode._name_}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
+               f"\u03B7={self.server_lr},\u03B21={self.beta1},\u03B22={self.beta2}," + \
+               f"\u03A4={self.tau},P={self.elegibility_percentage},seed={self.seed})"
     
+

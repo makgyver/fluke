@@ -55,7 +55,6 @@ class FedProx(CentralizedFL):
                  n_clients: int,
                  n_rounds: int, 
                  n_epochs: int,
-                 batch_size: int, 
                  optimizer_cfg: OptimizerConfigurator,
                  model: Module,
                  client_mu: float,
@@ -66,7 +65,6 @@ class FedProx(CentralizedFL):
         super().__init__(n_clients,
                          n_rounds,
                          n_epochs,
-                         batch_size, 
                          model, 
                          optimizer_cfg, 
                          loss_fn,
@@ -85,3 +83,7 @@ class FedProx(CentralizedFL):
 
         self.server = Server(self.model, self.clients, self.elegibility_percentage, seed=self.seed)
         self.server.register_callback(callback)
+    
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
+               f"B={self.batch_size},\u03BC={self.client_mu},P={self.elegibility_percentage},seed={self.seed})"
