@@ -4,9 +4,11 @@ import json
 from torch.nn import Module
 from torch.optim import Optimizer
 
+import wandb
 from rich.pretty import pprint
 from evaluation import Evaluator
 from fl_bench.data import Distribution
+
 
 class OptimizerConfigurator:
     def __init__(self, optimizer_class: type[Optimizer], **optimizer_kwargs):
@@ -16,11 +18,17 @@ class OptimizerConfigurator:
     def __call__(self, model: Module):
         return self.optimizer(model.parameters(), **self.optimizer_kwargs)
     
-    def learning_rate(self):
+    def learning_rate(self) -> float:
         return self.optimizer_kwargs['lr']
     
-    def weight_decay(self):
+    def weight_decay(self) -> float:
         return self.optimizer_kwargs['weight_decay']
+    
+    def __str__(self) -> str:
+        to_str = f"OptCfg({self.optimizer.__name__},"
+        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
+        to_str += ")"
+        return to_str
 
 
 class Log():
@@ -30,7 +38,7 @@ class Log():
     
     def update(self, model, round):
         self.history[round] = self.evaluator(model)
-        print(f"Round {round} test:",)
+        print(f"Round {round}",)
         pprint(self.history[round])
     
     def __call__(self, model, round):
@@ -39,6 +47,22 @@ class Log():
     def save(self, path: str):
         with open(path, 'w') as f:
             json.dump(self.history, f, indent=4)
+
+
+class WandBLog(Log):
+    def __init__(self, evaluator: Evaluator, project: str, name: str):
+        super().__init__(evaluator)
+        self.project = project
+        self.name = name
+        self.run = wandb.init(project=project, name=name)
+    
+    def update(self, model, round):
+        super().update(model, round)
+        self.run.log(self.history[round], step=round)
+    
+    def save(self, path: str):
+        super().save(path)
+        self.run.finish()
 
 
 def print_params(model):
@@ -50,7 +74,7 @@ def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=Tru
     import matplotlib.pyplot as plt
     import json
     
-    iidness = set([os.path.basename(path).split("_")[1].split(".")[0] for path in log_paths])
+    iidness = set([os.path.basename(path).split("_")[-1].split(".")[0] for path in log_paths])
     if len(iidness) > 1:
         raise ValueError("Cannot compare algorithms on different data distributions")
 
