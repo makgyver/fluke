@@ -361,6 +361,16 @@ class Distribution(Enum):
     LABEL_PATHOLOGICAL_SKEWED = 6
     COVARIATE_SHIFT = 7
 
+IIDNESS_MAP = {
+    Distribution.IID: "iid",
+    Distribution.QUANTITY_SKEWED: "qnt",
+    Distribution.CLASSWISE_QUANTITY_SKEWED: "classqnt",
+    Distribution.LABEL_QUANTITY_SKEWED: "lblqnt",
+    Distribution.LABEL_DIRICHLET_SKEWED: "dir",
+    Distribution.LABEL_PATHOLOGICAL_SKEWED: "path",
+    Distribution.COVARIATE_SHIFT: "covshift"
+}
+
 
 class DataSplitter:
     def __init__(self, 
@@ -684,3 +694,13 @@ class DataSplitter:
         Distribution.LABEL_PATHOLOGICAL_SKEWED: label_pathological_skew,
         Distribution.COVARIATE_SHIFT: covariate_shift
     }
+
+
+DATASET_MAP = {
+    "mnist": Datasets.MNIST,
+    "mnistm": Datasets.MNISTM,
+    "svhn": Datasets.SVHN,
+    "femnist": Datasets.FEMNIST,
+    "emnist": Datasets.EMNIST,
+}
+

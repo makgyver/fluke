@@ -14,7 +14,7 @@ from fl_bench.algorithms.fedbn import FedBN
 from fl_bench.algorithms.fedopt import FedOpt, FedOptMode
 
 from fl_bench import GlobalSettings
-from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader, Datasets
+from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
 from fl_bench.utils import plot_comparison
 from fl_bench.net import *
 from utils import OptimizerConfigurator, Log
@@ -28,13 +28,9 @@ app = typer.Typer()
 GlobalSettings().auto_device()
 DEVICE = GlobalSettings().get_device()
 
-dataset_map = {
-    "mnist": Datasets.MNIST,
-    "mnistm": Datasets.MNISTM,
-    "svhn": Datasets.SVHN,
-    "femnist": Datasets.FEMNIST,
-    "emnist": Datasets.EMNIST,
-}
+
+
+
 
 # train_data, test_data = Datasets.FEMNIST()
 # train_data, test_data = Datasets.EMNIST()
@@ -45,9 +41,9 @@ dataset_map = {
 
 N_CLIENTS = 5
 N_ROUNDS = 100
-N_EPOCHS = 1
-BATCH_SIZE = 50
-ELIGIBILITY_PERCENTAGE = 1.
+N_EPOCHS = 5
+BATCH_SIZE = 225
+ELIGIBILITY_PERCENTAGE = .5
 MODEL = MLP()
 
 
@@ -63,7 +59,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
         seed: int = typer.Option(42, help='Seed')):
     
     assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], "Algorithm not supported"
-    assert dataset in dataset_map.keys(), "Dataset not supported"
+    assert dataset in DATASET_MAP.keys(), "Dataset not supported"
 
     np.random.seed(seed)
     torch.manual_seed(seed)     
@@ -75,7 +71,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     pprint(options, expand_all=True)
     print()
 
-    train_data, test_data = dataset_map[dataset]()
+    train_data, test_data = DATASET_MAP[dataset]()
 
     data_splitter = DataSplitter(train_data.data / 255., 
                                  train_data.targets, 
@@ -180,9 +176,8 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     else:
         raise ValueError(f'Algorithm {algorithm} not supported')
     
-    print(fl_algo)
     fl_algo.run(10)
-    logger.save(f'./log/{algorithm}_{dataset}_{distribution}.json')
+    logger.save(f'./log/{fl_algo}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
 
 
 @app.command()
