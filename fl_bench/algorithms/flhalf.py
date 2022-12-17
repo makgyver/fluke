@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from copy import deepcopy
 from typing import Callable, Iterable
 
 import torch
@@ -83,16 +84,24 @@ class FLHalfServer(Server):
         self._private_train(torch.cat(clients_fake_x, 0), torch.cat(clients_fake_y, 0))
 
         global_model_dict = self.model.state_dict()
-        for key in global_model_dict.keys():
-            if key.split(".")[0] in self.private_layers:
-                avg_model_sd[key] = global_model_dict[key]
-                continue
-            for i, client_sd in enumerate(clients_sd):
-                if key not in avg_model_sd:
-                    avg_model_sd[key] = client_sd[key]
-                else:
-                    avg_model_sd[key] += client_sd[key]
-            avg_model_sd[key] /= len(eligible)
+        with torch.no_grad():
+            for key in global_model_dict.keys():
+                if key.split(".")[0] in self.private_layers:
+                    avg_model_sd[key] = deepcopy(global_model_dict[key])
+                    continue
+                elif "num_batches_tracked" in key:
+                    avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                    continue
+
+                den = 0
+                for i, client_sd in enumerate(clients_sd):
+                    weight = eligible[i].n_examples
+                    den += weight
+                    if key not in avg_model_sd:
+                        avg_model_sd[key] = weight * client_sd[key]
+                    else:
+                        avg_model_sd[key] += weight * client_sd[key]
+                avg_model_sd[key] /= den #len(eligible)
         self.model.load_state_dict(avg_model_sd)
 
 

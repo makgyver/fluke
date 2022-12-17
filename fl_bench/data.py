@@ -1,4 +1,5 @@
 from enum import Enum
+import warnings
 
 from torchvision.datasets import MNIST, utils
 import os
@@ -6,10 +7,13 @@ import os.path
 import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
+from torchvision.datasets import VisionDataset
+from torchvision.datasets.utils import download_and_extract_archive
 
 from typing import List
 import numpy as np
-from numpy.random import randint, shuffle, power, choice, dirichlet, normal, permutation
+from PIL import Image
+from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 from sklearn.decomposition import PCA
 from scipy.stats.mstats import mquantiles
 
@@ -17,6 +21,23 @@ class Datasets:
 
     @classmethod
     def MNIST(cls):
+        train_data = datasets.MNIST(
+            root = 'data',
+            train = True,                         
+            transform = ToTensor(), 
+            download = True,            
+        )
+
+        test_data = datasets.MNIST(
+            root = 'data', 
+            train = False, 
+            transform = ToTensor(),
+            download = True
+        )
+        return train_data, test_data
+    
+    @classmethod
+    def MNISTM(cls):
         train_data = datasets.MNIST(
             root = 'data',
             train = True,                         
@@ -52,6 +73,21 @@ class Datasets:
         return train_data, test_data
     
     @classmethod
+    def SVHN(cls):
+        train_data = SVHN(
+            root = 'data',
+            train = True,
+            download = True
+        )
+
+        test_data = SVHN(
+            root = 'data',
+            train = False,
+            download = True
+        )
+        return train_data, test_data
+
+    @classmethod
     def FEMNIST(cls):
         train_data = FEMNIST(
             root="data",
@@ -68,6 +104,17 @@ class Datasets:
         )
         return train_data, test_data
 
+
+class SVHN():
+    def __init__(self, root, train=True, download=True):
+        data = datasets.SVHN(
+            root = root,
+            split = "train" if train else "test",
+            download = download,            
+        )
+
+        self.data = torch.tensor(data.data)
+        self.targets = torch.tensor(data.labels)
 
 class FEMNIST(MNIST):
     """
@@ -130,6 +177,130 @@ class FEMNIST(MNIST):
             shutil.move(test_file, self.processed_folder)
 
 
+class MNISTM(VisionDataset):
+    """MNIST-M Dataset. This dataset is derived from the MNIST dataset by
+    applying domain randomization to the original images as described in
+    `Unsupervised Domain Adaptation by Backpropagation`_.
+    
+    .. _`Unsupervised Domain Adaptation by Backpropagation`: https://arxiv.org/abs/1409.7495
+    """
+
+    resources = [
+        ('https://github.com/liyxi/mnist-m/releases/download/data/mnist_m_train.pt.tar.gz',
+         '191ed53db9933bd85cc9700558847391'),
+        ('https://github.com/liyxi/mnist-m/releases/download/data/mnist_m_test.pt.tar.gz',
+         'e11cb4d7fff76d7ec588b1134907db59')
+    ]
+
+    training_file = "mnist_m_train.pt"
+    test_file = "mnist_m_test.pt"
+    classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
+               '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
+
+    @property
+    def train_labels(self):
+        warnings.warn("train_labels has been renamed targets")
+        return self.targets
+
+    @property
+    def test_labels(self):
+        warnings.warn("test_labels has been renamed targets")
+        return self.targets
+
+    @property
+    def train_data(self):
+        warnings.warn("train_data has been renamed data")
+        return self.data
+
+    @property
+    def test_data(self):
+        warnings.warn("test_data has been renamed data")
+        return self.data
+
+    def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
+        """Init MNIST-M dataset."""
+        super(MNISTM, self).__init__(root, transform=transform, target_transform=target_transform)
+
+        self.train = train
+
+        if download:
+            self.download()
+
+        if not self._check_exists():
+            raise RuntimeError("Dataset not found." +
+                               " You can use download=True to download it")
+
+        if self.train:
+            data_file = self.training_file
+        else:
+            data_file = self.test_file
+
+        print(os.path.join(self.processed_folder, data_file))
+
+        self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file))
+
+    def __getitem__(self, index):
+        """Get images and target for data loader.
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], int(self.targets[index])
+
+        # doing this so that it is consistent with all other datasets
+        # to return a PIL Image
+        img = Image.fromarray(img.squeeze().numpy(), mode="RGB")
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self):
+        """Return size of dataset."""
+        return len(self.data)
+
+    @property
+    def raw_folder(self):
+        return os.path.join(self.root, self.__class__.__name__, 'raw')
+
+    @property
+    def processed_folder(self):
+        return os.path.join(self.root, self.__class__.__name__, 'processed')
+
+    @property
+    def class_to_idx(self):
+        return {_class: i for i, _class in enumerate(self.classes)}
+
+    def _check_exists(self):
+        return (os.path.exists(os.path.join(self.processed_folder, self.training_file)) and
+                os.path.exists(os.path.join(self.processed_folder, self.test_file)))
+
+    def download(self):
+        """Download the MNIST-M data."""
+
+        if self._check_exists():
+            return
+
+        os.makedirs(self.raw_folder, exist_ok=True)
+        os.makedirs(self.processed_folder, exist_ok=True)
+
+        # download files
+        for url, md5 in self.resources:
+            filename = url.rpartition('/')[2]
+            download_and_extract_archive(url, download_root=self.raw_folder,
+                                         extract_root=self.processed_folder,
+                                         filename=filename, md5=md5)
+
+        print('Done!')
+
+    def extra_repr(self):
+        return "Split: {}".format("Train" if self.train is True else "Test")
+
 class FastTensorDataLoader:
     """
     A DataLoader-like object for a set of tensors that can be much faster than
@@ -147,12 +318,12 @@ class FastTensorDataLoader:
         If True, shuffle the data *in-place* whenever an iterator is created
         out of this object.
     """
-    
-    def __init__(self, *tensors, batch_size=32, shuffle=False):
+
+    def __init__(self, *tensors, batch_size=32, shuffle=False, percentage=1.0):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
 
-        self.size = self.tensors[0].shape[0]
+        self.size = int(self.tensors[0].shape[0] * percentage)
         self.batch_size = batch_size
         self.shuffle = shuffle
 
@@ -198,6 +369,7 @@ class DataSplitter:
                  n_clients: int, 
                  distribution: Distribution=Distribution.IID,
                  batch_size: int=32,
+                 seed: int=42,
                  **kwargs):
 
         self.X, self.y = X, y
@@ -205,14 +377,23 @@ class DataSplitter:
         self.distribution = distribution
         self.batch_size = batch_size
         self.kwargs = kwargs
-        self.assign()
+        self.assign(seed)
 
-    def assign(self):
-        assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
-        self.client_loader = [FastTensorDataLoader(self.X[assignments[c]], 
-                                                   self.y[assignments[c]], 
+    def assign(self, seed: int):
+        """Assign data to clients.
+        
+        Parameters
+        ----------
+        seed : int
+            Random seed.
+        """
+        np.random.seed(seed)
+        self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
+        self.client_loader = [FastTensorDataLoader(self.X[self.assignments[c]], 
+                                                   self.y[self.assignments[c]], 
                                                    batch_size=self.batch_size, 
-                                                   shuffle=True) for c in range(self.n_clients)]
+                                                   shuffle=True,
+                                                   percentage=.1) for c in range(self.n_clients)]
 
     def uniform(self,
                 X: torch.Tensor,
@@ -225,7 +406,7 @@ class DataSplitter:
         X: torch.Tensor
             The examples.
         y: torch.Tensor
-            The labels.
+            The labels. Not used.
         n: int
             The number of clients upon which the examples are distributed.
 
@@ -260,7 +441,7 @@ class DataSplitter:
         X: torch.Tensor
             The examples.
         y: torch.Tensor
-            The labels.
+            The labels. Not used.
         n: int
             The number of clients upon which the examples are distributed.
         min_quantity: int, default 2
@@ -327,7 +508,7 @@ class DataSplitter:
         Parameters
         ----------
         X: torch.Tensor
-            The examples.
+            The examples. Not used.
         y: torch.Tensor
             The lables.
         n: int
@@ -372,7 +553,7 @@ class DataSplitter:
         Parameters
         ----------
         X: torch.Tensor
-            The examples.
+            The examples. Not used.
         y: torch.Tensor
             The lables.
         n: int
@@ -413,7 +594,7 @@ class DataSplitter:
         Parameters
         ----------
         X: torch.Tensor
-            The examples.
+            The examples. Not used.
         y: torch.Tensor
             The lables.
         n: int

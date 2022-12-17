@@ -38,11 +38,11 @@ class CentralizedFL(FLEnvironment):
         self.optimizer_cfg = optimizer_cfg
         self.elegibility_percentage = elegibility_percentage
         self.loss_fn = loss_fn
-        self.client_loader = None
-        self.test_loader = None
+        self.data_assignment = None
     
     def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
+        self.data_assignment = data_splitter.assignments
         self.clients = [Client(dataset=data_splitter.client_loader[i], 
                                optimizer_cfg=self.optimizer_cfg, 
                                loss_fn=self.loss_fn, 
@@ -55,8 +55,4 @@ class CentralizedFL(FLEnvironment):
     def run(self, log_interval=0):
         self.server.init()
         self.server.fit(n_rounds=self.n_rounds, log_interval=log_interval)
-
-    def save(self, path):
         
-        self.__dict__
-        self.server.save(path)

@@ -2,13 +2,10 @@ import gc
 from typing import Callable, Iterable
 from collections import OrderedDict
 from copy import deepcopy
-import numpy as np
-
 
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import Dataset, DataLoader
 
 from client import Client
 from fl_bench.data import DataSplitter, FastTensorDataLoader
@@ -18,7 +15,6 @@ from utils import OptimizerConfigurator
 
 import sys; sys.path.append(".")
 from fl_bench.algorithms import CentralizedFL
-from fl_bench import GlobalSettings
 
 
 class ScaffoldOptimizer(Optimizer):
@@ -142,23 +138,24 @@ class ScaffoldServer(Server):
             client.receive(deepcopy(self.model), self.control)
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        with torch.no_grad():
+            delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+            delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
 
-        # tot_examples = sum([len(client.n_examples) for client in eligible])
-        for client in eligible:
-            cl_delta_y, cl_delta_c = client.send()
-            for client_delta_c, client_delta_y, server_delta_c, server_delta_y in zip(cl_delta_c, cl_delta_y, delta_c, delta_y):
-                server_delta_y.data = server_delta_y.data + client_delta_y.data
-                server_delta_c.data = server_delta_c.data + client_delta_c.data
-            
-        for server_delta_c, server_delta_y in zip(delta_c, delta_y):
-            server_delta_y.data = server_delta_y.data / len(eligible) #* (eligible[i].n_examples / tot_examples)
-            server_delta_c.data = server_delta_c.data / self.n_clients
+            # tot_examples = sum([len(client.n_examples) for client in eligible])
+            for client in eligible:
+                cl_delta_y, cl_delta_c = client.send()
+                for client_delta_c, client_delta_y, server_delta_c, server_delta_y in zip(cl_delta_c, cl_delta_y, delta_c, delta_y):
+                    server_delta_y.data = server_delta_y.data + client_delta_y.data
+                    server_delta_c.data = server_delta_c.data + client_delta_c.data
+                
+            for server_delta_c, server_delta_y in zip(delta_c, delta_y):
+                server_delta_y.data = server_delta_y.data / len(eligible) #* (eligible[i].n_examples / tot_examples)
+                server_delta_c.data = server_delta_c.data / self.n_clients
 
-        for param, server_control, server_delta_y, server_delta_c in zip(self.model.parameters(), self.control, delta_y, delta_c):
-            param.data = param.data + self.global_step * server_delta_y
-            server_control.data = server_control.data + server_delta_c.data
+            for param, server_control, server_delta_y, server_delta_c in zip(self.model.parameters(), self.control, delta_y, delta_c):
+                param.data = param.data + self.global_step * server_delta_y
+                server_control.data = server_control.data + server_delta_c.data
 
 
 
