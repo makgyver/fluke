@@ -24,19 +24,8 @@ from rich.pretty import pprint
 import typer
 app = typer.Typer()
 
-
 GlobalSettings().auto_device()
 DEVICE = GlobalSettings().get_device()
-
-
-
-
-
-# train_data, test_data = Datasets.FEMNIST()
-# train_data, test_data = Datasets.EMNIST()
-# train_data, test_data = Datasets.MNIST()
-# train_data, test_data = Datasets.SVHN()
-# train_data, test_data = Datasets.MNISTM()
 
 
 N_CLIENTS = 5
