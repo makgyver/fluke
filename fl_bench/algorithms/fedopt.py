@@ -34,8 +34,8 @@ class FedOptServer(Server):
                 seed: int=42):
         super().__init__(model, clients, elegibility_percentage, weighted, seed)
         assert mode in FedOptMode, "mode must be one of FedOptMode"
-        assert 0 <= beta1 < 1, "beta1 must be in (0, 1)"
-        assert 0 <= beta2 < 1, "beta2 must be in (0, 1)"
+        assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
+        assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
         self.mode = mode
         self.lr = lr
         self.beta1 = beta1
@@ -49,7 +49,7 @@ class FedOptServer(Server):
         for key in self.model.state_dict().keys():
             if not "num_batches_tracked" in key:
                 self.m[key] = torch.zeros_like(self.model.state_dict()[key])
-                # This guarantees that the second moment is <= tau^2
+                # This guarantees that the second moment is >= 0 and <= tau^2
                 self.v[key] = torch.rand_like(self.model.state_dict()[key]) * self.tau ** 2
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
@@ -109,7 +109,6 @@ class FedOpt(CentralizedFL):
                          loss_fn,
                          elegibility_percentage,
                          seed)
-        
         self.mode = mode
         self.beta1 = beta1
         self.beta2 = beta2
