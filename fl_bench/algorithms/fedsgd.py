@@ -1,6 +1,7 @@
 from typing import Callable
 
 from torch.nn import Module
+from fl_bench.data import DataSplitter
 
 from utils import OptimizerConfigurator
 
@@ -27,6 +28,11 @@ class FedSGD(CentralizedFL):
                          elegibility_percentage,
                          seed)
     
+    def init_parties(self, data_splitter: DataSplitter, callback: Callable = None):
+        assert data_splitter.batch_size == 0, \
+               "Batch size must be 0 (i.e., the full local dataset is the batch) for FedSGD"
+        return super().init_parties(data_splitter, callback)
+
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds}," + \
                f"P={self.elegibility_percentage},seed={self.seed})"

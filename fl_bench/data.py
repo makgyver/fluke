@@ -324,7 +324,7 @@ class FastTensorDataLoader:
         self.tensors = tensors
 
         self.size = int(self.tensors[0].shape[0] * percentage)
-        self.batch_size = batch_size
+        self.batch_size = batch_size if batch_size else self.size
         self.shuffle = shuffle
 
         # Calculate # batches

@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.functional import F
 
 from algorithms.fedavg import FedAVG
-#from algorithms.fedsgd import FedSGD
+from algorithms.fedsgd import FedSGD
 from algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
 from algorithms.fedprox import FedProx
 from algorithms.flhalf import FLHalf
@@ -62,7 +62,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
         distribution: int = typer.Option(Distribution.IID.value, help='Data distribution'),
         seed: int = typer.Option(42, help='Seed')):
     
-    assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt'], "Algorithm not supported"
+    assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], "Algorithm not supported"
     assert dataset in dataset_map.keys(), "Dataset not supported"
 
     np.random.seed(seed)
@@ -97,6 +97,16 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            n_epochs=n_epochs, 
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+                           loss_fn=nn.CrossEntropyLoss(), 
+                           elegibility_percentage=elegibility_percentage,
+                           seed=seed)
+        fl_algo.init_parties(data_splitter, logger)
+    
+    elif algorithm == 'fedsgd':
+        fl_algo = FedSGD(n_clients=n_clients,
+                           n_rounds=n_rounds, 
+                           model=MODEL, 
+                           optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.1), 
                            loss_fn=nn.CrossEntropyLoss(), 
                            elegibility_percentage=elegibility_percentage,
                            seed=seed)
