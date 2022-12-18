@@ -1,0 +1,11 @@
+matplotlib==3.6.0
+numpy==1.23.4
+Pillow==9.3.0
+rich==12.6.0
+scikit_learn==1.2.0
+scipy==1.9.3
+torch==1.14.0.dev20221026
+torchmetrics==0.10.1
+torchvision==0.15.0.dev20221025
+typer==0.7.0
+wandb==0.13.4
