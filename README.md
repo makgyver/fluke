@@ -3,12 +3,12 @@ Python module to benchmark federated learning algorithms
 
 ## Running the code
 
-- Install the required python modules:
+### Install the required python modules:
 ```bash
 pip install -r requirements.txt
 ```
 
-- Run a federated algorithm
+### Run a federated algorithm
 ```bash
 python main.py run ALGORITHM DATASET [options]
 ```
@@ -43,7 +43,12 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 
 :warning: **As of now, the network and some of the hyperparameters are hardcoded in the `main.py` file.**
 
+### Compare the performance of different algorithms
+
+:warning: **Currently, the `compare` application is broken!!**
+
 ## TODO ASAP
+- [ ] Fix `compare` application
 - [ ] Check for seed consistency
 - [ ] Check the correctness of SCAFFOLD
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
