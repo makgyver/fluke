@@ -371,6 +371,8 @@ IIDNESS_MAP = {
     Distribution.COVARIATE_SHIFT: "covshift"
 }
 
+INV_IIDNESS_MAP = {v: k for k, v in IIDNESS_MAP.items()}
+
 
 class DataSplitter:
     def __init__(self, 

@@ -45,10 +45,21 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 
 ### Compare the performance of different algorithms
 
-:warning: **Currently, the `compare` application is broken!!**
+Compare the performance of different algorithms on the same dataset and distribution:
+```bash
+python main.py compare --dataset=DATASET --distribution=DISTRIBUTION
+```
+where the possible distributions are:
+- `iid`: iid
+- `qnt`: quantity skewed
+- `classqnt`: classwise quantity skewed
+- `lblqnt`: label quantity skewed
+- `dir`: label dirichlet skewed
+- `path`: label pathological skewed
+- `covshift`: covariate shift
+
 
 ## TODO ASAP
-- [ ] Fix `compare` application
 - [ ] Check for seed consistency
 - [ ] Check the correctness of SCAFFOLD
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481

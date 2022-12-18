@@ -1,9 +1,8 @@
 from copy import deepcopy
 import numpy as np
 import torch
-import torchvision
+import glob
 import torch.nn as nn
-from torch.functional import F
 
 from algorithms.fedavg import FedAVG
 from algorithms.fedsgd import FedSGD
@@ -170,13 +169,12 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
 
 
 @app.command()
-def compare(algorithms: str=typer.Argument(..., help='Algorithms to compare'),
+def compare(#algorithms: str=typer.Argument(..., help='Algorithms to compare'),
             dataset: str=typer.Option('mnist', help='Dataset'),
             distribution: int=typer.Option(Distribution.IID.value, help='Data distribution'),
             show_loss: bool=typer.Option(True, help='Show loss graph')):
 
-    algorithms = algorithms.split(',')
-    paths = [f'./log/{algorithm}_{dataset}_{distribution}.json' for algorithm in algorithms]
+    paths = glob.glob(f'./log/*_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
     plot_comparison(*paths, show_loss=show_loss)
 
 # compare('./log/flhalf_noniid_dir.json', './log/fedavg_noniid_dir.json', show_loss=True) 

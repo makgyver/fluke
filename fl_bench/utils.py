@@ -7,7 +7,7 @@ from torch.optim import Optimizer
 import wandb
 from rich.pretty import pprint
 from evaluation import Evaluator
-from fl_bench.data import Distribution
+from fl_bench.data import Distribution, INV_IIDNESS_MAP
 
 
 class OptimizerConfigurator:
@@ -74,9 +74,11 @@ def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=Tru
     import matplotlib.pyplot as plt
     import json
     
-    iidness = set([os.path.basename(path).split("_")[-1].split(".")[0] for path in log_paths])
-    if len(iidness) > 1:
-        raise ValueError("Cannot compare algorithms on different data distributions")
+    iidness = os.path.basename(log_paths[0]).split("_")[-1].split(".")[0]
+    iidness = INV_IIDNESS_MAP[iidness]
+
+    #if len(iidness) > 1:
+    #    raise ValueError("Cannot compare algorithms on different data distributions")
 
     if show_loss:
         plt.figure(figsize=(10, 5))
@@ -103,5 +105,5 @@ def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=Tru
         values = [history[round][metric] for round in rounds]
         plt.plot(list(map(int, rounds)), values, label=os.path.basename(path).split("_")[0])
     plt.legend()
-    plt.get_current_fig_manager().set_window_title(f"{Distribution(int(iidness.pop())).name}")
+    plt.get_current_fig_manager().set_window_title(f"{Distribution(iidness).name}")
     plt.show()
