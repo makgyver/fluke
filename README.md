@@ -40,7 +40,8 @@ Currently, the following datasets are implemented:
 - SVHN (`svhn`)
 
 Inside the `net.py` file, you can find the definition of some neural networks. 
-> :warning: As of now, the network and some of the hyperparameters are hardcoded in the `main.py` file.
+
+:warning: **As of now, the network and some of the hyperparameters are hardcoded in the `main.py` file.**
 
 ## TODO ASAP
 - [ ] Check for seed consistency
