@@ -47,7 +47,7 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 
 Compare the performance of different algorithms on the same dataset and distribution:
 ```bash
-python main.py compare --dataset=DATASET --distribution=DISTRIBUTION
+python main.py compare --dataset=DATASET --n_clients=N_CLIENTS --distribution=DISTRIBUTION
 ```
 where the possible distributions are:
 - `iid`: iid
