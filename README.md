@@ -72,6 +72,7 @@ where the possible distributions are:
 - [ ] Add documentation + check typing
 
 ## Desiderata
+- [ ] Configuration via file yaml
 - [ ] Add more algorithms
 - [ ] Add more datasets
 - [ ] Add support to tensorboard
