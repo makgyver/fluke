@@ -65,7 +65,7 @@ where the possible distributions are:
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
-- [ ] Test logging on wandb
+- [x] Test logging on wandb
 - [ ] Add support to validation
 - [ ] Add client-side evaluations - useful to evaluate FedBN
 - [ ] Add documentation + check typing

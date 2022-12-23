@@ -6,3 +6,4 @@ fl_bench/log
 data
 .vscode/launch.json
 log
+wandb

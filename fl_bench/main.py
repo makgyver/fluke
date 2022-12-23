@@ -14,7 +14,7 @@ from fl_bench.algorithms.fedopt import FedOpt, FedOptMode
 
 from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
-from fl_bench.utils import plot_comparison
+from fl_bench.utils import WandBLog, plot_comparison
 from fl_bench.net import *
 from utils import OptimizerConfigurator, Log, set_seed
 from evaluation import ClassificationEval
@@ -32,7 +32,7 @@ N_ROUNDS = 100
 N_EPOCHS = 5
 BATCH_SIZE = 225
 ELIGIBILITY_PERCENTAGE = .5
-
+LOSS = nn.CrossEntropyLoss()
 
 @app.command()
 def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
@@ -72,7 +72,12 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                        batch_size=100, 
                                        shuffle=False)
 
-    logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
+    # logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
+    logger = WandBLog(ClassificationEval(test_loader, LOSS), 
+                      project="fl-bench",
+                      entity="mlgroup",
+                      name=f"{algorithm}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}", 
+                      config=options)
 
     if algorithm == 'fedavg':
         fl_algo = FedAVG(n_clients=n_clients,
@@ -80,7 +85,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            n_epochs=n_epochs, 
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                           loss_fn=nn.CrossEntropyLoss(), 
+                           loss_fn=LOSS, 
                            elegibility_percentage=elegibility_percentage,
                            seed=seed)
         fl_algo.init_parties(data_splitter, logger)
@@ -90,7 +95,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            n_rounds=n_rounds, 
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.1), 
-                           loss_fn=nn.CrossEntropyLoss(), 
+                           loss_fn=LOSS, 
                            elegibility_percentage=elegibility_percentage,
                            seed=seed)
         fl_algo.init_parties(data_splitter, logger)
@@ -101,7 +106,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            n_epochs=n_epochs, 
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                           loss_fn=nn.CrossEntropyLoss(), 
+                           loss_fn=LOSS, 
                            elegibility_percentage=elegibility_percentage,
                            seed=seed)
         fl_algo.init_parties(data_splitter, logger)
@@ -113,7 +118,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                             client_mu = 0.1,
                             model=MODEL, 
                             optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                            loss_fn=nn.CrossEntropyLoss(), 
+                            loss_fn=LOSS, 
                             elegibility_percentage=elegibility_percentage,
                             seed=seed)
         fl_algo.init_parties(data_splitter, logger)
@@ -124,7 +129,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                              n_epochs=n_epochs, 
                              model=MODEL, 
                              optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
-                             loss_fn=nn.CrossEntropyLoss(), 
+                             loss_fn=LOSS, 
                              elegibility_percentage=elegibility_percentage,
                              seed=seed)
         fl_algo.init_parties(data_splitter, global_step=1, callback=logger)
@@ -140,7 +145,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          tau=0.0001,                           
                          model=MODEL, 
                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                         loss_fn=nn.CrossEntropyLoss(), 
+                         loss_fn=LOSS, 
                          elegibility_percentage=elegibility_percentage,
                          seed=seed)
         fl_algo.init_parties(data_splitter, logger)
@@ -154,7 +159,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          model=MODEL, 
                          server_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                          client_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.05), 
-                         loss_fn=nn.CrossEntropyLoss(), 
+                         loss_fn=LOSS, 
                          private_layers=["fc1", "bn1"],
                          elegibility_percentage=elegibility_percentage,
                          seed=seed)

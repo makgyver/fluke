@@ -60,11 +60,12 @@ class Log():
 
 
 class WandBLog(Log):
-    def __init__(self, evaluator: Evaluator, project: str, name: str):
+    def __init__(self, evaluator: Evaluator, project: str, entity:str, name: str, config: dict):
         super().__init__(evaluator)
-        self.project = project
-        self.name = name
-        self.run = wandb.init(project=project, name=name)
+        self.run = wandb.init(project=project, #FIXME: load from config file 
+                            entity=entity, #FIXME: load from config file
+                            name=name,
+                            config=config)
     
     def update(self, model, round):
         super().update(model, round)
