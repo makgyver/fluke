@@ -30,7 +30,7 @@ class FedOptServer(Server):
                 beta2: float=0.999,
                 tau: float=0.0001,
                 elegibility_percentage: float=0.5, 
-                weighted: bool=False,
+                weighted: bool=True,
                 seed: int=42):
         super().__init__(model, clients, elegibility_percentage, weighted, seed)
         assert mode in FedOptMode, "mode must be one of FedOptMode"

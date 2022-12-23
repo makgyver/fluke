@@ -399,7 +399,7 @@ class DataSplitter:
         seed : int
             Random seed.
         """
-        np.random.seed(seed)
+        #np.random.seed(seed)
         self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
         self.client_loader = [FastTensorDataLoader(self.X[self.assignments[c]], 
                                                    self.y[self.assignments[c]], 

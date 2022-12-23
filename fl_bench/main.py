@@ -16,7 +16,7 @@ from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
 from fl_bench.utils import plot_comparison
 from fl_bench.net import *
-from utils import OptimizerConfigurator, Log
+from utils import OptimizerConfigurator, Log, set_seed
 from evaluation import ClassificationEval
 
 from rich.pretty import pprint
@@ -32,7 +32,6 @@ N_ROUNDS = 100
 N_EPOCHS = 5
 BATCH_SIZE = 225
 ELIGIBILITY_PERCENTAGE = .5
-MODEL = MLP()
 
 
 @app.command()
@@ -44,20 +43,20 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
         batch_size: int = typer.Option(BATCH_SIZE, help='Batch size'),
         elegibility_percentage: float = typer.Option(ELIGIBILITY_PERCENTAGE, help='Elegibility percentage'),
         distribution: int = typer.Option(Distribution.IID.value, help='Data distribution'),
-        seed: int = typer.Option(42, help='Seed')):
+        seed: int = typer.Option(987654, help='Seed')):
     
     assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], "Algorithm not supported"
     assert dataset in DATASET_MAP.keys(), "Dataset not supported"
 
-    np.random.seed(seed)
-    torch.manual_seed(seed)     
-    torch.cuda.manual_seed_all(seed) 
+    set_seed(seed)
 
     print("Running configuration:")
-    options =  deepcopy(locals())
+    options = deepcopy(locals())
     options["distribution"] = Distribution(options["distribution"]).name
     pprint(options, expand_all=True)
     print()
+
+    MODEL = MLP().to(DEVICE)
 
     train_data, test_data = DATASET_MAP[dataset]()
 

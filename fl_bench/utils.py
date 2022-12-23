@@ -1,6 +1,8 @@
 import os
 import json
-
+import random
+import numpy as np
+import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
@@ -9,6 +11,14 @@ from rich.pretty import pprint
 from evaluation import Evaluator
 from fl_bench.data import Distribution, INV_IIDNESS_MAP
 
+def set_seed(seed: int):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
 class OptimizerConfigurator:
     def __init__(self, optimizer_class: type[Optimizer], **optimizer_kwargs):

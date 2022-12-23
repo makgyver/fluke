@@ -81,7 +81,7 @@ class FedProx(CentralizedFL):
                                       local_epochs=self.n_epochs,
                                       seed=self.seed) for i in range(self.n_clients)]
 
-        self.server = Server(self.model, self.clients, self.elegibility_percentage, seed=self.seed)
+        self.server = Server(self.model, self.clients, self.elegibility_percentage, weighted=True, seed=self.seed)
         self.server.register_callback(callback)
     
     def __str__(self) -> str:

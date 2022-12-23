@@ -2,6 +2,8 @@ import torchvision
 import torch.nn as nn
 from torch.functional import F
 
+# NOTE: The method `forward_` should return the output of the last layer before the global part of the network
+
 class MLP(nn.Module):
     def __init__(self, input_size=28*28, num_classes=10):
         super(MLP, self).__init__()
@@ -15,19 +17,13 @@ class MLP(nn.Module):
     def forward(self, x):
         x = x.view(-1, self.input_size)
         x = F.relu(self.fc1(x))
-        #x = self.fc1_drop(x)
         x = F.relu(self.fc2(x))
-        #x = self.fc2_drop(x)
         return F.log_softmax(self.fc3(x), dim=1)
     
     def forward_(self, x):
         x = x.view(-1, self.input_size)
         x = F.relu(self.fc1(x))
         return x
-        #x = self.fc1_drop(x)
-        #x = F.relu(self.fc2(x))
-        #x = self.fc2_drop(x)
-        #return F.log_softmax(self.fc3(x), dim=1)
 
 
 class MLP_BN(nn.Module):
@@ -52,10 +48,7 @@ class MLP_BN(nn.Module):
         x = x.reshape(x.shape[0], self.input_size)
         x = F.relu(self.bn1(self.fc1(x)))
         return x
-        #x = self.fc1_drop(x)
-        #x = F.relu(self.fc2(x))
-        #x = self.fc2_drop(x)
-        #return F.log_softmax(self.fc3(x), dim=1)
+
 
 class DigitModel(nn.Module):
     """

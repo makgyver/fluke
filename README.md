@@ -60,7 +60,7 @@ where the possible distributions are:
 
 
 ## TODO ASAP
-- [ ] Check for seed consistency
+- [x] Check for seed consistency
 - [ ] Check the correctness of SCAFFOLD
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w

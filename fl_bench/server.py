@@ -26,7 +26,7 @@ class Server(ABC):
         self.weighted = weighted
         self.seed = seed
         self.callbacks = []
-        np.random.seed(self.seed)
+        #np.random.seed(self.seed)
     
     def fit(self, n_rounds: int=10, log_interval: int=0):
         with Progress() as progress:
