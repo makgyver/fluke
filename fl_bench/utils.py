@@ -5,10 +5,12 @@ import numpy as np
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
+import matplotlib.pyplot as plt
+import json
 
 import wandb
 from rich.pretty import pprint
-from evaluation import Evaluator
+from fl_bench.evaluation import Evaluator
 from fl_bench.data import Distribution, INV_IIDNESS_MAP
 
 def set_seed(seed: int):
@@ -63,7 +65,7 @@ class WandBLog(Log):
     def __init__(self, evaluator: Evaluator, project: str, entity:str, name: str, config: dict):
         super().__init__(evaluator)
         self.run = wandb.init(project=project, #FIXME: load from config file 
-                            entity=entity, #FIXME: load from config file
+                            entity=entity,     #FIXME: load from config file
                             name=name,
                             config=config)
     
@@ -82,9 +84,6 @@ def print_params(model):
 
 
 def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=True):
-    import matplotlib.pyplot as plt
-    import json
-    
     iidness = os.path.basename(log_paths[0]).split("_")[-1].split(".")[0]
     iidness = INV_IIDNESS_MAP[iidness]
 

@@ -4,10 +4,9 @@ from typing import Callable
 
 import torch
 
-from utils import OptimizerConfigurator
-
 import sys; sys.path.append(".")
 from fl_bench import GlobalSettings
+from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader
 
 class Client(ABC):

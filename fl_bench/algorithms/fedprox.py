@@ -1,5 +1,3 @@
-from torch.optim import Optimizer
-
 from copy import deepcopy
 from typing import Callable
 
@@ -7,12 +5,13 @@ import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from algorithms import CentralizedFL
-from fl_bench.data import DataSplitter
 from server import Server
 
 import sys; sys.path.append(".")
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.client import Client
+from fl_bench.data import DataSplitter
+
 
 class FedProxClient(Client):
     def __init__(self,

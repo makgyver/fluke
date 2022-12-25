@@ -6,12 +6,11 @@ from typing import Callable, Iterable
 import torch
 from torch.nn import Module
 
-import sys
+import sys; sys.path.append(".")
 from fl_bench.data import DataSplitter
 from fl_bench.server import Server
 from fl_bench.client import Client
-
-from fl_bench.utils import OptimizerConfigurator; sys.path.append(".")
+from fl_bench.utils import OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
 
 class FedOptMode(Enum):

@@ -3,10 +3,10 @@ from copy import deepcopy
 from typing import Callable, Iterable
 import torch
 
-import sys
+import sys; sys.path.append(".")
 from fl_bench.server import Server
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter; sys.path.append(".")
+from fl_bench.data import DataSplitter;
 from fl_bench.algorithms import CentralizedFL
     
 

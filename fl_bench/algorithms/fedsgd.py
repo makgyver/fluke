@@ -1,12 +1,11 @@
 from typing import Callable
 
 from torch.nn import Module
-from fl_bench.data import DataSplitter
-
-from utils import OptimizerConfigurator
 
 import sys; sys.path.append(".")
+from fl_bench.data import DataSplitter
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.utils import OptimizerConfigurator
 
 
 class FedSGD(CentralizedFL):

@@ -4,7 +4,6 @@ from typing import Callable, Iterable
 
 import torch
 from torch.nn import Module, MSELoss
-from torch.utils.data import DataLoader, TensorDataset
 
 import sys; sys.path.append(".")
 from fl_bench.client import Client

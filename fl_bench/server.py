@@ -5,9 +5,9 @@ from typing import Iterable, Callable
 import numpy as np 
 import torch
 from torch.nn import Module
-from rich.progress import track, Progress
+from rich.progress import Progress
 
-from client import Client
+from fl_bench.client import Client
 from fl_bench import GlobalSettings
 
 class Server(ABC):

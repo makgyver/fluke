@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+import torch
 from typing import Callable
 from torchmetrics import Accuracy, Precision, Recall, F1Score
-import torch
 
 import sys; sys.path.append(".")
 from fl_bench import GlobalSettings

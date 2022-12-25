@@ -1,6 +1,4 @@
-import gc
 from typing import Callable, Iterable
-from collections import OrderedDict
 from copy import deepcopy
 
 import torch
@@ -8,13 +6,13 @@ from torch.nn import Module
 from torch.optim import Optimizer
 
 from client import Client
-from fl_bench.data import DataSplitter, FastTensorDataLoader
 from server import Server
-from utils import OptimizerConfigurator
 
 
 import sys; sys.path.append(".")
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.utils import OptimizerConfigurator
+from fl_bench.data import DataSplitter, FastTensorDataLoader
 
 
 class ScaffoldOptimizer(Optimizer):

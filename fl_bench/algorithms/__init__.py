@@ -4,9 +4,10 @@ from typing import Callable
 from torch.nn import Module
 
 from client import Client
-from fl_bench.data import DataSplitter
 from server import Server
-from utils import OptimizerConfigurator
+
+from fl_bench.data import DataSplitter
+from fl_bench.utils import OptimizerConfigurator
 
 class FLEnvironment(ABC):
 

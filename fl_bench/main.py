@@ -1,23 +1,22 @@
 from copy import deepcopy
-import numpy as np
 import torch
 import glob
 import torch.nn as nn
 
-from algorithms.fedavg import FedAVG
-from algorithms.fedsgd import FedSGD
-from algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
-from algorithms.fedprox import FedProx
-from algorithms.flhalf import FLHalf
+from fl_bench.algorithms.fedavg import FedAVG
+from fl_bench.algorithms.fedsgd import FedSGD
+from fl_bench.algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
+from fl_bench.algorithms.fedprox import FedProx
+from fl_bench.algorithms.flhalf import FLHalf
 from fl_bench.algorithms.fedbn import FedBN
 from fl_bench.algorithms.fedopt import FedOpt, FedOptMode
 
 from fl_bench import GlobalSettings
+from fl_bench.net import *
 from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
 from fl_bench.utils import WandBLog, plot_comparison
-from fl_bench.net import *
-from utils import OptimizerConfigurator, Log, set_seed
-from evaluation import ClassificationEval
+from fl_bench.utils import OptimizerConfigurator, Log, set_seed
+from fl_bench.evaluation import ClassificationEval
 
 from rich.pretty import pprint
 import typer
@@ -72,12 +71,12 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                        batch_size=100, 
                                        shuffle=False)
 
-    # logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
-    logger = WandBLog(ClassificationEval(test_loader, LOSS), 
-                      project="fl-bench",
-                      entity="mlgroup",
-                      name=f"{algorithm}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}", 
-                      config=options)
+    logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
+    # logger = WandBLog(ClassificationEval(test_loader, LOSS), 
+    #                   project="fl-bench",
+    #                   entity="mlgroup",
+    #                   name=f"{algorithm}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}", 
+    #                   config=options)
 
     if algorithm == 'fedavg':
         fl_algo = FedAVG(n_clients=n_clients,
