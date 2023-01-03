@@ -41,11 +41,12 @@ class ScaffoldClient(Client):
                  dataset: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
+                 validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3,
                  seed: int=42):
         assert optimizer_cfg.optimizer == ScaffoldOptimizer, \
             "ScaffoldClient only supports ScaffoldOptimizer"
-        super().__init__(dataset, optimizer_cfg, loss_fn, local_epochs, seed)
+        super().__init__(dataset, optimizer_cfg, loss_fn, validation_set, local_epochs, seed)
         self.control = None
         self.delta_c = None
         self.delta_y = None
@@ -64,32 +65,27 @@ class ScaffoldClient(Client):
             self.model.load_state_dict(model.state_dict())
         self.server_control = server_control
     
-    def local_train(self, override_local_epochs: int=0, log_interval: int=0):
+    def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         server_model = deepcopy(self.model)
         self.model.train()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
-        for epoch in range(epochs):
+        for _ in range(epochs):
             loss = None
-            for i, (X, y) in enumerate(self.dataset):
+            for i, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y)
                 loss.backward()
-                self.optimizer.step(self.server_control, self.control)          
-            
-                #if log_interval and (i+1) % log_interval == 0:
-                #    print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
-                #        .format(epoch + 1, self.local_epochs, i + 1, total_step, loss.item()))
+                self.optimizer.step(self.server_control, self.control)
         
-
         for local_model, server_model, delta_y in zip(self.model.parameters(), server_model.parameters(), self.delta_y):
             delta_y.data = local_model.data.detach() - server_model.data.detach()
         
         new_controls = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        coeff = 1. / (self.local_epochs * len(self.dataset) * self.optimizer_cfg.learning_rate())
+        coeff = 1. / (self.local_epochs * len(self.train_set) * self.optimizer_cfg.learning_rate())
         for local_control, server_control, new_control, delta_y in zip(self.control, self.server_control, new_controls, self.delta_y):
             new_control.data = local_control.data - server_control.data - delta_y.data * coeff
 

@@ -28,7 +28,7 @@ class Server(ABC):
         self.callbacks = []
         #np.random.seed(self.seed)
     
-    def fit(self, n_rounds: int=10, log_interval: int=0):
+    def fit(self, n_rounds: int=10):
         with Progress() as progress:
             client_x_round = int(self.n_clients*self.elegibility_percentage)
             task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
@@ -38,7 +38,7 @@ class Server(ABC):
                 eligible = self.get_eligible_clients()
                 self.broadcast(eligible)
                 for c, client in enumerate(eligible):
-                    client.local_train(log_interval=log_interval)
+                    client.local_train()
                     progress.update(task_id=task_local, completed=c+1)
                     progress.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)

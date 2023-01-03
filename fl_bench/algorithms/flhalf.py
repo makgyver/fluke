@@ -19,13 +19,14 @@ class FLHalfClient(Client):
                  private_layers: Iterable,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
+                 validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3,
                  seed: int=42):
-        super().__init__(dataset, optimizer_cfg, loss_fn, local_epochs, seed)
+        super().__init__(dataset, optimizer_cfg, loss_fn, validation_set, local_epochs, seed)
         self.private_layers = private_layers
     
     def _generate_fake_examples(self):
-        shape = list(self.dataset.tensors[0].shape)
+        shape = list(self.train_set.tensors[0].shape)
         fake_data = torch.rand(shape)
         fake_targets = self.model.forward_(fake_data)
         return fake_data, fake_targets

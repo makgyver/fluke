@@ -12,15 +12,17 @@ from fl_bench.data import FastTensorDataLoader
 class Client(ABC):
 
     def __init__(self,
-                 dataset: FastTensorDataLoader,
+                 train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
+                 validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3,
                  seed: int=42):
 
         self.seed = seed
-        self.dataset = dataset
-        self.n_examples = dataset.size
+        self.train_set = train_set
+        self.validation_set = validation_set
+        self.n_examples = train_set.size
         self.model = None
         self.optimizer_cfg = optimizer_cfg
         self.loss_fn = loss_fn
@@ -39,7 +41,7 @@ class Client(ABC):
         else:
             self.model.load_state_dict(model.state_dict())
     
-    def local_train(self, override_local_epochs: int=0, log_interval: int=0):
+    def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         # total_step = len(self.dataset)
         self.model.train()
@@ -47,7 +49,7 @@ class Client(ABC):
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
-            for i, (X, y) in enumerate(self.dataset):
+            for i, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)

@@ -10,18 +10,19 @@ from server import Server
 import sys; sys.path.append(".")
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter
+from fl_bench.data import DataSplitter, FastTensorDataLoader
 
 
 class FedProxClient(Client):
     def __init__(self,
-                 dataset: DataLoader,
+                 train_set: FastTensorDataLoader,
                  mu: float,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
+                 validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3,
                  seed: int=42):
-        super().__init__(dataset, optimizer_cfg, loss_fn, local_epochs, seed)
+        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs, seed)
         self.mu = mu
     
     def _proximal_loss(self, local_model, global_model):
@@ -30,7 +31,7 @@ class FedProxClient(Client):
             proximal_term += torch.norm(w - w_t)**2
         return proximal_term
 
-    def local_train(self, override_local_epochs: int=0, log_interval: int=0):
+    def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         W = deepcopy(self.model)
         #total_step = len(self.dataset)
@@ -39,7 +40,7 @@ class FedProxClient(Client):
             self.optimizer = self.optimizer_cfg(self.model)
         for epoch in range(epochs):
             loss = None
-            for i, (X, y) in enumerate(self.dataset):
+            for i, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
@@ -73,7 +74,7 @@ class FedProx(CentralizedFL):
     
     def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [FedProxClient(dataset=data_splitter.client_loader[i], 
+        self.clients = [FedProxClient(train_set=data_splitter.client_loader[i], 
                                       mu=self.client_mu,
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 

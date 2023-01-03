@@ -115,7 +115,7 @@ class FedOpt(CentralizedFL):
     def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
-        self.clients = [Client(dataset=data_splitter.client_loader[i], 
+        self.clients = [Client(train_set=data_splitter.client_loader[i], 
                                     optimizer_cfg=self.optimizer_cfg, 
                                     loss_fn=self.loss_fn, 
                                     local_epochs=self.n_epochs,
