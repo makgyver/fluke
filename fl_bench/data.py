@@ -17,10 +17,22 @@ from sklearn.decomposition import PCA
 from scipy.stats.mstats import mquantiles
 
 
+class DataContainer:
+    def __init__(self, 
+                 X_train: torch.Tensor, 
+                 y_train: torch.Tensor, 
+                 X_test: torch.Tensor, 
+                 y_test: torch.Tensor,
+                 num_classes: int):
+        self.train = (X_train, y_train)
+        self.test = (X_test, y_test)
+        self.num_classes = num_classes
+
+
 class Datasets:
 
     @classmethod
-    def MNIST(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
+    def MNIST(cls) -> DataContainer:
         train_data = datasets.MNIST(
             root = 'data',
             train = True,                         
@@ -34,10 +46,14 @@ class Datasets:
             transform = ToTensor(),
             download = True
         )
-        return train_data, test_data, 10
+        return DataContainer(train_data.data / 255., 
+                             train_data.targets,
+                             test_data.data / 255., 
+                             test_data.targets, 
+                             10)
     
     @classmethod
-    def MNISTM(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
+    def MNISTM(cls) -> DataContainer:
         train_data = datasets.MNIST(
             root = 'data',
             train = True,                         
@@ -51,10 +67,14 @@ class Datasets:
             transform = ToTensor(),
             download = True
         )
-        return train_data, test_data, 10
+        return DataContainer(train_data.data / 255., 
+                             train_data.targets, 
+                             test_data.data / 255., 
+                             test_data.targets, 
+                             10)
     
     @classmethod
-    def EMNIST(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
+    def EMNIST(cls) -> DataContainer:
         train_data = datasets.EMNIST(
             root="data",
             split="balanced",
@@ -70,10 +90,14 @@ class Datasets:
             transform=ToTensor(),
             download = True
         )
-        return train_data, test_data, 26
+        return DataContainer(train_data.data / 255.,
+                             train_data.targets, 
+                             test_data.data / 255., 
+                             test_data.targets, 
+                             26)
     
     @classmethod
-    def SVHN(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
+    def SVHN(cls) -> DataContainer:
         train_data = SVHN(
             root = 'data',
             train = True,
@@ -85,7 +109,11 @@ class Datasets:
             train = False,
             download = True
         )
-        return train_data, test_data, 10
+        return DataContainer(train_data.data / 255., 
+                             train_data.targets, 
+                             test_data.data / 255.,
+                             test_data.targets, 
+                             10)
 
     # @classmethod
     # def FEMNIST(cls):

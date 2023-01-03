@@ -57,20 +57,18 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
 
     MODEL = MLP().to(DEVICE)
 
-    train_data, test_data, num_classes = DATASET_MAP[dataset]()
+    data_container = DATASET_MAP[dataset]()
 
-    data_splitter = DataSplitter(train_data.data / 255., 
-                                 train_data.targets, 
+    data_splitter = DataSplitter(*data_container.train,
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
                                  batch_size=batch_size)
 
-    test_loader = FastTensorDataLoader(test_data.data / 255., 
-                                       test_data.targets, 
+    test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, 
                                        shuffle=False)
 
-    logger = Log(ClassificationEval(test_loader, LOSS, num_classes, "macro"))
+    logger = Log(ClassificationEval(test_loader, LOSS, data_container.num_classes, "macro"))
     # logger = WandBLog(ClassificationEval(test_loader, LOSS), 
     #                   project="fl-bench",
     #                   entity="mlgroup",
@@ -83,7 +81,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            n_epochs=n_epochs, 
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                           loss_fn=LOSS, 
+                           loss_fn=LOSS,
                            elegibility_percentage=elegibility_percentage,
                            seed=seed)
         fl_algo.init_parties(data_splitter, logger)
