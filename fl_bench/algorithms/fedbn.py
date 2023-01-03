@@ -55,8 +55,7 @@ class FedBN(CentralizedFL):
                                     optimizer_cfg=self.optimizer_cfg, 
                                     loss_fn=self.loss_fn, 
                                     validation_set=data_splitter.client_test_loader[i],
-                                    local_epochs=self.n_epochs,
-                                    seed=self.seed) for i in range(self.n_clients)]
+                                    local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
-        self.server = FedBNServer(self.model, self.clients, self.elegibility_percentage, weighted=True, seed=self.seed)
+        self.server = FedBNServer(self.model, self.clients, self.elegibility_percentage, weighted=True)
         self.server.register_callback(callback)

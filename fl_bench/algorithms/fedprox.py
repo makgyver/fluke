@@ -18,11 +18,10 @@ class FedProxClient(Client):
                  train_set: FastTensorDataLoader,
                  mu: float,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable, # CHECK ME
+                 loss_fn: Callable,
                  validation_set: FastTensorDataLoader=None,
-                 local_epochs: int=3,
-                 seed: int=42):
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs, seed)
+                 local_epochs: int=3):
+        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
         self.mu = mu
     
     def _proximal_loss(self, local_model, global_model):
@@ -59,8 +58,7 @@ class FedProx(CentralizedFL):
                  model: Module,
                  client_mu: float,
                  loss_fn: Callable,
-                 elegibility_percentage: float=0.5,
-                 seed: int=42):
+                 elegibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -68,8 +66,7 @@ class FedProx(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage,
-                         seed)
+                         elegibility_percentage)
         self.client_mu = client_mu
     
     def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
@@ -79,12 +76,11 @@ class FedProx(CentralizedFL):
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 
                                       validation_set=data_splitter.client_test_loader[i],
-                                      local_epochs=self.n_epochs,
-                                      seed=self.seed) for i in range(self.n_clients)]
+                                      local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
-        self.server = Server(self.model, self.clients, self.elegibility_percentage, weighted=True, seed=self.seed)
+        self.server = Server(self.model, self.clients, self.elegibility_percentage, weighted=True)
         self.server.register_callback(callback)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"\u03BC={self.client_mu},P={self.elegibility_percentage},seed={self.seed})"
+               f"\u03BC={self.client_mu},P={self.elegibility_percentage})"

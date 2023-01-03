@@ -29,9 +29,8 @@ class FedOptServer(Server):
                 beta2: float=0.999,
                 tau: float=0.0001,
                 elegibility_percentage: float=0.5, 
-                weighted: bool=True,
-                seed: int=42):
-        super().__init__(model, clients, elegibility_percentage, weighted, seed)
+                weighted: bool=True):
+        super().__init__(model, clients, elegibility_percentage, weighted)
         assert mode in FedOptMode, "mode must be one of FedOptMode"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
@@ -95,8 +94,7 @@ class FedOpt(CentralizedFL):
                  tau: float,
                  model: Module, 
                  loss_fn: Callable, 
-                 elegibility_percentage: float=0.5,
-                 seed: int=42):
+                 elegibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -104,8 +102,7 @@ class FedOpt(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage,
-                         seed)
+                         elegibility_percentage)
         self.mode = mode
         self.beta1 = beta1
         self.beta2 = beta2
@@ -119,8 +116,7 @@ class FedOpt(CentralizedFL):
                                     optimizer_cfg=self.optimizer_cfg, 
                                     loss_fn=self.loss_fn, 
                                     validation_set=data_splitter.client_test_loader[i],
-                                    local_epochs=self.n_epochs,
-                                    seed=self.seed) for i in range(self.n_clients)]
+                                    local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
         self.server = FedOptServer(self.model, 
                                    self.clients, 
@@ -129,14 +125,13 @@ class FedOpt(CentralizedFL):
                                    beta1=self.beta1,
                                    beta2=self.beta2,
                                    tau=self.tau,
-                                   elegibility_percentage=self.elegibility_percentage, 
-                                   seed=self.seed)
+                                   elegibility_percentage=self.elegibility_percentage)
 
         self.server.register_callback(callback)
 
     def __str__(self) -> str:
         return f"{self.mode._name_}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
                f"\u03B7={self.server_lr},\u03B21={self.beta1},\u03B22={self.beta2}," + \
-               f"\u03A4={self.tau},P={self.elegibility_percentage},seed={self.seed})"
+               f"\u03A4={self.tau},P={self.elegibility_percentage})"
     
 

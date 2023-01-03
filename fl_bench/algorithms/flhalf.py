@@ -18,11 +18,10 @@ class FLHalfClient(Client):
                  train_set: FastTensorDataLoader,
                  private_layers: Iterable,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable, # CHECK ME
+                 loss_fn: Callable,
                  validation_set: FastTensorDataLoader=None,
-                 local_epochs: int=3,
-                 seed: int=42):
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs, seed)
+                 local_epochs: int=3):
+        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
         self.private_layers = private_layers
     
     def _generate_fake_examples(self):
@@ -44,9 +43,8 @@ class FLHalfServer(Server):
                  batch_size: int,
                  optimizer_cfg: OptimizerConfigurator,
                  global_step: float=.05,
-                 elegibility_percentage: float=0.5, 
-                 seed: int=42):
-        super().__init__(model, clients, elegibility_percentage, seed)
+                 elegibility_percentage: float=0.5,):
+        super().__init__(model, clients, elegibility_percentage)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
         self.private_layers = private_layers
@@ -117,8 +115,7 @@ class FLHalf(CentralizedFL):
                  model: Module, 
                  private_layers: Iterable,
                  loss_fn: Callable, 
-                 elegibility_percentage: float=0.5,
-                 seed: int=42):
+                 elegibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -126,8 +123,7 @@ class FLHalf(CentralizedFL):
                          model, 
                          client_optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage,
-                         seed)
+                         elegibility_percentage)
         self.private_layers = private_layers
         self.server_n_epochs = server_n_epochs
         self.server_batch_size = server_batch_size
@@ -140,8 +136,7 @@ class FLHalf(CentralizedFL):
                                       optimizer_cfg=self.optimizer_cfg, 
                                       loss_fn=self.loss_fn, 
                                       validation_set=data_splitter.client_test_loader[i],
-                                      local_epochs=self.n_epochs,
-                                      seed=self.seed) for i in range(self.n_clients)]
+                                      local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
         self.server = FLHalfServer(self.model,
                                    self.clients, 
@@ -149,6 +144,5 @@ class FLHalf(CentralizedFL):
                                    n_epochs=self.server_n_epochs,
                                    batch_size=self.server_batch_size,
                                    optimizer_cfg=self.server_optimizer_cfg,
-                                   elegibility_percentage=self.elegibility_percentage, 
-                                   seed=self.seed)
+                                   elegibility_percentage=self.elegibility_percentage)
         self.server.register_callback(callback)

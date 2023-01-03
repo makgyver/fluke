@@ -14,7 +14,14 @@ from rich.pretty import pprint
 from fl_bench.evaluation import Evaluator
 from fl_bench.data import Distribution, INV_IIDNESS_MAP
 
-def set_seed(seed: int):
+def set_seed(seed: int) -> None:
+    """Set seed for reproducibility.
+
+    Parameters
+    ----------
+    seed : int
+        Seed to set.
+    """
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -94,7 +101,10 @@ def print_params(model):
         print(f"{name}: {param.data}")
 
 
-def plot_comparison(*log_paths: str, local: bool=False, metric: str='accuracy', show_loss: bool=True):
+def plot_comparison(*log_paths: str, 
+                     local: bool=False, 
+                     metric: str='accuracy', 
+                     show_loss: bool=True) -> None:
     iidness = os.path.basename(log_paths[0]).split("_")[-1].split(".")[0]
     iidness = INV_IIDNESS_MAP[iidness]
 

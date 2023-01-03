@@ -15,12 +15,10 @@ class Client(ABC):
     def __init__(self,
                  train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable, # CHECK ME
+                 loss_fn: Callable,
                  validation_set: FastTensorDataLoader=None,
-                 local_epochs: int=3,
-                 seed: int=42):
+                 local_epochs: int=3):
 
-        self.seed = seed
         self.train_set = train_set
         self.validation_set = validation_set
         self.n_examples = train_set.size
@@ -57,11 +55,6 @@ class Client(ABC):
                 loss = self.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step()          
-            
-                #if log_interval and (i+1) % log_interval == 0:
-                #    print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
-                #        .format(epoch + 1, self.local_epochs, i + 1, total_step, loss.item()))
-        
         return self.validate()
     
     def validate(self):

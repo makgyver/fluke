@@ -83,8 +83,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                            loss_fn=LOSS,
-                           elegibility_percentage=elegibility_percentage,
-                           seed=seed)
+                           elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
     
     elif algorithm == 'fedsgd':
@@ -93,8 +92,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.1), 
                            loss_fn=LOSS, 
-                           elegibility_percentage=elegibility_percentage,
-                           seed=seed)
+                           elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
     
     elif algorithm == 'fedbn':
@@ -104,8 +102,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                            loss_fn=LOSS, 
-                           elegibility_percentage=elegibility_percentage,
-                           seed=seed)
+                           elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'fedprox':
@@ -116,8 +113,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                             model=MODEL, 
                             optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                             loss_fn=LOSS, 
-                            elegibility_percentage=elegibility_percentage,
-                            seed=seed)
+                            elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'scaffold':
@@ -127,8 +123,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                              model=MODEL, 
                              optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
                              loss_fn=LOSS, 
-                             elegibility_percentage=elegibility_percentage,
-                             seed=seed)
+                             elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, global_step=1, callback=logger)
     
     elif algorithm == 'fedopt':
@@ -143,8 +138,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          model=MODEL, 
                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                          loss_fn=LOSS, 
-                         elegibility_percentage=elegibility_percentage,
-                         seed=seed)
+                         elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'flhalf':
@@ -158,8 +152,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          client_optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.05), 
                          loss_fn=LOSS, 
                          private_layers=["fc1", "bn1"],
-                         elegibility_percentage=elegibility_percentage,
-                         seed=seed)
+                         elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
     
     else:

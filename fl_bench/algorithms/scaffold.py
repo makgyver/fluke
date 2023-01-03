@@ -42,11 +42,10 @@ class ScaffoldClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable, # CHECK ME
                  validation_set: FastTensorDataLoader=None,
-                 local_epochs: int=3,
-                 seed: int=42):
+                 local_epochs: int=3):
         assert optimizer_cfg.optimizer == ScaffoldOptimizer, \
             "ScaffoldClient only supports ScaffoldOptimizer"
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs, seed)
+        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
         self.control = None
         self.delta_c = None
         self.delta_y = None
@@ -121,9 +120,8 @@ class ScaffoldServer(Server):
                  model: Module,
                  clients: Iterable[Client],
                  global_step: float=1.,
-                 elegibility_percentage: float=0.5, 
-                 seed: int=42):
-        super().__init__(model, clients, elegibility_percentage, seed)
+                 elegibility_percentage: float=0.5):
+        super().__init__(model, clients, elegibility_percentage)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
 
@@ -162,8 +160,7 @@ class SCAFFOLD(CentralizedFL):
                  optimizer_cfg: OptimizerConfigurator,
                  model: Module,
                  loss_fn: Callable,
-                 elegibility_percentage: float=0.5,
-                 seed: int=42):
+                 elegibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -171,8 +168,7 @@ class SCAFFOLD(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage,
-                         seed)
+                         elegibility_percentage)
     
     def init_parties(self, data_splitter: DataSplitter, global_step: float, callback: Callable=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
@@ -180,12 +176,10 @@ class SCAFFOLD(CentralizedFL):
                                         optimizer_cfg=self.optimizer_cfg, 
                                         loss_fn=self.loss_fn, 
                                         validation_set=data_splitter.client_test_loader[i],
-                                        local_epochs=self.n_epochs,
-                                        seed=self.seed) for i in range(self.n_clients)]
+                                        local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
         self.server = ScaffoldServer(self.model, 
                                      self.clients, 
                                      global_step, 
-                                     self.elegibility_percentage, 
-                                     seed=self.seed)
+                                     self.elegibility_percentage)
         self.server.register_callback(callback)
