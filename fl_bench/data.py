@@ -1,13 +1,12 @@
 from enum import Enum
 import warnings
 
-from torchvision.datasets import MNIST, utils
 import os
 import os.path
 import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
-from torchvision.datasets import VisionDataset
+from torchvision.datasets import VisionDataset, MNIST, utils
 from torchvision.datasets.utils import download_and_extract_archive
 
 from typing import List
@@ -16,6 +15,7 @@ from PIL import Image
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 from sklearn.decomposition import PCA
 from scipy.stats.mstats import mquantiles
+
 
 class Datasets:
 
@@ -115,6 +115,7 @@ class SVHN():
 
         self.data = torch.tensor(data.data)
         self.targets = torch.tensor(data.labels)
+
 
 class FEMNIST(MNIST):
     """
@@ -235,8 +236,6 @@ class MNISTM(VisionDataset):
         else:
             data_file = self.test_file
 
-        print(os.path.join(self.processed_folder, data_file))
-
         self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file))
 
     def __getitem__(self, index):
@@ -296,10 +295,9 @@ class MNISTM(VisionDataset):
                                          extract_root=self.processed_folder,
                                          filename=filename, md5=md5)
 
-        print('Done!')
-
     def extra_repr(self):
         return "Split: {}".format("Train" if self.train is True else "Test")
+
 
 class FastTensorDataLoader:
     """
@@ -381,7 +379,6 @@ class DataSplitter:
                  n_clients: int, 
                  distribution: Distribution=Distribution.IID,
                  batch_size: int=32,
-                 seed: int=42,
                  **kwargs):
 
         self.X, self.y = X, y
@@ -389,17 +386,10 @@ class DataSplitter:
         self.distribution = distribution
         self.batch_size = batch_size
         self.kwargs = kwargs
-        self.assign(seed)
+        self.assign()
 
-    def assign(self, seed: int):
-        """Assign data to clients.
-        
-        Parameters
-        ----------
-        seed : int
-            Random seed.
-        """
-        #np.random.seed(seed)
+    def assign(self):
+        """Assign data to clients."""
         self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
         self.client_loader = [FastTensorDataLoader(self.X[self.assignments[c]], 
                                                    self.y[self.assignments[c]], 

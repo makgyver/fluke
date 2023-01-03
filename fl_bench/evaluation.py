@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
-from typing import Callable
+from typing import Callable, Literal
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 
 import sys; sys.path.append(".")
@@ -21,12 +21,28 @@ class Evaluator(ABC):
 
 
 class ClassificationEval(Evaluator):
+    def __init__(self, 
+                 data_loader: FastTensorDataLoader, 
+                 loss_fn: Callable, 
+                 n_classes: int=2, 
+                 average: Literal["micro","macro"]="macro"):
+        super().__init__(data_loader, loss_fn)
+        self.average = average
+        self.n_classes = n_classes
+
     def evaluate(self, model: torch.nn.Module):
         model.eval()
-        accuracy = Accuracy(average='micro')
-        precision = Precision(average='micro')
-        recall = Recall(average='micro')
-        f1 = F1Score(average='micro')
+        task = "multiclass" if self.n_classes > 2 else "binary"
+        if self.average == "macro":
+            accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average="macro")
+            precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average="macro")
+            recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="macro")
+            f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="macro")
+        else:
+            accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average="micro")
+            precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average="micro")
+            recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="micro")
+            f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="micro")
         loss = 0
         device = GlobalSettings().get_device()
         for X, y in self.data_loader:

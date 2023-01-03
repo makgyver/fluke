@@ -3,20 +3,20 @@ import torch
 import glob
 import torch.nn as nn
 
-from fl_bench.algorithms.fedavg import FedAVG
-from fl_bench.algorithms.fedsgd import FedSGD
-from fl_bench.algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
-from fl_bench.algorithms.fedprox import FedProx
-from fl_bench.algorithms.flhalf import FLHalf
-from fl_bench.algorithms.fedbn import FedBN
-from fl_bench.algorithms.fedopt import FedOpt, FedOptMode
+from algorithms.fedavg import FedAVG
+from algorithms.fedsgd import FedSGD
+from algorithms.scaffold import SCAFFOLD, ScaffoldOptimizer
+from algorithms.fedprox import FedProx
+from algorithms.flhalf import FLHalf
+from algorithms.fedbn import FedBN
+from algorithms.fedopt import FedOpt, FedOptMode
 
 from fl_bench import GlobalSettings
-from fl_bench.net import *
-from fl_bench.data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
-from fl_bench.utils import WandBLog, plot_comparison
-from fl_bench.utils import OptimizerConfigurator, Log, set_seed
-from fl_bench.evaluation import ClassificationEval
+from net import *
+from data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
+from utils import WandBLog, plot_comparison
+from utils import OptimizerConfigurator, Log, set_seed
+from evaluation import ClassificationEval
 
 from rich.pretty import pprint
 import typer
@@ -63,15 +63,14 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                  train_data.targets, 
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
-                                 batch_size=batch_size,
-                                 seed=seed)
+                                 batch_size=batch_size)
 
     test_loader = FastTensorDataLoader(test_data.data / 255., 
                                        test_data.targets, 
                                        batch_size=100, 
                                        shuffle=False)
 
-    logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss()))
+    logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss(), 10, "macro"))
     # logger = WandBLog(ClassificationEval(test_loader, LOSS), 
     #                   project="fl-bench",
     #                   entity="mlgroup",

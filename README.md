@@ -70,7 +70,7 @@ where the possible distributions are:
 - [ ] Add client-side evaluations - useful to evaluate FedBN
 - [ ] Add documentation + check typing
 - [ ] Add checkpoints
-- [ ] Implement "macro" metrics (now it should be "micro")
+- [x] Implement "macro" metrics (now it should be "micro")
 
 ## Desiderata
 - [ ] Configuration via file yaml
