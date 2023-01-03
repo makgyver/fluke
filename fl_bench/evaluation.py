@@ -8,12 +8,28 @@ from fl_bench import GlobalSettings
 from fl_bench.data import FastTensorDataLoader
 
 class Evaluator(ABC):
+    """Base class for all evaluators.
+
+    Parameters
+    ----------
+    data_loader : FastTensorDataLoader
+        The data loader to use for evaluation.
+    loss_fn : Callable
+        The loss function to consider.
+    """
     def __init__(self, data_loader: FastTensorDataLoader, loss_fn: Callable):
         self.data_loader = data_loader
         self.loss_fn = loss_fn
     
     @abstractmethod
     def evaluate(self, model):
+        """Evaluate the model.
+
+        Parameters
+        ----------
+        model : torch.nn.Module
+            The model to evaluate.
+        """
         pass
 
     def __call__(self, model):
@@ -21,16 +37,29 @@ class Evaluator(ABC):
 
 
 class ClassificationEval(Evaluator):
+    """Evaluate a classification model.
+
+    Parameters
+    ----------
+    data_loader : FastTensorDataLoader
+        The data loader to use for evaluation.
+    loss_fn : Callable
+        The loss function to consider.
+    n_classes : int, optional
+        The number of classes.
+    average : Literal["micro","macro"], optional
+        The average to use for the metrics, by default "macro".
+    """
     def __init__(self, 
                  data_loader: FastTensorDataLoader, 
                  loss_fn: Callable, 
-                 n_classes: int=2, 
+                 n_classes: int, 
                  average: Literal["micro","macro"]="macro"):
         super().__init__(data_loader, loss_fn)
         self.average = average
         self.n_classes = n_classes
 
-    def evaluate(self, model: torch.nn.Module):
+    def evaluate(self, model: torch.nn.Module) -> dict:
         model.eval()
         task = "multiclass" if self.n_classes > 2 else "binary"
         if self.average == "macro":
