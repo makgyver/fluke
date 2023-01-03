@@ -69,7 +69,7 @@ where `--local` compares the performance of the algorithms on the local test dat
 - [ ] Add learning rate scheduler
 - [ ] Add support to validation
 - [x] Add client-side evaluations - useful to evaluate FedBN
-- [ ] Add documentation + check typing
+- [ ] Add documentation + check typing **WIP**
 - [ ] Add checkpoints
 - [x] Implement "macro" metrics (now it should be "micro")
 
