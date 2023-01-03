@@ -10,7 +10,7 @@ from torchvision.transforms import ToTensor
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import download_and_extract_archive
 
-from typing import List, Tuple
+from typing import List
 import numpy as np
 from PIL import Image
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
@@ -19,6 +19,19 @@ from scipy.stats.mstats import mquantiles
 
 
 class DataContainer:
+    """Container for train and test (classification) data.
+
+    Parameters
+    ----------
+    X_train : torch.Tensor
+        Training data.
+    y_train : torch.Tensor
+        Training labels.
+    X_test : torch.Tensor
+        Test data.
+    y_test : torch.Tensor
+        Test labels.
+    """ 
     def __init__(self, 
                  X_train: torch.Tensor, 
                  y_train: torch.Tensor, 
@@ -31,6 +44,10 @@ class DataContainer:
 
 
 class Datasets:
+    """Static class for loading datasets.
+
+    Each dataset is loaded as a DataContainer object.
+    """
 
     @classmethod
     def MNIST(cls) -> DataContainer:
@@ -135,6 +152,21 @@ class Datasets:
 
 
 class SVHN():
+    """Load the SVHN dataset.
+
+    Parameters
+    ----------
+    root : str
+        Root directory of dataset where ``processed/training.pt``
+        and  ``processed/test.pt`` exist.
+    train : bool, optional
+        If True, creates dataset from ``training.pt``,
+        otherwise from ``test.pt``.
+    download : bool, optional
+        If true, downloads the dataset from the internet and
+        puts it in root directory. If dataset is already downloaded, it is not
+        downloaded again.
+    """
     def __init__(self, root, train=True, download=True):
         data = datasets.SVHN(
             root = root,
@@ -269,10 +301,15 @@ class MNISTM(VisionDataset):
 
     def __getitem__(self, index):
         """Get images and target for data loader.
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is index of the target class.
+        Parameters
+        ----------
+        index : int
+            Index
+
+        Returns
+        -------
+        tuple
+            (image, target) where target is index of the target class.
         """
         img, target = self.data[index], int(self.targets[index])
 
@@ -367,14 +404,14 @@ class FastTensorDataLoader:
         self.i = 0
         return self
 
-    def __next__(self):
+    def __next__(self) -> tuple:
         if self.i >= self.size:
             raise StopIteration
         batch = tuple(t[self.i: self.i+self.batch_size] for t in self.tensors)
         self.i += self.batch_size
         return batch
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.n_batches
 
 
@@ -388,6 +425,7 @@ class Distribution(Enum):
     LABEL_PATHOLOGICAL_SKEWED = 6
     COVARIATE_SHIFT = 7
 
+# Map distribution to string
 IIDNESS_MAP = {
     Distribution.IID: "iid",
     Distribution.QUANTITY_SKEWED: "qnt",
@@ -398,10 +436,32 @@ IIDNESS_MAP = {
     Distribution.COVARIATE_SHIFT: "covshift"
 }
 
+# Map string to distribution
 INV_IIDNESS_MAP = {v: k for k, v in IIDNESS_MAP.items()}
 
 
 class DataSplitter:
+    """Class to split data into clients.
+
+    Parameters
+    ----------
+    X : torch.Tensor
+        Data.
+    y : torch.Tensor
+        Labels.
+    n_clients : int
+        Number of clients.
+    distribution : Distribution
+        Distribution (non iidness) of data across clients.
+    batch_size : int
+        Batch size.
+    validation_split : float, optional
+        Fraction of data to use for validation/test client-side, by default 0.0.
+    sampling_perc : float, optional
+        Fraction of data to use, by default 1.0.
+    **kwargs
+        Additional keyword arguments.
+    """
     def __init__(self, 
                  X: torch.Tensor,
                  y: torch.Tensor, 
@@ -421,7 +481,7 @@ class DataSplitter:
         self.kwargs = kwargs
         self.assign()
 
-    def assign(self):
+    def assign(self) -> None:
         """Assign data to clients."""
         self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
         self.client_train_loader = []
@@ -440,7 +500,7 @@ class DataSplitter:
     def uniform(self,
                 X: torch.Tensor,
                 y: torch.Tensor,
-                n: int) -> List[np.ndarray]:
+                n: int) -> List[torch.Tensor]:
         """Distribute the examples uniformly across the users.
 
         Parameters
@@ -454,7 +514,7 @@ class DataSplitter:
 
         Returns
         -------
-        List[np.ndarray]
+        List[torch.Tensor]
             The examples' ids assignment.
         """
         ex_client = X.shape[0] // n
@@ -467,7 +527,7 @@ class DataSplitter:
                       y: torch.Tensor, #not used
                       n: int,
                       min_quantity: int=2,
-                      alpha: float=4.) -> List[np.ndarray]:
+                      alpha: float=4.) -> List[torch.Tensor]:
         """
         Distribute the examples across the users according to the following probability density function:
         $P(x; a) = a x^{a-1}$
@@ -493,7 +553,7 @@ class DataSplitter:
 
         Returns
         -------
-        List[np.ndarray]
+        List[torch.Tensor]
             The examples' ids assignment.
         """
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
@@ -510,7 +570,7 @@ class DataSplitter:
                                  y: torch.Tensor,
                                  n: int,
                                  min_quantity: int=2,
-                                 alpha: float=4.) -> List[np.ndarray]:
+                                 alpha: float=4.) -> List[torch.Tensor]:
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
         labels = list(range(len(torch.unique(y).numpy())))
@@ -538,7 +598,7 @@ class DataSplitter:
                             X: torch.Tensor, #not used
                             y: torch.Tensor,
                             n: int,
-                            class_per_client: int=2) -> List[np.ndarray]:
+                            class_per_client: int=2) -> List[torch.Tensor]:
         """
         Suppose each party only has data samples of `class_per_client` (i.e., k) different labels.
         We first randomly assign k different label IDs to each party. Then, for the samples of each
@@ -560,7 +620,7 @@ class DataSplitter:
 
         Returns
         -------
-        List[np.ndarray]
+        List[torch.Tensor]
             The examples' ids assignment.
         """
         labels = set(torch.unique(y).numpy())
@@ -585,7 +645,7 @@ class DataSplitter:
                              X: torch.Tensor,
                              y: torch.Tensor,
                              n: int,
-                             beta: float=.5) -> List[np.ndarray]:
+                             beta: float=.5) -> List[torch.Tensor]:
         """
         The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances of
         class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
@@ -605,7 +665,7 @@ class DataSplitter:
 
         Returns
         -------
-        List[np.ndarray]
+        List[torch.Tensor]
             The examples' ids assignment.
         """
         assert beta > 0, "beta must be > 0"
@@ -626,7 +686,7 @@ class DataSplitter:
                                 X: torch.Tensor, #not used
                                 y: torch.Tensor,
                                 n: int,
-                                shards_per_client: int=2) -> List[np.ndarray]:
+                                shards_per_client: int=2) -> List[torch.Tensor]:
         """
         The function first sort the data by label, divide it into `n * shards_per_client` shards, and
         assign each of n clients `shards_per_client` shards. This is a pathological non-IID partition
@@ -646,7 +706,7 @@ class DataSplitter:
 
         Returns
         -------
-        List[np.ndarray]
+        List[torch.Tensor]
             The examples' ids assignment.
         """
         sorted_ids = np.argsort(y)
@@ -668,7 +728,7 @@ class DataSplitter:
                         X: torch.Tensor,
                         y: torch.Tensor,
                         n: int,
-                        modes: int=2) -> List[np.ndarray]:
+                        modes: int=2) -> List[torch.Tensor]:
         """
         The function first extracts the first principal component (through PCA) and then divides it in
         `modes` percentiles. To each user, only examples from a single mode are selected (uniformly).
@@ -686,7 +746,7 @@ class DataSplitter:
         
         Returns
         -------
-        List[np.ndarray]
+        List[torch.Tensor]
             The examples' ids assignment.
         """
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
@@ -728,6 +788,7 @@ class DataSplitter:
     }
 
 
+# Mapping between dataset names and their corresponding enum value
 DATASET_MAP = {
     "mnist": Datasets.MNIST,
     "mnistm": Datasets.MNISTM,
