@@ -11,7 +11,21 @@ from fl_bench.data import FastTensorDataLoader
 from fl_bench.evaluation import ClassificationEval
 
 class Client(ABC):
+    """Standard client of a federated learning system.
 
+    Parameters
+    ----------
+    train_set : FastTensorDataLoader
+        The local training set.
+    optimizer_cfg : OptimizerConfigurator
+        The optimizer configurator.
+    loss_fn : Callable
+        The loss function.
+    validation_set : FastTensorDataLoader, optional
+        The local validation/test set, by default None.
+    local_epochs : int, optional
+        The number of local epochs, by default 3.
+    """
     def __init__(self,
                  train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
@@ -30,19 +44,44 @@ class Client(ABC):
         self.optimizer = None
         self.device = GlobalSettings().get_device()
 
-    def send(self):
+    def send(self) -> torch.nn.Module:
+        """Send the model to the server.
+
+        Returns
+        -------
+        torch.nn.Module
+            A deep copy of the local model.
+        """
         return deepcopy(self.model)
     
-    def receive(self, model):
+    def receive(self, model) -> None:
+        """Receive the model from the server.
+
+        Parameters
+        ----------
+        model : torch.nn.Module
+            The (gloal) model to be received.
+        """
         if self.model is None:
             self.control = {k: torch.zeros_like(v) for k, v in model.state_dict().items()}
             self.model = deepcopy(model)
         else:
             self.model.load_state_dict(model.state_dict())
     
-    def local_train(self, override_local_epochs: int=0):
+    def local_train(self, override_local_epochs: int=0) -> dict:
+        """Train the local model.
+
+        Parameters
+        ----------
+        override_local_epochs : int, optional
+            Override the number of local epochs, by default 0. If 0, use the default value.
+        
+        Returns
+        -------
+        dict
+            The evaluation results if the validation set is not None, otherwise None.
+        """
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
-        # total_step = len(self.dataset)
         self.model.train()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
@@ -58,6 +97,13 @@ class Client(ABC):
         return self.validate()
     
     def validate(self):
+        """Validate/test the local model.
+
+        Returns
+        -------
+        dict
+            The evaluation results.
+        """
         if self.validation_set is not None:
             n_classes = len(torch.unique(self.validation_set.tensors[1]))
             return ClassificationEval(self.validation_set, self.loss_fn, n_classes).evaluate(self.model)
