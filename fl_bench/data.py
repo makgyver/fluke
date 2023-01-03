@@ -6,10 +6,10 @@ import os.path
 import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
-from torchvision.datasets import VisionDataset, MNIST, utils
+from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import download_and_extract_archive
 
-from typing import List
+from typing import List, Tuple
 import numpy as np
 from PIL import Image
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
@@ -20,7 +20,7 @@ from scipy.stats.mstats import mquantiles
 class Datasets:
 
     @classmethod
-    def MNIST(cls):
+    def MNIST(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
         train_data = datasets.MNIST(
             root = 'data',
             train = True,                         
@@ -34,10 +34,10 @@ class Datasets:
             transform = ToTensor(),
             download = True
         )
-        return train_data, test_data
+        return train_data, test_data, 10
     
     @classmethod
-    def MNISTM(cls):
+    def MNISTM(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
         train_data = datasets.MNIST(
             root = 'data',
             train = True,                         
@@ -51,10 +51,10 @@ class Datasets:
             transform = ToTensor(),
             download = True
         )
-        return train_data, test_data
+        return train_data, test_data, 10
     
     @classmethod
-    def EMNIST(cls):
+    def EMNIST(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
         train_data = datasets.EMNIST(
             root="data",
             split="balanced",
@@ -70,10 +70,10 @@ class Datasets:
             transform=ToTensor(),
             download = True
         )
-        return train_data, test_data
+        return train_data, test_data, 26
     
     @classmethod
-    def SVHN(cls):
+    def SVHN(cls) -> Tuple[torch.Tensor, torch.Tensor, int]:
         train_data = SVHN(
             root = 'data',
             train = True,
@@ -85,24 +85,24 @@ class Datasets:
             train = False,
             download = True
         )
-        return train_data, test_data
+        return train_data, test_data, 10
 
-    @classmethod
-    def FEMNIST(cls):
-        train_data = FEMNIST(
-            root="data",
-            train=True, 
-            transform=ToTensor(),
-            download = True
-        )
+    # @classmethod
+    # def FEMNIST(cls):
+    #     train_data = FEMNIST(
+    #         root="data",
+    #         train=True, 
+    #         transform=ToTensor(),
+    #         download = True
+    #     )
 
-        test_data = FEMNIST(
-            root="data",
-            train=False,
-            transform=ToTensor(),
-            download = True
-        )
-        return train_data, test_data
+    #     test_data = FEMNIST(
+    #         root="data",
+    #         train=False,
+    #         transform=ToTensor(),
+    #         download = True
+    #     )
+    #     return train_data, test_data, 62
 
 
 class SVHN():
@@ -117,65 +117,65 @@ class SVHN():
         self.targets = torch.tensor(data.labels)
 
 
-class FEMNIST(MNIST):
-    """
-    This dataset is derived from the Leaf repository
-    (https://github.com/TalwalkarLab/leaf) pre-processing of the Extended MNIST
-    dataset, grouping examples by writer. Details about Leaf were published in
-    "LEAF: A Benchmark for Federated Settings" https://arxiv.org/abs/1812.01097.
-    """
-    resources = [
-        ('https://raw.githubusercontent.com/tao-shen/FEMNIST_pytorch/master/femnist.tar.gz',
-         '59c65cec646fc57fe92d27d83afdf0ed')
-    ]
+# class FEMNIST(MNIST):
+#     """
+#     This dataset is derived from the Leaf repository
+#     (https://github.com/TalwalkarLab/leaf) pre-processing of the Extended MNIST
+#     dataset, grouping examples by writer. Details about Leaf were published in
+#     "LEAF: A Benchmark for Federated Settings" https://arxiv.org/abs/1812.01097.
+#     """
+#     resources = [
+#         ('https://raw.githubusercontent.com/tao-shen/FEMNIST_pytorch/master/femnist.tar.gz',
+#          '59c65cec646fc57fe92d27d83afdf0ed')
+#     ]
 
-    def __init__(self, root, train=True, transform=None, target_transform=None,
-                 download=False):
-        super(MNIST, self).__init__(root, transform=transform,
-                                    target_transform=target_transform)
-        self.train = train
+#     def __init__(self, root, train=True, transform=None, target_transform=None,
+#                  download=False):
+#         super(MNIST, self).__init__(root, transform=transform,
+#                                     target_transform=target_transform)
+#         self.train = train
 
-        if download:
-            self.download()
+#         if download:
+#             self.download()
 
-        if not self._check_exists():
-            raise RuntimeError('Dataset not found.' +
-                               ' You can use download=True to download it')
-        if self.train:
-            data_file = self.training_file
-        else:
-            data_file = self.test_file
+#         if not self._check_exists():
+#             raise RuntimeError('Dataset not found.' +
+#                                ' You can use download=True to download it')
+#         if self.train:
+#             data_file = self.training_file
+#         else:
+#             data_file = self.test_file
 
-        self.data, self.targets, self.users_index = torch.load(os.path.join(self.processed_folder, data_file))
-        self.data = self.data * 255.
+#         self.data, self.targets, self.users_index = torch.load(os.path.join(self.processed_folder, data_file))
+#         self.data = self.data * 255.
 
-    def _check_exists(self) -> bool:
-        return all(
-            utils.check_integrity(os.path.join(self.raw_folder, os.path.basename(url))) for url, _ in self.resources
-        )
+#     def _check_exists(self) -> bool:
+#         return all(
+#             utils.check_integrity(os.path.join(self.raw_folder, os.path.basename(url))) for url, _ in self.resources
+#         )
 
-    def download(self):
-        """Download the FEMNIST data if it doesn't exist in processed_folder already."""
-        import shutil
+#     def download(self):
+#         """Download the FEMNIST data if it doesn't exist in processed_folder already."""
+#         import shutil
 
-        if self._check_exists():
-            return
+#         if self._check_exists():
+#             return
 
-        os.makedirs(self.raw_folder, exist_ok=True)
-        os.makedirs(self.processed_folder, exist_ok=True)
+#         os.makedirs(self.raw_folder, exist_ok=True)
+#         os.makedirs(self.processed_folder, exist_ok=True)
 
-        # download files
-        for url, md5 in self.resources:
-            filename = url.rpartition('/')[2]
-            utils.download_and_extract_archive(url, download_root=self.raw_folder, filename=filename, md5=md5)
+#         # download files
+#         for url, md5 in self.resources:
+#             filename = url.rpartition('/')[2]
+#             utils.download_and_extract_archive(url, download_root=self.raw_folder, filename=filename, md5=md5)
 
-        # process and save as torch files
-        training_file = os.path.join(self.raw_folder, self.training_file)
-        if not os.path.isfile(training_file):
-            shutil.move(training_file, self.processed_folder)
-        test_file = os.path.join(self.raw_folder, self.test_file)
-        if not os.path.isfile(training_file):
-            shutil.move(test_file, self.processed_folder)
+#         # process and save as torch files
+#         training_file = os.path.join(self.raw_folder, self.training_file)
+#         if not os.path.isfile(training_file):
+#             shutil.move(training_file, self.processed_folder)
+#         test_file = os.path.join(self.raw_folder, self.test_file)
+#         if not os.path.isfile(training_file):
+#             shutil.move(test_file, self.processed_folder)
 
 
 class MNISTM(VisionDataset):
@@ -692,7 +692,7 @@ DATASET_MAP = {
     "mnist": Datasets.MNIST,
     "mnistm": Datasets.MNISTM,
     "svhn": Datasets.SVHN,
-    "femnist": Datasets.FEMNIST,
+    # "femnist": Datasets.FEMNIST,
     "emnist": Datasets.EMNIST,
 }
 

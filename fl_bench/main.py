@@ -57,7 +57,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
 
     MODEL = MLP().to(DEVICE)
 
-    train_data, test_data = DATASET_MAP[dataset]()
+    train_data, test_data, num_classes = DATASET_MAP[dataset]()
 
     data_splitter = DataSplitter(train_data.data / 255., 
                                  train_data.targets, 
@@ -70,7 +70,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                        batch_size=100, 
                                        shuffle=False)
 
-    logger = Log(ClassificationEval(test_loader, nn.CrossEntropyLoss(), 10, "macro"))
+    logger = Log(ClassificationEval(test_loader, LOSS, num_classes, "macro"))
     # logger = WandBLog(ClassificationEval(test_loader, LOSS), 
     #                   project="fl-bench",
     #                   entity="mlgroup",
