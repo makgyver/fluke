@@ -8,7 +8,6 @@ from torch.optim import Optimizer
 from client import Client
 from server import Server
 
-
 import sys; sys.path.append(".")
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.utils import OptimizerConfigurator
@@ -153,6 +152,27 @@ class ScaffoldServer(Server):
 
 
 class SCAFFOLD(CentralizedFL):
+    """SCAFFOLD Federated Learning Environment.
+
+    https://arxiv.org/pdf/1910.06378.pdf
+
+    Parameters
+    ----------
+    n_clients : int
+        Number of clients in the FL environment.
+    n_rounds : int
+        Number of communication rounds.
+    n_epochs : int
+        Number of epochs per communication round.
+    optimizer_cfg : OptimizerConfigurator
+        Optimizer configurator for the clients.
+    model : torch.nn.Module
+        Model to be trained.
+    loss_fn : Callable
+        Loss function.
+    elegibility_percentage : float, optional
+        Percentage of clients to be selected for each communication round, by default 0.5.
+    """
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 

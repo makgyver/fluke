@@ -9,6 +9,23 @@ from fl_bench.utils import OptimizerConfigurator
 
 
 class FedSGD(CentralizedFL):
+    """Federated SGD algorithm.
+
+    Parameters
+    ----------
+    n_clients : int
+        Number of clients.
+    n_rounds : int
+        Number of communication rounds.
+    optimizer_cfg : OptimizerConfigurator
+        Optimizer configurator for the clients.
+    model : Module
+        Model to be trained.
+    loss_fn : Callable
+        Loss function.
+    elegibility_percentage : float, optional
+        Percentage of clients to be selected for each communication round, by default 0.5.
+    """
     def __init__(self,
                  n_clients: int,
                  n_rounds: int,
@@ -25,7 +42,7 @@ class FedSGD(CentralizedFL):
                          loss_fn,
                          elegibility_percentage)
     
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable = None):
+    def init_parties(self, data_splitter: DataSplitter, callback: Callable = None) -> None:
         assert data_splitter.batch_size == 0, \
                "Batch size must be 0 (i.e., the full local dataset is the batch) for FedSGD"
         return super().init_parties(data_splitter, callback)

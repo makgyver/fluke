@@ -50,6 +50,29 @@ class FedProxClient(Client):
 
 
 class FedProx(CentralizedFL):
+    """FedProx federated learning algorithm.
+
+    https://arxiv.org/pdf/1812.06127.pdf
+
+    Parameters
+    ----------
+    n_clients : int
+        The number of clients.
+    n_rounds : int
+        The number of rounds.
+    n_epochs : int
+        The number of local epochs.
+    optimizer_cfg : OptimizerConfigurator
+        The optimizer configurator for the clients.
+    model : Module
+        The model to be trained.
+    client_mu : float
+        The mu parameter for the FedProx algorithm.
+    loss_fn : Callable
+        The loss function.
+    elegibility_percentage : float, optional
+        The percentage of clients to be selected for training, by default 0.5.
+    """
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 
