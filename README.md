@@ -65,7 +65,6 @@ where the possible distributions are:
 - [ ] Check the correctness of FedBN
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w
-- [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
 - [x] Test logging on wandb
 - [ ] Add learning rate scheduler
 - [ ] Add support to validation
@@ -75,6 +74,7 @@ where the possible distributions are:
 - [x] Implement "macro" metrics (now it should be "micro")
 
 ## Desiderata
+- [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
 - [ ] Configuration via file yaml
 - [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
 - [ ] Add more algorithms
