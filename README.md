@@ -68,7 +68,7 @@ where the possible distributions are:
 - [x] Test logging on wandb
 - [ ] Add learning rate scheduler
 - [ ] Add support to validation
-- [ ] Add client-side evaluations - useful to evaluate FedBN
+- [x] Add client-side evaluations - useful to evaluate FedBN
 - [ ] Add documentation + check typing
 - [ ] Add checkpoints
 - [x] Implement "macro" metrics (now it should be "micro")

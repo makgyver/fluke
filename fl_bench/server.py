@@ -37,12 +37,15 @@ class Server(ABC):
             for round in range(n_rounds):
                 eligible = self.get_eligible_clients()
                 self.broadcast(eligible)
+                client_evals = []
                 for c, client in enumerate(eligible):
-                    client.local_train()
+                    client_eval = client.local_train()
+                    if client_eval:
+                        client_evals.append(client_eval)
                     progress.update(task_id=task_local, completed=c+1)
                     progress.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
-                self.notify_all(self.model, round + 1)
+                self.notify_all(self.model, round + 1, client_evals)
 
     def get_eligible_clients(self):
         if self.elegibility_percentage == 1:

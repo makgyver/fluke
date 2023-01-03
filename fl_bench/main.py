@@ -62,7 +62,8 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     data_splitter = DataSplitter(*data_container.train,
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
-                                 batch_size=batch_size)
+                                 batch_size=batch_size,
+                                 validation_split=0.1)
 
     test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, 

@@ -3,6 +3,7 @@ import warnings
 
 import os
 import os.path
+from sklearn.model_selection import train_test_split
 import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
@@ -407,23 +408,34 @@ class DataSplitter:
                  n_clients: int, 
                  distribution: Distribution=Distribution.IID,
                  batch_size: int=32,
+                 validation_split: float=0.0,
+                 sampling_perc: float=1.0,
                  **kwargs):
 
         self.X, self.y = X, y
         self.n_clients = n_clients
         self.distribution = distribution
         self.batch_size = batch_size
+        self.validation_split = validation_split
+        self.sampling_perc = sampling_perc
         self.kwargs = kwargs
         self.assign()
 
     def assign(self):
         """Assign data to clients."""
         self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
-        self.client_loader = [FastTensorDataLoader(self.X[self.assignments[c]], 
-                                                   self.y[self.assignments[c]], 
-                                                   batch_size=self.batch_size, 
-                                                   shuffle=True,
-                                                   percentage=.1) for c in range(self.n_clients)]
+        self.client_train_loader = []
+        self.client_test_loader = []
+        for c in range(self.n_clients):
+            client_X = self.X[self.assignments[c]]
+            client_y = self.y[self.assignments[c]]
+            if self.validation_split > 0.0:
+                X_train, X_test, y_train, y_test = train_test_split(client_X, client_y, test_size=self.validation_split, stratify=client_y)
+                self.client_train_loader.append(FastTensorDataLoader(X_train, y_train, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
+                self.client_test_loader.append(FastTensorDataLoader(X_test, y_test, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
+            else:
+                self.client_train_loader.append(FastTensorDataLoader(client_X, client_y, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
+                self.client_test_loader.append(None)
 
     def uniform(self,
                 X: torch.Tensor,

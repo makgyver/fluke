@@ -2,6 +2,7 @@ import os
 import json
 import random
 import numpy as np
+import pandas as pd
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
@@ -47,14 +48,20 @@ class Log():
     def __init__(self, evaluator: Evaluator):
         self.evaluator = evaluator
         self.history = {}
+        self.client_history = {}
     
-    def update(self, model, round):
+    def update(self, model, round, client_evals):
         self.history[round] = self.evaluator(model)
+        if client_evals:
+            self.client_history[round] = client_evals
         print(f"Round {round}",)
-        pprint(self.history[round])
+        pprint(f"Global: {self.history[round]}")
+        client_mean = pd.DataFrame(client_evals).mean().to_dict()
+        client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+        pprint(f"Local: {client_mean}")
     
-    def __call__(self, model, round):
-        self.update(model, round)
+    def __call__(self, model, round, client_evals=None):
+        self.update(model, round, client_evals)
     
     def save(self, path: str):
         with open(path, 'w') as f:

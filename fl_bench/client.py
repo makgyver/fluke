@@ -8,6 +8,7 @@ import sys; sys.path.append(".")
 from fl_bench import GlobalSettings
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader
+from fl_bench.evaluation import ClassificationEval
 
 class Client(ABC):
 
@@ -47,9 +48,9 @@ class Client(ABC):
         self.model.train()
         if self.optimizer is None:
             self.optimizer = self.optimizer_cfg(self.model)
-        for epoch in range(epochs):
+        for _ in range(epochs):
             loss = None
-            for i, (X, y) in enumerate(self.train_set):
+            for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
@@ -60,6 +61,12 @@ class Client(ABC):
                 #if log_interval and (i+1) % log_interval == 0:
                 #    print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
                 #        .format(epoch + 1, self.local_epochs, i + 1, total_step, loss.item()))
-        return None # CHECK ME
+        
+        return self.validate()
+    
+    def validate(self):
+        if self.validation_set is not None:
+            n_classes = len(torch.unique(self.validation_set.tensors[1]))
+            return ClassificationEval(self.validation_set, self.loss_fn, n_classes).evaluate(self.model)
         
 
