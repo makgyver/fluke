@@ -172,11 +172,13 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
 @app.command()
 def compare(dataset: str=typer.Option('mnist', help='Dataset'),
             n_clients: int=typer.Option(100, help='Number of clients'),
+            n_rounds: int=typer.Option(100, help='Number of rounds'),
             distribution: int=typer.Option(Distribution.IID.value, help='Data distribution'),
-            show_loss: bool=typer.Option(True, help='Show loss graph')):
+            show_loss: bool=typer.Option(True, help='Show loss graph'),
+            local: bool=typer.Option(False, help='Compare client-side results')):
 
-    paths = glob.glob(f'./log/*C={n_clients}*_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
-    plot_comparison(*paths, show_loss=show_loss)
+    paths = glob.glob(f'./log/*C={n_clients},R={n_rounds},*_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
+    plot_comparison(*paths, local=local, show_loss=show_loss)
 
 # compare('./log/flhalf_noniid_dir.json', './log/fedavg_noniid_dir.json', show_loss=True) 
 

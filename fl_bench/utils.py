@@ -52,20 +52,24 @@ class Log():
     
     def update(self, model, round, client_evals):
         self.history[round] = self.evaluator(model)
-        if client_evals:
-            self.client_history[round] = client_evals
         print(f"Round {round}",)
         pprint(f"Global: {self.history[round]}")
-        client_mean = pd.DataFrame(client_evals).mean().to_dict()
-        client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-        pprint(f"Local: {client_mean}")
+        if client_evals:
+            client_mean = pd.DataFrame(client_evals).mean().to_dict()
+            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+            self.client_history[round] = client_mean
+            pprint(f"Local: {client_mean}")
     
     def __call__(self, model, round, client_evals=None):
         self.update(model, round, client_evals)
     
     def save(self, path: str):
+        json_to_save = {
+            "global": self.history,
+            "local": self.client_history
+        }
         with open(path, 'w') as f:
-            json.dump(self.history, f, indent=4)
+            json.dump(json_to_save, f, indent=4)
 
 
 class WandBLog(Log):
@@ -90,7 +94,7 @@ def print_params(model):
         print(f"{name}: {param.data}")
 
 
-def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=True):
+def plot_comparison(*log_paths: str, local: bool=False, metric: str='accuracy', show_loss: bool=True):
     iidness = os.path.basename(log_paths[0]).split("_")[-1].split(".")[0]
     iidness = INV_IIDNESS_MAP[iidness]
 
@@ -106,8 +110,8 @@ def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=Tru
         for path in log_paths:
             with open(path, 'r') as f:
                 history = json.load(f)
-            rounds = list(history.keys())
-            values = [history[round]['loss'] for round in rounds]
+            rounds = list(history["global"].keys())
+            values = [history["local" if local else "global"][round]['loss'] for round in rounds]
             plt.plot(list(map(int, rounds)), values)
     
         plt.subplot(1, 2, 2)
@@ -118,8 +122,8 @@ def plot_comparison(*log_paths: str, metric: str='accuracy', show_loss: bool=Tru
     for path in log_paths:
         with open(path, 'r') as f:
             history = json.load(f)
-        rounds = list(history.keys())
-        values = [history[round][metric] for round in rounds]
+        rounds = list(history["global"].keys())
+        values = [history["local" if local else "global"][round][metric] for round in rounds]
         plt.plot(list(map(int, rounds)), values, label=os.path.basename(path).split("_")[0])
     plt.legend()
     plt.get_current_fig_manager().set_window_title(f"{Distribution(iidness).name}")
