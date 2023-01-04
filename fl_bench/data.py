@@ -821,12 +821,25 @@ class DataSplitter:
 
 
 # Mapping between dataset names and their corresponding enum value
-DATASET_MAP = {
-    "mnist": Datasets.MNIST,
-    "mnistm": Datasets.MNISTM,
-    "svhn": Datasets.SVHN,
-    # "femnist": Datasets.FEMNIST,
-    "emnist": Datasets.EMNIST,
-    "cifar10": Datasets.CIFAR10
-}
+
+class DatasetsEnum(Enum):
+    MNIST = "mnist"
+    MNISTM = "mnistm"
+    SVHN = "svhn"
+    # FEMNIST = "femnist"
+    EMNIST = "emnist"
+    CIFAR10 = "cifar10"
+
+    def klass(self):
+        DATASET_MAP = {
+            "mnist": Datasets.MNIST,
+            "mnistm": Datasets.MNISTM,
+            "svhn": Datasets.SVHN,
+            # "femnist": Datasets.FEMNIST,
+            "emnist": Datasets.EMNIST,
+            "cifar10": Datasets.CIFAR10
+        } 
+        return DATASET_MAP[self.value]
+
+
 
