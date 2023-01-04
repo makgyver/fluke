@@ -153,6 +153,10 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     else:
         raise ValueError(f'Algorithm {algorithm} not supported')
     
+    pprint("FL algorithm: ") 
+    pprint(fl_algo)
+    print()
+    
     fl_algo.init_parties(data_splitter, callback=logger)
     fl_algo.run()
     logger.save(f'./log/{fl_algo}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')

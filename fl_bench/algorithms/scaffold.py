@@ -206,3 +206,7 @@ class SCAFFOLD(CentralizedFL):
                                      self.global_step, 
                                      self.elegibility_percentage)
         self.server.register_callback(callback)
+    
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
+               f"G={self.global_step},P={self.elegibility_percentage},{self.optimizer_cfg})"

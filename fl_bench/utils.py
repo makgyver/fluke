@@ -63,7 +63,7 @@ class OptimizerConfigurator:
     def __str__(self) -> str:
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
+        to_str += "," + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
         to_str += ")"
         return to_str
 

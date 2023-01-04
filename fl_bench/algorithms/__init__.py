@@ -55,4 +55,7 @@ class CentralizedFL(FLEnvironment):
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"P={self.elegibility_percentage})"
+               f"P={self.elegibility_percentage},{self.optimizer_cfg})"
+    
+    def __repr__(self) -> str:
+        return self.__str__()

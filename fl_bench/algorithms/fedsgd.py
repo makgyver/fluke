@@ -49,4 +49,4 @@ class FedSGD(CentralizedFL):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds}," + \
-               f"P={self.elegibility_percentage})"
+               f"P={self.elegibility_percentage},{self.optimizer_cfg})"
