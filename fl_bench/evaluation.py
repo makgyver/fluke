@@ -62,16 +62,10 @@ class ClassificationEval(Evaluator):
     def evaluate(self, model: torch.nn.Module) -> dict:
         model.eval()
         task = "multiclass" if self.n_classes > 2 else "binary"
-        if self.average == "macro":
-            accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average="macro")
-            precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average="macro")
-            recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="macro")
-            f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="macro")
-        else:
-            accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="micro")
+        accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+        precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+        recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+        f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
         loss = 0
         device = GlobalSettings().get_device()
         for X, y in self.data_loader:
