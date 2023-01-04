@@ -56,7 +56,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     pprint(options, expand_all=True)
     print()
 
-    MODEL = DigitModel().to(DEVICE)
+    MODEL = MLP_BN().to(DEVICE)
 
     data_container = DATASET_MAP[dataset]()
 
@@ -64,8 +64,8 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
                                  batch_size=batch_size,
-                                 validation_split=0,
-                                 sampling_perc=.1)
+                                 validation_split=.1,
+                                 sampling_perc=1.)
 
     test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, 

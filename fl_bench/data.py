@@ -440,6 +440,9 @@ class FastTensorDataLoader:
         if self.i >= self.size:
             raise StopIteration
         batch = tuple(t[self.i: self.i+self.batch_size] for t in self.tensors)
+        # Useful in case of batch norm layers
+        if batch[0].shape[0] == 1:
+            raise StopIteration
         self.i += self.batch_size
         return batch
 
