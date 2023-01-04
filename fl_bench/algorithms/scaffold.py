@@ -84,7 +84,7 @@ class ScaffoldClient(Client):
             delta_y.data = local_model.data.detach() - server_model.data.detach()
         
         new_controls = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        coeff = 1. / (self.local_epochs * len(self.train_set) * self.optimizer_cfg.learning_rate())
+        coeff = 1. / (self.local_epochs * len(self.train_set) * self.scheduler.get_last_lr()[0])
         for local_control, server_control, new_control, delta_y in zip(self.control, self.server_control, new_controls, self.delta_y):
             new_control.data = local_control.data - server_control.data - delta_y.data * coeff
 

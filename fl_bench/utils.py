@@ -32,12 +32,24 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.deterministic = True
 
 class OptimizerConfigurator:
+    """Optimizer configurator.
+
+    Parameters
+    ----------
+    optimizer_class : type[Optimizer]
+        The optimizer class.
+    scheduler_kwargs : dict, optional
+        The scheduler keyword arguments, by default None. If None, the scheduler
+        is set to StepLR with step_size=1 and gamma=1.
+    **optimizer_kwargs
+        The optimizer keyword arguments.
+    """ 
     def __init__(self,
                  optimizer_class: type[Optimizer], 
-                 scheduler_kwargs: dict={},
+                 scheduler_kwargs: dict=None,
                  **optimizer_kwargs):
         self.optimizer = optimizer_class
-        if scheduler_kwargs:
+        if scheduler_kwargs is not None:
             self.scheduler_kwargs = scheduler_kwargs
         else:
             self.scheduler_kwargs = {"step_size": 1, "gamma": 1}
@@ -47,12 +59,6 @@ class OptimizerConfigurator:
         optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
         scheduler = StepLR(optimizer, **self.scheduler_kwargs)
         return optimizer, scheduler
-    
-    def learning_rate(self) -> float:
-        return self.optimizer_kwargs['lr']
-    
-    # def weight_decay(self) -> float:
-    #     return self.optimizer_kwargs['weight_decay']
     
     def __str__(self) -> str:
         to_str = f"OptCfg({self.optimizer.__name__},"
