@@ -56,7 +56,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     pprint(options, expand_all=True)
     print()
 
-    MODEL = MLP().to(DEVICE)
+    MODEL = DigitModel().to(DEVICE)
 
     data_container = DATASET_MAP[dataset]()
 
@@ -64,7 +64,8 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
                                  batch_size=batch_size,
-                                 validation_split=0)
+                                 validation_split=0,
+                                 sampling_perc=.1)
 
     test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, 
@@ -82,7 +83,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          n_rounds=n_rounds, 
                          n_epochs=n_epochs, 
                          model=MODEL, 
-                         optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+                         optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, scheduler_kwargs={"step_size":10, "gamma":.9}, lr=0.1), 
                          loss_fn=LOSS,
                          elegibility_percentage=elegibility_percentage)
     
@@ -107,9 +108,9 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
         fl_algo = FedProx(n_clients=n_clients,
                           n_rounds=n_rounds, 
                           n_epochs=n_epochs, 
-                          client_mu = 0.1,
+                          client_mu=0.001,
                           model=MODEL, 
-                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD,  scheduler_kwargs={"step_size":10, "gamma":.8}, lr=0.1), 
                           loss_fn=LOSS, 
                           elegibility_percentage=elegibility_percentage)
 
@@ -119,7 +120,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            n_epochs=n_epochs,
                            global_step=1,
                            model=MODEL, 
-                           optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
+                           optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, scheduler_kwargs={"step_size":10, "gamma":.8}, lr=0.1), 
                            loss_fn=LOSS, 
                            elegibility_percentage=elegibility_percentage)
     

@@ -21,11 +21,11 @@ class MLP(nn.Module):
     def __init__(self, input_size: int=28*28, num_classes: int=10):
         super(MLP, self).__init__()
         self.input_size = input_size
-        self.fc1 = nn.Linear(input_size, 50)
+        self.fc1 = nn.Linear(input_size, 200)
         #self.fc1_drop = nn.Dropout(0.2)
-        self.fc2 = nn.Linear(50, 50)
+        self.fc2 = nn.Linear(200, 100)
         #self.fc2_drop = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(50, num_classes)
+        self.fc3 = nn.Linear(100, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, self.input_size)
@@ -98,6 +98,7 @@ class MLP_BN(nn.Module):
         x = F.relu(self.bn1(self.fc1(x)))
         return x
 
+# 2 convolutional layers with 64 5 × 5 filters, 2 fully connected hidden layers contains 394 and 192 neurons followed by a softmax layer)
 
 class DigitModel(nn.Module):
     """Model for benchmark experiment on Digits. 
@@ -117,14 +118,15 @@ class DigitModel(nn.Module):
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, 5, 1, 2)
         self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(64, 128, 5, 1, 2)
-        self.bn3 = nn.BatchNorm2d(128)
+        #self.conv3 = nn.Conv2d(64, 128, 5, 1, 2)
+        #self.bn3 = nn.BatchNorm2d(128)
     
-        self.fc1 = nn.Linear(8192, 2048)
-        self.bn4 = nn.BatchNorm1d(2048)
-        self.fc2 = nn.Linear(2048, 512)
-        self.bn5 = nn.BatchNorm1d(512)
-        self.fc3 = nn.Linear(512, num_classes)
+        #self.fc1 = nn.Linear(8192, 2048)
+        self.fc1 = nn.Linear(4096, 394)
+        self.bn4 = nn.BatchNorm1d(394)
+        self.fc2 = nn.Linear(394, 192)
+        self.bn5 = nn.BatchNorm1d(192)
+        self.fc3 = nn.Linear(192, num_classes)
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -134,7 +136,7 @@ class DigitModel(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.max_pool2d(x, 2)
 
-        x = F.relu(self.bn3(self.conv3(x)))
+        #x = F.relu(self.bn3(self.conv3(x)))
 
         x = x.view(x.shape[0], -1)
 

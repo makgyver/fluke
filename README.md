@@ -61,7 +61,7 @@ where `--local` compares the performance of the algorithms on the local test dat
 
 ## TODO ASAP
 - [x] Check the seed consistency
-- [ ] Check the correctness of SCAFFOLD
+- [x] Check the correctness of SCAFFOLD --> The implementatio seems ok however I can not "perfecly" replicate the results, e.g., https://link.springer.com/article/10.1007/s40747-022-00895-3. It seems that global_step > 1 works better than global_step = 1 although in the paper only global_step = 1 is used.
 - [ ] Check the correctness of FedBN
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w
@@ -78,6 +78,6 @@ where `--local` compares the performance of the algorithms on the local test dat
 - [ ] Configuration via file yaml
 - [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
 - [ ] Add more algorithms
-- [ ] Add more datasets
+- [ ] Add more datasets -- **Work in progress**
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package

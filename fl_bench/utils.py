@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import json
 
 import wandb
-from rich.pretty import pprint
 from fl_bench.evaluation import Evaluator
 from fl_bench.data import Distribution, INV_IIDNESS_MAP
 
@@ -100,9 +99,9 @@ class WandBLog(Log):
     def __init__(self, evaluator: Evaluator, project: str, entity:str, name: str, config: dict):
         super().__init__(evaluator)
         self.run = wandb.init(project=project, #FIXME: load from config file 
-                            entity=entity,     #FIXME: load from config file
-                            name=name,
-                            config=config)
+                              entity=entity,     #FIXME: load from config file
+                              name=name,
+                              config=config)
     
     def update(self, model, round):
         super().update(model, round)
@@ -113,20 +112,12 @@ class WandBLog(Log):
         self.run.finish()
 
 
-# def print_params(model):
-#     for name, param in model.named_parameters():
-#         print(f"{name}: {param.data}")
-
-
 def plot_comparison(*log_paths: str, 
-                     local: bool=False, 
-                     metric: str='accuracy', 
-                     show_loss: bool=True) -> None:
+                    local: bool=False, 
+                    metric: str='accuracy', 
+                    show_loss: bool=True) -> None:
     iidness = os.path.basename(log_paths[0]).split("_")[-1].split(".")[0]
     iidness = INV_IIDNESS_MAP[iidness]
-
-    #if len(iidness) > 1:
-    #    raise ValueError("Cannot compare algorithms on different data distributions")
 
     if show_loss:
         plt.figure(figsize=(10, 5))

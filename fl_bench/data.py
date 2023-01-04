@@ -6,7 +6,7 @@ import os.path
 from sklearn.model_selection import train_test_split
 import torch
 from torchvision import datasets
-from torchvision.transforms import ToTensor
+from torchvision.transforms import ToTensor, Compose, Normalize
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import download_and_extract_archive
 
@@ -131,6 +131,38 @@ class Datasets:
                              train_data.targets, 
                              test_data.data / 255.,
                              test_data.targets, 
+                             10)
+
+    @classmethod
+    def CIFAR10(cls) -> DataContainer:
+        transform = Compose([
+            ToTensor(),
+            Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        train_data = datasets.CIFAR10(
+            root = 'data',
+            train = True,
+            download = True, 
+            transform = transform
+        )
+
+        test_data = datasets.CIFAR10(
+            root = 'data',
+            train = False,
+            download = True, 
+            transform = transform
+        )
+        
+        train_data.data = torch.Tensor(train_data.data / 255.)
+        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data.data = torch.movedim(train_data.data, 3, 1)
+        test_data.data = torch.movedim(test_data.data, 3, 1)
+
+        return DataContainer(train_data.data, 
+                             torch.LongTensor(train_data.targets), 
+                             test_data.data, 
+                             torch.LongTensor(test_data.targets), 
                              10)
 
     # @classmethod
@@ -795,5 +827,6 @@ DATASET_MAP = {
     "svhn": Datasets.SVHN,
     # "femnist": Datasets.FEMNIST,
     "emnist": Datasets.EMNIST,
+    "cifar10": Datasets.CIFAR10
 }
 
