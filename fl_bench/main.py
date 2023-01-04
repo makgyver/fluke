@@ -85,7 +85,6 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                          loss_fn=LOSS,
                          elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, logger)
     
     elif algorithm == 'fedsgd':
         fl_algo = FedSGD(n_clients=n_clients,
@@ -94,7 +93,6 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.1), 
                          loss_fn=LOSS, 
                          elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, logger)
     
     elif algorithm == 'fedbn':
         fl_algo = FedBN(n_clients=n_clients,
@@ -104,7 +102,6 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                         optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                         loss_fn=LOSS, 
                         elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'fedprox':
         fl_algo = FedProx(n_clients=n_clients,
@@ -115,17 +112,16 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                           optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                           loss_fn=LOSS, 
                           elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'scaffold':
         fl_algo = SCAFFOLD(n_clients=n_clients,
                            n_rounds=n_rounds, 
-                           n_epochs=n_epochs, 
+                           n_epochs=n_epochs,
+                           global_step=1,
                            model=MODEL, 
                            optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
                            loss_fn=LOSS, 
                            elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, global_step=1, callback=logger)
     
     elif algorithm == 'fedopt':
         fl_algo = FedOpt(n_clients=n_clients,
@@ -140,7 +136,6 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
                          loss_fn=LOSS, 
                          elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'flhalf':
         fl_algo = FLHalf(n_clients=n_clients,
@@ -154,11 +149,11 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          loss_fn=LOSS, 
                          private_layers=["fc1", "bn1"],
                          elegibility_percentage=elegibility_percentage)
-        fl_algo.init_parties(data_splitter, logger)
     
     else:
         raise ValueError(f'Algorithm {algorithm} not supported')
     
+    fl_algo.init_parties(data_splitter, callback=logger)
     fl_algo.run()
     logger.save(f'./log/{fl_algo}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
 

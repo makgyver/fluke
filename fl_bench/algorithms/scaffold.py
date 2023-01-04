@@ -179,6 +179,7 @@ class SCAFFOLD(CentralizedFL):
                  n_rounds: int, 
                  n_epochs: int,
                  optimizer_cfg: OptimizerConfigurator,
+                 global_step: float,
                  model: Module,
                  loss_fn: Callable,
                  elegibility_percentage: float=0.5):
@@ -190,8 +191,9 @@ class SCAFFOLD(CentralizedFL):
                          optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage)
+        self.global_step = global_step
     
-    def init_parties(self, data_splitter: DataSplitter, global_step: float, callback: Callable=None):
+    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.clients = [ScaffoldClient(train_set=data_splitter.client_train_loader[i], 
                                         optimizer_cfg=self.optimizer_cfg, 
@@ -201,6 +203,6 @@ class SCAFFOLD(CentralizedFL):
 
         self.server = ScaffoldServer(self.model, 
                                      self.clients, 
-                                     global_step, 
+                                     self.global_step, 
                                      self.elegibility_percentage)
         self.server.register_callback(callback)
