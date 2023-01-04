@@ -42,6 +42,7 @@ class Client(ABC):
         self.local_epochs = local_epochs
         self.stateful = False
         self.optimizer = None
+        self.scheduler = None
         self.device = GlobalSettings().get_device()
 
     def send(self) -> torch.nn.Module:
@@ -84,7 +85,7 @@ class Client(ABC):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         self.model.train()
         if self.optimizer is None:
-            self.optimizer = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -93,7 +94,8 @@ class Client(ABC):
                 y_hat = self.model(X)
                 loss = self.loss_fn(y_hat, y)
                 loss.backward()
-                self.optimizer.step()          
+                self.optimizer.step()
+            self.scheduler.step()     
         return self.validate()
     
     def validate(self):

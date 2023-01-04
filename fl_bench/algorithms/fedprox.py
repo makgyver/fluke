@@ -33,11 +33,10 @@ class FedProxClient(Client):
     def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
         W = deepcopy(self.model)
-        #total_step = len(self.dataset)
         self.model.train()
         if self.optimizer is None:
-            self.optimizer = self.optimizer_cfg(self.model)
-        for epoch in range(epochs):
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+        for _ in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
@@ -46,6 +45,7 @@ class FedProxClient(Client):
                 loss = self.loss_fn(y_hat, y) + (self.mu / 2) * self._proximal_loss(self.model, W)
                 loss.backward()
                 self.optimizer.step()          
+            self.scheduler.step()
         return self.validate()
 
 

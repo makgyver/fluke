@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import StepLR
 import matplotlib.pyplot as plt
 import json
 
@@ -31,22 +32,32 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.deterministic = True
 
 class OptimizerConfigurator:
-    def __init__(self, optimizer_class: type[Optimizer], **optimizer_kwargs):
+    def __init__(self,
+                 optimizer_class: type[Optimizer], 
+                 scheduler_kwargs: dict={},
+                 **optimizer_kwargs):
         self.optimizer = optimizer_class
+        if scheduler_kwargs:
+            self.scheduler_kwargs = scheduler_kwargs
+        else:
+            self.scheduler_kwargs = {"step_size": 1, "gamma": 1}
         self.optimizer_kwargs = optimizer_kwargs
     
     def __call__(self, model: Module):
-        return self.optimizer(model.parameters(), **self.optimizer_kwargs)
+        optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
+        scheduler = StepLR(optimizer, **self.scheduler_kwargs)
+        return optimizer, scheduler
     
     def learning_rate(self) -> float:
         return self.optimizer_kwargs['lr']
     
-    def weight_decay(self) -> float:
-        return self.optimizer_kwargs['weight_decay']
+    # def weight_decay(self) -> float:
+    #     return self.optimizer_kwargs['weight_decay']
     
     def __str__(self) -> str:
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
+        to_str += ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
         to_str += ")"
         return to_str
 

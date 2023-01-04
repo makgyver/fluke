@@ -50,7 +50,7 @@ class FLHalfServer(Server):
         self.private_layers = private_layers
         self.n_epochs = n_epochs
         self.batch_size = batch_size
-        self.optimizer = optimizer_cfg(self.model)
+        self.optimizer, self.scheduler = optimizer_cfg(self.model)
     
     def _private_train(self, clients_fake_x, clients_fake_y):
         train_loader = FastTensorDataLoader(clients_fake_x, 
@@ -67,6 +67,7 @@ class FLHalfServer(Server):
                 loss = loss_fn(y_hat, y)
                 loss.backward(retain_graph=True)
                 self.optimizer.step()
+            self.scheduler.step()
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()

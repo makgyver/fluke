@@ -39,7 +39,7 @@ class ScaffoldClient(Client):
     def __init__(self,
                  train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable, # CHECK ME
+                 loss_fn: Callable,
                  validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3):
         assert optimizer_cfg.optimizer == ScaffoldOptimizer, \
@@ -68,7 +68,7 @@ class ScaffoldClient(Client):
         server_model = deepcopy(self.model)
         self.model.train()
         if self.optimizer is None:
-            self.optimizer = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
             loss = None
             for i, (X, y) in enumerate(self.train_set):
@@ -78,6 +78,7 @@ class ScaffoldClient(Client):
                 loss = self.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step(self.server_control, self.control)
+            self.scheduler.step()
         
         for local_model, server_model, delta_y in zip(self.model.parameters(), server_model.parameters(), self.delta_y):
             delta_y.data = local_model.data.detach() - server_model.data.detach()
