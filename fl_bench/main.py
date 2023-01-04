@@ -44,8 +44,9 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
         distribution: int = typer.Option(Distribution.IID.value, help='Data distribution'),
         seed: int = typer.Option(987654, help='Seed')):
     
-    assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], "Algorithm not supported"
-    assert dataset in DATASET_MAP.keys(), "Dataset not supported"
+    assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], \
+        f"Algorithm {algorithm} not supported"
+    assert dataset in DATASET_MAP.keys(), f"Dataset {dataset} not supported"
 
     set_seed(seed) #Reproducibility
 
