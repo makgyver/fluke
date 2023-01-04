@@ -76,13 +76,13 @@ class Log():
     
     def update(self, model, round, client_evals):
         self.history[round] = self.evaluator(model)
-        print(f"Round {round}",)
-        pprint(f"Global: {self.history[round]}")
+        print(f"[Round {round}]")
+        print(f"\tglobal: {self.history[round]}")
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean().to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
-            pprint(f"Local: {client_mean}")
+            print(f"\tlocal: {client_mean}")
     
     def __call__(self, model, round, client_evals=None):
         self.update(model, round, client_evals)

@@ -153,7 +153,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     else:
         raise ValueError(f'Algorithm {algorithm} not supported')
     
-    pprint("FL algorithm: ") 
+    print("FL algorithm: ") 
     pprint(fl_algo)
     print()
     
