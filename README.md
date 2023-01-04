@@ -68,9 +68,9 @@ where `--local` compares the performance of the algorithms on the local test dat
 - [x] Test logging on wandb
 - [x] Add support to learning rate scheduler
 - [ ] Add support to validation
-- [x] Add client-side evaluations - useful to evaluate FedBN
-- [ ] Add documentation + check typing -- **WIP**
-- [ ] Add load/save checkpoints -- **WIP**
+- [x] Add client-side evaluations - useful for evaluating FedBN
+- [ ] Add documentation + check typing -- **Work in progress**
+- [ ] Add load/save checkpoints -- **Work in progress**
 - [x] Implement "macro" averaging for evaluation
 
 ## Desiderata

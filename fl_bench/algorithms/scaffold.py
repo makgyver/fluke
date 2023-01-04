@@ -71,7 +71,7 @@ class ScaffoldClient(Client):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
             loss = None
-            for i, (X, y) in enumerate(self.train_set):
+            for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
@@ -149,7 +149,6 @@ class ScaffoldServer(Server):
             for param, server_control, server_delta_y, server_delta_c in zip(self.model.parameters(), self.control, delta_y, delta_c):
                 param.data = param.data + self.global_step * server_delta_y
                 server_control.data = server_control.data + server_delta_c.data
-
 
 
 class SCAFFOLD(CentralizedFL):
