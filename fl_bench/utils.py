@@ -113,9 +113,9 @@ class WandBLog(Log):
         self.run.finish()
 
 
-def print_params(model):
-    for name, param in model.named_parameters():
-        print(f"{name}: {param.data}")
+# def print_params(model):
+#     for name, param in model.named_parameters():
+#         print(f"{name}: {param.data}")
 
 
 def plot_comparison(*log_paths: str, 

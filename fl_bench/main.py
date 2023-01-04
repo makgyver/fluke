@@ -47,7 +47,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], "Algorithm not supported"
     assert dataset in DATASET_MAP.keys(), "Dataset not supported"
 
-    set_seed(seed)
+    set_seed(seed) #Reproducibility
 
     print("Running configuration:")
     options = deepcopy(locals())
@@ -63,7 +63,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
                                  batch_size=batch_size,
-                                 validation_split=0.1)
+                                 validation_split=0)
 
     test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, 
@@ -78,52 +78,52 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
 
     if algorithm == 'fedavg':
         fl_algo = FedAVG(n_clients=n_clients,
-                           n_rounds=n_rounds, 
-                           n_epochs=n_epochs, 
-                           model=MODEL, 
-                           optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                           loss_fn=LOSS,
-                           elegibility_percentage=elegibility_percentage)
+                         n_rounds=n_rounds, 
+                         n_epochs=n_epochs, 
+                         model=MODEL, 
+                         optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+                         loss_fn=LOSS,
+                         elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
     
     elif algorithm == 'fedsgd':
         fl_algo = FedSGD(n_clients=n_clients,
-                           n_rounds=n_rounds, 
-                           model=MODEL, 
-                           optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.1), 
-                           loss_fn=LOSS, 
-                           elegibility_percentage=elegibility_percentage)
+                         n_rounds=n_rounds, 
+                         model=MODEL, 
+                         optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.1), 
+                         loss_fn=LOSS, 
+                         elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
     
     elif algorithm == 'fedbn':
         fl_algo = FedBN(n_clients=n_clients,
-                           n_rounds=n_rounds, 
-                           n_epochs=n_epochs, 
-                           model=MODEL, 
-                           optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                           loss_fn=LOSS, 
-                           elegibility_percentage=elegibility_percentage)
+                        n_rounds=n_rounds, 
+                        n_epochs=n_epochs, 
+                        model=MODEL, 
+                        optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+                        loss_fn=LOSS, 
+                        elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'fedprox':
         fl_algo = FedProx(n_clients=n_clients,
-                            n_rounds=n_rounds, 
-                            n_epochs=n_epochs, 
-                            client_mu = 0.1,
-                            model=MODEL, 
-                            optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
-                            loss_fn=LOSS, 
-                            elegibility_percentage=elegibility_percentage)
+                          n_rounds=n_rounds, 
+                          n_epochs=n_epochs, 
+                          client_mu = 0.1,
+                          model=MODEL, 
+                          optimizer_cfg=OptimizerConfigurator(torch.optim.SGD, lr=0.01), 
+                          loss_fn=LOSS, 
+                          elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, logger)
 
     elif algorithm == 'scaffold':
         fl_algo = SCAFFOLD(n_clients=n_clients,
-                             n_rounds=n_rounds, 
-                             n_epochs=n_epochs, 
-                             model=MODEL, 
-                             optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
-                             loss_fn=LOSS, 
-                             elegibility_percentage=elegibility_percentage)
+                           n_rounds=n_rounds, 
+                           n_epochs=n_epochs, 
+                           model=MODEL, 
+                           optimizer_cfg=OptimizerConfigurator(ScaffoldOptimizer, lr=0.01), 
+                           loss_fn=LOSS, 
+                           elegibility_percentage=elegibility_percentage)
         fl_algo.init_parties(data_splitter, global_step=1, callback=logger)
     
     elif algorithm == 'fedopt':
