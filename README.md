@@ -71,7 +71,7 @@ where `--local` compares the performance of the algorithms on the local test dat
 - [x] Add client-side evaluations - useful to evaluate FedBN
 - [ ] Add documentation + check typing -- **WIP**
 - [ ] Add load/save checkpoints -- **WIP**
-- [x] Implement "macro" metrics (now it should be "micro")
+- [x] Implement "macro" averaging for evaluation
 
 ## Desiderata
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
