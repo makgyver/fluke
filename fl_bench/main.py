@@ -55,8 +55,6 @@ def run(algorithm: FedAlgorithmsEnum = typer.Argument(..., help='Algorithm to ru
         distribution: int = typer.Option(Distribution.IID.value, help='Data distribution'),
         seed: int = typer.Option(987654, help='Seed')):
     
-    # assert dataset in DATASET_MAP.keys(), f"Dataset {dataset} not supported"
-
     set_seed(seed) #Reproducibility
 
     print("Running configuration:")
@@ -65,9 +63,8 @@ def run(algorithm: FedAlgorithmsEnum = typer.Argument(..., help='Algorithm to ru
     pprint(options, expand_all=True)
     print()
 
-    MODEL = DigitModel().to(DEVICE)
+    MODEL = MLP().to(DEVICE)
 
-    # data_container = DATASET_MAP[dataset]()
     data_container = dataset.klass()()
 
     data_splitter = DataSplitter(*data_container.train,
@@ -170,7 +167,7 @@ def run(algorithm: FedAlgorithmsEnum = typer.Argument(..., help='Algorithm to ru
     
     fl_algo.init_parties(data_splitter, callback=logger)
     fl_algo.run()
-    logger.save(f'./log/{fl_algo}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
+    logger.save(f'./log/{fl_algo}_{dataset.value}_{IIDNESS_MAP[Distribution(distribution)]}.json')
 
 
 @app.command()
