@@ -13,10 +13,12 @@ from algorithms.fedopt import FedOpt, FedOptMode
 
 from fl_bench import GlobalSettings
 from net import *
-from data import DataSplitter, Distribution, FastTensorDataLoader, DATASET_MAP, IIDNESS_MAP
+from data import DataSplitter, Distribution, FastTensorDataLoader, DatasetsEnum, IIDNESS_MAP
 from utils import WandBLog, plot_comparison
 from utils import OptimizerConfigurator, Log, set_seed
 from evaluation import ClassificationEval
+
+from enum import Enum
 
 from rich.pretty import pprint
 import typer
@@ -24,6 +26,15 @@ app = typer.Typer()
 
 GlobalSettings().auto_device()
 DEVICE = GlobalSettings().get_device()
+
+class FedAlgorithmsEnum(Enum):
+    FEDAVG = 'fedavg'
+    FEDSGD = 'fedsgd'
+    FEDPROX = 'fedprox'
+    SCAFFOLD = 'scaffold'
+    FLHALF = 'flhalf'
+    FEDBN = 'fedbn'
+    FEDOPT = 'fedopt'
 
 
 N_CLIENTS = 5
@@ -34,8 +45,8 @@ ELIGIBILITY_PERCENTAGE = .5
 LOSS = nn.CrossEntropyLoss()
 
 @app.command()
-def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
-        dataset: str = typer.Argument(..., help='Dataset'),
+def run(algorithm: FedAlgorithmsEnum = typer.Argument(..., help='Algorithm to run'),
+        dataset: DatasetsEnum = typer.Argument(..., help='Dataset'),
         n_clients: int = typer.Option(N_CLIENTS, help='Number of clients'),
         n_rounds: int = typer.Option(N_ROUNDS, help='Number of rounds'),
         n_epochs: int = typer.Option(N_EPOCHS, help='Number of epochs'),
@@ -44,10 +55,6 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
         distribution: int = typer.Option(Distribution.IID.value, help='Data distribution'),
         seed: int = typer.Option(987654, help='Seed')):
     
-    assert algorithm in ['fedavg', 'fedprox', 'flhalf', 'scaffold', 'fedbn', 'fedopt', 'fedsgd'], \
-        f"Algorithm {algorithm} not supported"
-    assert dataset in DATASET_MAP.keys(), f"Dataset {dataset} not supported"
-
     set_seed(seed) #Reproducibility
 
     print("Running configuration:")
@@ -56,9 +63,9 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     pprint(options, expand_all=True)
     print()
 
-    MODEL = MLP_BN().to(DEVICE)
+    MODEL = MLP().to(DEVICE)
 
-    data_container = DATASET_MAP[dataset]()
+    data_container = dataset.klass()()
 
     data_splitter = DataSplitter(*data_container.train,
                                  n_clients=n_clients, 
@@ -78,7 +85,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     #                   name=f"{algorithm}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}", 
     #                   config=options)
 
-    if algorithm == 'fedavg':
+    if algorithm == FedAlgorithmsEnum.FEDAVG:
         fl_algo = FedAVG(n_clients=n_clients,
                          n_rounds=n_rounds, 
                          n_epochs=n_epochs, 
@@ -87,7 +94,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          loss_fn=LOSS,
                          elegibility_percentage=elegibility_percentage)
     
-    elif algorithm == 'fedsgd':
+    elif algorithm == FedAlgorithmsEnum.FEDSGD:
         fl_algo = FedSGD(n_clients=n_clients,
                          n_rounds=n_rounds, 
                          model=MODEL, 
@@ -95,7 +102,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          loss_fn=LOSS, 
                          elegibility_percentage=elegibility_percentage)
     
-    elif algorithm == 'fedbn':
+    elif algorithm == FedAlgorithmsEnum.FEDBN:
         fl_algo = FedBN(n_clients=n_clients,
                         n_rounds=n_rounds, 
                         n_epochs=n_epochs, 
@@ -104,7 +111,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                         loss_fn=LOSS, 
                         elegibility_percentage=elegibility_percentage)
 
-    elif algorithm == 'fedprox':
+    elif algorithm == FedAlgorithmsEnum.FEDPROX:
         fl_algo = FedProx(n_clients=n_clients,
                           n_rounds=n_rounds, 
                           n_epochs=n_epochs, 
@@ -114,7 +121,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                           loss_fn=LOSS, 
                           elegibility_percentage=elegibility_percentage)
 
-    elif algorithm == 'scaffold':
+    elif algorithm == FedAlgorithmsEnum.SCAFFOLD:
         fl_algo = SCAFFOLD(n_clients=n_clients,
                            n_rounds=n_rounds, 
                            n_epochs=n_epochs,
@@ -124,7 +131,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                            loss_fn=LOSS, 
                            elegibility_percentage=elegibility_percentage)
     
-    elif algorithm == 'fedopt':
+    elif algorithm == FedAlgorithmsEnum.FEDOPT:
         fl_algo = FedOpt(n_clients=n_clients,
                          n_rounds=n_rounds, 
                          n_epochs=n_epochs, 
@@ -138,7 +145,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
                          loss_fn=LOSS, 
                          elegibility_percentage=elegibility_percentage)
 
-    elif algorithm == 'flhalf':
+    elif algorithm == FedAlgorithmsEnum.FLHALF:
         fl_algo = FLHalf(n_clients=n_clients,
                          n_rounds=n_rounds, 
                          client_n_epochs=n_epochs, 
@@ -160,7 +167,7 @@ def run(algorithm: str = typer.Argument(..., help='Algorithm to run'),
     
     fl_algo.init_parties(data_splitter, callback=logger)
     fl_algo.run()
-    logger.save(f'./log/{fl_algo}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}.json')
+    logger.save(f'./log/{fl_algo}_{dataset.value}_{IIDNESS_MAP[Distribution(distribution)]}.json')
 
 
 @app.command()
