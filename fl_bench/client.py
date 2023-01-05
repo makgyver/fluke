@@ -107,7 +107,7 @@ class Client(ABC):
             The evaluation results.
         """
         if self.validation_set is not None:
-            n_classes = len(torch.unique(self.validation_set.tensors[1]))
+            n_classes = self.model.output_size
             return ClassificationEval(self.validation_set, self.loss_fn, n_classes).evaluate(self.model)
         
 

@@ -71,8 +71,8 @@ def run(algorithm: FedAlgorithmsEnum = typer.Argument(..., help='Algorithm to ru
                                  n_clients=n_clients, 
                                  distribution=Distribution(distribution), 
                                  batch_size=batch_size,
-                                 validation_split=0,
-                                 sampling_perc=.1)
+                                 validation_split=.1,
+                                 sampling_perc=1.)
 
     test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, 

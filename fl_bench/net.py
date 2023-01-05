@@ -21,6 +21,7 @@ class MLP(nn.Module):
     def __init__(self, input_size: int=28*28, num_classes: int=10):
         super(MLP, self).__init__()
         self.input_size = input_size
+        self.output_size = num_classes
         self.fc1 = nn.Linear(input_size, 200)
         #self.fc1_drop = nn.Dropout(0.2)
         self.fc2 = nn.Linear(200, 100)
@@ -67,15 +68,17 @@ class MLP_BN(nn.Module):
     def __init__(self, input_size: int=28*28, num_classes: int=10):
         super(MLP_BN, self).__init__()
         self.input_size = input_size
-        self.fc1 = nn.Linear(input_size, 50)
-        self.bn1 = nn.BatchNorm1d(50)
-        self.fc2 = nn.Linear(50, 50)
-        self.bn2 = nn.BatchNorm1d(50)
-        self.fc3 = nn.Linear(50, num_classes)
+        self.output_size = num_classes
+        self.fc1 = nn.Linear(input_size, 200)
+        self.bn1 = nn.BatchNorm1d(200)
+        self.fc2 = nn.Linear(200, 100)
+        self.bn2 = nn.BatchNorm1d(100)
+        self.fc3 = nn.Linear(100, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = torchvision.transforms.functional.rgb_to_grayscale(x, num_output_channels=1)
-        x = x.reshape(x.shape[0], self.input_size)
+        #x = torchvision.transforms.functional.rgb_to_grayscale(x, num_output_channels=1)
+        #x = x.reshape(x.shape[0], self.input_size)
+        x = x.view(-1, self.input_size)
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.fc2(x)))
         return F.log_softmax(self.fc3(x), dim=1)
@@ -114,6 +117,7 @@ class DigitModel(nn.Module):
     """
     def __init__(self, num_classes: int=10, **kwargs):
         super(DigitModel, self).__init__()
+        self.output_size = num_classes
         self.conv1 = nn.Conv2d(3, 64, 5, 1, 2)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, 5, 1, 2)
@@ -180,6 +184,7 @@ class CNN(nn.Module):
         )
         # fully connected layer, output 10 classes
         self.out = nn.Linear(32 * 7 * 7, 10)
+        self.output_size = 10
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv1(x)
