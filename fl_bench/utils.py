@@ -12,11 +12,8 @@ import json
 import importlib
 from enum import Enum
 
-
-
 import wandb
 from fl_bench.evaluation import Evaluator
-from fl_bench.data import Distribution
 
 class DeviceEnum(Enum):
     CPU: str = "cpu"
@@ -166,7 +163,7 @@ def plot_comparison(*log_paths: str,
         values = [history["local" if local else "global"][round][metric] for round in rounds]
         plt.plot(list(map(int, rounds)), values, label=os.path.basename(path).split("_")[0])
     plt.legend()
-    plt.get_current_fig_manager().set_window_title(f"{Distribution(iidness).name}")
+    plt.get_current_fig_manager().set_window_title(f"{iidness}")
     plt.show()
 
 
@@ -186,7 +183,7 @@ def load_defaults(console):
         "method": {
             "name": "fedavg",
             "optimizer_parameters": {
-                "lr": 0.0001,
+                "lr": 0.01,
                 "scheduler_kwargs": {
                     "step_size":10, 
                     "gamma":0.9
@@ -197,8 +194,8 @@ def load_defaults(console):
             }
         },
         "dataset": "mnist",
-        "validation": 0.1,
-        "sampling": 0.1,
+        "validation": 0.0,
+        "sampling": 1.0,
         "logger": "local",
         "wandb_params": {
             "project": "fl-bench",

@@ -61,7 +61,7 @@ where `--local` compares the performance of the algorithms on the local test dat
 
 ## TODO ASAP
 - [x] Check the seed consistency
-- [x] Check the correctness of SCAFFOLD --> The implementatio seems ok however I can not "perfecly" replicate the results, e.g., https://link.springer.com/article/10.1007/s40747-022-00895-3. It seems that global_step > 1 works better than global_step = 1 although in the paper only global_step = 1 is used.
+- [x] Check the correctness of SCAFFOLD --> The implementation seems ok however I can not "perfecly" replicate the results, e.g., https://link.springer.com/article/10.1007/s40747-022-00895-3. It seems that global_step > 1 works better than global_step = 1 although in the paper only global_step = 1 is used.
 - [ ] Check the correctness of FedBN
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w
@@ -75,7 +75,7 @@ where `--local` compares the performance of the algorithms on the local test dat
 
 ## Desiderata
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
-- [ ] Configuration via file yaml
+- [x] Configuration via file yaml/json
 - [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
 - [ ] Add more algorithms
 - [ ] Add more datasets -- **Work in progress**

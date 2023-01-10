@@ -1,31 +1,19 @@
 from copy import deepcopy
-import torch
 import glob
-import torch.nn as nn
-import json
 
 import sys; sys.path.append(".")
-from net import *
 from fl_bench import GlobalSettings
 from data import DataSplitter, Distribution, FastTensorDataLoader, DatasetsEnum
-from utils import WandBLog, plot_comparison
-from utils import OptimizerConfigurator, Log, set_seed, load_defaults, get_loss, get_model, LogEnum, DeviceEnum
+from utils import *
 from evaluation import ClassificationEval
 from algorithms import FedAlgorithmsEnum
-
-
-from enum import Enum
-
 from rich.console import Console
 import typer
+
 app = typer.Typer()
-
-
 console = Console()
 
-
 DEFAULTS = load_defaults(console)
-
 
 
 @app.command()
@@ -48,7 +36,6 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
     console.log(options)
     print()
 
-
     GlobalSettings().set_device(device.value)
     model = get_model(DEFAULTS["model"]).to(GlobalSettings().get_device())
     loss = get_loss(DEFAULTS["loss"])
@@ -59,19 +46,14 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                  n_clients=n_clients, 
                                  distribution=distribution, 
                                  batch_size=batch_size,
-                                 validation_split=.1,
-                                 sampling_perc=1.)
+                                 validation_split=DEFAULTS["validation"],
+                                 sampling_perc=DEFAULTS["sampling"])
 
     test_loader = FastTensorDataLoader(*data_container.test,
-                                       batch_size=100, 
+                                       batch_size=100, #this can remain hard-coded
                                        shuffle=False)
 
     logger = logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), DEFAULTS["wandb_params"])
-    # logger = WandBLog(ClassificationEval(test_loader, loss), 
-    #                   project="fl-bench",
-    #                   entity="mlgroup",
-    #                   name=f"{algorithm}_{dataset}_{IIDNESS_MAP[Distribution(distribution)]}", 
-    #                   config=options)
 
     fl_algo = algorithm.algorithm()( n_clients=n_clients,
                                     n_rounds=n_rounds, 
@@ -85,7 +67,6 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                         scheduler_kwargs=DEFAULTS["method"]["optimizer_parameters"]["scheduler_kwargs"]),
                                     **DEFAULTS["method"]["hyperparameters"])
 
-    
     print("FL algorithm: ") 
     console.log(fl_algo)
     print()
