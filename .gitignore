@@ -7,3 +7,4 @@ data
 .vscode/launch.json
 log
 wandb
+venv.nosync

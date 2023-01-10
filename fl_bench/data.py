@@ -452,27 +452,27 @@ class FastTensorDataLoader:
 
 class Distribution(Enum):
     """Enum for data distribution across clients."""
-    IID = 1
-    QUANTITY_SKEWED = 2
-    CLASSWISE_QUANTITY_SKEWED = 3
-    LABEL_QUANTITY_SKEWED = 4
-    LABEL_DIRICHLET_SKEWED = 5
-    LABEL_PATHOLOGICAL_SKEWED = 6
-    COVARIATE_SHIFT = 7
+    IID = "iid"
+    QUANTITY_SKEWED = "qnt"
+    CLASSWISE_QUANTITY_SKEWED = "classqnt"
+    LABEL_QUANTITY_SKEWED = "lblqnt"
+    LABEL_DIRICHLET_SKEWED = "dir"
+    LABEL_PATHOLOGICAL_SKEWED = "path"
+    COVARIATE_SHIFT = "covshift"
 
-# Map distribution to string
-IIDNESS_MAP = {
-    Distribution.IID: "iid",
-    Distribution.QUANTITY_SKEWED: "qnt",
-    Distribution.CLASSWISE_QUANTITY_SKEWED: "classqnt",
-    Distribution.LABEL_QUANTITY_SKEWED: "lblqnt",
-    Distribution.LABEL_DIRICHLET_SKEWED: "dir",
-    Distribution.LABEL_PATHOLOGICAL_SKEWED: "path",
-    Distribution.COVARIATE_SHIFT: "covshift"
-}
+# # Map distribution to string
+# IIDNESS_MAP = {
+#     Distribution.IID: "iid",
+#     Distribution.QUANTITY_SKEWED: "qnt",
+#     Distribution.CLASSWISE_QUANTITY_SKEWED: "classqnt",
+#     Distribution.LABEL_QUANTITY_SKEWED: "lblqnt",
+#     Distribution.LABEL_DIRICHLET_SKEWED: "dir",
+#     Distribution.LABEL_PATHOLOGICAL_SKEWED: "path",
+#     Distribution.COVARIATE_SHIFT: "covshift"
+# }
 
 # Map string to distribution
-INV_IIDNESS_MAP = {v: k for k, v in IIDNESS_MAP.items()}
+# INV_IIDNESS_MAP = {v: k for k, v in IIDNESS_MAP.items()}
 
 
 class DataSplitter:

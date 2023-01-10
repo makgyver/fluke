@@ -62,7 +62,7 @@ class ClassificationEval(Evaluator):
     def evaluate(self, model: torch.nn.Module) -> dict:
         model.eval()
         task = "multiclass" if self.n_classes > 2 else "binary"
-        accuracy = Accuracy()#task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+        accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
         precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
         recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
         f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
