@@ -36,7 +36,7 @@ Currently, the following datasets are implemented:
 - MNIST (`mnist`)
 - MNISTM (`mnistm`)
 - EMNIST (`emnist`)
-- FEMNIST (`femnist`)
+- CIFAR10 (`cifar10`)
 - SVHN (`svhn`)
 
 Inside the `net.py` file, you can find the definition of some neural networks. 

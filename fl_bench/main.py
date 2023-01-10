@@ -31,10 +31,9 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
     
     set_seed(seed) #Reproducibility
 
-    print("Running configuration:")
+    console.log("Running configuration:")
     options = deepcopy(locals())
-    console.log(options)
-    print()
+    console.log(options, end="\n\n")
 
     GlobalSettings().set_device(device.value)
     model = get_model(DEFAULTS["model"]).to(GlobalSettings().get_device())
@@ -53,7 +52,8 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                        batch_size=100, #this can remain hard-coded
                                        shuffle=False)
 
-    logger = logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), DEFAULTS["wandb_params"])
+    logger = logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), 
+                           DEFAULTS["wandb_params"])
 
     fl_algo = algorithm.algorithm()( n_clients=n_clients,
                                     n_rounds=n_rounds, 
@@ -67,9 +67,8 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                         scheduler_kwargs=DEFAULTS["method"]["optimizer_parameters"]["scheduler_kwargs"]),
                                     **DEFAULTS["method"]["hyperparameters"])
 
-    print("FL algorithm: ") 
-    console.log(fl_algo)
-    print()
+    console.log("FL algorithm: ") 
+    console.log(fl_algo, end="\n\n")
     
     fl_algo.init_parties(data_splitter, callback=logger)
     fl_algo.run()

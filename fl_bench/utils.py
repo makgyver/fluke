@@ -15,6 +15,10 @@ from enum import Enum
 import wandb
 from fl_bench.evaluation import Evaluator
 
+
+from rich.console import Console
+console = Console()
+
 class DeviceEnum(Enum):
     CPU: str = "cpu"
     CUDA: str = "cuda"
@@ -95,13 +99,13 @@ class Log():
     
     def update(self, model, round, client_evals):
         self.history[round] = self.evaluator(model)
-        print(f"[Round {round}]")
-        print(f"\tglobal: {self.history[round]}")
+        console.print(f"\n[Round {round}]")
+        console.print(f"  global: {self.history[round]}\n")
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean().to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
-            print(f"\tlocal: {client_mean}")
+            console.print(f"  local: {client_mean}\n")
     
     def __call__(self, model, round, client_evals=None):
         self.update(model, round, client_evals)
@@ -118,8 +122,8 @@ class Log():
 class WandBLog(Log):
     def __init__(self, evaluator: Evaluator, project: str, entity:str, name: str, config: dict):
         super().__init__(evaluator)
-        self.run = wandb.init(project=project, #FIXME: load from config file 
-                              entity=entity,     #FIXME: load from config file
+        self.run = wandb.init(project=project,
+                              entity=entity,
                               name=name,
                               config=config)
     
