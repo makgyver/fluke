@@ -5,11 +5,11 @@ import torch.nn as nn
 import json
 
 import sys; sys.path.append(".")
-from fl_bench import GlobalSettings
 from net import *
+from fl_bench import GlobalSettings
 from data import DataSplitter, Distribution, FastTensorDataLoader, DatasetsEnum
 from utils import WandBLog, plot_comparison
-from utils import OptimizerConfigurator, Log, set_seed, load_defaults, get_loss
+from utils import OptimizerConfigurator, Log, set_seed, load_defaults, get_loss, get_model, LogEnum, DeviceEnum
 from evaluation import ClassificationEval
 from algorithms import FedAlgorithmsEnum
 
@@ -23,11 +23,8 @@ app = typer.Typer()
 
 console = Console()
 
-GlobalSettings().auto_device()
-DEVICE = GlobalSettings().get_device()
 
-
-DEFAULTS = load_defaults()
+DEFAULTS = load_defaults(console)
 
 
 
@@ -40,7 +37,9 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
         batch_size: int = typer.Option(DEFAULTS["batch_size"], help='Batch size'),
         elegibility_percentage: float = typer.Option(DEFAULTS["eligibility_percentage"], help='Elegibility percentage'),
         distribution: Distribution = typer.Option(DEFAULTS["distribution"], help='Data distribution'),
-        seed: int = typer.Option(DEFAULTS["seed"], help='Seed')):
+        seed: int = typer.Option(DEFAULTS["seed"], help='Seed'),
+        logger: LogEnum =  typer.Option(DEFAULTS["logger"], help='Log method'),
+        device: DeviceEnum = typer.Option(DEFAULTS["device"], help="Device to use")):
     
     set_seed(seed) #Reproducibility
 
@@ -49,7 +48,9 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
     console.log(options)
     print()
 
-    MODEL = MLP().to(DEVICE)
+
+    GlobalSettings().set_device(device.value)
+    model = get_model(DEFAULTS["model"]).to(GlobalSettings().get_device())
     loss = get_loss(DEFAULTS["loss"])
 
     data_container = dataset.klass()()
@@ -65,7 +66,7 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                        batch_size=100, 
                                        shuffle=False)
 
-    logger = Log(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"))
+    logger = logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), DEFAULTS["wandb_params"])
     # logger = WandBLog(ClassificationEval(test_loader, loss), 
     #                   project="fl-bench",
     #                   entity="mlgroup",
@@ -76,7 +77,7 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                     n_rounds=n_rounds, 
                                     n_epochs=n_epochs, 
                                     elegibility_percentage=elegibility_percentage,
-                                    model=MODEL,
+                                    model=model,
                                     loss_fn = loss,
                                     optimizer_cfg=OptimizerConfigurator(
                                         algorithm.optimizer(), 

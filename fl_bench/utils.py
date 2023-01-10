@@ -13,9 +13,16 @@ import importlib
 from enum import Enum
 
 
+
 import wandb
 from fl_bench.evaluation import Evaluator
 from fl_bench.data import Distribution
+
+class DeviceEnum(Enum):
+    CPU: str = "cpu"
+    CUDA: str = "cuda"
+    AUTO: str = "auto"
+
 
 def set_seed(seed: int) -> None:
     """Set seed for reproducibility.
@@ -68,6 +75,19 @@ class OptimizerConfigurator:
         to_str += "," + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
         to_str += ")"
         return to_str
+
+
+class LogEnum(Enum):
+    LOCAL = "local"
+    WANDB = "wandb"
+
+    def logger(self, classification_eval, wandb_config):
+        if self == LogEnum.LOCAL:
+            return Log(classification_eval)
+        else:
+            return WandBLog(
+                classification_eval,
+                **wandb_config)
 
 
 class Log():
@@ -150,11 +170,11 @@ def plot_comparison(*log_paths: str,
     plt.show()
 
 
-def load_defaults():
+def load_defaults(console):
     defaults = {
         "name": "NAME OF THE EXP",
         "seed": 987654,
-        "device": "cpu",
+        "device": "auto",
         "n_clients": 100,
         "n_rounds": 100,
         "batch_size": 20,
@@ -162,6 +182,7 @@ def load_defaults():
         "eligibility_percentage": 0.5,
         "loss": "CrossEntropyLoss",
         "distribution": "iid",
+        "model": "MLP",
         "method": {
             "name": "fedavg",
             "optimizer_parameters": {
@@ -178,10 +199,11 @@ def load_defaults():
         "dataset": "mnist",
         "validation": 0.1,
         "sampling": 0.1,
-        "wandb_log": {
+        "logger": "local",
+        "wandb_params": {
             "project": "fl-bench",
             "entity": "mlgroup",
-            "tags": ["???"]
+            "tags": []
         }
     }
 
@@ -203,4 +225,9 @@ def load_defaults():
 def get_loss(lname:str) -> torch.nn.Module:
     module = importlib.import_module("torch.nn")
     class_ = getattr(module, lname)
+    return class_()
+
+def get_model(mname:str) -> torch.nn.Module:
+    module = importlib.import_module("net")
+    class_ = getattr(module, mname)
     return class_()
