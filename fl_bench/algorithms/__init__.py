@@ -59,3 +59,49 @@ class CentralizedFL(FLEnvironment):
     
     def __repr__(self) -> str:
         return self.__str__()
+
+
+
+
+
+from .fedavg import FedAVG
+from .fedsgd import FedSGD
+from .fedprox import FedProx
+from .scaffold import SCAFFOLD, ScaffoldOptimizer
+from .flhalf import FLHalf
+from .fedbn import FedBN
+from .fedopt import FedOpt
+
+from enum import Enum
+
+import torch
+
+
+
+class FedAlgorithmsEnum(Enum):
+    FEDAVG = 'fedavg'
+    FEDSGD = 'fedsgd'
+    FEDPROX = 'fedprox'
+    SCAFFOLD = 'scaffold'
+    FLHALF = 'flhalf'
+    FEDBN = 'fedbn'
+    FEDOPT = 'fedopt'
+
+    def optimizer(self) -> torch.optim.Optimizer:
+        if self.value == "scaffold":
+            return ScaffoldOptimizer
+        else:
+            return torch.optim.SGD
+
+    def algorithm(self):
+        algos = {
+            'fedavg': FedAVG,
+            'fedsgd': FedSGD,
+            'fedprox': FedProx,
+            'scaffold': SCAFFOLD,
+            'flhalf': FLHalf,
+            'fedbn': FedBN,
+            'fedopt': FedOpt
+        }
+
+        return algos[self.value]

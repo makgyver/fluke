@@ -9,6 +9,9 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR
 import matplotlib.pyplot as plt
 import json
+import importlib
+from enum import Enum
+
 
 import wandb
 from fl_bench.evaluation import Evaluator
@@ -145,3 +148,59 @@ def plot_comparison(*log_paths: str,
     plt.legend()
     plt.get_current_fig_manager().set_window_title(f"{Distribution(iidness).name}")
     plt.show()
+
+
+def load_defaults():
+    defaults = {
+        "name": "NAME OF THE EXP",
+        "seed": 987654,
+        "device": "cpu",
+        "n_clients": 100,
+        "n_rounds": 100,
+        "batch_size": 20,
+        "n_epochs": 5,
+        "eligibility_percentage": 0.5,
+        "loss": "CrossEntropyLoss",
+        "distribution": "iid",
+        "method": {
+            "name": "fedavg",
+            "optimizer_parameters": {
+                "lr": 0.0001,
+                "scheduler_kwargs": {
+                    "step_size":10, 
+                    "gamma":0.9
+                }
+            },
+            "hyperparameters": {
+
+            }
+        },
+        "dataset": "mnist",
+        "validation": 0.1,
+        "sampling": 0.1,
+        "wandb_log": {
+            "project": "fl-bench",
+            "entity": "mlgroup",
+            "tags": ["???"]
+        }
+    }
+
+    config = {}
+
+    try:
+        with open('config.json') as f:
+            config = json.load(f)
+    except Exception as e:
+        console.print(f'Could not load config.json: {e}')
+
+    for key in defaults.keys():
+        if not key in config:
+            console.log(f"[bold yellow]Warn:[/] key {key} not found in config.json, using default value {defaults[key]}")
+            config[key] = defaults[key]
+
+    return config
+
+def get_loss(lname:str) -> torch.nn.Module:
+    module = importlib.import_module("torch.nn")
+    class_ = getattr(module, lname)
+    return class_()
