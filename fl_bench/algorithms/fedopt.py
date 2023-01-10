@@ -1,7 +1,7 @@
 from enum import Enum
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union
 
 import torch
 from torch.nn import Module
@@ -14,9 +14,9 @@ from fl_bench.utils import OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
 
 class FedOptMode(Enum):
-    FedAdam = 1
-    FedYogi = 2
-    FedAdagrad = 3
+    FedAdam = "adam"
+    FedYogi = "yogi"
+    FedAdagrad = "adagrad"
 
 
 class FedOptServer(Server):
@@ -87,7 +87,7 @@ class FedOpt(CentralizedFL):
                  n_rounds: int, 
                  n_epochs: int, 
                  optimizer_cfg: OptimizerConfigurator, 
-                 mode: FedOptMode,
+                 mode: Union[FedOptMode, str],
                  server_lr: float,
                  beta1: float,
                  beta2: float,
@@ -103,7 +103,7 @@ class FedOpt(CentralizedFL):
                          optimizer_cfg, 
                          loss_fn,
                          elegibility_percentage)
-        self.mode = mode
+        self.mode = mode if isinstance(mode, FedOptMode) else FedOptMode(mode)
         self.beta1 = beta1
         self.beta2 = beta2
         self.server_lr = server_lr
@@ -130,7 +130,7 @@ class FedOpt(CentralizedFL):
         self.server.register_callback(callback)
 
     def __str__(self) -> str:
-        return f"{self.mode._name_}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
+        return f"{self.mode.name}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
                f"\u03B7={self.server_lr},\u03B21={self.beta1},\u03B22={self.beta2}," + \
                f"\u03A4={self.tau},P={self.elegibility_percentage},{self.optimizer_cfg})"
     

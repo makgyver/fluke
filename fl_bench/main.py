@@ -52,9 +52,10 @@ def run(algorithm: FedAlgorithmsEnum = typer.Option(DEFAULTS["method"]["name"], 
                                        batch_size=100, #this can remain hard-coded
                                        shuffle=False)
 
+    exp_name = f"{algorithm.value}_{dataset.value}_{distribution.value}_C{n_clients}_R{n_rounds}_E{n_epochs}_P{elegibility_percentage}_S{seed}" 
     logger = logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), 
-                           DEFAULTS["wandb_params"])
-
+                           name=exp_name,
+                           **DEFAULTS["wandb_params"])
     fl_algo = algorithm.algorithm()( n_clients=n_clients,
                                     n_rounds=n_rounds, 
                                     n_epochs=n_epochs, 

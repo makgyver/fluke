@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import json
 import importlib
 from enum import Enum
+from typing import Any
 
 import wandb
 from fl_bench.evaluation import Evaluator
@@ -82,7 +83,7 @@ class LogEnum(Enum):
     LOCAL = "local"
     WANDB = "wandb"
 
-    def logger(self, classification_eval, wandb_config):
+    def logger(self, classification_eval, **wandb_config):
         if self == LogEnum.LOCAL:
             return Log(classification_eval)
         else:
@@ -120,16 +121,15 @@ class Log():
 
 
 class WandBLog(Log):
-    def __init__(self, evaluator: Evaluator, project: str, entity:str, name: str, config: dict):
+    def __init__(self, evaluator: Evaluator, **config):
         super().__init__(evaluator)
-        self.run = wandb.init(project=project,
-                              entity=entity,
-                              name=name,
-                              config=config)
+        self.run = wandb.init(**config)
     
-    def update(self, model, round):
-        super().update(model, round)
+    def update(self, model, round, client_evals):
+        super().update(model, round, client_evals)
         self.run.log(self.history[round], step=round)
+        if client_evals:
+            self.run.log(self.client_history[round], step=round)
     
     def save(self, path: str):
         super().save(path)
@@ -223,12 +223,16 @@ def load_defaults(console):
 
     return config
 
-def get_loss(lname:str) -> torch.nn.Module:
-    module = importlib.import_module("torch.nn")
-    class_ = getattr(module, lname)
-    return class_()
+def _get_class_from_str(module_name: str, class_name: str) -> Any:
+    module = importlib.import_module(module_name)
+    class_ = getattr(module, class_name)
+    return class_
+
+def get_loss(lname: str) -> torch.nn.Module:
+    return _get_class_from_str("torch.nn", lname)()
 
 def get_model(mname:str) -> torch.nn.Module:
-    module = importlib.import_module("net")
-    class_ = getattr(module, mname)
-    return class_()
+    return _get_class_from_str("net", mname)()
+
+def get_scheduler(sname:str) -> torch.nn.Module:
+    return _get_class_from_str("torch.optim.lr_scheduler", sname)
