@@ -1,3 +1,4 @@
+from __future__ import annotations
 from enum import Enum
 import warnings
 
@@ -10,7 +11,7 @@ from torchvision.transforms import ToTensor, Compose, Normalize
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import download_and_extract_archive
 
-from typing import List
+from typing import List, Tuple
 import numpy as np
 from PIL import Image
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
@@ -450,7 +451,7 @@ class FastTensorDataLoader:
         return self.n_batches
 
 
-class Distribution(Enum):
+class DistributionEnum(Enum):
     """Enum for data distribution across clients."""
     IID = "iid"
     QUANTITY_SKEWED = "qnt"
@@ -459,6 +460,12 @@ class Distribution(Enum):
     LABEL_DIRICHLET_SKEWED = "dir"
     LABEL_PATHOLOGICAL_SKEWED = "path"
     COVARIATE_SHIFT = "covshift"
+
+    def __hash__(self) -> int:
+        return self.value.__hash__()
+    
+    def __eq__(self, other) -> bool:
+        return self.value == other.value
 
 # # Map distribution to string
 # IIDNESS_MAP = {
@@ -501,11 +508,14 @@ class DataSplitter:
                  X: torch.Tensor,
                  y: torch.Tensor, 
                  n_clients: int, 
-                 distribution: Distribution=Distribution.IID,
+                 distribution: DistributionEnum=DistributionEnum.IID,
                  batch_size: int=32,
                  validation_split: float=0.0,
                  sampling_perc: float=1.0,
                  **kwargs):
+        assert X.shape[0] == y.shape[0], "X and y must have the same length."
+        assert 0 <= validation_split <= 1, "validation_split must be between 0 and 1."
+        assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
         self.X, self.y = X, y
         self.n_clients = n_clients
@@ -516,7 +526,7 @@ class DataSplitter:
         self.kwargs = kwargs
         self.assign()
 
-    def assign(self) -> None:
+    def assign(self) -> DataSplitter:
         """Assign data to clients."""
         self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
         self.client_train_loader = []
@@ -531,6 +541,17 @@ class DataSplitter:
             else:
                 self.client_train_loader.append(FastTensorDataLoader(client_X, client_y, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
                 self.client_test_loader.append(None)
+        return self
+    
+    def get_loaders(self) -> Tuple[List[FastTensorDataLoader], List[FastTensorDataLoader]]:
+        """Get the client-side data loaders.
+
+        Returns
+        -------
+        Tuple[List[FastTensorDataLoader], List[FastTensorDataLoader]]
+            The client-side train and test data loaders.
+        """
+        return self.client_train_loader, self.client_test_loader
 
     def uniform(self,
                 X: torch.Tensor,
@@ -680,7 +701,7 @@ class DataSplitter:
                              X: torch.Tensor,
                              y: torch.Tensor,
                              n: int,
-                             beta: float=.5) -> List[torch.Tensor]:
+                             beta: float=.1) -> List[torch.Tensor]:
         """
         The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances of
         class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
@@ -789,7 +810,7 @@ class DataSplitter:
         ids_mode = [[] for _ in range(modes)]
         for lbl in set(torch.unique(y).numpy()):
             ids = np.where(y == lbl)[0]
-            X_pca = PCA(n_components=2).fit_transform(X[ids])
+            X_pca = PCA(n_components=2).fit_transform(X.view(X.size()[0], -1)[ids])
             quantiles = mquantiles(X_pca[:, 0], prob=np.linspace(0, 1, num=modes+1)[1:-1])
 
             y_ = np.zeros(y[ids].shape)
@@ -813,13 +834,13 @@ class DataSplitter:
     
 
     _iidness_functions = {
-        Distribution.IID: uniform,
-        Distribution.QUANTITY_SKEWED: quantity_skew,
-        Distribution.CLASSWISE_QUANTITY_SKEWED: classwise_quantity_skew,
-        Distribution.LABEL_QUANTITY_SKEWED: label_quantity_skew,
-        Distribution.LABEL_DIRICHLET_SKEWED: label_dirichlet_skew,
-        Distribution.LABEL_PATHOLOGICAL_SKEWED: label_pathological_skew,
-        Distribution.COVARIATE_SHIFT: covariate_shift
+        DistributionEnum.IID: uniform,
+        DistributionEnum.QUANTITY_SKEWED: quantity_skew,
+        DistributionEnum.CLASSWISE_QUANTITY_SKEWED: classwise_quantity_skew,
+        DistributionEnum.LABEL_QUANTITY_SKEWED: label_quantity_skew,
+        DistributionEnum.LABEL_DIRICHLET_SKEWED: label_dirichlet_skew,
+        DistributionEnum.LABEL_PATHOLOGICAL_SKEWED: label_pathological_skew,
+        DistributionEnum.COVARIATE_SHIFT: covariate_shift
     }
 
 

@@ -43,8 +43,8 @@ class FLHalfServer(Server):
                  batch_size: int,
                  optimizer_cfg: OptimizerConfigurator,
                  global_step: float=.05,
-                 elegibility_percentage: float=0.5,):
-        super().__init__(model, clients, elegibility_percentage)
+                 eligibility_percentage: float=0.5,):
+        super().__init__(model, clients, eligibility_percentage)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
         self.private_layers = private_layers
@@ -108,23 +108,23 @@ class FLHalf(CentralizedFL):
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 
-                 client_n_epochs: int, 
+                 n_epochs: int, 
+                 optimizer_cfg: OptimizerConfigurator, 
+                 model: Module, 
+                 loss_fn: Callable, 
+                 eligibility_percentage: float,
+                 private_layers: Iterable,
                  server_n_epochs: int,
                  server_batch_size: int,
-                 client_optimizer_cfg: OptimizerConfigurator, 
-                 server_optimizer_cfg: OptimizerConfigurator, 
-                 model: Module, 
-                 private_layers: Iterable,
-                 loss_fn: Callable, 
-                 elegibility_percentage: float=0.5):
+                 server_optimizer_cfg: OptimizerConfigurator=OptimizerConfigurator(torch.optim.SGD, lr=0.01)):
         
         super().__init__(n_clients,
                          n_rounds,
-                         client_n_epochs,
+                         n_epochs,
                          model, 
-                         client_optimizer_cfg, 
+                         optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage)
+                         eligibility_percentage)
         self.private_layers = private_layers
         self.server_n_epochs = server_n_epochs
         self.server_batch_size = server_batch_size
@@ -145,5 +145,10 @@ class FLHalf(CentralizedFL):
                                    n_epochs=self.server_n_epochs,
                                    batch_size=self.server_batch_size,
                                    optimizer_cfg=self.server_optimizer_cfg,
-                                   elegibility_percentage=self.elegibility_percentage)
+                                   eligibility_percentage=self.eligibility_percentage)
         self.server.register_callback(callback)
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
+               f"P={self.eligibility_percentage},{self.optimizer_cfg}, pri={self.private_layers}," + \
+               f"SE={self.server_n_epochs},SB={self.server_batch_size})"

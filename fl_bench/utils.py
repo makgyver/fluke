@@ -11,9 +11,11 @@ import matplotlib.pyplot as plt
 import json
 import importlib
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
+import typer
 import wandb
+from fl_bench.data import DatasetsEnum, DistributionEnum
 from fl_bench.evaluation import Evaluator
 
 
@@ -171,7 +173,7 @@ def plot_comparison(*log_paths: str,
     plt.show()
 
 
-def load_defaults(console):
+def load_defaults(console, config_path: Optional[str]=None):
     defaults = {
         "name": "NAME OF THE EXP",
         "seed": 987654,
@@ -184,19 +186,6 @@ def load_defaults(console):
         "loss": "CrossEntropyLoss",
         "distribution": "iid",
         "model": "MLP",
-        "method": {
-            "name": "fedavg",
-            "optimizer_parameters": {
-                "lr": 0.01,
-                "scheduler_kwargs": {
-                    "step_size":10, 
-                    "gamma":0.9
-                }
-            },
-            "hyperparameters": {
-
-            }
-        },
         "dataset": "mnist",
         "validation": 0.0,
         "sampling": 1.0,
@@ -210,18 +199,21 @@ def load_defaults(console):
 
     config = {}
 
-    try:
-        with open('config.json') as f:
-            config = json.load(f)
-    except Exception as e:
-        console.print(f'Could not load config.json: {e}')
+    if config_path is not None:
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except Exception as e:
+            console.print(f'Could not load config.json: {e}')
 
-    for key in defaults.keys():
-        if not key in config:
-            console.log(f"[bold yellow]Warn:[/] key {key} not found in config.json, using default value {defaults[key]}")
-            config[key] = defaults[key]
+        for key in defaults.keys():
+            if not key in config:
+                console.log(f"[bold yellow]Warn:[/] key {key} not found in config.json, using default value {defaults[key]}")
+                config[key] = defaults[key]
 
-    return config
+        return config
+    else:
+        return defaults
 
 def _get_class_from_str(module_name: str, class_name: str) -> Any:
     module = importlib.import_module(module_name)
@@ -236,3 +228,31 @@ def get_model(mname:str) -> torch.nn.Module:
 
 def get_scheduler(sname:str) -> torch.nn.Module:
     return _get_class_from_str("torch.optim.lr_scheduler", sname)
+
+def cli_option(default: Any, help: str) -> Any:
+    return typer.Option(default=None, show_default=default, help=help)
+
+class Config(dict):
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+
+    def __init__(self, defaults: dict, config_fname: str, cli_args: dict):
+        self.update(defaults)
+        self.update(self._read_defaults(config_fname))
+        self._fix_enums()
+        self.update({k:v for k,v in cli_args.items() if v is not None})
+        self._read_alg_cfg()
+    
+    def _read_defaults(self, config_fname: str) -> dict:
+        with open(config_fname) as f:
+            return json.load(f)
+    
+    def _fix_enums(self):
+        self["distribution"] = DistributionEnum(self["distribution"])
+        self["dataset"] = DatasetsEnum(self["dataset"])
+        self["device"] = DeviceEnum(self["device"])
+        self["logger"] = LogEnum(self["logger"])
+    
+    def _read_alg_cfg(self):
+        with open(self["alg_cfg"]) as f:
+            self["method"] = json.load(f)

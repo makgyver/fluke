@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
-from typing import Callable, Literal
+from typing import Callable, Literal, Union
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 
 import sys; sys.path.append(".")
@@ -17,7 +17,9 @@ class Evaluator(ABC):
     loss_fn : Callable
         The loss function to consider.
     """
-    def __init__(self, data_loader: FastTensorDataLoader, loss_fn: Callable):
+    def __init__(self, 
+                data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
+                loss_fn: Callable):
         self.data_loader = data_loader
         self.loss_fn = loss_fn
     
@@ -51,7 +53,7 @@ class ClassificationEval(Evaluator):
         The average to use for the metrics, by default "macro".
     """
     def __init__(self, 
-                 data_loader: FastTensorDataLoader, 
+                 data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  loss_fn: Callable, 
                  n_classes: int, 
                  average: Literal["micro","macro"]="macro"):
@@ -62,30 +64,41 @@ class ClassificationEval(Evaluator):
     def evaluate(self, model: torch.nn.Module) -> dict:
         model.eval()
         task = "multiclass" if self.n_classes > 2 else "binary"
-        accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
-        precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
-        recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
-        f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
-        loss = 0
+        accs, precs, recs, f1s = [], [], [], []
+        loss, cnt = 0, 0
         device = GlobalSettings().get_device()
-        for X, y in self.data_loader:
-            X, y = X.to(device), y.to(device)
-            
-            with torch.no_grad():
-                y_hat = model(X)
-                if self.loss_fn is not None:
-                    loss += self.loss_fn(y_hat, y).item()
+        if not isinstance(self.data_loader, list):
+            self.data_loader = [self.data_loader]
 
-            accuracy(y_hat, y)
-            precision(y_hat, y)
-            recall(y_hat, y)
-            f1(y_hat, y)
-        
+        for data_loader in self.data_loader:
+            accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+            precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+            recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+            f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
+
+            for X, y in data_loader:
+                X, y = X.to(device), y.to(device)
+                with torch.no_grad():
+                    y_hat = model(X)
+                    if self.loss_fn is not None:
+                        loss += self.loss_fn(y_hat, y).item()
+
+                accuracy.update(y_hat, y)
+                precision.update(y_hat, y)
+                recall.update(y_hat, y)
+                f1.update(y_hat, y)
+
+            cnt += len(data_loader)
+            accs.append(accuracy.compute().item())
+            precs.append(precision.compute().item())
+            recs.append(recall.compute().item())
+            f1s.append(f1.compute().item())
+
         return {
-            "accuracy": round(accuracy.compute().item(), 5),
-            "precision": round(precision.compute().item(), 5),
-            "recall": round(recall.compute().item(), 5),
-            "f1": round(f1.compute().item(), 5),
-            "loss": round(loss / len(self.data_loader), 5) if self.loss_fn is not None else None
+            "accuracy":  round(sum(accs) / len(accs), 5),
+            "precision": round(sum(precs) / len(precs), 5),
+            "recall":    round(sum(recs) / len(recs), 5),
+            "f1":        round(sum(f1s) / len(f1s), 5),
+            "loss":      round(loss / cnt, 5) if self.loss_fn is not None else None
         }
     

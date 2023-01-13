@@ -120,8 +120,8 @@ class ScaffoldServer(Server):
                  model: Module,
                  clients: Iterable[Client],
                  global_step: float=1.,
-                 elegibility_percentage: float=0.5):
-        super().__init__(model, clients, elegibility_percentage)
+                 eligibility_percentage: float=0.5):
+        super().__init__(model, clients, eligibility_percentage)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
 
@@ -170,7 +170,7 @@ class SCAFFOLD(CentralizedFL):
         Model to be trained.
     loss_fn : Callable
         Loss function.
-    elegibility_percentage : float, optional
+    eligibility_percentage : float, optional
         Percentage of clients to be selected for each communication round, by default 0.5.
     """
     def __init__(self,
@@ -181,7 +181,7 @@ class SCAFFOLD(CentralizedFL):
                  global_step: float,
                  model: Module,
                  loss_fn: Callable,
-                 elegibility_percentage: float=0.5):
+                 eligibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -189,7 +189,7 @@ class SCAFFOLD(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage)
+                         eligibility_percentage)
         self.global_step = global_step
     
     def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
@@ -203,9 +203,9 @@ class SCAFFOLD(CentralizedFL):
         self.server = ScaffoldServer(self.model, 
                                      self.clients, 
                                      self.global_step, 
-                                     self.elegibility_percentage)
+                                     self.eligibility_percentage)
         self.server.register_callback(callback)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"G={self.global_step},P={self.elegibility_percentage},{self.optimizer_cfg})"
+               f"G={self.global_step},P={self.eligibility_percentage},{self.optimizer_cfg})"

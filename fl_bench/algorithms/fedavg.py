@@ -15,7 +15,7 @@ class FedAVG(CentralizedFL):
                  optimizer_cfg: OptimizerConfigurator, 
                  model: Module, 
                  loss_fn: Callable, 
-                 elegibility_percentage: float=0.5):
+                 eligibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -23,5 +23,5 @@ class FedAVG(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage)
+                         eligibility_percentage)
     

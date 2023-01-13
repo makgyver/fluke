@@ -70,7 +70,7 @@ class FedProx(CentralizedFL):
         The mu parameter for the FedProx algorithm.
     loss_fn : Callable
         The loss function.
-    elegibility_percentage : float, optional
+    eligibility_percentage : float, optional
         The percentage of clients to be selected for training, by default 0.5.
     """
     def __init__(self,
@@ -81,7 +81,7 @@ class FedProx(CentralizedFL):
                  model: Module,
                  client_mu: float,
                  loss_fn: Callable,
-                 elegibility_percentage: float=0.5):
+                 eligibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -89,7 +89,7 @@ class FedProx(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage)
+                         eligibility_percentage)
         self.client_mu = client_mu
     
     def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
@@ -101,9 +101,9 @@ class FedProx(CentralizedFL):
                                       validation_set=data_splitter.client_test_loader[i],
                                       local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
-        self.server = Server(self.model, self.clients, self.elegibility_percentage, weighted=True)
+        self.server = Server(self.model, self.clients, self.eligibility_percentage, weighted=True)
         self.server.register_callback(callback)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"\u03BC={self.client_mu},P={self.elegibility_percentage},{self.optimizer_cfg})"
+               f"\u03BC={self.client_mu},P={self.eligibility_percentage},{self.optimizer_cfg})"

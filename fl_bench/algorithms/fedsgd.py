@@ -23,7 +23,7 @@ class FedSGD(CentralizedFL):
         Model to be trained.
     loss_fn : Callable
         Loss function.
-    elegibility_percentage : float, optional
+    eligibility_percentage : float, optional
         Percentage of clients to be selected for each communication round, by default 0.5.
     """
     def __init__(self,
@@ -32,7 +32,7 @@ class FedSGD(CentralizedFL):
                  optimizer_cfg: OptimizerConfigurator,
                  model: Module,
                  loss_fn: Callable,
-                 elegibility_percentage: float=0.5):
+                 eligibility_percentage: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -40,7 +40,7 @@ class FedSGD(CentralizedFL):
                          model, 
                          optimizer_cfg, 
                          loss_fn,
-                         elegibility_percentage)
+                         eligibility_percentage)
     
     def init_parties(self, data_splitter: DataSplitter, callback: Callable = None) -> None:
         assert data_splitter.batch_size == 0, \
@@ -49,4 +49,4 @@ class FedSGD(CentralizedFL):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds}," + \
-               f"P={self.elegibility_percentage},{self.optimizer_cfg})"
+               f"P={self.eligibility_percentage},{self.optimizer_cfg})"

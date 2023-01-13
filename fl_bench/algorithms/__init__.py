@@ -26,14 +26,14 @@ class CentralizedFL(FLEnvironment):
                  model: Module, 
                  optimizer_cfg: OptimizerConfigurator, 
                  loss_fn: Callable,
-                 elegibility_percentage: float=0.5):
+                 eligibility_percentage: float=0.5):
         
         self.n_clients = n_clients
         self.n_rounds = n_rounds
         self.n_epochs = n_epochs
         self.model = model
         self.optimizer_cfg = optimizer_cfg
-        self.elegibility_percentage = elegibility_percentage
+        self.eligibility_percentage = eligibility_percentage
         self.loss_fn = loss_fn
         self.data_assignment = None
     
@@ -46,7 +46,7 @@ class CentralizedFL(FLEnvironment):
                                validation_set=data_splitter.client_test_loader[i],
                                local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
-        self.server = Server(self.model, self.clients, self.elegibility_percentage, weighted=True)
+        self.server = Server(self.model, self.clients, self.eligibility_percentage, weighted=True)
         self.server.register_callback(callback)
         
     def run(self):
@@ -55,7 +55,7 @@ class CentralizedFL(FLEnvironment):
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"P={self.elegibility_percentage},{self.optimizer_cfg})"
+               f"P={self.eligibility_percentage},{self.optimizer_cfg})"
     
     def __repr__(self) -> str:
         return self.__str__()
