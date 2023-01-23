@@ -65,6 +65,7 @@ where `--local` compares the performance of the algorithms on the local test dat
 - [ ] Check the correctness of FedBN
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w
+- [ ] Implement Ditto - https://arxiv.org/pdf/2012.04221.pdf
 - [x] Test logging on wandb
 - [x] Add support to learning rate scheduler
 - [ ] Add support to validation
