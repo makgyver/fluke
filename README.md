@@ -76,9 +76,9 @@ where `--local` compares the performance of the algorithms on the local test dat
 
 ## Desiderata
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
-- [x] Configuration via file yaml/json
+- [ ] Configuration via file yaml/json -- **Work in progress**
 - [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
-- [ ] Add more algorithms
+- [ ] Add more algorithms -- **Work in progress**
 - [ ] Add more datasets -- **Work in progress**
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package
