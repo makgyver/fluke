@@ -13,7 +13,6 @@ from fl_bench.algorithms import CentralizedFL
 class FedBNClient(Client):
     def receive(self, model):
         if self.model is None:
-            self.control = {k: torch.zeros_like(v) for k, v in model.state_dict().items()}
             self.model = deepcopy(model)
         else:
             with torch.no_grad():

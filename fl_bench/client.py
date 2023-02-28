@@ -64,7 +64,6 @@ class Client(ABC):
             The (gloal) model to be received.
         """
         if self.model is None:
-            self.control = {k: torch.zeros_like(v) for k, v in model.state_dict().items()}
             self.model = deepcopy(model)
         else:
             self.model.load_state_dict(model.state_dict())

@@ -14,7 +14,7 @@ app = typer.Typer()
 console = Console()
 
 DEFAULTS = load_defaults(console)
-CONFIG_FNAME = None
+CONFIG_FNAME = "configs/exp_settings.json"
 # cli argument
 # file config
 # default config
@@ -101,7 +101,7 @@ def compare(dataset: str=typer.Option('mnist', help='Dataset'),
 
 
 @app.callback()
-def main(config: str=typer.Option(None, help="Configuration file")): 
+def main(config: str=typer.Option(CONFIG_FNAME, help="Configuration file")): 
     global CONFIG_FNAME
     CONFIG_FNAME = config
 

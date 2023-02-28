@@ -30,6 +30,16 @@ class FLHalfClient(Client):
         fake_targets = self.model.forward_(fake_data)
         return fake_data, fake_targets
     
+    def receive(self, model):
+        if self.model is None:
+            self.model = deepcopy(model)
+        else:
+            with torch.no_grad():
+                for key in model.state_dict().keys():
+                    skip = bool(sum([key.startswith(n) for n in self.private_layers]))
+                    if not skip:
+                        self.model.state_dict()[key].data.copy_(model.state_dict()[key])
+    
     def send(self):
         return super().send(), self._generate_fake_examples()
 

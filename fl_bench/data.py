@@ -136,30 +136,26 @@ class Datasets:
 
     @classmethod
     def CIFAR10(cls) -> DataContainer:
-        transform = Compose([
-            ToTensor(),
-            Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-
         train_data = datasets.CIFAR10(
             root = 'data',
             train = True,
             download = True, 
-            transform = transform
+            transform = None
         )
 
         test_data = datasets.CIFAR10(
             root = 'data',
             train = False,
             download = True, 
-            transform = transform
+            transform = None
         )
         
         train_data.data = torch.Tensor(train_data.data / 255.)
         test_data.data = torch.Tensor(test_data.data / 255.)
+
         train_data.data = torch.movedim(train_data.data, 3, 1)
         test_data.data = torch.movedim(test_data.data, 3, 1)
-
+        print(train_data.data.shape)
         return DataContainer(train_data.data, 
                              torch.LongTensor(train_data.targets), 
                              test_data.data, 
