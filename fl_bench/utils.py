@@ -144,8 +144,8 @@ def plot_comparison(*log_paths: str,
                     show_loss: bool=True) -> None:
     iidness = os.path.basename(log_paths[0]).split("_")[-1].split(".")[0]
 
+    fig = plt.figure(figsize=(10, 6))
     if show_loss:
-        plt.figure(figsize=(10, 5))
         plt.subplot(1, 2, 1)
         plt.title('Loss')
         plt.xlabel('round')
@@ -162,13 +162,16 @@ def plot_comparison(*log_paths: str,
     plt.title(metric.capitalize())
     plt.xlabel('round')
     plt.ylabel(metric)
+    leg_curves = []
+    leg_labels = []
     for path in log_paths:
         with open(path, 'r') as f:
             history = json.load(f)
         rounds = list(history["global"].keys())
         values = [history["local" if local else "global"][round][metric] for round in rounds]
-        plt.plot(list(map(int, rounds)), values, label=os.path.basename(path).split("_")[0])
-    plt.legend()
+        leg_labels.append(os.path.basename(path).split(")_")[0] + ")")
+        leg_curves.append(plt.plot(list(map(int, rounds)), values, label=leg_labels[-1])[0])
+    fig.legend(tuple(leg_curves), tuple(leg_labels), 'center left')
     plt.get_current_fig_manager().set_window_title(f"{iidness}")
     plt.show()
 
@@ -223,8 +226,8 @@ def _get_class_from_str(module_name: str, class_name: str) -> Any:
 def get_loss(lname: str) -> torch.nn.Module:
     return _get_class_from_str("torch.nn", lname)()
 
-def get_model(mname:str) -> torch.nn.Module:
-    return _get_class_from_str("net", mname)()
+def get_model(mname:str, **kwargs) -> torch.nn.Module:
+    return _get_class_from_str("net", mname)(**kwargs)
 
 def get_scheduler(sname:str) -> torch.nn.Module:
     return _get_class_from_str("torch.optim.lr_scheduler", sname)

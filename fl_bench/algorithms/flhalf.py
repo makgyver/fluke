@@ -27,7 +27,7 @@ class FLHalfClient(Client):
     def _generate_fake_examples(self):
         shape = list(self.train_set.tensors[0].shape)
         fake_data = torch.rand(shape)
-        fake_targets = self.model.forward_(fake_data)
+        _, fake_targets = self.model.forward_(fake_data, len(self.private_layers))
         return fake_data, fake_targets
     
     def receive(self, model):
@@ -73,7 +73,7 @@ class FLHalfServer(Server):
             for _, (X, y) in enumerate(train_loader):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                y_hat = self.model.forward_(X)
+                _, y_hat = self.model.forward_(X)
                 loss = loss_fn(y_hat, y)
                 loss.backward(retain_graph=True)
                 self.optimizer.step()

@@ -155,7 +155,7 @@ class Datasets:
 
         train_data.data = torch.movedim(train_data.data, 3, 1)
         test_data.data = torch.movedim(test_data.data, 3, 1)
-        print(train_data.data.shape)
+
         return DataContainer(train_data.data, 
                              torch.LongTensor(train_data.targets), 
                              test_data.data, 
