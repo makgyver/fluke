@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch.nn import Module
 from rich.progress import Progress
+import multiprocessing as mp
 
 from fl_bench.client import Client
 from fl_bench import GlobalSettings
@@ -37,14 +38,26 @@ class Server(ABC):
         self.weighted = weighted
         self.callbacks = []
     
+    def _local_train(self, client: Client) -> None:
+        """Train the client model locally.
+
+        Parameters
+        ----------
+        client : Client
+            The client to train.
+        """
+        client.local_train()
+    
     def fit(self, n_rounds: int=10) -> None:
         """Run the federated learning algorithm.
-
         Parameters
         ----------
         n_rounds : int, optional
             The number of rounds to run, by default 10.
         """
+        if GlobalSettings().get_workers() > 1:
+            return self._fit_multiprocess(n_rounds)
+
         with Progress() as progress:
             client_x_round = int(self.n_clients*self.elegibility_percentage)
             task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
@@ -62,6 +75,41 @@ class Server(ABC):
                     progress.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
                 self.notify_all(self.model, round + 1, client_evals)
+    
+    def _fit_multiprocess(self, n_rounds: int=10) -> None:
+        """Run the federated learning algorithm using multiprocessing.
+
+        Parameters
+        ----------
+        n_rounds : int, optional
+            The number of rounds to run, by default 10.
+        """
+        with Progress() as progress:
+
+            def callback_progress(result):
+                progress.update(task_id=task_rounds, advance=1)
+                progress.update(task_id=task_local, advance=1)
+
+            client_x_round = int(self.n_clients*self.elegibility_percentage)
+            task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+            task_local = progress.add_task("[green]Local Training", total=client_x_round)
+
+            for round in range(n_rounds):
+                client_evals = []
+                eligible = self.get_eligible_clients()
+                self.broadcast(eligible)
+                progress.update(task_id=task_local, completed=0)
+                with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
+                    for client in eligible:
+                        client_eval = pool.apply_async(self._local_train, 
+                                                    args=(client,), 
+                                                    callback=callback_progress)
+                        client_evals.append(client_eval)
+                    pool.close()
+                    pool.join()
+                client_evals = [c.get() for c in client_evals]
+                self.aggregate(eligible)
+                self.notify_all(self.model, round + 1, client_evals if client_evals[0] is not None else None)
 
     def get_eligible_clients(self) -> Iterable[Client]:
         """Get the clients that will participate in the current round.

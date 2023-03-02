@@ -1,4 +1,5 @@
 import torch
+import multiprocessing as mp
 
 class Singleton(type):
     """Singleton metaclass."""
@@ -13,6 +14,7 @@ class GlobalSettings(metaclass=Singleton):
     """Global settings for the library.""" 
     
     _device = 'cpu'
+    _workers = 1
 
     def auto_device(self) -> torch.device:
         """Set device to cuda if available, otherwise cpu.
@@ -54,3 +56,34 @@ class GlobalSettings(metaclass=Singleton):
             The device.
         """
         return self._device
+
+    def set_workers(self, workers: int) -> None:
+        """Set the number of workers.
+        
+        Parameters
+        ----------
+        workers : int
+            The number of workers.
+        """
+        self._workers = max(1, min(workers, mp.cpu_count()))
+    
+    def auto_workers(self) -> int:
+        """Set the number of workers to the number of cpu cores.
+        
+        Returns
+        -------
+        int
+            The number of workers.
+        """
+        self._workers = mp.cpu_count()
+        return self._workers
+
+    def get_workers(self) -> int:
+        """Get the number of workers.
+        
+        Returns
+        -------
+        int
+            The number of workers.
+        """
+        return self._workers
