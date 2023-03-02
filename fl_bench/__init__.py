@@ -1,3 +1,4 @@
+from typing import Any, Union, Iterable
 import torch
 import multiprocessing as mp
 
@@ -8,6 +9,29 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+class ObserverSubject():
+    """Observer subject class."""
+    def __init__(self):
+        self._observers = []
+
+    def attach(self, observer: Union[Any, Iterable[Any]]):
+        if observer is None:
+            return
+        
+        if not isinstance(observer, Iterable):
+            observer = [observer]
+
+        for observer in observer:
+            if not observer in self._observers:
+                self._observers.append(observer)
+
+    def detach(self, observer: Any):
+        try:
+            self._observers.remove(observer)
+        except ValueError:
+            pass
 
 
 class GlobalSettings(metaclass=Singleton):

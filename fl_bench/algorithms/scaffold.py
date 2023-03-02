@@ -1,4 +1,4 @@
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union, Any, Optional
 from copy import deepcopy
 
 import torch
@@ -192,7 +192,9 @@ class SCAFFOLD(CentralizedFL):
                          eligibility_percentage)
         self.global_step = global_step
     
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+    def init_parties(self, 
+                     data_splitter: DataSplitter, 
+                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.clients = [ScaffoldClient(train_set=data_splitter.client_train_loader[i], 
                                         optimizer_cfg=self.optimizer_cfg, 
@@ -204,7 +206,7 @@ class SCAFFOLD(CentralizedFL):
                                      self.clients, 
                                      self.global_step, 
                                      self.eligibility_percentage)
-        self.server.register_callback(callback)
+        self.server.attach(callbacks)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \

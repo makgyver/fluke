@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Callable
+from typing import Callable, Optional, Union, Any, Iterable
 
 from torch.nn import Module
 
@@ -37,7 +37,9 @@ class CentralizedFL(FLEnvironment):
         self.loss_fn = loss_fn
         self.data_assignment = None
     
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+    def init_parties(self, 
+                     data_splitter: DataSplitter, 
+                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
         self.clients = [Client(train_set=data_splitter.client_train_loader[i], 
@@ -47,7 +49,7 @@ class CentralizedFL(FLEnvironment):
                                local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
         self.server = Server(self.model, self.clients, self.eligibility_percentage, weighted=True)
-        self.server.register_callback(callback)
+        self.server.attach(callbacks)
         
     def run(self):
         self.server.init()

@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import json
 import importlib
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, Iterable
 
 import typer
 import wandb
@@ -93,15 +93,25 @@ class LogEnum(Enum):
                 classification_eval,
                 **wandb_config)
 
+class ServerObserver():
+    
+    def start_round(self, round: int, global_model: Module):
+        pass
 
-class Log():
+    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
+        pass
+
+    def selected_clients(self, round:int, clients: Iterable):
+        pass
+
+class Log(ServerObserver):
     def __init__(self, evaluator: Evaluator):
         self.evaluator = evaluator
         self.history = {}
         self.client_history = {}
     
-    def update(self, model, round, client_evals):
-        self.history[round] = self.evaluator(model)
+    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
+        self.history[round] = self.evaluator(global_model)
         console.print(f"\n[Round {round}]")
         console.print(f"  global: {self.history[round]}\n")
         if client_evals:
@@ -109,9 +119,6 @@ class Log():
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
             console.print(f"  local: {client_mean}\n")
-    
-    def __call__(self, model, round, client_evals=None):
-        self.update(model, round, client_evals)
     
     def save(self, path: str):
         json_to_save = {
@@ -127,8 +134,8 @@ class WandBLog(Log):
         super().__init__(evaluator)
         self.run = wandb.init(**config)
     
-    def update(self, model, round, client_evals):
-        super().update(model, round, client_evals)
+    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
+        super().end_round(round, global_model, client_evals)
         self.run.log(self.history[round], step=round)
         if client_evals:
             self.run.log(self.client_history[round], step=round)

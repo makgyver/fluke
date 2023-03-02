@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Callable
+from typing import Callable, Iterable, Any, Optional, Union
 
 import torch
 from torch.nn import Module, CosineSimilarity
@@ -92,7 +92,9 @@ class MOON(CentralizedFL):
         self.client_mu = client_mu
         self.client_tau = client_tau
     
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+    def init_parties(self, 
+                     data_splitter: DataSplitter, 
+                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.clients = [ MOONClient(train_set=data_splitter.client_train_loader[i], 
                                     mu=self.client_mu,
@@ -103,7 +105,7 @@ class MOON(CentralizedFL):
                                     local_epochs=self.n_epochs) for i in range(self.n_clients) ]
 
         self.server = Server(self.model, self.clients, self.eligibility_percentage, weighted=True)
-        self.server.register_callback(callback)
+        self.server.attach(callbacks)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \

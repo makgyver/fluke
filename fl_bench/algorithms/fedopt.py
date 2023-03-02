@@ -1,7 +1,7 @@
 from enum import Enum
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Callable, Iterable, Union
+from typing import Callable, Iterable, Union, Optional, Any
 
 import torch
 from torch.nn import Module
@@ -109,7 +109,9 @@ class FedOpt(CentralizedFL):
         self.server_lr = server_lr
         self.tau = tau
     
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+    def init_parties(self, 
+                     data_splitter: DataSplitter, 
+                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
         self.clients = [Client(train_set=data_splitter.client_train_loader[i], 
@@ -127,7 +129,7 @@ class FedOpt(CentralizedFL):
                                    tau=self.tau,
                                    eligibility_percentage=self.eligibility_percentage)
 
-        self.server.register_callback(callback)
+        self.server.attach(callbacks)
 
     def __str__(self) -> str:
         return f"{self.mode.name}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \

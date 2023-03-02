@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Union, Optional, Any
 
 import torch
 from torch.nn import Module, MSELoss
@@ -73,7 +73,7 @@ class FLHalfServer(Server):
             for _, (X, y) in enumerate(train_loader):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                _, y_hat = self.model.forward_(X)
+                _, y_hat = self.model.forward_(X, len(self.private_layers))
                 loss = loss_fn(y_hat, y)
                 loss.backward(retain_graph=True)
                 self.optimizer.step()
@@ -140,7 +140,9 @@ class FLHalf(CentralizedFL):
         self.server_batch_size = server_batch_size
         self.server_optimizer_cfg = server_optimizer_cfg
 
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+    def init_parties(self, 
+                     data_splitter: DataSplitter, 
+                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.clients = [FLHalfClient (train_set=data_splitter.client_train_loader[i], 
                                       private_layers=self.private_layers,
@@ -156,7 +158,7 @@ class FLHalf(CentralizedFL):
                                    batch_size=self.server_batch_size,
                                    optimizer_cfg=self.server_optimizer_cfg,
                                    eligibility_percentage=self.eligibility_percentage)
-        self.server.register_callback(callback)
+        self.server.attach(callbacks)
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \

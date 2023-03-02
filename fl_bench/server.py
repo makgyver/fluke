@@ -1,17 +1,19 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Iterable, Callable
 import numpy as np 
+from typing import Any
 import torch
 from torch.nn import Module
 from rich.progress import Progress
 import multiprocessing as mp
 
 from fl_bench.client import Client
-from fl_bench import GlobalSettings
+from fl_bench import GlobalSettings, ObserverSubject
 
-class Server(ABC):
+
+class Server(ObserverSubject):
     """Standard Server for Federated Learning.
 
     Parameters
@@ -30,6 +32,7 @@ class Server(ABC):
                  clients: Iterable[Client], 
                  elegibility_percentage: float=0.5, 
                  weighted: bool=False):
+        super().__init__()
         self.device = GlobalSettings().get_device()
         self.model = model.to(self.device)
         self.clients = clients
@@ -64,7 +67,9 @@ class Server(ABC):
             task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
             for round in range(n_rounds):
+                self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
+                self.notify_selected_clients(round + 1, eligible)
                 self.broadcast(eligible)
                 client_evals = []
                 for c, client in enumerate(eligible):
@@ -74,7 +79,7 @@ class Server(ABC):
                     progress.update(task_id=task_local, completed=c+1)
                     progress.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
-                self.notify_all(self.model, round + 1, client_evals)
+                self.notify_end_round(round + 1, self.model, client_evals)
     
     def _fit_multiprocess(self, n_rounds: int=10) -> None:
         """Run the federated learning algorithm using multiprocessing.
@@ -95,8 +100,10 @@ class Server(ABC):
             task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
             for round in range(n_rounds):
+                self.notify_start_round(round + 1, self.model)
                 client_evals = []
                 eligible = self.get_eligible_clients()
+                self.notify_selected_clients(round + 1, eligible)
                 self.broadcast(eligible)
                 progress.update(task_id=task_local, completed=0)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
@@ -109,7 +116,7 @@ class Server(ABC):
                     pool.join()
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
-                self.notify_all(self.model, round + 1, client_evals if client_evals[0] is not None else None)
+                self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
 
     def get_eligible_clients(self) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
@@ -182,21 +189,17 @@ class Server(ABC):
                 avg_model_sd[key] /= den
             self.model.load_state_dict(avg_model_sd)
     
-    def register_callback(self, callback: Callable) -> None:
-        """Register a callback to be called after each round.
-
-        Parameters
-        ----------
-        callback : Callable
-            The callback to be registered.
-        """
-        if callback is not None and callback not in self.callbacks:
-            self.callbacks.append(callback)
+    def notify_start_round(self, round: int, global_model: Module) -> None:
+        for observer in self._observers:
+            observer.start_round(round, global_model)
     
-    def notify_all(self, *args, **kwargs) -> None:
-        """Notify all registered callbacks."""
-        for callback in self.callbacks:
-            callback(*args, **kwargs)
+    def notify_end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]) -> None:
+        for observer in self._observers:
+            observer.end_round(round, global_model, client_evals)
+    
+    def notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
+        for observer in self._observers:
+            observer.selected_clients(round, clients)
     
     def save(self, path: str) -> None:
         """Save the model to a checkpoint.
