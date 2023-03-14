@@ -12,6 +12,7 @@ pip install -r requirements.txt
 To run an algorithm in FL-Bench you need to create two configuration files:
 - `EXP_CONFIG`: the experiment configuration file
 - `ALG_CONFIG`: the algorithm configuration file
+
 Some examples of these files can be found in the `configs` folder.
 
 The `EXP_CONFIG` is a json file contains the following fields:
@@ -41,7 +42,8 @@ The `EXP_CONFIG` is a json file contains the following fields:
     - `cifar10`: CIFAR10
     - `svhn`: SVHN
 - `validation`: the percentage of the training dataset used for validation
-- `sampling`: TODO
+- `sampling`: percentage of the dataset considered for training. 
+  If `1.0`, the whole dataset is used for training.
 - `logger`: the logger used for logging the results. It must be one of the following:
     - `local`: the results are logged locally
     - `wandb`: the results are logged on wandb
