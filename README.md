@@ -121,7 +121,7 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [x] Check the correctness of SCAFFOLD --> The implementation seems ok however I can not "perfecly" replicate the results, e.g., https://link.springer.com/article/10.1007/s40747-022-00895-3. It seems that global_step > 1 works better than global_step = 1 although in the paper only global_step = 1 is used.
 - [ ] Check the correctness of FedBN
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481 -- **Work in progress**
-- [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w
+- [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w -- **Work in progress**
 - [ ] Implement Ditto - https://arxiv.org/pdf/2012.04221.pdf
 - [x] Test logging on wandb
 - [x] Add support to learning rate scheduler
