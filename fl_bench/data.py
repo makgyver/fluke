@@ -410,6 +410,8 @@ class FastTensorDataLoader:
     shuffle : bool
         If True, shuffle the data *in-place* whenever an iterator is created
         out of this object.
+    percentage : float
+        Percentage of data to use. Useful for debugging.
     """
 
     def __init__(self, *tensors, batch_size=32, shuffle=False, percentage=1.0):

@@ -89,6 +89,21 @@ where the OPTIONS are:
 
 the optional arguments override the values in the `EXP_CONFIG` file.
 
+This is an example of command:
+```bash
+python fl_bench/main.py --config=configs/exp_settings.json run configs/fedavg.json
+```
+the command run the `fedavg` algorithm on the `mnist` dataset (see `exp_settings.json`) with the 
+all the parameters specified in the `exp_settings.json` file and the `fedavg.json` file.
+
+If you want, for example, to change the number of clients, you can run the following command:
+```bash
+python fl_bench/main.py --config=configs/exp_settings.json run configs/fedavg.json --n-clients=10
+```
+
+or you can change the number of clients in the `exp_settings.json` file and run the above command without
+specifying the `--n-clients` option.
+
 To date, the following algorithms are implemented:
 - FedAvg (`fedavg`)
 - FedSGD (`fedsgd`)
