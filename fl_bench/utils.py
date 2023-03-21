@@ -104,6 +104,9 @@ class ServerObserver():
     def selected_clients(self, round:int, clients: Iterable):
         pass
 
+    def error(self, error: str):
+        pass
+
 class Log(ServerObserver):
     def __init__(self, evaluator: Evaluator):
         self.evaluator = evaluator
@@ -127,6 +130,9 @@ class Log(ServerObserver):
         }
         with open(path, 'w') as f:
             json.dump(json_to_save, f, indent=4)
+        
+    def error(self, error: str):
+        console.print(f"[bold red]Error: {error}[/bold red]")
 
 
 class WandBLog(Log):
@@ -199,6 +205,7 @@ def load_defaults(console, config_path: Optional[str]=None):
         "dataset": "mnist",
         "validation": 0.0,
         "sampling": 1.0,
+        "checkpoint": 1,
         "logger": "local",
         "wandb_params": {
             "project": "fl-bench",

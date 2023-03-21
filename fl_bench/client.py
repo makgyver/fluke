@@ -108,5 +108,32 @@ class Client(ABC):
         if self.validation_set is not None:
             n_classes = self.model.output_size
             return ClassificationEval(self.validation_set, self.loss_fn, n_classes).evaluate(self.model)
+    
+    def checkpoint(self):
+        """Checkpoint the optimizer and the scheduler.
+        
+        Returns
+        -------
+        dict
+            The checkpoint. 
+        """
+
+        return {
+            "optimizer": self.optimizer.state_dict() if self.optimizer is not None else None,
+            "scheduler": self.scheduler.state_dict() if self.scheduler is not None else None
+        }
+
+    def restore(self, checkpoint):
+        """Restore the optimizer and the scheduler from a checkpoint.
+
+        Parameters
+        ----------
+        checkpoint : dict
+            The checkpoint.
+        """
+        if self.optimizer is not None:
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+        if self.scheduler is not None:
+            self.scheduler.load_state_dict(checkpoint["scheduler"])
         
 

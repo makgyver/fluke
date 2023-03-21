@@ -84,8 +84,16 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     console.log(f"FL algorithm: {fl_algo}", end="\n\n") 
     
     fl_algo.init_parties(data_splitter, callbacks=log)
+    
+    if cfg.checkpoint["load"]:
+        fl_algo.load_checkpoint(cfg.checkpoint["path"])
+    
+    if cfg.checkpoint["save"]:
+        fl_algo.activate_checkpoint(cfg.checkpoint["path"])
+        
     # GlobalSettings().set_workers(8)
     fl_algo.run()
+
     log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 

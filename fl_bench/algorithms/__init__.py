@@ -62,6 +62,13 @@ class CentralizedFL(FLEnvironment):
     def __repr__(self) -> str:
         return self.__str__()
 
+    def activate_checkpoint(self, path: str):
+        self.server.checkpoint_path = path
+    
+    def load_checkpoint(self, path: str):
+        self.server.load(path)
+
+
 
 
 

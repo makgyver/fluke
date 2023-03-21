@@ -44,6 +44,10 @@ The `EXP_CONFIG` is a json file contains the following fields:
 - `validation`: the percentage of the training dataset used for validation
 - `sampling`: percentage of the dataset considered for training. 
   If `1.0`, the whole dataset is used for training.
+- `checkpoint`: the checkpoint configuration. It must be a dictionary with the following fields:
+    - `save`: if `true`, the model and the client optimizer are saved after each round
+    - `path`: the path where the checkpoint is saved
+    - `load`: if `true`, the checkpoint is loaded from the `path` before starting the training
 - `logger`: the logger used for logging the results. It must be one of the following:
     - `local`: the results are logged locally
     - `wandb`: the results are logged on wandb
@@ -128,7 +132,7 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] Add support to validation
 - [x] Add client-side evaluations - useful for evaluating FedBN
 - [ ] Add documentation + check typing -- **Work in progress**
-- [ ] Add load/save checkpoints -- **Work in progress**
+- [x] Add load/save checkpoints
 - [x] Implement "macro" averaging for evaluation
 
 ## Desiderata

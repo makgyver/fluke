@@ -40,6 +40,8 @@ class Server(ObserverSubject):
         self.elegibility_percentage = elegibility_percentage
         self.weighted = weighted
         self.callbacks = []
+        self.rounds = 0
+        self.checkpoint_path = None
     
     def _local_train(self, client: Client) -> None:
         """Train the client model locally.
@@ -66,7 +68,8 @@ class Server(ObserverSubject):
             task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
-            for round in range(n_rounds):
+            total_rounds = self.rounds + n_rounds
+            for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
@@ -80,6 +83,9 @@ class Server(ObserverSubject):
                     progress.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
                 self.notify_end_round(round + 1, self.model, client_evals)
+                self.rounds += 1 
+                if self.checkpoint_path is not None:
+                    self.save(self.checkpoint_path)
     
     def _fit_multiprocess(self, n_rounds: int=10) -> None:
         """Run the federated learning algorithm using multiprocessing.
@@ -99,7 +105,8 @@ class Server(ObserverSubject):
             task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
-            for round in range(n_rounds):
+            total_rounds = self.rounds + n_rounds
+            for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
                 client_evals = []
                 eligible = self.get_eligible_clients()
@@ -117,6 +124,9 @@ class Server(ObserverSubject):
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
                 self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
+                self.rounds += 1
+                if self.checkpoint_path is not None:
+                    self.save(self.checkpoint_path)
 
     def get_eligible_clients(self) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
@@ -201,6 +211,10 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.selected_clients(round, clients)
     
+    def notify_error(self, error: str) -> None:
+        for observer in self._observers:
+            observer.error(error)
+    
     def save(self, path: str) -> None:
         """Save the model to a checkpoint.
 
@@ -209,7 +223,14 @@ class Server(ObserverSubject):
         path : str
             The path to the checkpoint.
         """
-        torch.save(self.model.state_dict(), path)
+
+        torch.save({
+            'round': self.rounds,
+            'state_dict': self.model.state_dict(),
+            'client_optimizers': {
+                i: client.checkpoint() for i, client in enumerate(self.clients)
+            }
+        }, path)
     
     def load(self, path: str) -> None:
         """Load the model from a checkpoint.
@@ -219,4 +240,11 @@ class Server(ObserverSubject):
         path : str
             The path to the checkpoint.
         """
-        self.model.load_state_dict(torch.load(path))
+        try:
+            checkpoint = torch.load(path)
+            self.model.load_state_dict(checkpoint['state_dict'])
+            self.rounds = checkpoint['round']
+            for i, client in enumerate(self.clients):
+                client.restore(checkpoint['client_optimizers'][i])
+        except Exception as e:
+            self.notify_error(f"Unable to load the checkpoint:\n\t{e}.\nCheckpoint will be ignored.")
