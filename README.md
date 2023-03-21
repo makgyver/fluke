@@ -139,7 +139,6 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
 - [x] Configuration via file yaml/json
 - [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
-- [ ] Add more algorithms -- **Work in progress**
-- [ ] Add more datasets -- **Work in progress**
+- [ ] Add more datasets
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package
