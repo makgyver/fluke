@@ -1,6 +1,8 @@
 from typing import Any, Union, Iterable
 import torch
 import multiprocessing as mp
+from rich.progress import Progress, Live
+from rich.console import Group
 
 class Singleton(type):
     """Singleton metaclass."""
@@ -39,6 +41,20 @@ class GlobalSettings(metaclass=Singleton):
     
     _device = 'cpu'
     _workers = 1
+
+    _progress_FL = None
+    _progress_clients = None
+    _progress_server = None
+    _live_renderer = None
+
+    def __init__(self):
+        super().__init__()
+        self._progress_FL = Progress()
+        self._progress_clients = Progress()
+        self._progress_server = Progress()
+        self._live_renderer = Live(Group(self._progress_FL,
+                                         self._progress_clients,
+                                         self._progress_server))
 
     def auto_device(self) -> torch.device:
         """Set device to cuda if available, otherwise cpu.
@@ -111,3 +127,36 @@ class GlobalSettings(metaclass=Singleton):
             The number of workers.
         """
         return self._workers
+    
+    def get_progress_bar(self, type: str) -> Progress:
+        """Get the progress bar.
+        
+        Parameters
+        ----------
+        type : str
+            The type of progress bar.
+        
+        Returns
+        -------
+        Progress
+            The progress bar.
+        """
+        if type == 'FL':
+            return self._progress_FL
+        elif type == 'clients':
+            return self._progress_clients
+        elif type == 'server':
+            return self._progress_server
+        else:
+            raise ValueError(f'Invalid type of progress bar type {type}.')
+    
+    def get_live_renderer(self) -> Live:
+        """Get the live renderer.
+        
+        Returns
+        -------
+        Live
+            The live renderer.
+        """
+        return self._live_renderer
+    

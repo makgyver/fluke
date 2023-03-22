@@ -5,7 +5,11 @@ from typing import Callable, Iterable, Union, Optional, Any
 import torch
 from torch.nn import Module, MSELoss
 
-import sys; sys.path.append(".")
+import sys
+
+from fl_bench import GlobalSettings; sys.path.append(".")
+from rich.progress import Progress
+
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import DataSplitter, FastTensorDataLoader
@@ -26,6 +30,7 @@ class FLHalfClient(Client):
     
     def _generate_fake_examples(self):
         shape = list(self.train_set.tensors[0].shape)
+        # shape[0] = int(shape[0] * .3)
         fake_data = torch.rand(shape)
         _, fake_targets = self.model.forward_(fake_data, len(self.private_layers))
         return fake_data, fake_targets
@@ -68,16 +73,22 @@ class FLHalfServer(Server):
                                             batch_size=self.batch_size, 
                                             shuffle=True)
         loss_fn = MSELoss()
-        for _ in range(self.n_epochs):
-            loss = None
-            for _, (X, y) in enumerate(train_loader):
-                X, y = X.to(self.device), y.to(self.device)
-                self.optimizer.zero_grad()
-                _, y_hat = self.model.forward_(X, len(self.private_layers))
-                loss = loss_fn(y_hat, y)
-                loss.backward(retain_graph=True)
-                self.optimizer.step()
-            self.scheduler.step()
+        with GlobalSettings().get_live_renderer():
+            progress = GlobalSettings().get_progress_bar("server")
+            client_x_round = int(len(train_loader) * self.n_epochs)
+            server_train = progress.add_task("[blue]Server Training", total=client_x_round)
+            for _ in range(self.n_epochs):
+                loss = None
+                for _, (X, y) in enumerate(train_loader):
+                    X, y = X.to(self.device), y.to(self.device)
+                    self.optimizer.zero_grad()
+                    _, y_hat = self.model.forward_(X, len(self.private_layers))
+                    loss = loss_fn(y_hat, y)
+                    loss.backward(retain_graph=True)
+                    self.optimizer.step()
+                    progress.update(task_id=server_train, advance=1)
+                self.scheduler.step()
+            progress.remove_task(server_train)
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()

@@ -1,7 +1,6 @@
-from abc import ABC, abstractmethod
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Iterable, Callable
+from typing import Iterable
 import numpy as np 
 from typing import Any
 import torch
@@ -63,10 +62,12 @@ class Server(ObserverSubject):
         if GlobalSettings().get_workers() > 1:
             return self._fit_multiprocess(n_rounds)
 
-        with Progress() as progress:
+        with GlobalSettings().get_live_renderer():
+            progress_fl = GlobalSettings().get_progress_bar("FL")
+            progress_client = GlobalSettings().get_progress_bar("clients")
             client_x_round = int(self.n_clients*self.elegibility_percentage)
-            task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-            task_local = progress.add_task("[green]Local Training", total=client_x_round)
+            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+            task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
             total_rounds = self.rounds + n_rounds
             for round in range(self.rounds, total_rounds):
@@ -79,13 +80,15 @@ class Server(ObserverSubject):
                     client_eval = client.local_train()
                     if client_eval:
                         client_evals.append(client_eval)
-                    progress.update(task_id=task_local, completed=c+1)
-                    progress.update(task_id=task_rounds, advance=1)
+                    progress_client.update(task_id=task_local, completed=c+1)
+                    progress_fl.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
                 self.notify_end_round(round + 1, self.model, client_evals)
                 self.rounds += 1 
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
+            progress_fl.remove_task(task_rounds)
+            progress_client.remove_task(task_local)
     
     def _fit_multiprocess(self, n_rounds: int=10) -> None:
         """Run the federated learning algorithm using multiprocessing.
@@ -95,24 +98,26 @@ class Server(ObserverSubject):
         n_rounds : int, optional
             The number of rounds to run, by default 10.
         """
-        with Progress() as progress:
+        progress_fl = GlobalSettings().get_progress_bar("FL")
+        progress_client = GlobalSettings().get_progress_bar("clients")
+        def callback_progress(result):
+            progress_fl.update(task_id=task_rounds, advance=1)
+            progress_client.update(task_id=task_local, advance=1)
 
-            def callback_progress(result):
-                progress.update(task_id=task_rounds, advance=1)
-                progress.update(task_id=task_local, advance=1)
+        client_x_round = int(self.n_clients*self.elegibility_percentage)
+        task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+        task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
-            client_x_round = int(self.n_clients*self.elegibility_percentage)
-            task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-            task_local = progress.add_task("[green]Local Training", total=client_x_round)
+        total_rounds = self.rounds + n_rounds
 
-            total_rounds = self.rounds + n_rounds
+        with GlobalSettings().get_live_renderer():
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
                 client_evals = []
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
                 self.broadcast(eligible)
-                progress.update(task_id=task_local, completed=0)
+                progress_client.update(task_id=task_local, completed=0)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for client in eligible:
                         client_eval = pool.apply_async(self._local_train, 
@@ -127,6 +132,8 @@ class Server(ObserverSubject):
                 self.rounds += 1
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
+        progress_fl.remove_task(task_rounds)
+        progress_client.remove_task(task_local)
 
     def get_eligible_clients(self) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
