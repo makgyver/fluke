@@ -1,0 +1,22 @@
+{
+    "model": "SimpleCNN",
+    "distribution":"dir", 
+    "name": "fednova",
+    "dataset": "mnist",
+    "n_clients": 10,
+    "n_rounds": 50,
+    "batch_size": 64,
+    "n_epochs":10,
+    "eligibility_percentage": 1,
+    "optimizer_parameters": {
+        "lr": 0.01,
+        "momentum":0.9,
+        "scheduler_kwargs": {
+            "step_size": 1, 
+            "gamma": 1
+        }
+    },
+    "hyperparameters": {
+        "pattern": "constant"
+    }
+}

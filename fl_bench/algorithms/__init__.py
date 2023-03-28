@@ -42,7 +42,8 @@ class CentralizedFL(FLEnvironment):
                      callbacks: Optional[Union[Any, Iterable[Any]]]=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
-        self.clients = [Client(train_set=data_splitter.client_train_loader[i], 
+        self.clients = [Client(total_train_size = data_splitter.total_training_size, 
+                               train_set=data_splitter.client_train_loader[i],  
                                optimizer_cfg=self.optimizer_cfg, 
                                loss_fn=self.loss_fn, 
                                validation_set=data_splitter.client_test_loader[i],
@@ -81,6 +82,7 @@ from .flhalf import FLHalf
 from .fedbn import FedBN
 from .fedopt import FedOpt
 from .moon import MOON
+from .fednova import FedNova , FedNovaoptimizer
 
 from enum import Enum
 
@@ -97,10 +99,13 @@ class FedAlgorithmsEnum(Enum):
     FEDBN = 'fedbn'
     FEDOPT = 'fedopt'
     MOON = 'moon'
+    FEDNOVA = 'fednova'
 
     def optimizer(self) -> torch.optim.Optimizer:
         if self.value == "scaffold":
             return ScaffoldOptimizer
+        elif self.value == "fednova":
+            return FedNovaoptimizer
         else:
             return torch.optim.SGD
 
@@ -113,7 +118,8 @@ class FedAlgorithmsEnum(Enum):
             'flhalf': FLHalf,
             'fedbn': FedBN,
             'fedopt': FedOpt,
-            'moon': MOON
+            'moon': MOON,
+            'fednova': FedNova
         }
 
         return algos[self.value]

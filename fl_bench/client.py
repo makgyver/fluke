@@ -10,6 +10,21 @@ from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader
 from fl_bench.evaluation import ClassificationEval
 
+def update_learning_rate(optimizer, current_round, target_lr, total_round):
+    """
+    1) Decay learning rate exponentially (epochs 30, 60, 80)
+    ** note: target_lr is the reference learning rate from which to scale down
+    """
+    if current_round == int(total_round / 2):
+        lr = target_lr/10
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
+    if current_round == int(total_round * 0.75):
+        lr = target_lr/100
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
 class Client(ABC):
     """Standard client of a federated learning system.
 
@@ -30,11 +45,13 @@ class Client(ABC):
                  train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
+                 total_train_size:int, #to calculate the ratio
                  validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3):
 
         self.train_set = train_set
         self.validation_set = validation_set
+        self.total_train_size = total_train_size
         self.n_examples = train_set.size
         self.model = None
         self.optimizer_cfg = optimizer_cfg
