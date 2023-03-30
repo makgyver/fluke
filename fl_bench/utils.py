@@ -116,7 +116,7 @@ class Log(ServerObserver):
     def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
         self.history[round] = self.evaluator(global_model)
         console.print(f"\n[Round {round}]")
-        console.print(f"  global: {self.history[round]}\n")
+        console.print(f"  global: {self.history[round]}" + "\n" if not client_evals else "")
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean().to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
@@ -205,7 +205,11 @@ def load_defaults(console, config_path: Optional[str]=None):
         "dataset": "mnist",
         "validation": 0.0,
         "sampling": 1.0,
-        "checkpoint": 1,
+        "checkpoint": {
+            "save": 0,
+            "load": 0,
+            "path": "./checkpoints/checkpoint.pt"
+        },
         "logger": "local",
         "wandb_params": {
             "project": "fl-bench",

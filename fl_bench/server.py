@@ -121,8 +121,8 @@ class Server(ObserverSubject):
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for client in eligible:
                         client_eval = pool.apply_async(self._local_train, 
-                                                    args=(client,), 
-                                                    callback=callback_progress)
+                                                       args=(client,), 
+                                                       callback=callback_progress)
                         client_evals.append(client_eval)
                     pool.close()
                     pool.join()
