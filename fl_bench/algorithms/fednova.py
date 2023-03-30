@@ -22,7 +22,11 @@ import numpy as np
 from client import Client
 from utils import OptimizerConfigurator
 from data import DataSplitter, FastTensorDataLoader
+from __init__ import GlobalSettings, ObserverSubject
+import multiprocessing as mp
 
+
+# code taken from https://github.com/JYWa/FedNova
 
 class FedNovaoptimizer(Optimizer):
     r"""Implements federated normalized averaging (FedNova).
@@ -30,7 +34,8 @@ class FedNovaoptimizer(Optimizer):
     Nesterov momentum is based on the formula from
     `On the importance of initialization and momentum in deep learning`__.
 
-    Args:
+    Parameters
+        ----------
         params (iterable): iterable of parameters to optimize or dicts defining
             parameter groups
         ratio (float): relative sample size of client
@@ -42,7 +47,8 @@ class FedNovaoptimizer(Optimizer):
         dampening (float, optional): dampening for momentum (default: 0)
         nesterov (bool, optional): enables Nesterov momentum (default: False)
 
-    Example:
+    Example
+    ----------
         >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
         >>> optimizer.zero_grad()
         >>> loss_fn(model(input), target).backward()
@@ -50,7 +56,8 @@ class FedNovaoptimizer(Optimizer):
 
     __ http://www.cs.toronto.edu/%7Ehinton/absps/momentum.pdf
 
-    .. note::
+    Note
+    ----------
         The implementation of SGD with Momentum/Nesterov subtly differs from
         Sutskever et. al. and implementations in some other frameworks.
 
@@ -73,10 +80,10 @@ class FedNovaoptimizer(Optimizer):
         The Nesterov version is analogously modified.
     """
 
-    def __init__(self, ratio, params, gmf=0, lr=required, mu=0, momentum=0.9, dampening=0,
+    def __init__(self, params, gmf=0, lr=required, mu=0, momentum=0.9, dampening=0,
                  weight_decay=0, nesterov=False, variance=0):
         self.gmf = gmf
-        self.ratio = ratio
+        # self.ratio = ratio
         self.lr = lr
         self.momentum = momentum
         self.mu = mu
@@ -105,8 +112,8 @@ class FedNovaoptimizer(Optimizer):
 
     def step(self, closure=None):
         """Performs a single optimization step.
-
-        Arguments:
+        Parameters
+        ----------
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
@@ -199,9 +206,9 @@ class FedNovaClient(Client):
                  train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 total_train_size: int,
                  validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3,
+                 total_train_size:int=0,
                  pattern: str = 'constant',
                  max_epochs: int = 3): 
         assert optimizer_cfg.optimizer == FedNovaoptimizer, \
@@ -213,14 +220,21 @@ class FedNovaClient(Client):
         self.ratio =  train_set.size  / self.total_train_size
         self.pattern = pattern
         self.local_epochs = local_epochs
-        super().__init__(train_set, optimizer_cfg, loss_fn, total_train_size, validation_set, local_epochs)
+        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
 
     def update_local_epochs(self, current_round: int=0, c:int = 0):
-        """
-        Function to update the number of locale epochs according to FedNova algorithm:
-        current_round: current_round of training
-        c: index of the client
+        """Function to update the number of locale epochs according to FedNova algorithm:
+        
         both arguments are used in order to change the seed according to each client
+
+        Parameters
+        ----------
+        current_round : int,
+            current_round of training
+        c: int,
+            index of the client
+        
+        
         """
         if self.pattern == "constant":
             self.local_epochs = self.local_epochs
@@ -234,9 +248,9 @@ class FedNovaServer(Server):
     def __init__(self,
                  model: Module,
                  clients: Iterable[Client],
+                 eligibility_percentage: float=1.,
                  tau_eff: float=0.,
                  global_step: float=1.,
-                 eligibility_percentage: float=1.,
                  weighted: bool = False): 
 
         super().__init__(model, clients, eligibility_percentage)
@@ -254,48 +268,142 @@ class FedNovaServer(Server):
         n_rounds : int, optional
             The number of rounds to run, by default 10.
         """
-        with Progress() as progress:
+        if GlobalSettings().get_workers() > 1:
+            return self._fit_multiprocess(n_rounds)
+
+        with GlobalSettings().get_live_renderer():
+            progress_fl = GlobalSettings().get_progress_bar("FL")
+            progress_client = GlobalSettings().get_progress_bar("clients")
             client_x_round = int(self.n_clients*self.elegibility_percentage)
-            task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-            task_local = progress.add_task("[green]Local Training", total=client_x_round)
-
-            for round in range(n_rounds):
+            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+            task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
+            total_rounds = self.rounds + n_rounds
+            for round in range(self.rounds, total_rounds):
+                self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
+                self.notify_selected_clients(round + 1, eligible)
                 self.broadcast(eligible)
-
                 client_evals = []
-                # tau_eff_cuda = torch.tensor(tau_eff_cuda)
                 for c, client in enumerate(eligible):
-                    # print(f'calient.validation_set = {client.validation_set} before calling local train')
                     tau_eff_cuda = 0
-                    print(f'client {c}')
                     client.update_local_epochs(current_round = round, c = c)
                     
                     client_eval = client.local_train()
                     if client_eval:
                         client_evals.append(client_eval)
 
-                    if self.tau_eff == 0:
-                        if client.optimizer.mu != 0:
-                            tau_eff_cuda += torch.tensor(client.optimizer.local_steps*client.ratio)
-                        else:
-                            tau_eff_cuda += torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
+                    if client.optimizer.mu != 0:
+                        tau_eff_cuda = torch.tensor(client.optimizer.local_steps*client.ratio)
+                    else:
+                        tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
 
-                    # for each client we add the corresponding tau_i * p_i
-                    # tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio).cuda()
-
-                    self.tau_eff = tau_eff_cuda
-                    progress.update(task_id=task_local, completed=c+1)
-                    progress.update(task_id=task_rounds, advance=1)
+                    self.tau_eff += tau_eff_cuda
                     client.optimizer.update_learning_rate(round, n_rounds)
-                self.aggregate_fednova(eligible)
-                self.notify_all(self.model, round + 1, client_evals)
 
-    def aggregate_fednova(self, eligible: Iterable[Client], weight: float=0) -> None:
+                    progress_client.update(task_id=task_local, completed=c+1)
+                    progress_fl.update(task_id=task_rounds, advance=1)
+                self.aggregate(eligible)
+                self.notify_end_round(round + 1, self.model, client_evals)
+                self.rounds += 1 
+                if self.checkpoint_path is not None:
+                    self.save(self.checkpoint_path)
+            progress_fl.remove_task(task_rounds)
+            progress_client.remove_task(task_local)
+
+        # with Progress() as progress:
+        #     client_x_round = int(self.n_clients*self.elegibility_percentage)
+        #     task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+        #     task_local = progress.add_task("[green]Local Training", total=client_x_round)
+
+        #     for round in range(n_rounds):
+        #         eligible = self.get_eligible_clients()
+        #         self.broadcast(eligible)
+
+        #         client_evals = []
+        #         for c, client in enumerate(eligible):
+        #             tau_eff_cuda = 0
+        #             client.update_local_epochs(current_round = round, c = c)
+                    
+        #             client_eval = client.local_train()
+        #             if client_eval:
+        #                 client_evals.append(client_eval)
+
+        #             if client.optimizer.mu != 0:
+        #                 tau_eff_cuda = torch.tensor(client.optimizer.local_steps*client.ratio)
+        #             else:
+        #                 tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
+
+        #             self.tau_eff += tau_eff_cuda
+        #             client.optimizer.update_learning_rate(round, n_rounds)
+
+        #             progress.update(task_id=task_local, completed=c+1)
+        #             progress.update(task_id=task_rounds, advance=1)
+        #         self.aggregate(eligible)
+        #         self.notify_all(self.model, round + 1, client_evals)
+
+    def _fit_multiprocess(self, n_rounds: int=10) -> None:
+        """Run the federated learning algorithm using multiprocessing.
+
+        Parameters
+        ----------
+        n_rounds : int, optional
+            The number of rounds to run, by default 10.
+        """
+        progress_fl = GlobalSettings().get_progress_bar("FL")
+        progress_client = GlobalSettings().get_progress_bar("clients")
+        def callback_progress(result):
+            progress_fl.update(task_id=task_rounds, advance=1)
+            progress_client.update(task_id=task_local, advance=1)
+
+        client_x_round = int(self.n_clients*self.elegibility_percentage)
+        task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+        task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
+
+        total_rounds = self.rounds + n_rounds
+
+        with GlobalSettings().get_live_renderer():
+            for round in range(self.rounds, total_rounds):
+                self.notify_start_round(round + 1, self.model)
+                client_evals = []
+                eligible = self.get_eligible_clients()
+                self.notify_selected_clients(round + 1, eligible)
+                self.broadcast(eligible)
+                progress_client.update(task_id=task_local, completed=0)
+                with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
+                    for c, client in enumerate(eligible):
+                        client.update_local_epochs(current_round = round, c = c)
+
+                        client_eval = pool.apply_async(self._local_train, 
+                                                    args=(client,), 
+                                                    callback=callback_progress)
+                        if client_eval:
+                            client_evals.append(client_eval)
+                        tau_eff_cuda = 0
+                        if client.optimizer.mu != 0:
+                            tau_eff_cuda = torch.tensor(client.optimizer.local_steps*client.ratio)
+                        else:
+                            tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
+
+                        self.tau_eff += tau_eff_cuda
+                        client.optimizer.update_learning_rate(round, n_rounds)
+
+                    pool.close()
+                    pool.join()
+                client_evals = [c.get() for c in client_evals]
+                self.aggregate(eligible)
+                self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
+                self.rounds += 1
+                if self.checkpoint_path is not None:
+                    self.save(self.checkpoint_path)
+        progress_fl.remove_task(task_rounds)
+        progress_client.remove_task(task_local)
+
+    def aggregate(self, eligible: Iterable[Client], weight: float=0) -> None:
         """Aggregate the models of the clients.
 
-        The aggregation is done by averaging the models of the clients. If the attribute `weighted`
-        is True, the clients are weighted by their number of samples.
+        The aggregation is done by averaging the models of the clients. the weight is done through the
+        ratio of the fednova model.
+        Each client update their local parameters, then aggregate and perform one last update of the parameters.
 
         Parameters
         ----------
@@ -326,12 +434,13 @@ class FedNovaServer(Server):
                         continue
                     den = 0
                     for i, client_sd in enumerate(clients_sd):
-                        d_weight = 1 
-                        den += weight
+                        d_weight = 1 # we keep this =1 because the ratio has already been calculated in previous steps
+                        den += d_weight
                         if key not in avg_model_sd:
                             avg_model_sd[key] = d_weight * client_sd[key]
                         else:
                             avg_model_sd[key] += d_weight * client_sd[key]
+                    avg_model_sd[key] /= den
                 self.model.load_state_dict(avg_model_sd)
 
             for i, client in enumerate(eligible):
@@ -383,21 +492,24 @@ class FedNova(CentralizedFL):
                          eligibility_percentage)
         self.pattern = pattern
 
-    def init_parties(self, data_splitter: DataSplitter, callback: Callable=None):
+    def init_parties(self, data_splitter: DataSplitter, callbacks: Callable=None):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        print("Using fednova")
         self.data_assignment = data_splitter.assignments
-        self.clients = [FedNovaClient(total_train_size = data_splitter.total_training_size,
+        self.total_train_size = 0
+        for i in data_splitter.client_train_loader:
+            self.total_train_size+= i.size
+        self.clients = [FedNovaClient(
                             train_set=data_splitter.client_train_loader[i],
                             optimizer_cfg=self.optimizer_cfg,
                             loss_fn=self.loss_fn,
                             validation_set=data_splitter.client_test_loader[i],
                             pattern = self.pattern,
+                            total_train_size = self.total_train_size,
                             local_epochs=self.n_epochs,
                             max_epochs = self.n_epochs) for i in range(self.n_clients)]
 
         self.server = FedNovaServer(self.model, self.clients, self.eligibility_percentage, weighted=False)
-        self.server.register_callback(callback)
+        self.server.attach(callbacks)
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \

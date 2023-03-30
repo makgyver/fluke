@@ -1,8 +1,8 @@
 {
-    "model": "SimpleCNN",
+    "model": "CNN",
     "distribution":"dir", 
     "name": "fednova",
-    "dataset": "mnist",
+    "dataset": "mnist4d",
     "n_clients": 10,
     "n_rounds": 50,
     "batch_size": 64,
