@@ -10,6 +10,7 @@ from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader
 from fl_bench.evaluation import ClassificationEval
 
+
 class Client(ABC):
     """Standard client of a federated learning system.
 

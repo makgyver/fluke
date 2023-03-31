@@ -65,9 +65,42 @@ class Datasets:
             transform = ToTensor(),
             download = True
         )
-        return DataContainer(train_data.data / 255., 
+
+        train_data.data = torch.Tensor(train_data.data / 255.)
+        test_data.data = torch.Tensor(test_data.data / 255.)
+
+        return DataContainer(train_data.data, 
                              train_data.targets,
-                             test_data.data / 255., 
+                             test_data.data, 
+                             test_data.targets, 
+                             10)
+    
+    @classmethod
+    def MNIST4D(cls) -> DataContainer:
+        train_data = datasets.MNIST(
+            root = 'data',
+            train = True,                         
+            transform = ToTensor(), 
+            download = True,            
+        )
+
+        test_data = datasets.MNIST(
+            root = 'data', 
+            train = False, 
+            transform = ToTensor(),
+            download = True
+        )
+
+        train_data.data = torch.Tensor(train_data.data / 255.)
+        test_data.data = torch.Tensor(test_data.data / 255.)
+
+        train_data.data = train_data.data[:, None, :, :]  # added because probably without the transformation it does not have the correct number of dimension
+                                                          # in this way the dimension to the convolutional layer are correct (64,1,28,28)
+        test_data.data = test_data.data[:, None, :, :]
+
+        return DataContainer(train_data.data, 
+                             train_data.targets,
+                             test_data.data, 
                              test_data.targets, 
                              10)
     
@@ -529,6 +562,7 @@ class DataSplitter:
         self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
         self.client_train_loader = []
         self.client_test_loader = []
+        # self.total_training_size = 0
         for c in range(self.n_clients):
             client_X = self.X[self.assignments[c]]
             client_y = self.y[self.assignments[c]]
@@ -539,8 +573,11 @@ class DataSplitter:
             else:
                 self.client_train_loader.append(FastTensorDataLoader(client_X, client_y, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
                 self.client_test_loader.append(None)
+            # self.total_training_size += self.client_train_loader[c].size
         return self
-    
+
+# possiamo ottenere la training size dalla size di y(1-val.size)
+
     def get_loaders(self) -> Tuple[List[FastTensorDataLoader], List[FastTensorDataLoader]]:
         """Get the client-side data loaders.
 
@@ -846,6 +883,7 @@ class DataSplitter:
 
 class DatasetsEnum(Enum):
     MNIST = "mnist"
+    MNIST4D = "mnist4d"
     MNISTM = "mnistm"
     SVHN = "svhn"
     # FEMNIST = "femnist"
@@ -856,6 +894,7 @@ class DatasetsEnum(Enum):
         DATASET_MAP = {
             "mnist": Datasets.MNIST,
             "mnistm": Datasets.MNISTM,
+            "mnist4d": Datasets.MNIST4D,
             "svhn": Datasets.SVHN,
             # "femnist": Datasets.FEMNIST,
             "emnist": Datasets.EMNIST,
