@@ -369,8 +369,12 @@ class FedNovaServer(Server):
                 self.notify_selected_clients(round + 1, eligible)
                 self.broadcast(eligible)
                 progress_client.update(task_id=task_local, completed=0)
+                print(eligible)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for c, client in enumerate(eligible):
+                        
+                        # if client.optimizer is None:
+                        #     client.optimizer, client.scheduler = client.optimizer_cfg(client.model)
                         client.update_local_epochs(current_round = round, c = c)
 
                         client_eval = pool.apply_async(self._local_train, 
@@ -378,17 +382,17 @@ class FedNovaServer(Server):
                                                     callback=callback_progress)
                         if client_eval:
                             client_evals.append(client_eval)
-                        tau_eff_cuda = 0
-                        if client.optimizer.mu != 0:
-                            tau_eff_cuda = torch.tensor(client.optimizer.local_steps*client.ratio)
-                        else:
-                            tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
-
-                        self.tau_eff += tau_eff_cuda
-                        client.optimizer.update_learning_rate(round, n_rounds)
-
                     pool.close()
                     pool.join()
+                for c, client in enumerate(eligible):
+                    tau_eff_cuda = 0
+                    if client.optimizer.mu != 0:
+                        tau_eff_cuda = torch.tensor(client.optimizer.local_steps*client.ratio)
+                    else:
+                        tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
+
+                    self.tau_eff += tau_eff_cuda
+                    client.optimizer.update_learning_rate(round, n_rounds)
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
                 self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
