@@ -109,7 +109,7 @@ class Server(ObserverSubject):
         task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
         total_rounds = self.rounds + n_rounds
-
+        
         with GlobalSettings().get_live_renderer():
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)

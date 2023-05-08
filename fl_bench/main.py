@@ -90,21 +90,24 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     
     if cfg.checkpoint["save"]:
         fl_algo.activate_checkpoint(cfg.checkpoint["path"])
-        
+
     # GlobalSettings().set_workers(8)
     fl_algo.run()
 
     log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 
+# @app.command()
+# def compare(dataset: str=typer.Option('mnist', help='Dataset'),
+#             n_clients: int=typer.Option(100, help='Number of clients'),
+#             n_rounds: int=typer.Option(100, help='Number of rounds'),
+#             distribution: DistributionEnum=typer.Option(DistributionEnum.IID.value, help='Data distribution'),
+#             show_loss: bool=typer.Option(True, help='Show loss graph'),
+#             local: bool=typer.Option(False, help='Compare client-side results')):
 @app.command()
-def compare(dataset: str=typer.Option('mnist', help='Dataset'),
-            n_clients: int=typer.Option(100, help='Number of clients'),
-            n_rounds: int=typer.Option(100, help='Number of rounds'),
-            distribution: DistributionEnum=typer.Option(DistributionEnum.IID.value, help='Data distribution'),
+def compare(paths: list[str]=typer.Argument(..., help='Log files to compare'),
             show_loss: bool=typer.Option(True, help='Show loss graph'),
             local: bool=typer.Option(False, help='Compare client-side results')):
-    paths = glob.glob(f'./log/*C={n_clients},R={n_rounds},*_{dataset}_{distribution}.json')
     plot_comparison(*paths, local=local, show_loss=show_loss)
 
 

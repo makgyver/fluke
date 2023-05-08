@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import os
 import json
 import random
@@ -277,3 +278,8 @@ class Config(dict):
     def _read_alg_cfg(self):
         with open(self["alg_cfg"]) as f:
             self["method"] = json.load(f)
+
+
+def diff_model(model_dict1: dict, model_dict2: dict):
+    assert model_dict1.keys() == model_dict2.keys(), "Models have not the same architecture"
+    return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
