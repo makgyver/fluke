@@ -115,8 +115,9 @@ To date, the following algorithms are implemented:
 - SCAFFOLD (`scaffold`)
 - FedProx (`fedprox`)
 - FedOpt (`fedopt`)
-- FLHalf (`flhalf`)
 - MOON (`moon`)
+- FedExP(`fedexp`)
+- FedNova (`fednova`) [**Work in progress**]
 
 Inside the `net.py` file, you can find the definition of some neural networks. 
 

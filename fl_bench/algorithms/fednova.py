@@ -35,49 +35,57 @@ class FedNovaoptimizer(Optimizer):
     `On the importance of initialization and momentum in deep learning`__.
 
     Parameters
-        ----------
-        params (iterable): iterable of parameters to optimize or dicts defining
-            parameter groups
-        ratio (float): relative sample size of client
-        gmf (float): global/server/slow momentum factor
-        mu (float): parameter for proximal local SGD
-        lr (float): learning rate
-        momentum (float, optional): momentum factor (default: 0)
-        weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
-        dampening (float, optional): dampening for momentum (default: 0)
-        nesterov (bool, optional): enables Nesterov momentum (default: False)
+    ----------
+    params (iterable): 
+        Iterable of parameters to optimize or dicts defining parameter groups
+    ratio (float):
+        relative sample size of client
+    gmf (float):
+        global/server/slow momentum factor
+    mu (float):
+        parameter for proximal local SGD
+    lr (float):
+        learning rate
+    momentum (float, optional):
+        momentum factor (default: 0)
+    weight_decay (float, optional):
+        weight decay (L2 penalty) (default: 0)
+    dampening (float, optional):
+        dampening for momentum (default: 0)
+    nesterov (bool, optional):
+        enables Nesterov momentum (default: False)
 
     Example
-    ----------
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
-        >>> optimizer.zero_grad()
-        >>> loss_fn(model(input), target).backward()
-        >>> optimizer.step()
+    -------
+    >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+    >>> optimizer.zero_grad()
+    >>> loss_fn(model(input), target).backward()
+    >>> optimizer.step()
 
     __ http://www.cs.toronto.edu/%7Ehinton/absps/momentum.pdf
 
     Note
-    ----------
-        The implementation of SGD with Momentum/Nesterov subtly differs from
-        Sutskever et. al. and implementations in some other frameworks.
+    ----
+    The implementation of SGD with Momentum/Nesterov subtly differs from
+    Sutskever et. al. and implementations in some other frameworks.
 
-        Considering the specific case of Momentum, the update can be written as
+    Considering the specific case of Momentum, the update can be written as
 
-        .. math::
-                  v = \rho * v + g \\
-                  p = p - lr * v
+    .. math::
+                v = \rho * v + g \\
+                p = p - lr * v
 
-        where p, g, v and :math:`\rho` denote the parameters, gradient,
-        velocity, and momentum respectively.
+    where p, g, v and :math:`\rho` denote the parameters, gradient,
+    velocity, and momentum respectively.
 
-        This is in contrast to Sutskever et. al. and
-        other frameworks which employ an update of the form
+    This is in contrast to Sutskever et. al. and
+    other frameworks which employ an update of the form
 
-        .. math::
-             v = \rho * v + lr * g \\
-             p = p - v
+    .. math::
+            v = \rho * v + lr * g \\
+            p = p - v
 
-        The Nesterov version is analogously modified.
+    The Nesterov version is analogously modified.
     """
 
     def __init__(self, params, gmf=0, lr=required, mu=0, momentum=0.9, dampening=0,
@@ -112,13 +120,12 @@ class FedNovaoptimizer(Optimizer):
 
     def step(self, closure=None):
         """Performs a single optimization step.
+        
         Parameters
         ----------
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
         loss = None
         if closure is not None:
             loss = closure()
@@ -214,13 +221,15 @@ class FedNovaClient(Client):
         assert optimizer_cfg.optimizer == FedNovaoptimizer, \
             "FedNovaClient only supports FedNovaOptimizer"
 
+        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+
         self.total_train_size = total_train_size
         self.max_epochs = max_epochs
 
         self.ratio =  train_set.size  / self.total_train_size
         self.pattern = pattern
         self.local_epochs = local_epochs
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+        
 
     def update_local_epochs(self, current_round: int=0, c:int = 0):
         """Function to update the number of locale epochs according to FedNova algorithm:
@@ -233,8 +242,6 @@ class FedNovaClient(Client):
             current_round of training
         c: int,
             index of the client
-        
-        
         """
         if self.pattern == "constant":
             self.local_epochs = self.local_epochs
