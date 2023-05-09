@@ -109,17 +109,7 @@ class FedOpt(CentralizedFL):
         self.server_lr = server_lr
         self.tau = tau
     
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.data_assignment = data_splitter.assignments
-        self.clients = [Client(train_set=data_splitter.client_train_loader[i], 
-                               optimizer_cfg=self.optimizer_cfg, 
-                               loss_fn=self.loss_fn, 
-                               validation_set=data_splitter.client_test_loader[i],
-                               local_epochs=self.n_epochs) for i in range(self.n_clients)]
-
+    def init_server(self, **kwargs):
         self.server = FedOptServer(self.model, 
                                    self.clients, 
                                    mode=self.mode,
@@ -128,8 +118,6 @@ class FedOpt(CentralizedFL):
                                    beta2=self.beta2,
                                    tau=self.tau,
                                    eligibility_percentage=self.eligibility_percentage)
-
-        self.server.attach(callbacks)
 
     def __str__(self) -> str:
         return f"{self.mode.name}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \

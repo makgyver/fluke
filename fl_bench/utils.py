@@ -192,7 +192,7 @@ def plot_comparison(*log_paths: str,
 
 def load_defaults(console, config_path: Optional[str]=None):
     defaults = {
-        "name": "NAME OF THE EXP",
+        "name": "no_name",
         "seed": 987654,
         "device": "auto",
         "n_clients": 100,

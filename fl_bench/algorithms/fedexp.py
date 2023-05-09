@@ -5,9 +5,8 @@ from typing import Any, Callable, Iterable, Optional, Union
 import torch
 from torch.nn import Module
 
-import sys
+import sys; sys.path.append(".")
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter; sys.path.append(".")
 from fl_bench.server import Server
 from fl_bench.utils import OptimizerConfigurator, diff_model
 from fl_bench.algorithms import CentralizedFL
@@ -71,19 +70,5 @@ class FedExP(CentralizedFL):
                          loss_fn,
                          eligibility_percentage)
     
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [ Client(train_set=data_splitter.client_train_loader[i], 
-                                optimizer_cfg=self.optimizer_cfg, 
-                                loss_fn=self.loss_fn, 
-                                validation_set=data_splitter.client_test_loader[i],
-                                local_epochs=self.n_epochs) for i in range(self.n_clients) ]
-
+    def init_server(self, **kwargs):
         self.server = FedExPServer(self.model, self.clients, self.eligibility_percentage)
-        self.server.attach(callbacks)
-    
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"P={self.eligibility_percentage})"

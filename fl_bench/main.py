@@ -21,6 +21,7 @@ CONFIG_FNAME = "configs/exp_settings.json"
 
 @app.command()
 def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+        name: str = cli_option(DEFAULTS["name"], help='Name of the experiment'),
         dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Dataset'),
         n_clients: int = cli_option(DEFAULTS["n_clients"], help='Number of clients'),
         n_rounds: int = cli_option(DEFAULTS["n_rounds"], help='Number of rounds'),

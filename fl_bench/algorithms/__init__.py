@@ -37,9 +37,7 @@ class CentralizedFL(FLEnvironment):
         self.loss_fn = loss_fn
         self.data_assignment = None
     
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
+    def init_clients(self, data_splitter: DataSplitter, **kwargs):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
         self.clients = [Client(train_set=data_splitter.client_train_loader[i],  
@@ -48,7 +46,16 @@ class CentralizedFL(FLEnvironment):
                                validation_set=data_splitter.client_test_loader[i],
                                local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
+    def init_server(self, **kwargs):
         self.server = Server(self.model, self.clients, self.eligibility_percentage, weighted=True)
+        
+
+    def init_parties(self, 
+                     data_splitter: DataSplitter, 
+                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
+        
+        self.init_clients(data_splitter)
+        self.init_server()
         self.server.attach(callbacks)
         
     def run(self):

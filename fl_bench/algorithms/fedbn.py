@@ -47,9 +47,7 @@ class FedBNServer(Server):
 
 class FedBN(CentralizedFL):
     
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
+    def init_clients(self, data_splitter: DataSplitter, **kwargs):
         assert data_splitter.n_clients == self.n_clients, \
             "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
@@ -59,5 +57,5 @@ class FedBN(CentralizedFL):
                                     validation_set=data_splitter.client_test_loader[i],
                                     local_epochs=self.n_epochs) for i in range(self.n_clients)]
 
+    def init_server(self, **kwargs):
         self.server = FedBNServer(self.model, self.clients, self.eligibility_percentage, weighted=True)
-        self.server.attach(callbacks)
