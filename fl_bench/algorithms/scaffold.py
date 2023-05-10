@@ -80,6 +80,7 @@ class ScaffoldClient(Client):
                 self.optimizer.step(self.server_control, self.control)
             self.scheduler.step()
         
+        #TODO: get only the trainable parameters
         for local_model, server_model, delta_y in zip(self.model.parameters(), server_model.parameters(), self.delta_y):
             delta_y.data = local_model.data.detach() - server_model.data.detach()
         

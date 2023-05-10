@@ -21,15 +21,15 @@ class FedOptMode(Enum):
 
 class FedOptServer(Server):
     def __init__(self,
-                model: Module,
-                clients: Iterable[Client], 
-                mode: FedOptMode=FedOptMode.FedAdam,
-                lr: float=0.001,
-                beta1: float=0.9,
-                beta2: float=0.999,
-                tau: float=0.0001,
-                eligibility_percentage: float=0.5, 
-                weighted: bool=True):
+                 model: Module,
+                 clients: Iterable[Client], 
+                 mode: FedOptMode=FedOptMode.FedAdam,
+                 lr: float=0.001,
+                 beta1: float=0.9,
+                 beta2: float=0.999,
+                 tau: float=0.0001,
+                 eligibility_percentage: float=0.5, 
+                 weighted: bool=True):
         super().__init__(model, clients, eligibility_percentage, weighted)
         assert mode in FedOptMode, "mode must be one of FedOptMode"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"

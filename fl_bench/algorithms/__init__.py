@@ -81,6 +81,7 @@ class CentralizedFL(FLEnvironment):
 
 
 from .fedavg import FedAVG
+from .fedavgm import FedAVGM
 from .fedsgd import FedSGD
 from .fedprox import FedProx
 from .scaffold import SCAFFOLD, ScaffoldOptimizer
@@ -95,10 +96,9 @@ from enum import Enum
 
 import torch
 
-
-
 class FedAlgorithmsEnum(Enum):
     FEDAVG = 'fedavg'
+    FEDAGM = 'fedavgm'
     FEDSGD = 'fedsgd'
     FEDPROX = 'fedprox'
     SCAFFOLD = 'scaffold'
@@ -120,6 +120,7 @@ class FedAlgorithmsEnum(Enum):
     def algorithm(self):
         algos = {
             'fedavg': FedAVG,
+            'fedavgm': FedAVGM,
             'fedsgd': FedSGD,
             'fedprox': FedProx,
             'scaffold': SCAFFOLD,

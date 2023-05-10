@@ -1,0 +1,13 @@
+{
+    "name": "fedavgm",
+    "optimizer_parameters": {
+        "lr": 0.01,
+        "scheduler_kwargs": {
+            "step_size": 1, 
+            "gamma": 1
+        }
+    },
+    "hyperparameters": {
+        "server_momentum": 0.9
+    }
+}
