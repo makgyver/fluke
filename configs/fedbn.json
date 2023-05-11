@@ -1,14 +1,12 @@
 {
-    "name": "fednova",
+    "name": "fedbn",
     "optimizer_parameters": {
         "lr": 0.01,
-        "momentum":0.9,
         "scheduler_kwargs": {
             "step_size": 1, 
             "gamma": 1
         }
     },
     "hyperparameters": {
-        "pattern": "constant"
     }
 }

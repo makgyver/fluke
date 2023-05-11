@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Union, Any, Optional
+from typing import Callable, Iterable
 from copy import deepcopy
 
 import torch
@@ -19,6 +19,7 @@ class ScaffoldOptimizer(Optimizer):
         defaults = dict(lr=lr, weight_decay=weight_decay)
         super(ScaffoldOptimizer, self).__init__(params, defaults)
 
+    #TODO: add types
     def step(self, server_controls, client_controls, closure=None):
 
         loss = None

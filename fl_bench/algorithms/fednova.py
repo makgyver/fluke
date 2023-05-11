@@ -7,7 +7,8 @@ from rich.progress import Progress
 from collections import OrderedDict
 
 
-import sys; sys.path.append(".")
+import sys
+from fl_bench.data import DataSplitter; sys.path.append(".")
 from utils import OptimizerConfigurator
 from algorithms import CentralizedFL
 
@@ -28,7 +29,7 @@ import multiprocessing as mp
 
 # code taken from https://github.com/JYWa/FedNova
 
-class FedNovaoptimizer(Optimizer):
+class FedNovaOptimizer(Optimizer):
     r"""Implements federated normalized averaging (FedNova).
 
     Nesterov momentum is based on the formula from
@@ -110,7 +111,7 @@ class FedNovaoptimizer(Optimizer):
                         weight_decay=weight_decay, nesterov=nesterov, variance=variance)
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
-        super(FedNovaoptimizer, self).__init__(params, defaults)
+        super(FedNovaOptimizer, self).__init__(params, defaults)
 
 
     def __setstate__(self, state):
@@ -218,7 +219,7 @@ class FedNovaClient(Client):
                  total_train_size:int=0,
                  pattern: str = 'constant',
                  max_epochs: int = 3): 
-        assert optimizer_cfg.optimizer == FedNovaoptimizer, \
+        assert optimizer_cfg.optimizer == FedNovaOptimizer, \
             "FedNovaClient only supports FedNovaOptimizer"
 
         super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
@@ -503,25 +504,22 @@ class FedNova(CentralizedFL):
                          eligibility_percentage)
         self.pattern = pattern
 
-    def init_parties(self, data_splitter: DataSplitter, callbacks: Callable=None):
+    def init_clients(self, data_splitter: DataSplitter, **kwargs):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
         self.data_assignment = data_splitter.assignments
-        self.total_train_size = 0
-        for i in data_splitter.client_train_loader:
-            self.total_train_size+= i.size
-        self.clients = [FedNovaClient(
-                            train_set=data_splitter.client_train_loader[i],
-                            optimizer_cfg=self.optimizer_cfg,
-                            loss_fn=self.loss_fn,
-                            validation_set=data_splitter.client_test_loader[i],
-                            pattern = self.pattern,
-                            total_train_size = self.total_train_size,
-                            local_epochs=self.n_epochs,
-                            max_epochs = self.n_epochs) for i in range(self.n_clients)]
+        total_train_size = sum([i.size for i in data_splitter.client_train_loader])
+        self.clients = [FedNovaClient(train_set=data_splitter.client_train_loader[i],
+                                      optimizer_cfg=self.optimizer_cfg,
+                                      loss_fn=self.loss_fn,
+                                      validation_set=data_splitter.client_test_loader[i],
+                                      pattern = self.pattern,
+                                      total_train_size = total_train_size,
+                                      local_epochs=self.n_epochs,
+                                      max_epochs = self.n_epochs) for i in range(self.n_clients)]
 
+    def init_server(self, **kwargs):
         self.server = FedNovaServer(self.model, self.clients, self.eligibility_percentage, weighted=False)
-        self.server.attach(callbacks)
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-            f"P={self.eligibility_percentage},{self.optimizer_cfg})"
+            f"P={self.eligibility_percentage},{self.optimizer_cfg},p={self.pattern})"

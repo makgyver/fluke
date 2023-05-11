@@ -1,14 +1,17 @@
 {
-    "name": "fednova",
+    "name": "pfedme",
     "optimizer_parameters": {
-        "lr": 0.01,
-        "momentum":0.9,
+        "lr": 0.05,
+        "lambda": 30,
+        "mu": 0.001,
         "scheduler_kwargs": {
             "step_size": 1, 
             "gamma": 1
         }
     },
     "hyperparameters": {
-        "pattern": "constant"
+        "beta": 2,
+        "k": 5,
+        "client_lr": 0.01
     }
 }

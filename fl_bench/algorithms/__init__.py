@@ -89,8 +89,9 @@ from .flhalf import FLHalf
 from .fedbn import FedBN
 from .fedopt import FedOpt
 from .moon import MOON
-from .fednova import FedNova, FedNovaoptimizer
+from .fednova import FedNova, FedNovaOptimizer
 from .fedexp import FedExP
+from .pfedme import PFedMe, pFedMeOptimizer
 
 from enum import Enum
 
@@ -108,12 +109,15 @@ class FedAlgorithmsEnum(Enum):
     MOON = 'moon'
     FEDNOVA = 'fednova'
     FEDEXP = 'fedexp'
+    PEFEDME = 'pfedme'
 
     def optimizer(self) -> torch.optim.Optimizer:
         if self.value == "scaffold":
             return ScaffoldOptimizer
         elif self.value == "fednova":
-            return FedNovaoptimizer
+            return FedNovaOptimizer
+        elif self.value == "pfedme":
+            return pFedMeOptimizer
         else:
             return torch.optim.SGD
 
@@ -129,7 +133,8 @@ class FedAlgorithmsEnum(Enum):
             'fedopt': FedOpt,
             'moon': MOON,
             'fednova': FedNova,
-            'fedexp': FedExP
+            'fedexp': FedExP,
+            'pfedme': PFedMe
         }
 
         return algos[self.value]
