@@ -4,7 +4,7 @@ from fl_bench.data import DataSplitter, FastTensorDataLoader; sys.path.append(".
 
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Callable, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable, List
 import torch
 
 from torch.nn import Module

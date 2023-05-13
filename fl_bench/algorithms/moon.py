@@ -7,7 +7,6 @@ from torch.nn import Module, CosineSimilarity
 import sys; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.server import Server
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
 

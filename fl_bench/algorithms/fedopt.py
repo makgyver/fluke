@@ -7,7 +7,6 @@ import torch
 from torch.nn import Module
 
 import sys; sys.path.append(".")
-from fl_bench.data import DataSplitter
 from fl_bench.server import Server
 from fl_bench.client import Client
 from fl_bench.utils import OptimizerConfigurator
