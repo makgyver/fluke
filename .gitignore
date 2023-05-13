@@ -1,9 +1,25 @@
 
 .DS_Store
 *.pyc
-data
 .vscode/launch.json
 log
 wandb
 venv.nosync
 checkpoints
+*.svmlight
+*.data
+*.csv
+*.mat
+*.gz
+data/MNIST/raw/train-labels-idx1-ubyte
+data/MNIST/raw/train-images-idx3-ubyte
+data/MNIST/raw/t10k-labels-idx1-ubyte
+data/MNIST/raw/t10k-images-idx3-ubyte
+data/cifar-10-batches-py/test_batch
+data/cifar-10-batches-py/readme.html
+data/cifar-10-batches-py/data_batch_5
+data/cifar-10-batches-py/data_batch_4
+data/cifar-10-batches-py/data_batch_3
+data/cifar-10-batches-py/data_batch_2
+data/cifar-10-batches-py/data_batch_1
+data/cifar-10-batches-py/batches.meta
