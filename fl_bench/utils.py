@@ -16,7 +16,8 @@ from typing import Any, Optional, Iterable
 
 import typer
 import wandb
-from fl_bench.data import DatasetsEnum, DistributionEnum
+from fl_bench.data import DistributionEnum
+from fl_bench.data.datasets import DatasetsEnum
 from fl_bench.evaluation import Evaluator
 
 
@@ -204,6 +205,7 @@ def load_defaults(console, config_path: Optional[str]=None):
         "distribution": "iid",
         "model": "MLP",
         "dataset": "mnist",
+        "standardize": False,
         "validation": 0.0,
         "sampling": 1.0,
         "checkpoint": {

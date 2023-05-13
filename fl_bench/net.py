@@ -1,9 +1,7 @@
 import torch
-import torchvision
 import torch.nn as nn
 from torch.functional import F
 import math
-import torch.nn.init as init
 
 # NOTE: (FLHAlf) The method `forward_` should return the output of the last layer before the global part of the network
 
@@ -36,7 +34,7 @@ class MLP(nn.Module):
         x = F.relu(self.fc2(x))
         return F.log_softmax(self.fc3(x), dim=1)
     
-    def forward_(self, x: torch.Tensor, int_layer: int=0) -> torch.Tensor:
+    def forward_(self, x: torch.Tensor, int_layer: int=0, start_layer:int=0) -> torch.Tensor:
         """Partial forward pass of the model.
 
         Parameters
@@ -45,7 +43,7 @@ class MLP(nn.Module):
             Input tensor.
         int_layer : int, optional
             Intermediate layer to return, by default 0. If 0, return the output of the last layer.
-
+        
         Returns
         -------
         torch.Tensor
@@ -53,15 +51,24 @@ class MLP(nn.Module):
         """
         if int_layer < 0:
             int_layer = max(2 - int_layer, 0)
-        x = x.view(-1, self.input_size)
+        #x = torchvision.transforms.functional.rgb_to_grayscale(x, num_output_channels=1)
+        #x = x.reshape(x.shape[0], self.input_size)
+        if start_layer == 0:
+            x = x.view(-1, self.input_size)
         z = [None, None, None]
-        z[0] = F.relu(self.fc1(x))
-        z[1] = F.relu(self.fc2(z[0]))
-        z[2] = self.fc3(z[1])
-        if int_layer == 0 or int_layer >= 4:
+        z[0] = F.relu(self.fc1(x)) if start_layer == 0 else x
+        z[1] = F.relu(self.fc2(z[0])) if start_layer <= 1 else x
+        z[2] = self.fc3(z[1]) if start_layer <= 2 else x
+        if start_layer == 0 and (int_layer == 0 or int_layer >= 4):
             return F.log_softmax(z[2], dim=1)
         else:
-            return F.log_softmax(z[2], dim=1), z[int_layer-1]
+            probs = F.log_softmax(z[2], dim=1)
+            max_idx = torch.argmax(probs, 1)
+            one_hot = torch.zeros_like(probs)
+            for r, c in enumerate(max_idx):
+                one_hot[r, c] = 1
+
+            return one_hot, z[int_layer-1]
 
 
 class MLP_BN(nn.Module):
@@ -95,7 +102,7 @@ class MLP_BN(nn.Module):
         x = F.relu(self.bn2(self.fc2(x)))
         return F.log_softmax(self.fc3(x), dim=1)
     
-    def forward_(self, x: torch.Tensor, int_layer: int=0) -> torch.Tensor:
+    def forward_(self, x: torch.Tensor, int_layer: int=0, start_layer:int=0) -> torch.Tensor:
         """Partial forward pass of the model.
 
         Parameters
@@ -114,11 +121,12 @@ class MLP_BN(nn.Module):
             int_layer = max(2 - int_layer, 0)
         #x = torchvision.transforms.functional.rgb_to_grayscale(x, num_output_channels=1)
         #x = x.reshape(x.shape[0], self.input_size)
-        x = x.view(-1, self.input_size)
+        if start_layer == 0:
+            x = x.view(-1, self.input_size)
         z = [None, None, None]
-        z[0] = F.relu(self.bn1(self.fc1(x)))
-        z[1] = F.relu(self.bn2(self.fc2(z[0])))
-        z[2] = self.fc3(z[1])
+        z[0] = F.relu(self.bn1(self.fc1(x))) if start_layer == 0 else x
+        z[1] = F.relu(self.bn2(self.fc2(z[0]))) if start_layer <= 1 else x
+        z[2] = self.fc3(z[1]) if start_layer <= 2 else x
         if int_layer == 0 or int_layer >= 4:
             return F.log_softmax(z[2], dim=1)
         else:

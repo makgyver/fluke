@@ -2,7 +2,8 @@ import glob
 
 import sys; sys.path.append(".")
 from fl_bench import GlobalSettings
-from data import DataSplitter, DistributionEnum, FastTensorDataLoader, DatasetsEnum
+from data import DataSplitter, DistributionEnum, FastTensorDataLoader
+from data.datasets import DatasetsEnum
 from utils import *
 from evaluation import ClassificationEval
 from algorithms import FedAlgorithmsEnum
@@ -40,10 +41,17 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     console.log("Running configuration:", Pretty(cfg), end="\n\n", )
 
     GlobalSettings().set_device(cfg.device.value)
-    model = get_model(cfg.model).to(GlobalSettings().get_device())
+    
     loss = get_loss(cfg.loss)
 
     data_container = cfg.dataset.klass()()
+    if cfg.standardize:
+        data_container.standardize()
+
+    model = get_model(cfg.model, 
+                      input_size=data_container.num_features, 
+                      num_classes=data_container.num_classes
+                      ).to(GlobalSettings().get_device())
 
     data_splitter = DataSplitter(*data_container.train,
                                  n_clients=cfg.n_clients, 
@@ -56,15 +64,6 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     test_loader = FastTensorDataLoader(*data_container.test,
                                        batch_size=100, #this can remain hard-coded
                                        shuffle=False)
-    
-    # Test clients, i.e., 10% of the clients are used for testing using the same distribution as the training set
-    # test_loader = DataSplitter(*data_container.test, 
-    #                            n_clients=n_clients // 10, 
-    #                            distribution=distribution, 
-    #                            batch_size=batch_size, 
-    #                            validation_split=0.0, 
-    #                            sampling_perc=1.0).get_loaders()[0]
-
 
     exp_name = f"{cfg.algorithm.value}_{cfg.dataset.value}_{cfg.distribution.value}_C{cfg.n_clients}_R{cfg.n_rounds}_E{cfg.n_epochs}_P{cfg.eligibility_percentage}_S{cfg.seed}" 
     log = cfg.logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), 
@@ -98,13 +97,6 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 
-# @app.command()
-# def compare(dataset: str=typer.Option('mnist', help='Dataset'),
-#             n_clients: int=typer.Option(100, help='Number of clients'),
-#             n_rounds: int=typer.Option(100, help='Number of rounds'),
-#             distribution: DistributionEnum=typer.Option(DistributionEnum.IID.value, help='Data distribution'),
-#             show_loss: bool=typer.Option(True, help='Show loss graph'),
-#             local: bool=typer.Option(False, help='Compare client-side results')):
 @app.command()
 def compare(paths: list[str]=typer.Argument(..., help='Log files to compare'),
             show_loss: bool=typer.Option(True, help='Show loss graph'),
