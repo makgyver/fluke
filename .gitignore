@@ -1,8 +1,6 @@
 
 .DS_Store
 *.pyc
-fl_bench/data
-fl_bench/log
 data
 .vscode/launch.json
 log
