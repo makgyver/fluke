@@ -1,11 +1,9 @@
 from typing import Callable, Iterable
-
+import multiprocessing as mp
 from torch.nn import Module
 from copy import deepcopy
 
-from rich.progress import Progress
 from collections import OrderedDict
-
 
 import sys
 from fl_bench.data import DataSplitter; sys.path.append(".")
@@ -15,16 +13,14 @@ from algorithms import CentralizedFL
 from server import Server
 
 import torch
-import torch.distributed as dist
 from torch.optim.optimizer import Optimizer, required
-import threading
 import numpy as np
 
-from client import Client
-from utils import OptimizerConfigurator
-from data import DataSplitter, FastTensorDataLoader
-from __init__ import GlobalSettings, ObserverSubject
-import multiprocessing as mp
+from fl_bench.client import Client
+from fl_bench.utils import OptimizerConfigurator
+from fl_bench.data import DataSplitter, FastTensorDataLoader
+from fl_bench import GlobalSettings
+
 
 
 # code taken from https://github.com/JYWa/FedNova
@@ -175,7 +171,7 @@ class FedNovaOptimizer(Optimizer):
                 else:
                     param_state['cum_grad'].add_(local_lr, d_p)
 
-                p.data.add_(-local_lr, d_p)
+                p.data.add_(-local_lr, d_p) #DEPRECATED!!
 
         # compute local normalizing vector a_i
         if self.momentum != 0:
