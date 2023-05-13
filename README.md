@@ -118,27 +118,21 @@ To date, the following algorithms are implemented:
 - MOON (`moon`)
 - FedExP(`fedexp`)
 - FedNova (`fednova`) [**Work in progress**]
+- pFedMe (`pfedme`) [**Work in progress**]
 
 Inside the `net.py` file, you can find the definition of some neural networks. 
 
 ## TODO ASAP
-- [x] Check the seed consistency
 - [x] Check the correctness of SCAFFOLD --> The implementation seems ok however I can not "perfecly" replicate the results, e.g., https://link.springer.com/article/10.1007/s40747-022-00895-3. It seems that global_step > 1 works better than global_step = 1 although in the paper only global_step = 1 is used.
-- [x] Check the correctness of FedBN
+- [ ] Check the correctness of pFedMe
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481 -- **Work in progress**
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w -- **Work in progress**
 - [ ] Implement Ditto - https://arxiv.org/pdf/2012.04221.pdf
-- [x] Test logging on wandb
-- [x] Add support to learning rate scheduler
 - [ ] Add support to validation
-- [x] Add client-side evaluations - useful for evaluating FedBN
 - [ ] Add documentation + check typing -- **Work in progress**
-- [x] Add load/save checkpoints
-- [x] Implement "macro" averaging for evaluation
 
 ## Desiderata
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
-- [x] Configuration via file yaml/json
 - [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
 - [ ] Add more datasets
 - [ ] Add support to tensorboard

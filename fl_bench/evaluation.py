@@ -63,7 +63,8 @@ class ClassificationEval(Evaluator):
 
     def evaluate(self, model: torch.nn.Module) -> dict:
         model.eval()
-        task = "multiclass" if self.n_classes > 2 else "binary"
+        # TODO: check if this is correct
+        task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
         loss, cnt = 0, 0
         device = GlobalSettings().get_device()

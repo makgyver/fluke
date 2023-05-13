@@ -76,10 +76,6 @@ class CentralizedFL(FLEnvironment):
         self.server.load(path)
 
 
-
-
-
-
 from .fedavg import FedAVG
 from .fedavgm import FedAVGM
 from .fedsgd import FedSGD
