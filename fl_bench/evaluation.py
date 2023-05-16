@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from sklearn.base import ClassifierMixin
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import torch
 from typing import Callable, Literal, Union
 from torchmetrics import Accuracy, Precision, Recall, F1Score
@@ -103,3 +105,33 @@ class ClassificationEval(Evaluator):
             "loss":      round(loss / cnt, 5) if self.loss_fn is not None else None
         }
     
+
+class ClassificationSklearnEval(Evaluator):
+
+    def __init__(self, 
+                 data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
+                 average: Literal["micro","macro"]="macro"):
+        super().__init__(data_loader, None)
+        self.average = average
+
+    def evaluate(self, model: ClassifierMixin) -> dict:
+        accs, precs, recs, f1s = [], [], [], []
+        if not isinstance(self.data_loader, list):
+            self.data_loader = [self.data_loader]
+
+        for data_loader in self.data_loader:
+
+            X, y = data_loader.tensors
+            y_hat = model.predict(X)
+
+            accs.append(accuracy_score(y, y_hat))
+            precs.append(precision_score(y, y_hat, average=self.average))
+            recs.append(recall_score(y, y_hat, average=self.average))
+            f1s.append(f1_score(y, y_hat, average=self.average))
+
+        return {
+            "accuracy":  round(sum(accs) / len(accs), 5),
+            "precision": round(sum(precs) / len(precs), 5),
+            "recall":    round(sum(recs) / len(recs), 5),
+            "f1":        round(sum(f1s) / len(f1s), 5),
+        }

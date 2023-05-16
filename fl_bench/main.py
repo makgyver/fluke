@@ -1,15 +1,19 @@
 import glob
 
-import sys; sys.path.append(".")
+import sys
+
+from sklearn.tree import DecisionTreeClassifier; sys.path.append(".")
 from fl_bench import GlobalSettings
 from data import DataSplitter, DistributionEnum, FastTensorDataLoader
 from data.datasets import DatasetsEnum
 from utils import *
-from evaluation import ClassificationEval
+from evaluation import ClassificationEval, ClassificationSklearnEval
 from algorithms import FedAlgorithmsEnum
 from rich.console import Console
 from rich.pretty import Pretty
 import typer
+
+from fl_bench.algorithms.adaboostf import AdaboostF
 
 app = typer.Typer()
 console = Console()
@@ -28,7 +32,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
         n_rounds: int = cli_option(DEFAULTS["n_rounds"], help='Number of rounds'),
         n_epochs: int = cli_option(DEFAULTS["n_epochs"], help='Number of epochs'),
         batch_size: int = cli_option(DEFAULTS["batch_size"], help='Batch size'),
-        eligibility_percentage: float = cli_option(DEFAULTS["eligibility_percentage"], help='Elegibility percentage'),
+        eligibility_percentage: float = cli_option(DEFAULTS["eligibility_percentage"], help='Eligibility percentage'),
         distribution: DistributionEnum = cli_option(DEFAULTS["distribution"], help='Data distribution'),
         seed: int = cli_option(DEFAULTS["seed"], help='Seed'),
         logger: LogEnum =  cli_option(DEFAULTS["logger"], help='Log method'),
@@ -48,10 +52,11 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     if cfg.standardize:
         data_container.standardize()
 
-    model = get_model(cfg.model, 
-                      input_size=data_container.num_features, 
-                      num_classes=data_container.num_classes
-                      ).to(GlobalSettings().get_device())
+    model = get_model(
+                cfg.model, 
+                input_size=data_container.num_features, 
+                num_classes=data_container.num_classes
+            ).to(GlobalSettings().get_device())
 
     data_splitter = DataSplitter(*data_container.train,
                                  n_clients=cfg.n_clients, 
@@ -92,6 +97,51 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
         fl_algo.activate_checkpoint(cfg.checkpoint["path"])
 
     # GlobalSettings().set_workers(8)
+    fl_algo.run()
+
+    log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
+
+
+@app.command()
+def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Dataset'),
+              n_clients: int = cli_option(DEFAULTS["n_clients"], help='Number of clients'),
+              n_rounds: int = cli_option(DEFAULTS["n_rounds"], help='Number of rounds'),
+              eligibility_percentage: float = cli_option(DEFAULTS["eligibility_percentage"], help='Eligibility percentage'),
+              distribution: DistributionEnum = cli_option(DEFAULTS["distribution"], help='Data distribution'),
+              seed: int = cli_option(DEFAULTS["seed"], help='Seed'),
+              logger: LogEnum =  cli_option(DEFAULTS["logger"], help='Log method')):
+
+    alg_cfg = "configs/adaboostf.json"
+    cfg = Config(DEFAULTS, CONFIG_FNAME, locals())
+    set_seed(cfg.seed) #Reproducibility
+
+    console.log("Running configuration:", Pretty(cfg), end="\n\n", )
+
+    data_container = cfg.dataset.klass()()
+    data_container.standardize()
+
+    data_splitter = DataSplitter(*data_container.train,
+                                 n_clients=cfg.n_clients, 
+                                 distribution=cfg.distribution, 
+                                 batch_size=cfg.batch_size,
+                                 validation_split=cfg.validation,
+                                 sampling_perc=cfg.sampling)
+
+    # Separate test set, i.e., a test set is on the server
+    test_loader = FastTensorDataLoader(*data_container.test,
+                                       batch_size=100, #this can remain hard-coded
+                                       shuffle=False)
+
+    exp_name = f"AdaboostF" 
+    log = cfg.logger.logger(ClassificationSklearnEval(test_loader, "micro"), 
+                            name=exp_name,
+                            **cfg.wandb_params)
+    
+    fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, DecisionTreeClassifier, cfg.eligibility_percentage)
+
+    console.log(f"FL algorithm: {fl_algo}", end="\n\n") 
+    
+    fl_algo.init_parties(data_splitter, callbacks=log)
     fl_algo.run()
 
     log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')

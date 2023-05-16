@@ -29,14 +29,14 @@ class Server(ObserverSubject):
     def __init__(self,
                  model: Module,
                  clients: Iterable[Client], 
-                 elegibility_percentage: float=0.5, 
+                 eligibility_percentage: float=0.5, 
                  weighted: bool=False):
         super().__init__()
         self.device = GlobalSettings().get_device()
-        self.model = model.to(self.device)
+        self.model = model
         self.clients = clients
         self.n_clients = len(clients)
-        self.elegibility_percentage = elegibility_percentage
+        self.elegibility_percentage = eligibility_percentage
         self.weighted = weighted
         self.callbacks = []
         self.rounds = 0

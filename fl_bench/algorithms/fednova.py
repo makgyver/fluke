@@ -278,7 +278,7 @@ class FedNovaServer(Server):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.elegibility_percentage)
+            client_x_round = int(self.n_clients*self.eligibility_percentage)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
             total_rounds = self.rounds + n_rounds
@@ -315,7 +315,7 @@ class FedNovaServer(Server):
             progress_client.remove_task(task_local)
 
         # with Progress() as progress:
-        #     client_x_round = int(self.n_clients*self.elegibility_percentage)
+        #     client_x_round = int(self.n_clients*self.eligibility_percentage)
         #     task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         #     task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
@@ -359,7 +359,7 @@ class FedNovaServer(Server):
             progress_fl.update(task_id=task_rounds, advance=1)
             progress_client.update(task_id=task_local, advance=1)
 
-        client_x_round = int(self.n_clients*self.elegibility_percentage)
+        client_x_round = int(self.n_clients*self.eligibility_percentage)
         task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
