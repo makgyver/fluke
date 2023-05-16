@@ -6,6 +6,7 @@ from torch.nn import Module
 from torch.optim import Optimizer
 
 from client import Client
+from fl_bench import Message
 from server import Server
 
 import sys; sys.path.append(".")
@@ -51,18 +52,20 @@ class ScaffoldClient(Client):
         self.delta_y = None
         self.server_control = None
 
-    def send(self):
-        return self.delta_y, self.delta_c
+    def send(self, msg_type: str) -> Message:
+        return Message((self.delta_y, self.delta_c), msg_type)
     
-    def receive(self, model, server_control):
-        if self.model is None:
-            self.model = deepcopy(model)
-            self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-            self.delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-            self.delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        else:
-            self.model.load_state_dict(model.state_dict())
-        self.server_control = server_control
+    def receive(self, msg: Message):
+        model, server_control = msg.payload
+        if msg.msg_type == "model":
+            if self.model is None:
+                self.model = deepcopy(model)
+                self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+                self.delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+                self.delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+            else:
+                self.model.load_state_dict(model.state_dict())
+            self.server_control = server_control
     
     def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
@@ -127,10 +130,9 @@ class ScaffoldServer(Server):
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
 
-    def broadcast(self, eligible: Iterable[Client]=None) -> Iterable[Client]:
-        eligible = eligible if eligible is not None else self.clients
-        for client in eligible:
-            client.receive(deepcopy(self.model), self.control)
+    def broadcast(self, message: Message, eligible: Iterable[Client]=None) -> Iterable[Client]:
+        message.payload = (message.payload, self.control)
+        return super().broadcast(message, eligible)
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
         with torch.no_grad():
@@ -139,7 +141,7 @@ class ScaffoldServer(Server):
 
             # tot_examples = sum([len(client.n_examples) for client in eligible])
             for client in eligible:
-                cl_delta_y, cl_delta_c = client.send()
+                cl_delta_y, cl_delta_c = self.receive(client, "model").payload
                 for client_delta_c, client_delta_y, server_delta_c, server_delta_y in zip(cl_delta_c, cl_delta_y, delta_c, delta_y):
                     server_delta_y.data = server_delta_y.data + client_delta_y.data
                     server_delta_c.data = server_delta_c.data + client_delta_c.data

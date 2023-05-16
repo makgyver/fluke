@@ -20,7 +20,7 @@ class FedExPServer(Server):
         super().__init__(model, n_clients, eligibility_percentage)
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
+        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
         clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]
         eta, mu_diff = self._compute_eta(clients_diff)
         

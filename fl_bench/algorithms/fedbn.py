@@ -3,7 +3,8 @@ from copy import deepcopy
 from typing import Iterable, Any, Optional, Union
 import torch
 
-import sys; sys.path.append(".")
+import sys
+from fl_bench import Message; sys.path.append(".")
 from fl_bench.server import Server
 from fl_bench.client import Client
 from fl_bench.data import DataSplitter;
@@ -11,20 +12,22 @@ from fl_bench.algorithms import CentralizedFL
     
 
 class FedBNClient(Client):
-    def receive(self, model):
-        if self.model is None:
-            self.model = deepcopy(model)
-        else:
-            with torch.no_grad():
-                for key in model.state_dict().keys():
-                    if not key.startswith("bn"):
-                        self.model.state_dict()[key].data.copy_(model.state_dict()[key])
+    def receive(self, message: Message) -> None:
+        if message.msg_type == "model":
+            model = message.payload
+            if self.model is None:
+                self.model = deepcopy(model)
+            else:
+                with torch.no_grad():
+                    for key in model.state_dict().keys():
+                        if not key.startswith("bn"):
+                            self.model.state_dict()[key].data.copy_(model.state_dict()[key])
 
 class FedBNServer(Server):
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
+        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:

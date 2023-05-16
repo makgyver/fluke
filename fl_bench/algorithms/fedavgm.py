@@ -24,7 +24,7 @@ class FedAVGMServer(Server):
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
+        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
         clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]
         # clients_diff = clients_sd
 
