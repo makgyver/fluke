@@ -9,7 +9,7 @@ from rich.progress import Progress
 import multiprocessing as mp
 
 from fl_bench.client import Client
-from fl_bench import GlobalSettings, ObserverSubject
+from fl_bench import GlobalSettings, Message, ObserverSubject
 
 
 class Server(ObserverSubject):
@@ -36,7 +36,7 @@ class Server(ObserverSubject):
         self.model = model
         self.clients = clients
         self.n_clients = len(clients)
-        self.elegibility_percentage = eligibility_percentage
+        self.eligibility_percentage = eligibility_percentage
         self.weighted = weighted
         self.callbacks = []
         self.rounds = 0
@@ -65,7 +65,7 @@ class Server(ObserverSubject):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.elegibility_percentage)
+            client_x_round = int(self.n_clients*self.eligibility_percentage)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
@@ -74,7 +74,7 @@ class Server(ObserverSubject):
                 self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
-                self.broadcast(eligible)
+                self.broadcast(Message(self.model), eligible)
                 client_evals = []
                 for c, client in enumerate(eligible):
                     client_eval = client.local_train()
@@ -104,7 +104,7 @@ class Server(ObserverSubject):
             progress_fl.update(task_id=task_rounds, advance=1)
             progress_client.update(task_id=task_local, advance=1)
 
-        client_x_round = int(self.n_clients*self.elegibility_percentage)
+        client_x_round = int(self.n_clients*self.eligibility_percentage)
         task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
@@ -116,7 +116,7 @@ class Server(ObserverSubject):
                 client_evals = []
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
-                self.broadcast(eligible)
+                self.broadcast(Message(self.model), eligible)
                 progress_client.update(task_id=task_local, completed=0)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for client in eligible:
@@ -145,12 +145,12 @@ class Server(ObserverSubject):
         Iterable[Client]
             The clients that will participate in the current round.
         """
-        if self.elegibility_percentage == 1:
+        if self.eligibility_percentage == 1:
             return self.clients
-        n = int(self.n_clients * self.elegibility_percentage)
+        n = int(self.n_clients * self.eligibility_percentage)
         return np.random.choice(self.clients, n)
 
-    def broadcast(self, eligible: Iterable[Client]=None) -> None:
+    def broadcast(self, message: Message, eligible: Iterable[Client]=None) -> None:
         """Broadcast the model to the clients.
 
         The broadcast is done by calling the `receive` method of each participating client.
@@ -163,7 +163,9 @@ class Server(ObserverSubject):
         """
         eligible = eligible if eligible is not None else self.clients
         for client in eligible:
-            client.receive(deepcopy(self.model))
+            msg = deepcopy(message)
+            client.receive(msg)
+            self.notify_send(msg)
 
     def init(self, path: str=None, **kwargs) -> None:
         """Initialize the server model from a checkpoint.
@@ -177,6 +179,11 @@ class Server(ObserverSubject):
         if path is not None:
             self.load(path)
     
+    def receive(self, client: Client, type: str) -> Message:
+        msg = client.send(type)
+        self.notify_receive(msg)
+        return msg
+
     def aggregate(self, eligible: Iterable[Client]) -> None:
         """Aggregate the models of the clients.
 
@@ -189,7 +196,7 @@ class Server(ObserverSubject):
             The clients whose models will be aggregated.
         """
         avg_model_sd = OrderedDict()
-        clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
+        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:
@@ -221,6 +228,14 @@ class Server(ObserverSubject):
     def notify_error(self, error: str) -> None:
         for observer in self._observers:
             observer.error(error)
+    
+    def notify_send(self, msg: Message) -> None:
+        for observer in self._observers:
+            observer.send(msg)
+    
+    def notify_receive(self, msg: Message) -> None:
+        for observer in self._observers:
+            observer.receive(msg)
     
     def save(self, path: str) -> None:
         """Save the model to a checkpoint.

@@ -16,6 +16,7 @@ from typing import Any, Optional, Iterable
 
 import typer
 import wandb
+from fl_bench import Message
 from fl_bench.data import DistributionEnum
 from fl_bench.data.datasets import DatasetsEnum
 from fl_bench.evaluation import Evaluator
@@ -118,7 +119,13 @@ class Log(ServerObserver):
         self.evaluator = evaluator
         self.history = {}
         self.client_history = {}
+        self.comm_costs = {}
+        self.current_round = 0
     
+    def start_round(self, round: int, global_model: Module):
+        self.comm_costs[round] = 0
+        self.current_round = round
+
     def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
         self.history[round] = self.evaluator(global_model)
         stats = { 'global': self.history[round] }
@@ -128,9 +135,16 @@ class Log(ServerObserver):
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
             stats['local'] = client_mean
+        
+        stats['comm_cost'] = self.comm_costs[round]
 
         rich.print(Panel(Pretty(stats), title=f"Round: {round}"))
 
+    def send(self, message: Message):
+        self.comm_costs[self.current_round] += message.get_size()
+    
+    def receive(self, message: Message):
+        self.comm_costs[self.current_round] += message.get_size()
     
     def save(self, path: str):
         json_to_save = {

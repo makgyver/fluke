@@ -1,4 +1,7 @@
-from typing import Any, Union, Iterable
+from abc import ABC, abstractmethod
+import sys
+import pickle
+from typing import Any, Optional, Tuple, Union, Iterable
 import torch
 import multiprocessing as mp
 from rich.progress import Progress, Live
@@ -128,7 +131,7 @@ class GlobalSettings(metaclass=Singleton):
         """
         return self._workers
     
-    def get_progress_bar(self, type: str) -> Progress:
+    def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
         
         Parameters
@@ -141,14 +144,14 @@ class GlobalSettings(metaclass=Singleton):
         Progress
             The progress bar.
         """
-        if type == 'FL':
+        if progress_type == 'FL':
             return self._progress_FL
-        elif type == 'clients':
+        elif progress_type == 'clients':
             return self._progress_clients
-        elif type == 'server':
+        elif progress_type == 'server':
             return self._progress_server
         else:
-            raise ValueError(f'Invalid type of progress bar type {type}.')
+            raise ValueError(f'Invalid type of progress bar type {progress_type}.')
     
     def get_live_renderer(self) -> Live:
         """Get the live renderer.
@@ -159,4 +162,16 @@ class GlobalSettings(metaclass=Singleton):
             The live renderer.
         """
         return self._live_renderer
+
+
+class Message:
+    def __init__(self,
+                 payload: Any,
+                 msg_type: str="model"):
+        self.msg_type: str = msg_type
+        self.payload: Any = payload
     
+    def get_size(self) -> int:
+        if self.payload is None:
+            return 1
+        return sys.getsizeof(pickle.dumps(self.payload))

@@ -5,7 +5,7 @@ from typing import Callable
 import torch
 
 import sys; sys.path.append(".")
-from fl_bench import GlobalSettings
+from fl_bench import GlobalSettings, Message
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader
 from fl_bench.evaluation import ClassificationEval
@@ -46,28 +46,21 @@ class Client(ABC):
         self.scheduler = None
         self.device = GlobalSettings().get_device()
 
-    def send(self) -> torch.nn.Module:
-        """Send the model to the server.
-
-        Returns
-        -------
-        torch.nn.Module
-            A deep copy of the local model.
-        """
-        return deepcopy(self.model)
+    def send(self, msg_type: str) -> Message:
+        return Message(deepcopy(self.model), msg_type)
     
-    def receive(self, model) -> None:
+    def receive(self, msg: Message) -> None:
         """Receive the model from the server.
 
         Parameters
         ----------
-        model : torch.nn.Module
-            The (gloal) model to be received.
+        msg : Message
+            The message containing the (global) model to be received.
         """
         if self.model is None:
-            self.model = deepcopy(model)
+            self.model = msg.payload
         else:
-            self.model.load_state_dict(model.state_dict())
+            self.model.load_state_dict(msg.payload.state_dict())
     
     def local_train(self, override_local_epochs: int=0) -> dict:
         """Train the local model.

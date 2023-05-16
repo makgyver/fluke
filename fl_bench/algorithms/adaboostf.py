@@ -3,16 +3,16 @@ from typing import Union, Any, List, Optional
 from pyparsing import Iterable
 from sklearn.base import ClassifierMixin
 
+import torch
 from math import log
 import numpy as np
 from numpy.random import choice
 
 import sys; sys.path.append(".")
-
-import torch
-
+from fl_bench.client import Client
+from fl_bench.server import Server
 from fl_bench.data import DataSplitter
-from fl_bench import GlobalSettings, ObserverSubject
+from fl_bench import GlobalSettings, Message
 from fl_bench.algorithms import CentralizedFL
 
 
@@ -35,7 +35,7 @@ class StrongClassifier():
         return np.argmax(y_pred, axis=1)
     
 
-class AdaBoostFClient():
+class AdaBoostFClient(Client):
 
     def __init__(self,
                  X: np.ndarray,
@@ -45,6 +45,7 @@ class AdaBoostFClient():
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
+        self.cache = {}
     
     def local_train(self) -> ClassifierMixin:
         clf = deepcopy(self.base_classifier)
@@ -53,42 +54,48 @@ class AdaBoostFClient():
         clf.fit(X_, y_)
         return clf
     
-    def compute_errors(self, clfs: List[ClassifierMixin]) -> List[float]:
+    def send(self, msg_type: str):
+        if msg_type == "norm":
+            return Message(sum(self.d), "norm")
+        elif msg_type == "errors":
+            errors = self.compute_errors()
+            return Message(errors, "errors")
+
+    def receive(self, msg: Message):
+        self.cache[msg.msg_type] = msg.payload
+            
+    def compute_errors(self) -> List[float]:
         errors = []
-        for clf in clfs:
+        for clf in self.cache["weak_learners"]:
             predictions = clf.predict(self.X)
             errors.append(sum(self.d[self.y != predictions]))
         return errors
 
-    def update_dist(self, best_clf: ClassifierMixin, alpha: float) -> None:
+    def update_dist(self) -> None:
+        best_clf, alpha = self.cache["best_clf"], self.cache["alpha"]
         predictions = best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
+    
+    def validate(self):
+        raise NotImplementedError
+    
+    def checkpoint(self):
+        raise NotImplementedError
 
-    def get_norm(self) -> float:
-        return sum(self.d)
+    def restore(self, checkpoint):
+        raise NotImplementedError
 
 
-class AdaboostFServer(ObserverSubject):
+class AdaboostFServer(Server):
     def __init__(self,
                  clients: Iterable[AdaBoostFClient], 
                  eligibility_percentage: float=0.5, 
                  n_classes: int = 2):
-        super().__init__()
-        self.model = StrongClassifier(n_classes)
-        self.n_clients = len(clients)
-        self.clients = clients
-        self.eligibility_percentage = eligibility_percentage
+        super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
         self.K = n_classes
-        self.rounds = 0
     
     def init(self):
         pass
-
-    def get_eligible_clients(self) -> Iterable[AdaBoostFClient]:
-        if self.eligibility_percentage == 1:
-            return self.clients
-        n = int(self.n_clients * self.eligibility_percentage)
-        return np.random.choice(self.clients, n)
     
     def fit(self, n_rounds: int) -> None:
 
@@ -116,8 +123,10 @@ class AdaboostFServer(ObserverSubject):
                 best_clf, alpha = self.aggregate(eligible, weak_learners)
                 self.model.update(best_clf, alpha)
                 
+                self.broadcast(Message(best_clf, "best_clf"), eligible)
+                self.broadcast(Message(alpha, "alpha"), eligible)
                 for client in eligible:
-                    client.update_dist(best_clf, alpha)
+                    client.update_dist()
 
                 self.notify_end_round(round + 1, self.model, 0)
                 self.rounds += 1 
@@ -128,13 +137,14 @@ class AdaboostFServer(ObserverSubject):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
-
-
+    
     def aggregate(self, 
                   eligible: Iterable[AdaBoostFClient], 
                   weak_learners: Iterable[ClassifierMixin]) -> None:
-        errors = np.array([client.compute_errors(weak_learners) for client in eligible])
-        norm = sum([client.get_norm() for client in eligible])
+
+        self.broadcast(Message(weak_learners, "weak_learners"), eligible)
+        errors = np.array([self.receive(client, "errors").payload for client in eligible])
+        norm = sum([self.receive(client, "norm").payload for client in eligible])
         wl_errs = errors.sum(axis=0) / norm
         best_clf = weak_learners[wl_errs.argmin()]
         epsilon = wl_errs.min()
