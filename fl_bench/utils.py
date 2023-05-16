@@ -21,7 +21,11 @@ from fl_bench.data.datasets import DatasetsEnum
 from fl_bench.evaluation import Evaluator
 
 
+from rich.pretty import Pretty
 from rich.console import Console
+from rich.panel import Panel
+import rich
+
 console = Console()
 
 class DeviceEnum(Enum):
@@ -117,13 +121,16 @@ class Log(ServerObserver):
     
     def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
         self.history[round] = self.evaluator(global_model)
-        console.print(f"\n[Round {round}]")
-        console.print(f"  global: {self.history[round]}" + "\n" if not client_evals else "")
+        stats = { 'global': self.history[round] }
+
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean().to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
-            console.print(f"  local: {client_mean}\n")
+            stats['local'] = client_mean
+
+        rich.print(Panel(Pretty(stats), title=f"Round: {round}"))
+
     
     def save(self, path: str):
         json_to_save = {
