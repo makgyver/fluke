@@ -154,10 +154,6 @@ class PreweakFServer(Server):
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
             client_x_round = int(self.n_clients*self.eligibility_percentage)
-            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-            task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
-            
-            total_rounds = self.rounds + n_rounds
 
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
             weak_classifiers = []
@@ -175,6 +171,9 @@ class PreweakFServer(Server):
                 progress_fl.update(task_id=progress_preds, advance=1)
             progress_fl.remove_task(progress_preds)
 
+            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+            total_rounds = self.rounds + n_rounds
+
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
@@ -188,11 +187,11 @@ class PreweakFServer(Server):
                 for client in eligible:
                     client.update_dist()
 
+                progress_fl.update(task_id=task_rounds, advance=1)
                 self.notify_end_round(round + 1, self.model, 0)
                 self.rounds += 1 
 
             progress_fl.remove_task(task_rounds)
-            progress_client.remove_task(task_local)
 
     
     def aggregate(self, 
