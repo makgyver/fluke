@@ -72,24 +72,22 @@ class DistboostClient(Client):
     def send(self, msg_type: str):
         if msg_type == "norm":
             return Message(sum(self.d), "norm")
-        elif msg_type == "errors":
-            errors = self.compute_errors()
-            return Message(errors, "errors")
+        elif msg_type == "error":
+            errors = self.compute_error()
+            return Message(errors, "error")
         elif msg_type == "weak_classifier":
             return Message(self.cache["weak_classifier"], "weak_classifier")
 
     def receive(self, msg: Message):
         self.cache[msg.msg_type] = msg.payload
             
-    def compute_errors(self) -> List[float]:
-        errors = []
-        for clf in self.cache["weak_learners"]:
-            predictions = clf.predict(self.X)
-            errors.append(sum(self.d[self.y != predictions]))
-        return errors
+    def compute_error(self) -> List[float]:
+        clf = self.cache["round_hyp"]
+        predictions = clf.predict(self.X)
+        return sum(self.d[self.y != predictions])
 
     def update_dist(self) -> None:
-        best_clf, alpha = self.cache["best_clf"], self.cache["alpha"]
+        best_clf, alpha = self.cache["round_hyp"], self.cache["alpha"]
         predictions = best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
     
@@ -161,7 +159,7 @@ class DistboostFServer(Server):
                   weak_learners: Iterable[ClassifierMixin]) -> Tuple[ClassifierMixin, float]:
 
         aggr_hp = DistboostHyp(weak_learners, self.K)
-        self.broadcast(Message(weak_learners, "weak_learners"), aggr_hp)
+        self.broadcast(Message(aggr_hp, "round_hyp"), eligible)
         errors = np.array([self.receive(client, "error").payload for client in eligible])
         norm = sum([self.receive(client, "norm").payload for client in eligible])
         wl_errs = errors.sum() / norm
