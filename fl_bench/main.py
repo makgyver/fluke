@@ -1,28 +1,26 @@
 import glob
 
-import sys
+import sys; sys.path.append(".")
 
-from sklearn.tree import DecisionTreeClassifier; sys.path.append(".")
+from sklearn.tree import DecisionTreeClassifier
+
 from fl_bench import GlobalSettings
 from data import DataSplitter, DistributionEnum, FastTensorDataLoader
 from data.datasets import DatasetsEnum
 from utils import *
 from evaluation import ClassificationEval, ClassificationSklearnEval
 from algorithms import FedAlgorithmsEnum
+from algorithms import FedAdaboostAlgorithmsEnum
 from rich.console import Console
 from rich.pretty import Pretty
 import typer
-
-from fl_bench.algorithms.adaboostf import AdaboostF
-from fl_bench.algorithms.adaboostf2 import AdaboostF2
-from fl_bench.algorithms.preweakf import PreweakF
-from fl_bench.algorithms.distboostf import DistboostF
 
 app = typer.Typer()
 console = Console()
 
 DEFAULTS = load_defaults(console)
 CONFIG_FNAME = "configs/exp_settings.json"
+
 # cli argument
 # file config
 # default config
@@ -143,18 +141,10 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     clf_args = cfg.method["hyperparameters"]["clf_args"]
     clf_args["random_state"] = cfg.seed
     base_model = import_module_from_str(cfg.method["hyperparameters"]["base_classifier"])(**clf_args)
+    cfg.algorithm = FedAdaboostAlgorithmsEnum(cfg.method["name"])
 
-    if cfg.method["name"] == "adaboostf":
-        fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
-    elif cfg.method["name"] == "adaboostf2":
-        fl_algo = AdaboostF2(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
-    elif cfg.method["name"] == "preweakf":
-        fl_algo = PreweakF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
-    elif cfg.method["name"] == "distboostf":
-        fl_algo = DistboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
-    else:
-        raise ValueError(f"Unknown federated boosting algorithm {cfg.method['name']}")
-
+    fl_algo = cfg.algorithm.algorithm()(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
+    
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     
     fl_algo.init_parties(data_splitter, callbacks=log)

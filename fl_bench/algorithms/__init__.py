@@ -89,6 +89,14 @@ from .fednova import FedNova, FedNovaOptimizer
 from .fedexp import FedExP
 from .pfedme import PFedMe, pFedMeOptimizer
 
+from .adaboostf import AdaboostF
+from .adaboostf2 import AdaboostF2
+from .distboostf import DistboostF
+# from .distboostf2 import DistboostF2
+from .preweakf import PreweakF
+# from .preweakf2 import PreweakF2
+
+
 from enum import Enum
 
 import torch
@@ -131,6 +139,26 @@ class FedAlgorithmsEnum(Enum):
             'fednova': FedNova,
             'fedexp': FedExP,
             'pfedme': PFedMe
+        }
+
+        return algos[self.value]
+    
+class FedAdaboostAlgorithmsEnum(Enum):
+    ADABOOSTF = 'adaboostf'
+    ADABOOSTF2 = 'adaboostf2'
+    DISTBOOSTF = 'distboostf'
+    DISTBOOSTF2 = 'distboostf2'
+    PREWEAKF = 'preweakf'
+    PREWEAKF2 = 'preweakf2'
+
+    def algorithm(self):
+        algos = {
+            'adaboostf': AdaboostF,
+            'adaboostf2': AdaboostF2,
+            'distboostf': DistboostF,
+            # 'distboostf2': DistboostF2,
+            'preweakf': PreweakF,
+            # 'preweakf2': PreweakF2
         }
 
         return algos[self.value]
