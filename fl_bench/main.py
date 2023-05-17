@@ -134,7 +134,7 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
                                        batch_size=100, #this can remain hard-coded
                                        shuffle=False)
 
-    exp_name = f"{cfg.algorithm.value}_{cfg.dataset.value}_{cfg.distribution.value}_C{cfg.n_clients}_R{cfg.n_rounds}_P{cfg.eligibility_percentage}_S{cfg.seed}" 
+    exp_name = f"{cfg.method['name']}_{cfg.dataset.value}_{cfg.distribution.value}_C{cfg.n_clients}_R{cfg.n_rounds}_P{cfg.eligibility_percentage}_S{cfg.seed}" 
     log = cfg.logger.logger(ClassificationSklearnEval(test_loader, "micro"), 
                             name=exp_name,
                             **cfg.wandb_params)
@@ -143,14 +143,14 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     clf_args["random_state"] = cfg.seed
     base_model = import_module_from_str(cfg.method["hyperparameters"]["base_classifier"])(**clf_args)
 
-    if cfg.algorithm.value == "adaboostf":
+    if cfg.method["name"] == "adaboostf":
         fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
-    elif cfg.algorithm.value == "preweakf":
+    elif cfg.method["name"] == "preweakf":
         fl_algo = PreweakF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
-    elif cfg.algorithm.value == "distboostf":
+    elif cfg.method["name"] == "distboostf":
         fl_algo = DistboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
     else:
-        raise ValueError(f"Unknown federated boosting algorithm {cfg.algorithm.value}")
+        raise ValueError(f"Unknown federated boosting algorithm {cfg.method['name']}")
 
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     
