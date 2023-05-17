@@ -4,7 +4,8 @@ from typing import Callable, Iterable, Any, Optional, Union
 import torch
 from torch.nn import Module, CosineSimilarity
 
-import sys; sys.path.append(".")
+import sys
+from fl_bench import Message; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.data import DataSplitter, FastTensorDataLoader
 from fl_bench.utils import OptimizerConfigurator
@@ -26,14 +27,16 @@ class MOONClient(Client):
         self.prev_model = None
         self.server_model = None
 
-    def receive(self, model):
-        if self.model is None:
-            self.model = deepcopy(model)
-            self.prev_model = deepcopy(model)
-        else:
-            self.prev_model.load_state_dict(self.model.state_dict())
-            self.model.load_state_dict(model.state_dict())
-        self.server_model = model
+    def receive(self, message: Message):
+        if message.msg_type == "model":
+            model = message.payload
+            if self.model is None:
+                self.model = deepcopy(model)
+                self.prev_model = deepcopy(model)
+            else:
+                self.prev_model.load_state_dict(self.model.state_dict())
+                self.model.load_state_dict(model.state_dict())
+            self.server_model = model
 
     def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
