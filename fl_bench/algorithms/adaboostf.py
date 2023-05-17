@@ -1,7 +1,7 @@
 from copy import deepcopy
-from typing import Union, Any, List, Optional
+from typing import Tuple, Union, Any, List, Optional
 from pyparsing import Iterable
-from sklearn.base import BaseEstimator
+from sklearn.base import ClassifierMixin
 
 import torch
 from math import log
@@ -22,7 +22,7 @@ class StrongClassifier():
         self.clfs = []
         self.K = num_classes
     
-    def update(self, clf: BaseEstimator, alpha: float):
+    def update(self, clf: ClassifierMixin, alpha: float):
         self.alpha.append(alpha)
         self.clfs.append(clf)
     
@@ -40,14 +40,14 @@ class AdaboostClient(Client):
     def __init__(self,
                  X: np.ndarray,
                  y: np.ndarray,
-                 base_classifier: BaseEstimator):
+                 base_classifier: ClassifierMixin):
         self.X = X
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
         self.cache = {}
     
-    def local_train(self) -> BaseEstimator:
+    def local_train(self) -> ClassifierMixin:
         clf = deepcopy(self.base_classifier)
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
         X_, y_ = self.X[ids], self.y[ids]
@@ -144,7 +144,7 @@ class AdaboostFServer(Server):
     
     def aggregate(self, 
                   eligible: Iterable[AdaboostClient], 
-                  weak_learners: Iterable[BaseEstimator]) -> None:
+                  weak_learners: Iterable[ClassifierMixin]) -> Tuple[ClassifierMixin, float]:
 
         self.broadcast(Message(weak_learners, "weak_learners"), eligible)
         errors = np.array([self.receive(client, "errors").payload for client in eligible])
@@ -160,7 +160,7 @@ class AdaboostF(CentralizedFL):
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 
-                 base_classifier: BaseEstimator,
+                 base_classifier: ClassifierMixin,
                  eligibility_percentage: float=0.5):
         
         super().__init__(n_clients,
