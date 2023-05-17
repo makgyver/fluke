@@ -79,7 +79,6 @@ class StrongClassifier():
     
 
 class PreweakFClient(Client):
-
     def __init__(self,
                  X: np.ndarray,
                  y: np.ndarray,
@@ -152,7 +151,6 @@ class PreweakFServer(Server):
         with GlobalSettings().get_live_renderer():
 
             progress_fl = GlobalSettings().get_progress_bar("FL")
-            progress_client = GlobalSettings().get_progress_bar("clients")
             client_x_round = int(self.n_clients*self.eligibility_percentage)
 
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
@@ -194,9 +192,7 @@ class PreweakFServer(Server):
             progress_fl.remove_task(task_rounds)
 
     
-    def aggregate(self, 
-                  eligible: Iterable[PreweakFClient]) -> None:
-
+    def aggregate(self, eligible: Iterable[PreweakFClient]) -> None:
         errors = np.array([self.receive(client, "errors").payload for client in eligible])
         norm = sum([self.receive(client, "norm").payload for client in eligible])
         wl_errs = errors.sum(axis=0) / norm

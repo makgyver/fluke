@@ -102,16 +102,22 @@ class LogEnum(Enum):
 
 class ServerObserver():
     
-    def start_round(self, round: int, global_model: Module):
+    def start_round(self, round: int, global_model: Any):
         pass
 
-    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
+    def end_round(self, round: int, global_model: Any, client_evals: Iterable[Any]):
         pass
 
-    def selected_clients(self, round:int, clients: Iterable):
+    def selected_clients(self, round: int, clients: Iterable):
         pass
 
     def error(self, error: str):
+        pass
+
+    def send(self, message: Message):
+        pass
+    
+    def receive(self, message: Message):
         pass
 
 class Log(ServerObserver):
@@ -125,6 +131,9 @@ class Log(ServerObserver):
     def start_round(self, round: int, global_model: Module):
         self.comm_costs[round] = 0
         self.current_round = round
+
+        if round == 1 and self.comm_costs[0] > 0:
+            rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
 
     def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
         self.history[round] = self.evaluator(global_model)
