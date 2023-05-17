@@ -306,3 +306,10 @@ class Config(dict):
 def diff_model(model_dict1: dict, model_dict2: dict):
     assert model_dict1.keys() == model_dict2.keys(), "Models have not the same architecture"
     return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
+
+def import_module_from_str(name: str) -> Any:
+    components = name.split('.')
+    mod = __import__(components[0])
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod

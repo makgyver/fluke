@@ -213,11 +213,11 @@ class Server(ObserverSubject):
                 avg_model_sd[key] /= den
             self.model.load_state_dict(avg_model_sd)
     
-    def notify_start_round(self, round: int, global_model: Module) -> None:
+    def notify_start_round(self, round: int, global_model: Any) -> None:
         for observer in self._observers:
             observer.start_round(round, global_model)
     
-    def notify_end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]) -> None:
+    def notify_end_round(self, round: int, global_model: Any, client_evals: Iterable[Any]) -> None:
         for observer in self._observers:
             observer.end_round(round, global_model, client_evals)
     

@@ -42,7 +42,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     cfg.algorithm = FedAlgorithmsEnum(cfg.method["name"])
     set_seed(cfg.seed) #Reproducibility
 
-    console.log("Running configuration:", Pretty(cfg), end="\n\n", )
+    rich.print(Panel(Pretty(cfg), title=f"Running configuration"))
 
     GlobalSettings().set_device(cfg.device.value)
     
@@ -86,7 +86,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
                                             scheduler_kwargs=cfg.method["optimizer_parameters"]["scheduler_kwargs"]),
                                         **cfg.method["hyperparameters"])
 
-    console.log(f"FL algorithm: {fl_algo}", end="\n\n") 
+    rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     
     fl_algo.init_parties(data_splitter, callbacks=log)
     
@@ -115,7 +115,7 @@ def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Data
     cfg = Config(DEFAULTS, CONFIG_FNAME, locals())
     set_seed(cfg.seed) #Reproducibility
 
-    console.log("Running configuration:", Pretty(cfg), end="\n\n", )
+    rich.print(Panel(Pretty(cfg), title=f"Running configuration"))
 
     data_container = cfg.dataset.klass()()
     data_container.standardize()
@@ -137,9 +137,12 @@ def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Data
                             name=exp_name,
                             **cfg.wandb_params)
     
-    fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, DecisionTreeClassifier, cfg.eligibility_percentage)
+    clf_args = cfg.method["hyperparameters"]["clf_args"]
+    clf_args["random_state"] = cfg.seed
+    base_model = import_module_from_str(cfg.method["hyperparameters"]["base_classifier"])(**clf_args)
+    fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
 
-    console.log(f"FL algorithm: {fl_algo}", end="\n\n") 
+    rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     
     fl_algo.init_parties(data_splitter, callbacks=log)
     fl_algo.run()

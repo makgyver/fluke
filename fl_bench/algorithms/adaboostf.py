@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Union, Any, List, Optional
 from pyparsing import Iterable
-from sklearn.base import ClassifierMixin
+from sklearn.base import BaseEstimator
 
 import torch
 from math import log
@@ -22,7 +22,7 @@ class StrongClassifier():
         self.clfs = []
         self.K = num_classes
     
-    def update(self, clf: ClassifierMixin, alpha: float):
+    def update(self, clf: BaseEstimator, alpha: float):
         self.alpha.append(alpha)
         self.clfs.append(clf)
     
@@ -40,14 +40,14 @@ class AdaBoostFClient(Client):
     def __init__(self,
                  X: np.ndarray,
                  y: np.ndarray,
-                 base_classifier: ClassifierMixin):
+                 base_classifier: BaseEstimator):
         self.X = X
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
         self.cache = {}
     
-    def local_train(self) -> ClassifierMixin:
+    def local_train(self) -> BaseEstimator:
         clf = deepcopy(self.base_classifier)
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
         X_, y_ = self.X[ids], self.y[ids]
@@ -77,13 +77,14 @@ class AdaBoostFClient(Client):
         self.d *= np.exp(alpha * (self.y != predictions))
     
     def validate(self):
+        # TODO: implement validation
         raise NotImplementedError
     
     def checkpoint(self):
-        raise NotImplementedError
+        raise NotImplementedError("AdaboostF does not support checkpointing")
 
     def restore(self, checkpoint):
-        raise NotImplementedError
+        raise NotImplementedError("AdaboostF does not support checkpointing")
 
 
 class AdaboostFServer(Server):
@@ -140,7 +141,7 @@ class AdaboostFServer(Server):
     
     def aggregate(self, 
                   eligible: Iterable[AdaBoostFClient], 
-                  weak_learners: Iterable[ClassifierMixin]) -> None:
+                  weak_learners: Iterable[BaseEstimator]) -> None:
 
         self.broadcast(Message(weak_learners, "weak_learners"), eligible)
         errors = np.array([self.receive(client, "errors").payload for client in eligible])
@@ -150,29 +151,13 @@ class AdaboostFServer(Server):
         epsilon = wl_errs.min()
         alpha = log((1 - epsilon) / (epsilon + 1e-10)) + log(self.K - 1)
         return best_clf, alpha
-            
-    def notify_start_round(self, round: int, global_model: StrongClassifier) -> None:
-        for observer in self._observers:
-            observer.start_round(round, global_model)
-    
-    def notify_end_round(self, round: int, global_model: StrongClassifier, client_evals: Iterable[Any]) -> None:
-        for observer in self._observers:
-            observer.end_round(round, global_model, client_evals)
-    
-    def notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
-        for observer in self._observers:
-            observer.selected_clients(round, clients)
-    
-    def notify_error(self, error: str) -> None:
-        for observer in self._observers:
-            observer.error(error)
 
 
 class AdaboostF(CentralizedFL):
     def __init__(self,
                  n_clients: int,
                  n_rounds: int, 
-                 base_classifier: ClassifierMixin,
+                 base_classifier: BaseEstimator,
                  eligibility_percentage: float=0.5):
         
         super().__init__(n_clients,
@@ -192,10 +177,9 @@ class AdaboostF(CentralizedFL):
             loader = data_splitter.client_train_loader[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            # FIXME random state
-            self.clients.append(AdaBoostFClient(X, y, self.base_classifier(max_leaf_nodes=10, random_state=1)))
+            self.clients.append(AdaBoostFClient(X, y, deepcopy(self.base_classifier)))
 
-    def init_server(self, n_classes: int = 2):
+    def init_server(self, n_classes: int):
         self.server = AdaboostFServer(self.clients, self.eligibility_percentage, n_classes)
         
 
@@ -212,7 +196,7 @@ class AdaboostF(CentralizedFL):
                f"P={self.eligibility_percentage})"
 
     def activate_checkpoint(self, path: str):
-        pass
+        raise NotImplementedError("AdaboostF does not support checkpointing")
     
     def load_checkpoint(self, path: str):
-        pass
+        raise NotImplementedError("AdaboostF does not support checkpointing")
