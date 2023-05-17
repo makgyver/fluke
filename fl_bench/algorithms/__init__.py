@@ -147,7 +147,6 @@ class FedAdaboostAlgorithmsEnum(Enum):
     ADABOOSTF = 'adaboostf'
     ADABOOSTF2 = 'adaboostf2'
     DISTBOOSTF = 'distboostf'
-    DISTBOOSTF2 = 'distboostf2'
     PREWEAKF = 'preweakf'
     PREWEAKF2 = 'preweakf2'
 
@@ -156,7 +155,6 @@ class FedAdaboostAlgorithmsEnum(Enum):
             'adaboostf': AdaboostF,
             'adaboostf2': AdaboostF2,
             'distboostf': DistboostF,
-            # 'distboostf2': DistboostF2,
             'preweakf': PreweakF,
             # 'preweakf2': PreweakF2
         }
