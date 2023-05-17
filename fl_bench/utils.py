@@ -119,7 +119,7 @@ class Log(ServerObserver):
         self.evaluator = evaluator
         self.history = {}
         self.client_history = {}
-        self.comm_costs = {}
+        self.comm_costs = {0: 0}
         self.current_round = 0
     
     def start_round(self, round: int, global_model: Module):

@@ -163,7 +163,7 @@ class PreweakFServer(Server):
             weak_classifiers = []
             for client in self.clients:
                 client.local_train()
-                weak_classifiers.append(self.receive(client, "weak_classifiers"))
+                weak_classifiers.extend(self.receive(client, "weak_classifiers").payload)
                 progress_fl.update(task_id=progress_samme, advance=1)
             progress_fl.remove_task(progress_samme)
 
@@ -180,7 +180,7 @@ class PreweakFServer(Server):
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
 
-                best_clf_id, alpha = self.aggregate(eligible, weak_classifiers)
+                best_clf_id, alpha = self.aggregate(eligible)
                 self.model.update(weak_classifiers[best_clf_id], alpha)
                 
                 self.broadcast(Message(best_clf_id, "best_clf_id"), eligible)
