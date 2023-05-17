@@ -51,24 +51,15 @@ class MLP(nn.Module):
         """
         if int_layer < 0:
             int_layer = max(2 - int_layer, 0)
-        #x = torchvision.transforms.functional.rgb_to_grayscale(x, num_output_channels=1)
-        #x = x.reshape(x.shape[0], self.input_size)
-        if start_layer == 0:
-            x = x.view(-1, self.input_size)
+        x = x.view(-1, self.input_size)
         z = [None, None, None]
-        z[0] = F.relu(self.fc1(x)) if start_layer == 0 else x
-        z[1] = F.relu(self.fc2(z[0])) if start_layer <= 1 else x
-        z[2] = self.fc3(z[1]) if start_layer <= 2 else x
-        if start_layer == 0 and (int_layer == 0 or int_layer >= 4):
+        z[0] = F.relu(self.fc1(x))
+        z[1] = F.relu(self.fc2(z[0]))
+        z[2] = self.fc3(z[1])
+        if int_layer == 0 or int_layer >= 4:
             return F.log_softmax(z[2], dim=1)
         else:
-            probs = F.log_softmax(z[2], dim=1)
-            max_idx = torch.argmax(probs, 1)
-            one_hot = torch.zeros_like(probs)
-            for r, c in enumerate(max_idx):
-                one_hot[r, c] = 1
-
-            return one_hot, z[int_layer-1]
+            return F.log_softmax(z[2], dim=1), z[int_layer-1]
 
 
 class MLP_BN(nn.Module):
