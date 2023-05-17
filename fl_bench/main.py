@@ -14,6 +14,8 @@ from rich.pretty import Pretty
 import typer
 
 from fl_bench.algorithms.adaboostf import AdaboostF
+from fl_bench.algorithms.preweakf import PreweakF
+from fl_bench.algorithms.distboostf import DistboostF
 
 app = typer.Typer()
 console = Console()
@@ -103,7 +105,8 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
 
 
 @app.command()
-def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Dataset'),
+def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+              dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Dataset'),
               n_clients: int = cli_option(DEFAULTS["n_clients"], help='Number of clients'),
               n_rounds: int = cli_option(DEFAULTS["n_rounds"], help='Number of rounds'),
               eligibility_percentage: float = cli_option(DEFAULTS["eligibility_percentage"], help='Eligibility percentage'),
@@ -111,7 +114,6 @@ def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Data
               seed: int = cli_option(DEFAULTS["seed"], help='Seed'),
               logger: LogEnum =  cli_option(DEFAULTS["logger"], help='Log method')):
 
-    alg_cfg = "configs/adaboostf.json"
     cfg = Config(DEFAULTS, CONFIG_FNAME, locals())
     set_seed(cfg.seed) #Reproducibility
 
@@ -132,7 +134,7 @@ def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Data
                                        batch_size=100, #this can remain hard-coded
                                        shuffle=False)
 
-    exp_name = f"AdaboostF" 
+    exp_name = f"{cfg.algorithm.value}_{cfg.dataset.value}_{cfg.distribution.value}_C{cfg.n_clients}_R{cfg.n_rounds}_P{cfg.eligibility_percentage}_S{cfg.seed}" 
     log = cfg.logger.logger(ClassificationSklearnEval(test_loader, "micro"), 
                             name=exp_name,
                             **cfg.wandb_params)
@@ -140,7 +142,15 @@ def run_boost(dataset: DatasetsEnum = cli_option(DEFAULTS["dataset"], help='Data
     clf_args = cfg.method["hyperparameters"]["clf_args"]
     clf_args["random_state"] = cfg.seed
     base_model = import_module_from_str(cfg.method["hyperparameters"]["base_classifier"])(**clf_args)
-    fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
+
+    if cfg.algorithm.value == "adaboostf":
+        fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
+    elif cfg.algorithm.value == "preweakf":
+        fl_algo = PreweakF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
+    elif cfg.algorithm.value == "distboostf":
+        fl_algo = DistboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
+    else:
+        raise ValueError(f"Unknown federated boosting algorithm {cfg.algorithm.value}")
 
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     
