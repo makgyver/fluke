@@ -157,8 +157,9 @@ class Log(ServerObserver):
     
     def save(self, path: str):
         json_to_save = {
-            "global": self.history,
-            "local": self.client_history
+            "perf_global": self.history,
+            "comm_costs": self.comm_costs,
+            "perf_local": self.client_history
         }
         with open(path, 'w') as f:
             json.dump(json_to_save, f, indent=4)
