@@ -54,7 +54,7 @@ class AdaboostClient(Client):
         clf.fit(X_, y_)
         self.cache["weak_classifier"] = clf
     
-    def send(self, msg_type: str):
+    def send(self, msg_type: str) -> Message:
         if msg_type == "norm":
             return Message(sum(self.d), "norm")
         elif msg_type == "errors":
