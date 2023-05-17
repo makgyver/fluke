@@ -14,6 +14,7 @@ from rich.pretty import Pretty
 import typer
 
 from fl_bench.algorithms.adaboostf import AdaboostF
+from fl_bench.algorithms.adaboostf2 import AdaboostF2
 from fl_bench.algorithms.preweakf import PreweakF
 from fl_bench.algorithms.distboostf import DistboostF
 
@@ -145,6 +146,8 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
 
     if cfg.method["name"] == "adaboostf":
         fl_algo = AdaboostF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
+    elif cfg.method["name"] == "adaboostf2":
+        fl_algo = AdaboostF2(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
     elif cfg.method["name"] == "preweakf":
         fl_algo = PreweakF(cfg.n_clients, cfg.n_rounds, base_model, cfg.eligibility_percentage)
     elif cfg.method["name"] == "distboostf":
