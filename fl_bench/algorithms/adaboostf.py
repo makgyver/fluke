@@ -52,7 +52,7 @@ class AdaboostClient(Client):
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
         X_, y_ = self.X[ids], self.y[ids]
         clf.fit(X_, y_)
-        return clf
+        self.cache["weak_classifier"] = clf
     
     def send(self, msg_type: str):
         if msg_type == "norm":
@@ -60,6 +60,8 @@ class AdaboostClient(Client):
         elif msg_type == "errors":
             errors = self.compute_errors()
             return Message(errors, "errors")
+        elif msg_type == "weak_classifier":
+            return Message(self.cache["weak_classifier"], "weak_classifier")
 
     def receive(self, msg: Message):
         self.cache[msg.msg_type] = msg.payload
@@ -115,13 +117,14 @@ class AdaboostFServer(Server):
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
 
-                weak_learners = []
+                weak_classifiers = []
                 for c, client in enumerate(eligible):
-                    weak_learners.append(client.local_train())
+                    client.local_train()
+                    weak_classifiers.append(self.receive(client, "weak_classifier").payload)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
 
-                best_clf, alpha = self.aggregate(eligible, weak_learners)
+                best_clf, alpha = self.aggregate(eligible, weak_classifiers)
                 self.model.update(best_clf, alpha)
                 
                 self.broadcast(Message(best_clf, "best_clf"), eligible)
