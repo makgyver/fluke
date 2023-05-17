@@ -16,7 +16,7 @@ from fl_bench import GlobalSettings, Message
 from fl_bench.algorithms import CentralizedFL
 
 
-class StrongClassifier():
+class StrongClassifier:
     def __init__(self, num_classes: int):
         self.alpha = []
         self.clfs = []
