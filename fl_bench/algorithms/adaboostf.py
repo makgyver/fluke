@@ -35,7 +35,7 @@ class StrongClassifier():
         return np.argmax(y_pred, axis=1)
     
 
-class AdaBoostFClient(Client):
+class AdaboostClient(Client):
 
     def __init__(self,
                  X: np.ndarray,
@@ -89,7 +89,7 @@ class AdaBoostFClient(Client):
 
 class AdaboostFServer(Server):
     def __init__(self,
-                 clients: Iterable[AdaBoostFClient], 
+                 clients: Iterable[AdaboostClient], 
                  eligibility_percentage: float=0.5, 
                  n_classes: int = 2):
         super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
@@ -140,7 +140,7 @@ class AdaboostFServer(Server):
 
     
     def aggregate(self, 
-                  eligible: Iterable[AdaBoostFClient], 
+                  eligible: Iterable[AdaboostClient], 
                   weak_learners: Iterable[BaseEstimator]) -> None:
 
         self.broadcast(Message(weak_learners, "weak_learners"), eligible)
@@ -177,7 +177,7 @@ class AdaboostF(CentralizedFL):
             loader = data_splitter.client_train_loader[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            self.clients.append(AdaBoostFClient(X, y, deepcopy(self.base_classifier)))
+            self.clients.append(AdaboostClient(X, y, deepcopy(self.base_classifier)))
 
     def init_server(self, n_classes: int):
         self.server = AdaboostFServer(self.clients, self.eligibility_percentage, n_classes)
