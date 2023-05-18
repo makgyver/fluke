@@ -94,7 +94,7 @@ from .adaboostf2 import AdaboostF2
 from .distboostf import DistboostF
 # from .distboostf2 import DistboostF2
 from .preweakf import PreweakF
-# from .preweakf2 import PreweakF2
+from .preweakf2 import PreweakF2
 
 
 from enum import Enum
@@ -156,7 +156,7 @@ class FedAdaboostAlgorithmsEnum(Enum):
             'adaboostf2': AdaboostF2,
             'distboostf': DistboostF,
             'preweakf': PreweakF,
-            # 'preweakf2': PreweakF2
+            'preweakf2': PreweakF2
         }
 
         return algos[self.value]

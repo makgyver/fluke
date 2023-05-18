@@ -1,0 +1,9 @@
+{
+    "name": "preweakf2",
+    "hyperparameters": {
+        "base_classifier": "sklearn.tree.DecisionTreeClassifier",
+        "clf_args": {
+            "max_leaf_nodes": 10
+        }
+    }
+}
