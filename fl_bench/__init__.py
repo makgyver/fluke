@@ -167,9 +167,11 @@ class GlobalSettings(metaclass=Singleton):
 class Message:
     def __init__(self,
                  payload: Any,
-                 msg_type: str="model"):
+                 msg_type: str="model",
+                 sender: Optional[Any]=None):
         self.msg_type: str = msg_type
         self.payload: Any = payload
+        self.sender: Optional[Any] = sender
     
     def get_size(self) -> int:
         if self.payload is None:

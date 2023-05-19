@@ -14,6 +14,7 @@ from fl_bench.server import Server
 from fl_bench.data import DataSplitter
 from fl_bench import GlobalSettings, Message
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.channel import Channel
 
 
 class StrongClassifier():
@@ -45,38 +46,37 @@ class AdaboostClient(Client):
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
-        self.cache = {}
+        self.server = None
+
+    def set_server(self, server: Server):
+        self.server = server
+        self.channel = server.channel
     
     def local_train(self) -> ClassifierMixin:
         clf = deepcopy(self.base_classifier)
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
         X_, y_ = self.X[ids], self.y[ids]
         clf.fit(X_, y_)
-        self.cache["weak_classifier"] = clf
+        self.channel.send(Message(clf, "weak_classifier", sender=self), self.server)
     
-    def send(self, msg_type: str) -> Message:
-        if msg_type == "norm":
-            return Message(sum(self.d), "norm")
-        elif msg_type == "errors":
-            errors = self.compute_errors()
-            return Message(errors, "errors")
-        elif msg_type == "weak_classifier":
-            return Message(self.cache["weak_classifier"], "weak_classifier")
-
-    def receive(self, msg: Message):
-        self.cache[msg.msg_type] = msg.payload
             
     def compute_errors(self) -> List[float]:
         errors = []
-        for clf in self.cache["weak_learners"]:
+        clfs = self.channel.receive(self, msg_type="weak_learners").payload
+        for clf in clfs:
             predictions = clf.predict(self.X)
             errors.append(sum(self.d[self.y != predictions]))
-        return errors
+        self.channel.send(Message(errors, "errors", sender=self), self.server)
+
 
     def update_dist(self) -> None:
-        best_clf, alpha = self.cache["best_clf"], self.cache["alpha"]
+        best_clf = self.channel.receive(self, msg_type="best_clf").payload
+        alpha = self.channel.receive(self, msg_type="alpha").payload
         predictions = best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
+
+    def send_norm(self) -> None:
+        self.channel.send(Message(sum(self.d), "norm", sender=self), self.server)
     
     def validate(self):
         # TODO: implement validation
@@ -92,10 +92,12 @@ class AdaboostClient(Client):
 class AdaboostFServer(Server):
     def __init__(self,
                  clients: Iterable[AdaboostClient], 
+                 channel: Channel,
                  eligibility_percentage: float=0.5, 
                  n_classes: int = 2):
         super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
         self.K = n_classes
+        self.channel = channel
     
     def init(self):
         pass
@@ -119,18 +121,19 @@ class AdaboostFServer(Server):
 
                 weak_classifiers = []
                 for c, client in enumerate(eligible):
-                    client.local_train()
-                    weak_classifiers.append(self.receive(client, "weak_classifier").payload)
+                    self.channel.send(Message((client.local_train, {}), "__action__"), client)
+                    weak_classifiers.append(self.channel.receive(self, msg_type="weak_classifier").payload)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
 
                 best_clf, alpha = self.aggregate(eligible, weak_classifiers)
                 self.model.update(best_clf, alpha)
                 
-                self.broadcast(Message(best_clf, "best_clf"), eligible)
-                self.broadcast(Message(alpha, "alpha"), eligible)
-                for client in eligible:
-                    client.update_dist()
+                self.channel.broadcast(Message(best_clf, "best_clf"), eligible)
+                self.channel.broadcast(Message(alpha, "alpha"), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
+                # for client in eligible:
+                #     client.update_dist()
 
                 self.notify_end_round(round + 1, self.model, 0)
                 self.rounds += 1 
@@ -146,9 +149,11 @@ class AdaboostFServer(Server):
                   eligible: Iterable[AdaboostClient], 
                   weak_learners: Iterable[ClassifierMixin]) -> Tuple[ClassifierMixin, float]:
 
-        self.broadcast(Message(weak_learners, "weak_learners"), eligible)
-        errors = np.array([self.receive(client, "errors").payload for client in eligible])
-        norm = sum([self.receive(client, "norm").payload for client in eligible])
+        self.channel.broadcast(Message(weak_learners, "weak_learners"), eligible)
+        self.channel.broadcast(Message(("compute_errors", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+        errors = np.array([self.channel.receive(self, sender=client, msg_type="errors").payload for client in eligible])
+        norm = sum([self.channel.receive(self, sender=client, msg_type="norm").payload for client in eligible])
         wl_errs = errors.sum(axis=0) / norm
         best_clf = weak_learners[wl_errs.argmin()]
         epsilon = wl_errs.min()
@@ -171,6 +176,7 @@ class AdaboostF(CentralizedFL):
                          None,
                          eligibility_percentage)
         self.base_classifier = base_classifier
+        self.channel = Channel()
     
     def init_clients(self, data_splitter: DataSplitter, **kwargs):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
@@ -183,7 +189,9 @@ class AdaboostF(CentralizedFL):
             self.clients.append(AdaboostClient(X, y, deepcopy(self.base_classifier)))
 
     def init_server(self, n_classes: int):
-        self.server = AdaboostFServer(self.clients, self.eligibility_percentage, n_classes)
+        self.server = AdaboostFServer(self.clients, self.channel, eligibility_percentage=self.eligibility_percentage, n_classes=n_classes)
+        for client in self.clients:
+            client.set_server(self.server)
         
 
     def init_parties(self, 
