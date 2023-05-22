@@ -178,9 +178,15 @@ class WandBLog(Log):
         super().__init__(evaluator)
         self.run = wandb.init(**config)
     
+    def start_round(self, round: int, global_model: Module):
+        super().start_round(round, global_model)
+        if round == 1 and self.comm_costs[0] > 0:
+            self.run.log({"comm_costs": self.comm_costs[0]})
+
     def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
         super().end_round(round, global_model, client_evals)
         self.run.log(self.history[round], step=round)
+        self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
         if client_evals:
             self.run.log(self.client_history[round], step=round)
     
