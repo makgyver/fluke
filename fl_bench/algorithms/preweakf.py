@@ -109,8 +109,8 @@ class PreweakFClient(Client):
         self.channel.send(Message(errors, "errors", sender=self), self.server)
 
     def update_dist(self) -> None:
-        best_clf_id = self.channel.receive(self, msg_type="best_clf_id").payload
-        alpha = self.channel.receive(self, msg_type="alpha").payload
+        best_clf_id = self.channel.receive(self, self.server, msg_type="best_clf_id").payload
+        alpha = self.channel.receive(self, self.server, msg_type="alpha").payload
         predictions = self.predictions[best_clf_id]
         self.d *= np.exp(alpha * (self.y != predictions))
     
@@ -142,7 +142,6 @@ class PreweakFServer(Server):
     def fit(self, n_rounds: int) -> None:
 
         with GlobalSettings().get_live_renderer():
-
             progress_fl = GlobalSettings().get_progress_bar("FL")
             client_x_round = int(self.n_clients*self.eligibility_percentage)
 
