@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Union, Any, List, Optional
+from typing import Union, Any, Optional
 from pyparsing import Iterable
 from sklearn.base import ClassifierMixin
 
@@ -91,6 +91,7 @@ class PreweakF2Client(Client):
         self.n_estimators = n_estimators
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
+        self.server = None
     
     def local_train(self) -> None:
         samme = Samme(self.n_estimators, self.base_classifier)
@@ -104,13 +105,13 @@ class PreweakF2Client(Client):
         self.channel.send(Message(self.weak_classifiers[np.argmin(errors)], "best_clf", sender=self), self.server)
     
     def compute_error(self) -> None:
-        self.best_clf = self.channel.receive(self, msg_type="best_clf").payload
+        self.best_clf = self.channel.receive(self, self.server, msg_type="best_clf").payload
         predictions = self.best_clf.predict(self.X)
         error = sum(self.d[self.y != predictions])
         self.channel.send(Message(error, "error", sender=self), self.server)
 
     def update_dist(self) -> None:
-        alpha = self.channel.receive(self, msg_type="alpha").payload
+        alpha = self.channel.receive(self, self.server, msg_type="alpha").payload
         predictions = self.best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
     
@@ -147,7 +148,7 @@ class PreweakF2Server(Server):
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
 
             for client in self.clients:
-                self.channel.send(Message((client.local_train, {}), "__action__"), client)
+                self.channel.send(Message((client.local_train, {}), "__action__", self), client)
                 progress_fl.update(task_id=progress_samme, advance=1)
             
             progress_fl.remove_task(progress_samme)
@@ -163,8 +164,8 @@ class PreweakF2Server(Server):
                 best_weak_clf, alpha = self.aggregate(eligible)
                 self.model.update(best_weak_clf, alpha)
                 
-                self.channel.broadcast(Message(alpha, "alpha"), eligible)
-                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
+                self.channel.broadcast(Message(alpha, "alpha", self), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
 
                 progress_fl.update(task_id=task_rounds, advance=1)
                 self.notify_end_round(round + 1, self.model, 0)
@@ -178,9 +179,9 @@ class PreweakF2Server(Server):
         self.channel.send(Message(("compute_best_clf", {}), "__action__", self), selected_client)
         best_weak_clf = self.channel.receive(self, selected_client, "best_clf").payload
 
-        self.channel.broadcast(Message(best_weak_clf, "best_clf"), eligible)
-        self.channel.broadcast(Message(("compute_error", {}), "__action__"), eligible)
-        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(best_weak_clf, "best_clf", self), eligible)
+        self.channel.broadcast(Message(("compute_error", {}), "__action__", self), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__", self), eligible)
 
         error = np.array([self.channel.receive(self, sender=client, msg_type="error").payload for client in eligible])
         norm = sum([self.channel.receive(self, client, "norm").payload for client in eligible])

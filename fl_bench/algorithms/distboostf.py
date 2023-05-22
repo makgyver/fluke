@@ -60,36 +60,23 @@ class DistboostClient(Client):
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
-        self.cache = {}
+        self.server = None
     
-    def local_train(self) -> ClassifierMixin:
+    def local_train(self) -> None:
         clf = deepcopy(self.base_classifier)
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
         X_, y_ = self.X[ids], self.y[ids]
         clf.fit(X_, y_)
         self.channel.send(Message(clf, "weak_classifier", sender=self), self.server)
-        # self.cache["weak_classifier"] = clf
     
-    # def send(self, msg_type: str) -> Message:
-    #     if msg_type == "norm":
-    #         return Message(sum(self.d), "norm")
-    #     elif msg_type == "error":
-    #         errors = self.compute_error()
-    #         return Message(errors, "error")
-    #     elif msg_type == "weak_classifier":
-    #         return Message(self.cache["weak_classifier"], "weak_classifier")
-
-    # def receive(self, msg: Message):
-    #     self.cache[msg.msg_type] = msg.payload
-            
-    def compute_error(self) -> List[float]:
-        self.round_hyp = self.channel.receive(self, msg_type="round_hyp").payload
+    def compute_error(self) -> None:
+        self.round_hyp = self.channel.receive(self, self.server, msg_type="round_hyp").payload
         self.predictions = self.round_hyp.predict(self.X)
         errors = sum(self.d[self.y != self.predictions])
         self.channel.send(Message(errors, "error", sender=self), self.server)
 
     def update_dist(self) -> None:
-        alpha = self.channel.receive(self, msg_type="alpha").payload
+        alpha = self.channel.receive(self, self.server, msg_type="alpha").payload
         self.d *= np.exp(alpha * (self.y != self.predictions))
     
     def send_norm(self) -> None:
@@ -136,16 +123,16 @@ class DistboostFServer(Server):
 
                 weak_classifiers = []
                 for c, client in enumerate(eligible):
-                    self.channel.send(Message((client.local_train, {}), "__action__"), client)
-                    weak_classifiers.append(self.channel.receive(self, msg_type="weak_classifier").payload)
+                    self.channel.send(Message((client.local_train, {}), "__action__", self), client)
+                    weak_classifiers.append(self.channel.receive(self, client, msg_type="weak_classifier").payload)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
 
                 best_clf, alpha = self.aggregate(eligible, weak_classifiers)
                 self.model.update(best_clf, alpha)
                 
-                self.channel.broadcast(Message(alpha, "alpha"), eligible)
-                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
+                self.channel.broadcast(Message(alpha, "alpha", self), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
 
                 self.notify_end_round(round + 1, self.model, 0)
                 self.rounds += 1 
@@ -163,8 +150,8 @@ class DistboostFServer(Server):
 
         aggr_hp = DistboostHyp(weak_learners, self.K)
         self.channel.broadcast(Message(aggr_hp, "round_hyp", self), eligible)
-        self.channel.broadcast(Message(("compute_error", {}), "__action__"), eligible)
-        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(("compute_error", {}), "__action__", self), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__", self), eligible)
         errors = np.array([self.channel.receive(self, client, "error").payload for client in eligible])
         norm = sum([self.channel.receive(self, client, "norm").payload for client in eligible])
         wl_errs = errors.sum() / norm

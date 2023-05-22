@@ -92,6 +92,7 @@ class PreweakFClient(Client):
         self.n_estimators = n_estimators
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
+        self.server = None
     
     def local_train(self) -> None:
         samme = Samme(self.n_estimators, self.base_classifier)
@@ -148,7 +149,7 @@ class PreweakFServer(Server):
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
             weak_classifiers = []
             for client in self.clients:
-                self.channel.send(Message((client.local_train, {}), "__action__"), client)
+                self.channel.send(Message((client.local_train, {}), "__action__", self), client)
                 weak_classifiers.extend(self.channel.receive(self, client, "weak_classifiers").payload)
                 progress_fl.update(task_id=progress_samme, advance=1)
             progress_fl.remove_task(progress_samme)
@@ -157,7 +158,7 @@ class PreweakFServer(Server):
 
             progress_preds = progress_fl.add_task("Local predictions", total=self.n_clients)
             for client in self.clients:
-                self.channel.send(Message((client.compute_predictions, {}), "__action__"), client)
+                self.channel.send(Message((client.compute_predictions, {}), "__action__", self), client)
                 progress_fl.update(task_id=progress_preds, advance=1)
             progress_fl.remove_task(progress_preds)
 
@@ -184,8 +185,8 @@ class PreweakFServer(Server):
 
     
     def aggregate(self, eligible: Iterable[PreweakFClient]) -> None:
-        self.channel.broadcast(Message(("compute_errors", {}), "__action__"), eligible)
-        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(("compute_errors", {}), "__action__", self), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__", self), eligible)
         errors = np.array([self.channel.receive(self, sender=client, msg_type="errors").payload for client in eligible])
         norm = sum([self.channel.receive(self, sender=client, msg_type="norm").payload for client in eligible])
         wl_errs = errors.sum(axis=0) / norm
