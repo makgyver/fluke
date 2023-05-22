@@ -23,6 +23,7 @@ class Samme():
         self.n_clf = n_clfs
         self.base_classifier = base_classifier
         self.clfs = None
+        self.server = None
     
     def fit(self,
             X: np.ndarray,
@@ -91,38 +92,30 @@ class PreweakFClient(Client):
         self.n_estimators = n_estimators
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
-        self.cache = {}
     
     def local_train(self) -> None:
         samme = Samme(self.n_estimators, self.base_classifier)
         samme.fit(self.X, self.y, self.K)
-        self.cache["weak_classifiers"] = samme.clfs
-    
-    def send(self, msg_type: str):
-        if msg_type == "norm":
-            return Message(sum(self.d), "norm")
-        elif msg_type == "errors":
-            errors = self.compute_errors()
-            return Message(errors, "errors")
-        elif msg_type == "weak_classifiers":
-            return Message(self.cache["weak_classifiers"], "weak_classifiers")
-
-    def receive(self, msg: Message):
-        self.cache[msg.msg_type] = msg.payload
+        self.channel.send(Message(samme.clfs, "weak_classifiers", self), self.server)
     
     def compute_predictions(self) -> None:
-        self.predictions = np.array([clf.predict(self.X) for clf in self.cache["all_weak_classifiers"]])
+        all_weak_classifiers = self.channel.receive(self, self.server, "all_weak_classifiers").payload
+        self.predictions = np.array([clf.predict(self.X) for clf in all_weak_classifiers])
 
-    def compute_errors(self) -> List[float]:
+    def compute_errors(self) -> None:
         errors = []
         for preds in self.predictions:
             errors.append(sum(self.d[self.y != preds]))
-        return errors
+        self.channel.send(Message(errors, "errors", sender=self), self.server)
 
     def update_dist(self) -> None:
-        best_clf_id, alpha = self.cache["best_clf_id"], self.cache["alpha"]
+        best_clf_id = self.channel.receive(self, msg_type="best_clf_id").payload
+        alpha = self.channel.receive(self, msg_type="alpha").payload
         predictions = self.predictions[best_clf_id]
         self.d *= np.exp(alpha * (self.y != predictions))
+    
+    def send_norm(self) -> None:
+        self.channel.send(Message(sum(self.d), "norm", sender=self), self.server)
     
     def validate(self):
         # TODO: implement validation
@@ -156,16 +149,16 @@ class PreweakFServer(Server):
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
             weak_classifiers = []
             for client in self.clients:
-                client.local_train()
-                weak_classifiers.extend(self.receive(client, "weak_classifiers").payload)
+                self.channel.send(Message((client.local_train, {}), "__action__"), client)
+                weak_classifiers.extend(self.channel.receive(self, client, "weak_classifiers").payload)
                 progress_fl.update(task_id=progress_samme, advance=1)
             progress_fl.remove_task(progress_samme)
 
-            self.broadcast(Message(weak_classifiers, "all_weak_classifiers"))
+            self.channel.broadcast(Message(weak_classifiers, "all_weak_classifiers", self), self.clients)
 
             progress_preds = progress_fl.add_task("Local predictions", total=self.n_clients)
             for client in self.clients:
-                client.compute_predictions()
+                self.channel.send(Message((client.compute_predictions, {}), "__action__"), client)
                 progress_fl.update(task_id=progress_preds, advance=1)
             progress_fl.remove_task(progress_preds)
 
@@ -180,10 +173,9 @@ class PreweakFServer(Server):
                 best_clf_id, alpha = self.aggregate(eligible)
                 self.model.update(weak_classifiers[best_clf_id], alpha)
                 
-                self.broadcast(Message(best_clf_id, "best_clf_id"), eligible)
-                self.broadcast(Message(alpha, "alpha"), eligible)
-                for client in eligible:
-                    client.update_dist()
+                self.channel.broadcast(Message(best_clf_id, "best_clf_id"), eligible)
+                self.channel.broadcast(Message(alpha, "alpha"), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
 
                 progress_fl.update(task_id=task_rounds, advance=1)
                 self.notify_end_round(round + 1, self.model, 0)
@@ -193,8 +185,10 @@ class PreweakFServer(Server):
 
     
     def aggregate(self, eligible: Iterable[PreweakFClient]) -> None:
-        errors = np.array([self.receive(client, "errors").payload for client in eligible])
-        norm = sum([self.receive(client, "norm").payload for client in eligible])
+        self.channel.broadcast(Message(("compute_errors", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+        errors = np.array([self.channel.receive(self, sender=client, msg_type="errors").payload for client in eligible])
+        norm = sum([self.channel.receive(self, sender=client, msg_type="norm").payload for client in eligible])
         wl_errs = errors.sum(axis=0) / norm
         best_clf_id = wl_errs.argmin()
         epsilon = wl_errs.min()
@@ -240,6 +234,7 @@ class PreweakF(CentralizedFL):
         self.init_clients(data_splitter, n_classes)
         self.init_server(n_classes)
         self.server.attach(callbacks)
+        self.server.channel.attach(callbacks)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \

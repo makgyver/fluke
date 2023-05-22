@@ -114,6 +114,9 @@ class ServerObserver():
     def error(self, error: str):
         pass
 
+    def finished(self):
+        pass
+
 
 class ChannelObserver():
 
@@ -152,6 +155,10 @@ class Log(ServerObserver, ChannelObserver):
     
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
+    
+    def finished(self):
+        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}), 
+                         title=f"Total communication cost"))
     
     def save(self, path: str):
         json_to_save = {

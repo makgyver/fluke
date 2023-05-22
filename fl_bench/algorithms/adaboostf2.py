@@ -1,6 +1,6 @@
 from copy import deepcopy
 import random
-from typing import Tuple, Union, Any, List, Optional
+from typing import Tuple, Union, Any, Optional
 from pyparsing import Iterable
 from sklearn.base import ClassifierMixin
 
@@ -46,36 +46,29 @@ class AdaboostF2Client(Client):
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
-        self.cache = {}
     
     def local_train(self) -> ClassifierMixin:
-        clf = deepcopy(self.base_classifier)
+        self.clf = deepcopy(self.base_classifier)
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
         X_, y_ = self.X[ids], self.y[ids]
-        clf.fit(X_, y_)
-        self.cache["weak_classifier"] = clf
+        self.clf.fit(X_, y_)
     
-    def send(self, msg_type: str) -> Message:
-        if msg_type == "norm":
-            return Message(sum(self.d), "norm")
-        elif msg_type == "error":
-            error = self.compute_error()
-            return Message(error, "errors")
-        elif msg_type == "weak_classifier":
-            return Message(self.cache["weak_classifier"], "weak_classifier")
-
-    def receive(self, msg: Message):
-        self.cache[msg.msg_type] = msg.payload
+    def send_weak_clf(self) -> None:
+        self.channel.send(Message(self.clf, "weak_classifier", sender=self), self.server)
             
     def compute_error(self) -> float:
-        clf = self.cache["best_clf"]
-        predictions = clf.predict(self.X)
-        return sum(self.d[self.y != predictions])
+        self.best_clf = self.channel.receive(self, msg_type="best_clf").payload
+        predictions = self.best_clf.predict(self.X)
+        error = sum(self.d[self.y != predictions])
+        self.channel.send(Message(error, "error", sender=self), self.server)
 
     def update_dist(self) -> None:
-        best_clf, alpha = self.cache["best_clf"], self.cache["alpha"]
-        predictions = best_clf.predict(self.X)
+        alpha = self.channel.receive(self, msg_type="alpha").payload
+        predictions = self.best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
+    
+    def send_norm(self) -> None:
+        self.channel.send(Message(sum(self.d), "norm", sender=self), self.server)
     
     def validate(self):
         # TODO: implement validation
@@ -116,41 +109,40 @@ class AdaboostF2Server(Server):
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
 
-                weak_classifiers = []
                 for c, client in enumerate(eligible):
-                    client.local_train()
-                    weak_classifiers.append(self.receive(client, "weak_classifier").payload)
+                    self.channel.send(Message((client.local_train, {}), "__action__"), client)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
 
-                best_clf, alpha = self.aggregate(eligible, weak_classifiers)
+                best_clf, alpha = self.aggregate(eligible)
                 self.model.update(best_clf, alpha)
                 
-                self.broadcast(Message(alpha, "alpha"), eligible)
-                for client in eligible:
-                    client.update_dist()
+                self.channel.broadcast(Message(alpha, "alpha"), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
 
                 self.notify_end_round(round + 1, self.model, 0)
                 self.rounds += 1 
-
-                # if self.checkpoint_path is not None:
-                #     self.save(self.checkpoint_path)
 
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
     
     def aggregate(self, 
-                  eligible: Iterable[AdaboostF2Client], 
-                  weak_learners: Iterable[ClassifierMixin]) -> Tuple[ClassifierMixin, float]:
+                  eligible: Iterable[AdaboostF2Client]) -> Tuple[ClassifierMixin, float]:
 
-        best_clf = random.choice(weak_learners)
-        self.broadcast(Message(best_clf, "best_clf"), eligible)
-        error = np.array([self.receive(client, "error").payload for client in eligible])
-        norm = sum([self.receive(client, "norm").payload for client in eligible])
+        selected_client = np.random.choice(eligible)
+        self.channel.send(Message(("send_weak_clf", {}), "__action__", self), selected_client)
+        best_weak_clf = self.channel.receive(self, msg_type="weak_classifier").payload
+
+        self.channel.broadcast(Message(best_weak_clf, "best_clf"), eligible)
+        self.channel.broadcast(Message(("compute_error", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+
+        error = np.array([self.channel.receive(self, sender=client, msg_type="error").payload for client in eligible])
+        norm = sum([self.channel.receive(self, client, "norm").payload for client in eligible])
         epsilon = error.sum() / norm
         alpha = log((1 - epsilon) / (epsilon + 1e-10)) + log(self.K - 1)
-        return best_clf, alpha
+        return best_weak_clf, alpha
 
 
 class AdaboostF2(CentralizedFL):
@@ -190,6 +182,7 @@ class AdaboostF2(CentralizedFL):
         self.init_clients(data_splitter)
         self.init_server(len(torch.unique(data_splitter.y)))
         self.server.attach(callbacks)
+        self.server.channel.attach(callbacks)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \

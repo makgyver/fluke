@@ -91,43 +91,32 @@ class PreweakF2Client(Client):
         self.n_estimators = n_estimators
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
-        self.cache = {}
     
     def local_train(self) -> None:
         samme = Samme(self.n_estimators, self.base_classifier)
         samme.fit(self.X, self.y, self.K)
-        self.cache["weak_classifiers"] = samme.clfs
-    
-    def send(self, msg_type: str):
-        if msg_type == "norm":
-            return Message(sum(self.d), "norm")
-        elif msg_type == "errors":
-            errors = self.compute_errors()
-            return Message(errors, "errors")
-        elif msg_type == "get_best_clf":
-            best_clf = self._compute_best_clf()
-            return Message(best_clf, "get_best_clf")
+        self.weak_classifiers = samme.clfs
+        self.predictions = np.array([clf.predict(self.X) for clf in self.weak_classifiers])
 
-    def receive(self, msg: Message):
-        self.cache[msg.msg_type] = msg.payload
-    
-    def compute_predictions(self) -> None:
-        self.predictions = np.array([clf.predict(self.X) for clf in self.cache["weak_classifiers"]])
-
-    def _compute_best_clf(self) -> ClassifierMixin:
+    def compute_best_clf(self) -> None:
         d_norm = self.d / self.d.sum()
-        errors = [sum(d_norm[self.y != self.predictions[i]]) for i, _ in enumerate(self.cache["weak_classifiers"])]
-        return self.cache["weak_classifiers"][np.argmin(errors)]
+        errors = [sum(d_norm[self.y != self.predictions[i]]) for i, _ in enumerate(self.weak_classifiers)]
+        self.channel.send(Message(self.weak_classifiers[np.argmin(errors)], "best_clf", sender=self), self.server)
     
-    def compute_errors(self) -> List[float]:
-        predictions = self.cache["best_clf"].predict(self.X)
-        return sum(self.d[self.y != predictions])
+    def compute_error(self) -> None:
+        self.best_clf = self.channel.receive(self, msg_type="best_clf").payload
+        predictions = self.best_clf.predict(self.X)
+        error = sum(self.d[self.y != predictions])
+        self.channel.send(Message(error, "error", sender=self), self.server)
 
     def update_dist(self) -> None:
-        best_clf, alpha = self.cache["best_clf"], self.cache["alpha"]
-        predictions = best_clf.predict(self.X)
+        alpha = self.channel.receive(self, msg_type="alpha").payload
+        predictions = self.best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
     
+    def send_norm(self) -> None:
+        self.channel.send(Message(sum(self.d), "norm", sender=self), self.server)
+
     def validate(self):
         # TODO: implement validation
         raise NotImplementedError
@@ -155,23 +144,13 @@ class PreweakF2Server(Server):
         with GlobalSettings().get_live_renderer():
 
             progress_fl = GlobalSettings().get_progress_bar("FL")
-            client_x_round = int(self.n_clients*self.eligibility_percentage)
-
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
-            # weak_classifiers = []
+
             for client in self.clients:
-                client.local_train()
-                # weak_classifiers.extend(self.receive(client, "weak_classifiers").payload)
+                self.channel.send(Message((client.local_train, {}), "__action__"), client)
                 progress_fl.update(task_id=progress_samme, advance=1)
+            
             progress_fl.remove_task(progress_samme)
-
-            # self.broadcast(Message(weak_classifiers, "all_weak_classifiers"))
-
-            progress_preds = progress_fl.add_task("Local predictions", total=self.n_clients)
-            for client in self.clients:
-                client.compute_predictions()
-                progress_fl.update(task_id=progress_preds, advance=1)
-            progress_fl.remove_task(progress_preds)
 
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds)
             total_rounds = self.rounds + n_rounds
@@ -180,17 +159,12 @@ class PreweakF2Server(Server):
                 self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
-
-                selected_client = np.random.choice(eligible)
-                best_weak_clf = self.receive(selected_client, "get_best_clf").payload
-                self.broadcast(Message(best_weak_clf, "best_clf"), eligible)
                 
-                alpha = self.aggregate(eligible)
+                best_weak_clf, alpha = self.aggregate(eligible)
                 self.model.update(best_weak_clf, alpha)
                 
-                self.broadcast(Message(alpha, "alpha"), eligible)
-                for client in eligible:
-                    client.update_dist()
+                self.channel.broadcast(Message(alpha, "alpha"), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
 
                 progress_fl.update(task_id=task_rounds, advance=1)
                 self.notify_end_round(round + 1, self.model, 0)
@@ -200,11 +174,19 @@ class PreweakF2Server(Server):
 
     
     def aggregate(self, eligible: Iterable[PreweakF2Client]) -> None:
-        errors = np.array([self.receive(client, "errors").payload for client in eligible])
-        norm = sum([self.receive(client, "norm").payload for client in eligible])
-        epsilon = errors.sum(axis=0) / norm
+        selected_client = np.random.choice(eligible)
+        self.channel.send(Message(("compute_best_clf", {}), "__action__", self), selected_client)
+        best_weak_clf = self.channel.receive(self, selected_client, "best_clf").payload
+
+        self.channel.broadcast(Message(best_weak_clf, "best_clf"), eligible)
+        self.channel.broadcast(Message(("compute_error", {}), "__action__"), eligible)
+        self.channel.broadcast(Message(("send_norm", {}), "__action__"), eligible)
+
+        error = np.array([self.channel.receive(self, sender=client, msg_type="error").payload for client in eligible])
+        norm = sum([self.channel.receive(self, client, "norm").payload for client in eligible])
+        epsilon = error.sum() / norm
         alpha = log((1 - epsilon) / (epsilon + 1e-10)) + log(self.K - 1)
-        return alpha
+        return best_weak_clf, alpha
 
 
 class PreweakF2(CentralizedFL):
@@ -245,6 +227,7 @@ class PreweakF2(CentralizedFL):
         self.init_clients(data_splitter, n_classes)
         self.init_server(n_classes)
         self.server.attach(callbacks)
+        self.server.channel.attach(callbacks)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \

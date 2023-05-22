@@ -168,7 +168,6 @@ class AdaboostF(CentralizedFL):
                          None,
                          eligibility_percentage)
         self.base_classifier = base_classifier
-        self.channel = Channel()
     
     def init_clients(self, data_splitter: DataSplitter, **kwargs):
         assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
