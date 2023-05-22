@@ -1,3 +1,8 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from fl_bench.client import Client
+
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Iterable
@@ -8,7 +13,7 @@ from torch.nn import Module
 from rich.progress import Progress
 import multiprocessing as mp
 
-from fl_bench.client import Client
+from fl_bench.channel import Channel
 from fl_bench import GlobalSettings, Message, ObserverSubject
 
 
@@ -35,12 +40,16 @@ class Server(ObserverSubject):
         self.device = GlobalSettings().get_device()
         self.model = model
         self.clients = clients
+        self.channel = Channel()
         self.n_clients = len(clients)
         self.eligibility_percentage = eligibility_percentage
         self.weighted = weighted
         self.callbacks = []
         self.rounds = 0
         self.checkpoint_path = None
+
+        for client in self.clients:
+            client.set_server(self)
     
     def _local_train(self, client: Client) -> None:
         """Train the client model locally.

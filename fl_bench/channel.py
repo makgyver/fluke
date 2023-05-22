@@ -43,37 +43,37 @@ class Channel:
     
 
 
-if __name__ == "__main__":
-    class Server:
-        def __init__(self, channel: Channel):
-            self.channel = channel
-            self.clients = [Client(channel, self) for _ in range(10)]
+# if __name__ == "__main__":
+#     class Server:
+#         def __init__(self, channel: Channel):
+#             self.channel = channel
+#             self.clients = [Client(channel, self) for _ in range(10)]
 
-        def run(self):
-            for msg_type in ['greeting', 'close']:
-                self.channel.broadcast(Message("#", msg_type=msg_type, sender=self), self.clients)
-                self.channel.broadcast(Message(("run", {}),msg_type="__action__", sender=self), self.clients)
+#         def run(self):
+#             for msg_type in ['greeting', 'close']:
+#                 self.channel.broadcast(Message("#", msg_type=msg_type, sender=self), self.clients)
+#                 self.channel.broadcast(Message(("run", {}),msg_type="__action__", sender=self), self.clients)
 
-                for client in self.clients:
-                    msg = self.channel.receive(self, sender=client)
-                    print(msg.payload)
-
-
-    class Client:
-        def __init__(self, channel: Channel, server: Server):
-            self.channel = channel
-            self.server = server
-
-        def run(self):
-            msg = self.channel.receive(self)
-            match msg.msg_type:
-                case 'close':
-                    self.channel.send(Message("bye", msg_type="close", sender=self), self.server)
-                case 'greeting':
-                    id = msg.payload
-                    channel.send(Message(f"hello from client {id}", msg_type="greating", sender=self), self.server)
+#                 for client in self.clients:
+#                     msg = self.channel.receive(self, sender=client)
+#                     print(msg.payload)
 
 
-    channel = Channel()
-    server = Server(channel)
-    server.run()
+#     class Client:
+#         def __init__(self, channel: Channel, server: Server):
+#             self.channel = channel
+#             self.server = server
+
+#         def run(self):
+#             msg = self.channel.receive(self)
+#             match msg.msg_type:
+#                 case 'close':
+#                     self.channel.send(Message("bye", msg_type="close", sender=self), self.server)
+#                 case 'greeting':
+#                     id = msg.payload
+#                     channel.send(Message(f"hello from client {id}", msg_type="greating", sender=self), self.server)
+
+
+#     channel = Channel()
+#     server = Server(channel)
+#     server.run()

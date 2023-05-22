@@ -1,8 +1,11 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from fl_bench.server import Server
+
 from abc import ABC
 from copy import deepcopy
 from typing import Callable
-
-import torch
 
 import sys; sys.path.append(".")
 from fl_bench import GlobalSettings, Message
@@ -41,10 +44,14 @@ class Client(ABC):
         self.optimizer_cfg = optimizer_cfg
         self.loss_fn = loss_fn
         self.local_epochs = local_epochs
-        self.stateful = False
         self.optimizer = None
         self.scheduler = None
         self.device = GlobalSettings().get_device()
+        self.server = None
+    
+    def set_server(self, server: Server):
+        self.server = server
+        self.channel = server.channel
 
     def send(self, msg_type: str) -> Message:
         return Message(deepcopy(self.model), msg_type)

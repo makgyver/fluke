@@ -47,10 +47,6 @@ class AdaboostClient(Client):
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
         self.server = None
-
-    def set_server(self, server: Server):
-        self.server = server
-        self.channel = server.channel
     
     def local_train(self) -> ClassifierMixin:
         clf = deepcopy(self.base_classifier)
@@ -58,8 +54,7 @@ class AdaboostClient(Client):
         X_, y_ = self.X[ids], self.y[ids]
         clf.fit(X_, y_)
         self.channel.send(Message(clf, "weak_classifier", sender=self), self.server)
-    
-            
+           
     def compute_errors(self) -> List[float]:
         errors = []
         clfs = self.channel.receive(self, msg_type="weak_learners").payload
@@ -67,7 +62,6 @@ class AdaboostClient(Client):
             predictions = clf.predict(self.X)
             errors.append(sum(self.d[self.y != predictions]))
         self.channel.send(Message(errors, "errors", sender=self), self.server)
-
 
     def update_dist(self) -> None:
         best_clf = self.channel.receive(self, msg_type="best_clf").payload
@@ -97,7 +91,6 @@ class AdaboostFServer(Server):
                  n_classes: int = 2):
         super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
         self.K = n_classes
-        self.channel = channel
     
     def init(self):
         pass
@@ -190,8 +183,6 @@ class AdaboostF(CentralizedFL):
 
     def init_server(self, n_classes: int):
         self.server = AdaboostFServer(self.clients, self.channel, eligibility_percentage=self.eligibility_percentage, n_classes=n_classes)
-        for client in self.clients:
-            client.set_server(self.server)
         
 
     def init_parties(self, 
