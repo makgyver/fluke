@@ -172,9 +172,9 @@ class PreweakFServer(Server):
                 best_clf_id, alpha = self.aggregate(eligible)
                 self.model.update(weak_classifiers[best_clf_id], alpha)
                 
-                self.channel.broadcast(Message(best_clf_id, "best_clf_id"), eligible)
-                self.channel.broadcast(Message(alpha, "alpha"), eligible)
-                self.channel.broadcast(Message(("update_dist", {}), "__action__"), eligible)
+                self.channel.broadcast(Message(best_clf_id, "best_clf_id", self), eligible)
+                self.channel.broadcast(Message(alpha, "alpha", self), eligible)
+                self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
 
                 progress_fl.update(task_id=task_rounds, advance=1)
                 self.notify_end_round(round + 1, self.model, 0)
