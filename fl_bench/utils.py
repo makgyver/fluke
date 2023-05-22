@@ -114,13 +114,14 @@ class ServerObserver():
     def error(self, error: str):
         pass
 
-    def send(self, message: Message):
-        pass
-    
-    def receive(self, message: Message):
+
+class ChannelObserver():
+
+    def message_received(self, message: Message):
         pass
 
-class Log(ServerObserver):
+
+class Log(ServerObserver, ChannelObserver):
     def __init__(self, evaluator: Evaluator):
         self.evaluator = evaluator
         self.history = {}
@@ -148,11 +149,8 @@ class Log(ServerObserver):
         stats['comm_cost'] = self.comm_costs[round]
 
         rich.print(Panel(Pretty(stats), title=f"Round: {round}"))
-
-    def send(self, message: Message):
-        self.comm_costs[self.current_round] += message.get_size()
     
-    def receive(self, message: Message):
+    def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
     
     def save(self, path: str):

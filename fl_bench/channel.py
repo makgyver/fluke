@@ -3,11 +3,12 @@ from collections import defaultdict
 import sys; sys.path.append(".")
 
 from typing import Any, Dict, List
-from fl_bench import Message
+from fl_bench import Message, ObserverSubject
 
 
-class Channel:
+class Channel(ObserverSubject):
     def __init__(self):
+        super().__init__()
         self._buffer: Dict[Any, Message] = defaultdict(list)
 
     def _send_action(self, method, kwargs, mbox):
@@ -27,20 +28,26 @@ class Channel:
 
     def receive(self, mbox: Any, sender:Any=None, msg_type=None) -> Message:
         if sender is None and msg_type is None:
-            return self._buffer[mbox].pop()
+            msg = self._buffer[mbox].pop()
+            self.notify_message_received(msg)
+            return msg
         
         for i, msg in enumerate(self._buffer[mbox]):
             if sender is None or msg.sender == sender:  # match sender
                 if msg_type is None or msg.msg_type == msg_type: # match msg_type
-                    return self._buffer[mbox].pop(i)
+                    msg = self._buffer[mbox].pop(i)
+                    self.notify_message_received(msg)
+                    return msg
     
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
-    
     
     def broadcast(self, message: Message, to: List[Any]):
         for client in to:
             self.send(message, client)
     
+    def notify_message_received(self, message: Message):
+        for observer in self._observers:
+            observer.message_received(message)
 
 
 # if __name__ == "__main__":

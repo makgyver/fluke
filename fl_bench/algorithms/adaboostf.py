@@ -86,7 +86,6 @@ class AdaboostClient(Client):
 class AdaboostFServer(Server):
     def __init__(self,
                  clients: Iterable[AdaboostClient], 
-                 channel: Channel,
                  eligibility_percentage: float=0.5, 
                  n_classes: int = 2):
         super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
@@ -182,7 +181,7 @@ class AdaboostF(CentralizedFL):
             self.clients.append(AdaboostClient(X, y, deepcopy(self.base_classifier)))
 
     def init_server(self, n_classes: int):
-        self.server = AdaboostFServer(self.clients, self.channel, eligibility_percentage=self.eligibility_percentage, n_classes=n_classes)
+        self.server = AdaboostFServer(self.clients, eligibility_percentage=self.eligibility_percentage, n_classes=n_classes)
         
 
     def init_parties(self, 
@@ -192,6 +191,7 @@ class AdaboostF(CentralizedFL):
         self.init_clients(data_splitter)
         self.init_server(len(torch.unique(data_splitter.y)))
         self.server.attach(callbacks)
+        self.server.channel.attach(callbacks)
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \

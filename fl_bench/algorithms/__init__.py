@@ -57,6 +57,7 @@ class CentralizedFL(FLEnvironment):
         self.init_clients(data_splitter)
         self.init_server()
         self.server.attach(callbacks)
+        self.server.channel.attach(callbacks)
         
     def run(self):
         self.server.init()
