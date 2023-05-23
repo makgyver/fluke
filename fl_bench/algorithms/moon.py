@@ -27,19 +27,19 @@ class MOONClient(Client):
         self.prev_model = None
         self.server_model = None
 
-    def receive(self, message: Message):
-        if message.msg_type == "model":
-            model = message.payload
-            if self.model is None:
-                self.model = deepcopy(model)
-                self.prev_model = deepcopy(model)
-            else:
-                self.prev_model.load_state_dict(self.model.state_dict())
-                self.model.load_state_dict(model.state_dict())
-            self.server_model = model
+    def _receive_model(self) -> None:
+        model = self.channel.receive(self, self.server, msg_type="model").payload
+        if self.model is None:
+            self.model = deepcopy(model)
+            self.prev_model = deepcopy(model)
+        else:
+            self.prev_model.load_state_dict(self.model.state_dict())
+            self.model.load_state_dict(model.state_dict())
+        self.server_model = model
 
     def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
         cos = CosineSimilarity(dim=-1).to(self.device)
         self.model.train()
         if self.optimizer is None:
@@ -70,7 +70,9 @@ class MOONClient(Client):
         self.prev_model.to("cpu")
         self.server_model.to("cpu")
         
-        return self.validate()
+        validation_results = self.validate()
+        self.channel.send(Message(validation_results, "eval", self), self.server)
+        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
 class MOON(CentralizedFL):
     def __init__(self,

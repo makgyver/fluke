@@ -10,7 +10,6 @@ import numpy as np
 from typing import Any
 import torch
 from torch.nn import Module
-from rich.progress import Progress
 import multiprocessing as mp
 
 from fl_bench.channel import Channel
@@ -59,8 +58,11 @@ class Server(ObserverSubject):
         client : Client
             The client to train.
         """
-        client.local_train()
+        self.channel.send(Message((client.local_train, {}), "__action__", self), client)
     
+    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+        self.channel.broadcast(Message(self.model, "model", self), eligible)
+
     def fit(self, n_rounds: int=10) -> None:
         """Run the federated learning algorithm.
         Parameters
@@ -83,10 +85,11 @@ class Server(ObserverSubject):
                 self.notify_start_round(round + 1, self.model)
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
-                self.broadcast(Message(self.model), eligible)
+                self._broadcast_model(eligible)
                 client_evals = []
                 for c, client in enumerate(eligible):
-                    client_eval = client.local_train()
+                    self.channel.send(Message((client.local_train, {}), "__action__", self), client)
+                    client_eval = self.channel.receive(self, client, "eval")
                     if client_eval:
                         client_evals.append(client_eval)
                     progress_client.update(task_id=task_local, completed=c+1)
@@ -125,13 +128,14 @@ class Server(ObserverSubject):
                 client_evals = []
                 eligible = self.get_eligible_clients()
                 self.notify_selected_clients(round + 1, eligible)
-                self.broadcast(Message(self.model), eligible)
+                self.channel.broadcast(Message(self.model, "model", self), eligible)
                 progress_client.update(task_id=task_local, completed=0)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for client in eligible:
-                        client_eval = pool.apply_async(self._local_train, 
-                                                       args=(client,), 
-                                                       callback=callback_progress)
+                        pool.apply_async(self._local_train,
+                                         args=(client,), 
+                                         callback=callback_progress)
+                        client_eval = self.channel.receive(self, client, "eval")
                         client_evals.append(client_eval)
                     pool.close()
                     pool.join()
@@ -159,22 +163,22 @@ class Server(ObserverSubject):
         n = int(self.n_clients * self.eligibility_percentage)
         return np.random.choice(self.clients, n)
 
-    def broadcast(self, message: Message, eligible: Iterable[Client]=None) -> None:
-        """Broadcast the model to the clients.
+    # def broadcast(self, message: Message, eligible: Iterable[Client]=None) -> None:
+    #     """Broadcast the model to the clients.
 
-        The broadcast is done by calling the `receive` method of each participating client.
+    #     The broadcast is done by calling the `receive` method of each participating client.
 
-        Parameters
-        ----------
-        eligible : Iterable[Client], optional
-            The clients that will receive the model, by default None. 
-            If None, all clients will receive the model.
-        """
-        eligible = eligible if eligible is not None else self.clients
-        for client in eligible:
-            msg = deepcopy(message)
-            client.receive(msg)
-            self.notify_send(msg)
+    #     Parameters
+    #     ----------
+    #     eligible : Iterable[Client], optional
+    #         The clients that will receive the model, by default None. 
+    #         If None, all clients will receive the model.
+    #     """
+    #     eligible = eligible if eligible is not None else self.clients
+    #     for client in eligible:
+    #         msg = deepcopy(message)
+    #         client.receive(msg)
+    #         self.notify_send(msg)
 
     def init(self, path: str=None, **kwargs) -> None:
         """Initialize the server model from a checkpoint.
@@ -188,10 +192,13 @@ class Server(ObserverSubject):
         if path is not None:
             self.load(path)
     
-    def receive(self, client: Client, type: str) -> Message:
-        msg = client.send(type)
-        self.notify_receive(msg)
-        return msg
+    # def receive(self, client: Client, type: str) -> Message:
+    #     msg = client.send(type)
+    #     self.notify_receive(msg)
+    #     return msg
+
+    def _get_client_models(self, eligible: Iterable[Client]):
+        return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         """Aggregate the models of the clients.
@@ -205,7 +212,7 @@ class Server(ObserverSubject):
             The clients whose models will be aggregated.
         """
         avg_model_sd = OrderedDict()
-        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
+        clients_sd = self._get_client_models(eligible)
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:

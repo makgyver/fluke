@@ -7,6 +7,7 @@ from torch.optim import Optimizer
 
 from client import Client
 from fl_bench import Message
+from fl_bench.client import Client
 from server import Server
 
 import sys; sys.path.append(".")
@@ -52,23 +53,23 @@ class ScaffoldClient(Client):
         self.delta_y = None
         self.server_control = None
 
-    def send(self, msg_type: str) -> Message:
-        return Message((self.delta_y, self.delta_c), msg_type)
+    # def send(self, msg_type: str) -> Message:
+    #     return Message((self.delta_y, self.delta_c), msg_type)
     
-    def receive(self, msg: Message):
-        model, server_control = msg.payload
-        if msg.msg_type == "model":
-            if self.model is None:
-                self.model = deepcopy(model)
-                self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-                self.delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-                self.delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-            else:
-                self.model.load_state_dict(model.state_dict())
-            self.server_control = server_control
+    def _receive_model(self) -> None:
+        model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
+        if self.model is None:
+            self.model = deepcopy(model)
+            self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+            self.delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+            self.delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        else:
+            self.model.load_state_dict(model.state_dict())
+        self.server_control = server_control
     
     def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
         server_model = deepcopy(self.model)
         self.model.train()
         if self.optimizer is None:
@@ -117,7 +118,10 @@ class ScaffoldClient(Client):
         # del client_c
         # del client_w
         # gc.collect()
-        return self.validate()
+        # return self.validate()
+        validation_results = self.validate()
+        self.channel.send(Message(validation_results, "eval", self), self.server)
+        self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 
 class ScaffoldServer(Server):
@@ -129,19 +133,17 @@ class ScaffoldServer(Server):
         super().__init__(model, clients, eligibility_percentage)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
-
-    def broadcast(self, message: Message, eligible: Iterable[Client]=None) -> Iterable[Client]:
-        message.payload = (message.payload, self.control)
-        return super().broadcast(message, eligible)
     
+    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+        self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
+
     def aggregate(self, eligible: Iterable[Client]) -> None:
         with torch.no_grad():
             delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
             delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
 
-            # tot_examples = sum([len(client.n_examples) for client in eligible])
             for client in eligible:
-                cl_delta_y, cl_delta_c = self.receive(client, "model").payload
+                cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
                 for client_delta_c, client_delta_y, server_delta_c, server_delta_y in zip(cl_delta_c, cl_delta_y, delta_c, delta_y):
                     server_delta_y.data = server_delta_y.data + client_delta_y.data
                     server_delta_c.data = server_delta_c.data + client_delta_c.data

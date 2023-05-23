@@ -4,6 +4,7 @@ from typing import Callable, Iterable, Union, Any, Optional
 import torch
 from torch.nn import Module
 from algorithms import CentralizedFL
+from fl_bench import Message
 from server import Server
 
 import sys; sys.path.append(".")
@@ -31,6 +32,7 @@ class FedProxClient(Client):
 
     def local_train(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
         W = deepcopy(self.model)
         self.model.train()
         if self.optimizer is None:
@@ -45,7 +47,9 @@ class FedProxClient(Client):
                 loss.backward()
                 self.optimizer.step()          
             self.scheduler.step()
-        return self.validate()
+        validation_results = self.validate()
+        self.channel.send(Message(validation_results, "eval", self), self.server)
+        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
 
 class FedProx(CentralizedFL):

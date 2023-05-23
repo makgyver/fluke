@@ -48,22 +48,18 @@ class PFedMeClient(Client):
         self.lr = lr
         self.shared_model = None
 
-    def receive(self, message: Message) -> None:
-        if message.msg_type == "model":
-            model = message.payload
-            if self.model is None:
-                self.model = deepcopy(model)
-                self.shared_model = deepcopy(self.model)
-            else:
-                self.model.load_state_dict(model.state_dict())
-    
-    def send(self, msg_type: str) -> Message:
-        return Message(deepcopy(self.shared_model), msg_type)
+    def _receive_model(self) -> None:
+        model = self.channel.receive(self, self.server, msg_type="model").payload
+        if self.model is None:
+            self.model = deepcopy(model)
+            self.shared_model = deepcopy(self.model)
+        else:
+            self.model.load_state_dict(model.state_dict())
 
     def local_train(self, override_local_epochs: int=0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
         self.model.train()
-
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
@@ -84,7 +80,9 @@ class PFedMeClient(Client):
             
             self.scheduler.step()     
         self.model.load_state_dict(self.shared_model.state_dict())
-        return self.validate()
+        validation_results = self.validate()
+        self.channel.send(Message(validation_results, "eval", self), self.server)
+        self.channel.send(Message(deepcopy(self.shared_model), "model", self), self.server)
     
 
 class PFedMeServer(Server):
@@ -99,7 +97,7 @@ class PFedMeServer(Server):
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
+        clients_sd = self._get_client_models(eligible)
 
         with torch.no_grad():
             for key in self.model.state_dict().keys():

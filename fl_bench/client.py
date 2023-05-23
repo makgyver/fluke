@@ -53,19 +53,13 @@ class Client(ABC):
         self.server = server
         self.channel = server.channel
 
-    def send(self, msg_type: str) -> Message:
-        return Message(deepcopy(self.model), msg_type)
+    # def send(self, msg_type: str) -> Message:
+    #     return Message(deepcopy(self.model), msg_type)
     
-    def receive(self, msg: Message) -> None:
-        """Receive the model from the server.
-
-        Parameters
-        ----------
-        msg : Message
-            The message containing the (global) model to be received.
-        """
+    def _receive_model(self) -> None:
+        msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:
-            self.model = msg.payload
+            self.model = deepcopy(msg.payload)
         else:
             self.model.load_state_dict(msg.payload.state_dict())
     
@@ -83,6 +77,7 @@ class Client(ABC):
             The evaluation results if the validation set is not None, otherwise None.
         """
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
         self.model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -96,7 +91,9 @@ class Client(ABC):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()     
-        return self.validate()
+        validation_results = self.validate()
+        self.channel.send(Message(validation_results, "eval", self), self.server)
+        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
     
     def validate(self):
         """Validate/test the local model.

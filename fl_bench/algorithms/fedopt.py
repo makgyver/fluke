@@ -51,7 +51,7 @@ class FedOptServer(Server):
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
+        clients_sd = self._get_client_models(eligible)
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:
