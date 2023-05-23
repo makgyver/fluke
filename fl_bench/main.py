@@ -43,8 +43,6 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     cfg.algorithm = FedAlgorithmsEnum(cfg.method["name"])
     set_seed(cfg.seed) #Reproducibility
 
-    rich.print(Panel(Pretty(cfg), title=f"Running configuration"))
-
     GlobalSettings().set_device(cfg.device.value)
     
     loss = get_loss(cfg.loss)
@@ -75,6 +73,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     log = cfg.logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), 
                             name=exp_name,
                             **cfg.wandb_params)
+    log.init(cfg)
     fl_algo = cfg.algorithm.algorithm()(n_clients=cfg.n_clients,
                                         n_rounds=cfg.n_rounds, 
                                         n_epochs=cfg.n_epochs, 
@@ -116,8 +115,6 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     cfg = Config(DEFAULTS, CONFIG_FNAME, locals())
     set_seed(cfg.seed) #Reproducibility
 
-    rich.print(Panel(Pretty(cfg), title=f"Running configuration"))
-
     data_container = cfg.dataset.klass()()
     data_container.standardize()
 
@@ -134,9 +131,10 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
                                        shuffle=False)
 
     exp_name = f"{cfg.method['name']}_{cfg.dataset.value}_{cfg.distribution.value}_C{cfg.n_clients}_R{cfg.n_rounds}_P{cfg.eligibility_percentage}_S{cfg.seed}" 
-    log = cfg.logger.logger(ClassificationSklearnEval(test_loader, "micro"), 
+    log = cfg.logger.logger(ClassificationSklearnEval(test_loader, "macro"), 
                             name=exp_name,
                             **cfg.wandb_params)
+    log.init(**cfg)
     
     clf_args = cfg.method["hyperparameters"]["clf_args"]
     clf_args["random_state"] = cfg.seed

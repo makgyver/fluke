@@ -132,6 +132,9 @@ class Log(ServerObserver, ChannelObserver):
         self.comm_costs = {0: 0}
         self.current_round = 0
     
+    def init(self, **kwargs):
+        rich.print(Panel(Pretty(kwargs), title=f"Configuration"))
+    
     def start_round(self, round: int, global_model: Module):
         self.comm_costs[round] = 0
         self.current_round = round
@@ -176,7 +179,12 @@ class Log(ServerObserver, ChannelObserver):
 class WandBLog(Log):
     def __init__(self, evaluator: Evaluator, **config):
         super().__init__(evaluator)
-        self.run = wandb.init(**config)
+        self.config = config
+        
+    def init(self, **kwargs):
+        super().init(**kwargs)
+        self.config["config"] = kwargs
+        self.run = wandb.init(**self.config)
     
     def start_round(self, round: int, global_model: Module):
         super().start_round(round, global_model)
