@@ -80,8 +80,6 @@ class PFedMeClient(Client):
             
             self.scheduler.step()     
         self.model.load_state_dict(self.shared_model.state_dict())
-        validation_results = self.validate()
-        self.channel.send(Message(validation_results, "eval", self), self.server)
         self.channel.send(Message(deepcopy(self.shared_model), "model", self), self.server)
     
 

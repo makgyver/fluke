@@ -8,9 +8,9 @@ from math import log
 import numpy as np
 from numpy.random import choice
 
-import sys
+import sys; sys.path.append(".")
 
-from fl_bench.evaluation import ClassificationSklearnEval; sys.path.append(".")
+from fl_bench.evaluation import ClassificationSklearnEval
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import DataSplitter
@@ -42,15 +42,15 @@ class AdaboostClient(Client):
     def __init__(self,
                  X: np.ndarray,
                  y: np.ndarray,
-                 base_classifier: ClassifierMixin):
+                 base_classifier: ClassifierMixin, 
+                 validation_set = None):
         self.X = X
         self.y = y
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
         self.server = None
-        self.weak_models = []
-        self.alphas = []
-        self.K = len(np.unique(y))  # TODO: C'è un modo migliore per fare questo?
+        self.strong_clf = StrongClassifier(len(np.unique(y)))
+        self.validation_set = validation_set
         
     def local_train(self) -> None:
         clf = deepcopy(self.base_classifier)
@@ -71,8 +71,7 @@ class AdaboostClient(Client):
         best_clf = self.channel.receive(self, self.server, msg_type="best_clf").payload
         alpha = self.channel.receive(self, self.server, msg_type="alpha").payload
 
-        self.weak_models.append(best_clf)
-        self.alphas.append(alpha)
+        self.strong_clf.update(best_clf, alpha)
 
         predictions = best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
@@ -82,7 +81,7 @@ class AdaboostClient(Client):
     
     def validate(self):
         if self.validation_set is not None:
-            return ClassificationSklearnEval(self.validation_set, self.loss_fn, self.K).evaluate(self.model)
+            return ClassificationSklearnEval(self.validation_set).evaluate(self.strong_clf)
             
     def checkpoint(self):
         raise NotImplementedError("AdaboostF does not support checkpointing")
@@ -90,14 +89,6 @@ class AdaboostClient(Client):
     def restore(self, checkpoint):
         raise NotImplementedError("AdaboostF does not support checkpointing")
 
-    def strong_model_predict(self,
-                X: np.ndarray) -> np.ndarray:
-        y_pred = np.zeros((np.shape(X)[0], self.K))
-        for i, clf in enumerate(self.weak_models):
-            pred = clf.predict(X)
-            for j, c in enumerate(pred):
-                y_pred[j, int(c)] += self.alphas[i]
-        return np.argmax(y_pred, axis=1)
 
 class AdaboostFServer(Server):
     def __init__(self,
@@ -140,10 +131,9 @@ class AdaboostFServer(Server):
                 self.channel.broadcast(Message(best_clf, "best_clf", self), eligible)
                 self.channel.broadcast(Message(alpha, "alpha", self), eligible)
                 self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
-                # for client in eligible:
-                #     client.update_dist()
-
-                self.notify_end_round(round + 1, self.model, 0)
+                
+                client_evals = [client.validate() for client in eligible]
+                self.notify_end_round(round + 1, self.model, client_evals)
                 self.rounds += 1 
 
                 # if self.checkpoint_path is not None:
@@ -193,7 +183,7 @@ class AdaboostF(CentralizedFL):
             loader = data_splitter.client_train_loader[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            self.clients.append(AdaboostClient(X, y, deepcopy(self.base_classifier)))
+            self.clients.append(AdaboostClient(X, y, deepcopy(self.base_classifier), data_splitter.client_test_loader[i]))
 
     def init_server(self, n_classes: int):
         self.server = AdaboostFServer(self.clients, eligibility_percentage=self.eligibility_percentage, n_classes=n_classes)

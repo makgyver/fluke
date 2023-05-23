@@ -47,8 +47,6 @@ class FedProxClient(Client):
                 loss.backward()
                 self.optimizer.step()          
             self.scheduler.step()
-        validation_results = self.validate()
-        self.channel.send(Message(validation_results, "eval", self), self.server)
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
 

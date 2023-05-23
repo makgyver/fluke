@@ -89,7 +89,7 @@ class Server(ObserverSubject):
                 client_evals = []
                 for c, client in enumerate(eligible):
                     self.channel.send(Message((client.local_train, {}), "__action__", self), client)
-                    client_eval = self.channel.receive(self, client, "eval")
+                    client_eval = client.validate()
                     if client_eval:
                         client_evals.append(client_eval)
                     progress_client.update(task_id=task_local, completed=c+1)

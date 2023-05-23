@@ -119,8 +119,6 @@ class ScaffoldClient(Client):
         # del client_w
         # gc.collect()
         # return self.validate()
-        validation_results = self.validate()
-        self.channel.send(Message(validation_results, "eval", self), self.server)
         self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 

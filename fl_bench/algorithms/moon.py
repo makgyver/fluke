@@ -69,9 +69,6 @@ class MOONClient(Client):
         
         self.prev_model.to("cpu")
         self.server_model.to("cpu")
-        
-        validation_results = self.validate()
-        self.channel.send(Message(validation_results, "eval", self), self.server)
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
 class MOON(CentralizedFL):

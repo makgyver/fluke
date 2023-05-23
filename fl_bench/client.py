@@ -90,9 +90,7 @@ class Client(ABC):
                 loss = self.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step()
-            self.scheduler.step()     
-        validation_results = self.validate()
-        self.channel.send(Message(validation_results, "eval", self), self.server)
+            self.scheduler.step()
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
     
     def validate(self):
