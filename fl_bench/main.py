@@ -73,7 +73,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     log = cfg.logger.logger(ClassificationEval(test_loader, loss, data_container.num_classes, "macro"), 
                             name=exp_name,
                             **cfg.wandb_params)
-    log.init(cfg)
+    log.init(**cfg)
     fl_algo = cfg.algorithm.algorithm()(n_clients=cfg.n_clients,
                                         n_rounds=cfg.n_rounds, 
                                         n_epochs=cfg.n_epochs, 

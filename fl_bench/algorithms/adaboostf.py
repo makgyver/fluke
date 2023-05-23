@@ -8,7 +8,9 @@ from math import log
 import numpy as np
 from numpy.random import choice
 
-import sys; sys.path.append(".")
+import sys
+
+from fl_bench.evaluation import ClassificationSklearnEval; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import DataSplitter
@@ -46,7 +48,10 @@ class AdaboostClient(Client):
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
         self.server = None
-    
+        self.weak_models = []
+        self.alphas = []
+        self.K = len(np.unique(y))  # TODO: C'è un modo migliore per fare questo?
+        
     def local_train(self) -> None:
         clf = deepcopy(self.base_classifier)
         ids = choice(self.X.shape[0], size=self.X.shape[0], replace=True, p=self.d/self.d.sum())
@@ -65,6 +70,10 @@ class AdaboostClient(Client):
     def update_dist(self) -> None:
         best_clf = self.channel.receive(self, self.server, msg_type="best_clf").payload
         alpha = self.channel.receive(self, self.server, msg_type="alpha").payload
+
+        self.weak_models.append(best_clf)
+        self.alphas.append(alpha)
+
         predictions = best_clf.predict(self.X)
         self.d *= np.exp(alpha * (self.y != predictions))
 
@@ -72,15 +81,23 @@ class AdaboostClient(Client):
         self.channel.send(Message(sum(self.d), "norm", sender=self), self.server)
     
     def validate(self):
-        # TODO: implement validation
-        raise NotImplementedError
-    
+        if self.validation_set is not None:
+            return ClassificationSklearnEval(self.validation_set, self.loss_fn, self.K).evaluate(self.model)
+            
     def checkpoint(self):
         raise NotImplementedError("AdaboostF does not support checkpointing")
 
     def restore(self, checkpoint):
         raise NotImplementedError("AdaboostF does not support checkpointing")
 
+    def strong_model_predict(self,
+                X: np.ndarray) -> np.ndarray:
+        y_pred = np.zeros((np.shape(X)[0], self.K))
+        for i, clf in enumerate(self.weak_models):
+            pred = clf.predict(X)
+            for j, c in enumerate(pred):
+                y_pred[j, int(c)] += self.alphas[i]
+        return np.argmax(y_pred, axis=1)
 
 class AdaboostFServer(Server):
     def __init__(self,
