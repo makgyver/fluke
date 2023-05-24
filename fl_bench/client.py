@@ -53,9 +53,6 @@ class Client(ABC):
         self.server = server
         self.channel = server.channel
 
-    # def send(self, msg_type: str) -> Message:
-    #     return Message(deepcopy(self.model), msg_type)
-    
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:

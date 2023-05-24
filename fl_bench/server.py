@@ -163,22 +163,6 @@ class Server(ObserverSubject):
         n = int(self.n_clients * self.eligibility_percentage)
         return np.random.choice(self.clients, n)
 
-    # def broadcast(self, message: Message, eligible: Iterable[Client]=None) -> None:
-    #     """Broadcast the model to the clients.
-
-    #     The broadcast is done by calling the `receive` method of each participating client.
-
-    #     Parameters
-    #     ----------
-    #     eligible : Iterable[Client], optional
-    #         The clients that will receive the model, by default None. 
-    #         If None, all clients will receive the model.
-    #     """
-    #     eligible = eligible if eligible is not None else self.clients
-    #     for client in eligible:
-    #         msg = deepcopy(message)
-    #         client.receive(msg)
-    #         self.notify_send(msg)
 
     def init(self, path: str=None, **kwargs) -> None:
         """Initialize the server model from a checkpoint.
@@ -191,11 +175,6 @@ class Server(ObserverSubject):
         """
         if path is not None:
             self.load(path)
-    
-    # def receive(self, client: Client, type: str) -> Message:
-    #     msg = client.send(type)
-    #     self.notify_receive(msg)
-    #     return msg
 
     def _get_client_models(self, eligible: Iterable[Client]):
         return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]

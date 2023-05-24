@@ -52,9 +52,6 @@ class ScaffoldClient(Client):
         self.delta_c = None
         self.delta_y = None
         self.server_control = None
-
-    # def send(self, msg_type: str) -> Message:
-    #     return Message((self.delta_y, self.delta_c), msg_type)
     
     def _receive_model(self) -> None:
         model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
@@ -98,27 +95,6 @@ class ScaffoldClient(Client):
             delta_c.data = new_control.data - local_control.data
             local_control.data = new_control.data
         
-        # client_w = {}
-        # for k, v in self.model.named_parameters():
-        #     client_w[k] = v.data.clone()
-
-        # client_c = {}
-        # for k, v in self.control.items():
-        #     client_c[k] = v.data.clone()
-
-        # self.delta_y = {}
-        # self.delta_c = {}
-        # for k, server_w in server_model.named_parameters():
-        #     local_steps = self.local_epochs * len(self.dataset)
-        #     self.control[k] -= self.server_control[k] + (server_w.data - client_w[k]) / (local_steps * self.optimizer_cfg.learning_rate())
-        #     self.delta_y[k] = client_w[k] - server_w.data
-        #     self.delta_c[k] = self.control[k] - client_c[k]
-
-        # del server_model
-        # del client_c
-        # del client_w
-        # gc.collect()
-        # return self.validate()
         self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 

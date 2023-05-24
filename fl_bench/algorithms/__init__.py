@@ -1,4 +1,5 @@
 from abc import ABC
+from collections import defaultdict
 from typing import Callable, Optional, Union, Any, Iterable
 
 from torch.nn import Module
@@ -116,15 +117,15 @@ class FedAlgorithmsEnum(Enum):
     FEDEXP = 'fedexp'
     PEFEDME = 'pfedme'
 
+    optimizer_map = defaultdict(lambda: torch.optim.SGD)
+    optimizer_map.update({
+        'scaffold': ScaffoldOptimizer,
+        'fednova': FedNovaOptimizer,
+        'pfedme': pFedMeOptimizer
+    })
+
     def optimizer(self) -> torch.optim.Optimizer:
-        if self.value == "scaffold":
-            return ScaffoldOptimizer
-        elif self.value == "fednova":
-            return FedNovaOptimizer
-        elif self.value == "pfedme":
-            return pFedMeOptimizer
-        else:
-            return torch.optim.SGD
+        return self.optimizer_map[self.value]
 
     def algorithm(self):
         algos = {
