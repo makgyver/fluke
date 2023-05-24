@@ -108,17 +108,24 @@ python fl_bench/main.py --config=configs/exp_settings.json run configs/fedavg.js
 or you can change the number of clients in the `exp_settings.json` file and run the above command without
 specifying the `--n-clients` option.
 
-To date, the following algorithms are implemented:
+To date, the following (nn-based) federated algorithms are implemented:
 - FedAvg (`fedavg`)
 - FedSGD (`fedsgd`)
 - FedBN (`fedbn`)
 - SCAFFOLD (`scaffold`)
 - FedProx (`fedprox`)
 - FedOpt (`fedopt`)
-- MOON (`moon`) [**Work in progress**]
+- MOON (`moon`)
 - FedExP(`fedexp`)
 - FedNova (`fednova`) [**Work in progress**]
 - pFedMe (`pfedme`) [**Work in progress**]
+
+FL-bench also offers the following (non nn-based) federated algorithms:
+- AdaboostF (`adaboostf`)
+- AdaboostF (`adaboostf2`)
+- PreweakF (`preweakf`)
+- PreweakF (`preweakf2`)
+- Distboostf (`distboostf`)
 
 Inside the `net.py` file, you can find the definition of some neural networks. 
 
