@@ -276,7 +276,7 @@ class Configuration(DDict):
     def _fix_enums(self):
         self.data.distribution = DistributionEnum(self.data.distribution)
         self.data.dataset = DatasetsEnum(self.data.dataset)
-        self.exp.device = DeviceEnum(self.exp.device)
+        self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
         self.exp.logger = LogEnum(self.exp.logger)
     
     #FIXME this is a temporary implementation
@@ -293,7 +293,6 @@ def diff_model(model_dict1: dict, model_dict2: dict):
 
 def import_module_from_str(name: str) -> Any:
     components = name.split('.')
-    mod = __import__(components[0])
-    for comp in components[1:]:
-        mod = getattr(mod, comp)
+    mod = importlib.import_module(".".join(components[:-1]))
+    mod = getattr(mod, components[-1])
     return mod

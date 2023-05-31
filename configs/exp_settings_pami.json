@@ -1,0 +1,27 @@
+{
+    "seed": 987654,
+    "device": "auto",
+    "n_clients": 10,
+    "n_rounds": 1000,
+    "batch_size": 32,
+    "n_epochs": 5,
+    "eligible_perc": 1,
+    "loss": "CrossEntropyLoss",
+    "distribution": "iid",
+    "model": "MLP",
+    "dataset": "forestcover",
+    "standardize": true,
+    "validation": 0,
+    "sampling": 1.0,
+    "checkpoint": {
+        "save": false,
+        "load": false,
+        "path": "./checkpoints/TODO.pt"
+    },
+    "logger": "local",
+    "wandb_params": {
+        "project": "fl-bench",
+        "entity": "mlgroup",
+        "tags": ["FEDOPT_EXPS"]
+    }
+}

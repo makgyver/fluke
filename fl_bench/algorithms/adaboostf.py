@@ -8,12 +8,14 @@ from math import log
 import numpy as np
 from numpy.random import choice
 
-import sys; sys.path.append(".")
+import sys
+
+from fl_bench.utils import DDict, import_module_from_str; sys.path.append(".")
 
 from fl_bench.evaluation import ClassificationSklearnEval
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.data import DataSplitter
+from fl_bench.data import DataSplitter, FastTensorDataLoader
 from fl_bench import GlobalSettings, Message
 from fl_bench.algorithms import CentralizedFL
 
@@ -37,7 +39,7 @@ class StrongClassifier():
         return np.argmax(y_pred, axis=1)
     
 
-class AdaboostClient(Client):
+class AdaboostFClient(Client):
 
     def __init__(self,
                  X: np.ndarray,
@@ -92,22 +94,23 @@ class AdaboostClient(Client):
 
 class AdaboostFServer(Server):
     def __init__(self,
-                 clients: Iterable[AdaboostClient], 
-                 eligible_perc: float=0.5, 
+                 model: Any,
+                 clients: Iterable[AdaboostFClient], 
+                 test_data: FastTensorDataLoader,
                  n_classes: int = 2):
-        super().__init__(StrongClassifier(n_classes), clients, eligible_perc, False)
+        super().__init__(model, test_data, clients, False)
         self.K = n_classes
     
     def init(self):
         pass
     
-    def fit(self, n_rounds: int) -> None:
+    def fit(self, n_rounds: int, eligible_perc: float) -> None:
 
         with GlobalSettings().get_live_renderer():
 
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.eligible_perc)
+            client_x_round = int(self.n_clients*eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
             
@@ -115,7 +118,7 @@ class AdaboostFServer(Server):
             
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
-                eligible = self.get_eligible_clients()
+                eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
 
                 weak_classifiers = []
@@ -144,7 +147,7 @@ class AdaboostFServer(Server):
 
     
     def aggregate(self, 
-                  eligible: Iterable[AdaboostClient], 
+                  eligible: Iterable[AdaboostFClient], 
                   weak_learners: Iterable[ClassifierMixin]) -> Tuple[ClassifierMixin, float]:
 
         self.channel.broadcast(Message(weak_learners, "weak_learners", self), eligible)
@@ -160,47 +163,35 @@ class AdaboostFServer(Server):
 
 
 class AdaboostF(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 base_classifier: ClassifierMixin,
-                 eligible_perc: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         0,
-                         None, 
-                         None, 
-                         None,
-                         eligible_perc)
-        self.base_classifier = base_classifier
     
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.data_assignment = data_splitter.assignments
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
         self.clients = []
+        config.clf_args.random_state = GlobalSettings().get_seed()
+        base_model = import_module_from_str(config.base_classifier)(**config.clf_args)
         for i in range(self.n_clients):
-            loader = data_splitter.client_train_loader[i]
+            loader = clients_tr_data[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            self.clients.append(AdaboostClient(X, y, deepcopy(self.base_classifier), data_splitter.client_test_loader[i]))
+            self.clients.append(AdaboostFClient(X, y, deepcopy(base_model), clients_te_data[i]))
 
-    def init_server(self, n_classes: int):
-        self.server = AdaboostFServer(self.clients, eligible_perc=self.eligible_perc, n_classes=n_classes)
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = AdaboostFServer(model, self.clients, data, **config)
         
-
     def init_parties(self, 
+                     n_clients: int,
                      data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        
-        self.init_clients(data_splitter)
-        self.init_server(len(torch.unique(data_splitter.y)))
-        self.server.attach(callbacks)
-        self.server.channel.attach(callbacks)
-    
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \
-               f"P={self.eligible_perc})"
+                     hyperparameters: DDict):
+        self.n_clients = n_clients
+        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
+                                                                               hyperparameters.client.batch_size)
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        hyperparameters.server.n_classes = data_splitter.num_classes()
+        self.init_server(StrongClassifier(hyperparameters.server.n_classes), 
+                         server_data, 
+                         hyperparameters.server)
 
     def activate_checkpoint(self, path: str):
         raise NotImplementedError("AdaboostF does not support checkpointing")

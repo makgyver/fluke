@@ -46,6 +46,7 @@ class GlobalSettings(metaclass=Singleton):
     """Global settings for the library.""" 
     
     _device = 'cpu'
+    _seed = 0
     _workers = 1
 
     _progress_FL = None
@@ -70,6 +71,7 @@ class GlobalSettings(metaclass=Singleton):
         seed : int
             Seed to set.
         """
+        self._seed = seed
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -181,6 +183,16 @@ class GlobalSettings(metaclass=Singleton):
             The live renderer.
         """
         return self._live_renderer
+
+    def get_seed(self):
+        """Get the seed.
+        
+        Returns
+        -------
+        int
+            The seed.
+        """
+        return self._seed
 
 
 class Message:
