@@ -42,7 +42,6 @@ class Server(ObserverSubject):
         self.clients = clients
         self.channel = Channel()
         self.n_clients = len(clients)
-        # self.eligible_perc = eligible_perc
         self.weighted = weighted
         self.callbacks = []
         self.rounds = 0
@@ -130,15 +129,16 @@ class Server(ObserverSubject):
                 client_evals = []
                 eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
-                self.channel.broadcast(Message(self.model, "model", self), eligible)
+                self._broadcast_model(eligible)
                 progress_client.update(task_id=task_local, completed=0)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for client in eligible:
                         pool.apply_async(self._local_train,
                                          args=(client,), 
                                          callback=callback_progress)
-                        client_eval = self.channel.receive(self, client, "eval")
-                        client_evals.append(client_eval)
+                        client_eval = client.validate()
+                        if client_eval:
+                            client_evals.append(client_eval)
                     pool.close()
                     pool.join()
                 client_evals = [c.get() for c in client_evals]

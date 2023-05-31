@@ -1,4 +1,4 @@
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 import multiprocessing as mp
 from torch.nn import Module
 from copy import deepcopy
@@ -17,9 +17,9 @@ from torch.optim.optimizer import Optimizer, required
 import numpy as np
 
 from fl_bench.client import Client
-from fl_bench.utils import OptimizerConfigurator
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench import GlobalSettings
+from fl_bench import GlobalSettings, Message
 
 
 
@@ -140,7 +140,7 @@ class FedNovaOptimizer(Optimizer):
                 d_p = p.grad.data
 
                 if weight_decay != 0:
-                    d_p.add_(weight_decay, p.data)
+                    d_p.add_(p.data, alpha=weight_decay)
 
                 param_state = self.state[p]
                 if 'old_init' not in param_state:
@@ -154,14 +154,14 @@ class FedNovaOptimizer(Optimizer):
                         buf = param_state['momentum_buffer'] = torch.clone(d_p).detach()
                     else:
                         buf = param_state['momentum_buffer']
-                        buf.mul_(momentum).add_(1 - dampening, d_p)
+                        buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
                     if nesterov:
                         d_p = d_p.add(momentum, buf)
                     else:
                         d_p = buf
                 # apply proximal updates
                 if self.mu != 0:
-                    d_p.add_(self.mu, p.data - param_state['old_init'])
+                    d_p.add_(p.data - param_state['old_init'], alpha=self.mu)
 
                 # update accumalated local updates
                 if 'cum_grad' not in param_state:
@@ -169,9 +169,9 @@ class FedNovaOptimizer(Optimizer):
                     param_state['cum_grad'].mul_(local_lr)
 
                 else:
-                    param_state['cum_grad'].add_(local_lr, d_p)
+                    param_state['cum_grad'].add_(d_p, alpha=local_lr)
 
-                p.data.add_(-local_lr, d_p) #DEPRECATED!!
+                p.data.add_(d_p, alpha=-local_lr) #DEPRECATED!!
 
         # compute local normalizing vector a_i
         if self.momentum != 0:
@@ -205,7 +205,9 @@ class FedNovaOptimizer(Optimizer):
             for param_group in self.param_groups:
                 param_group['lr'] = lr
 
+
 class FedNovaClient(Client):
+
     def __init__(self,
                  train_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
@@ -215,14 +217,10 @@ class FedNovaClient(Client):
                  total_train_size:int=0,
                  pattern: str = 'constant',
                  max_epochs: int = 3): 
-        assert optimizer_cfg.optimizer == FedNovaOptimizer, \
-            "FedNovaClient only supports FedNovaOptimizer"
-
         super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
 
         self.total_train_size = total_train_size
         self.max_epochs = max_epochs
-
         self.ratio =  train_set.size  / self.total_train_size
         self.pattern = pattern
         self.local_epochs = local_epochs
@@ -251,20 +249,18 @@ class FedNovaClient(Client):
 class FedNovaServer(Server):
     def __init__(self,
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 eligible_perc: float=1.,
                  tau_eff: float=0.,
                  global_step: float=1.,
                  weighted: bool = False): 
 
-        super().__init__(model, clients, eligible_perc)
+        super().__init__(model, test_data, clients, weighted)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
         self.tau_eff = tau_eff
-        self.weighted = weighted 
 
-
-    def fit(self, n_rounds: int=10) -> None:
+    def fit(self, n_rounds: int, eligible_perc: float) -> None:
         """Run the federated learning algorithm.
 
         Parameters
@@ -278,21 +274,22 @@ class FedNovaServer(Server):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.eligible_perc)
+            client_x_round = int(self.n_clients*eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
             total_rounds = self.rounds + n_rounds
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
-                eligible = self.get_eligible_clients()
+                eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
-                self.broadcast(eligible)
+                self._broadcast_model(eligible)
                 client_evals = []
                 for c, client in enumerate(eligible):
                     tau_eff_cuda = 0
-                    client.update_local_epochs(current_round = round, c = c)
+                    client.update_local_epochs(current_round=round, c=c)
                     
-                    client_eval = client.local_train()
+                    self.channel.send(Message((client.local_train, {}), "__action__", self), client)
+                    client_eval = client.validate()
                     if client_eval:
                         client_evals.append(client_eval)
 
@@ -314,38 +311,8 @@ class FedNovaServer(Server):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
-        # with Progress() as progress:
-        #     client_x_round = int(self.n_clients*self.eligible_perc)
-        #     task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-        #     task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
-        #     for round in range(n_rounds):
-        #         eligible = self.get_eligible_clients()
-        #         self.broadcast(eligible)
-
-        #         client_evals = []
-        #         for c, client in enumerate(eligible):
-        #             tau_eff_cuda = 0
-        #             client.update_local_epochs(current_round = round, c = c)
-                    
-        #             client_eval = client.local_train()
-        #             if client_eval:
-        #                 client_evals.append(client_eval)
-
-        #             if client.optimizer.mu != 0:
-        #                 tau_eff_cuda = torch.tensor(client.optimizer.local_steps*client.ratio)
-        #             else:
-        #                 tau_eff_cuda = torch.tensor(client.optimizer.local_normalizing_vec*client.ratio)
-
-        #             self.tau_eff += tau_eff_cuda
-        #             client.optimizer.update_learning_rate(round, n_rounds)
-
-        #             progress.update(task_id=task_local, completed=c+1)
-        #             progress.update(task_id=task_rounds, advance=1)
-        #         self.aggregate(eligible)
-        #         self.notify_all(self.model, round + 1, client_evals)
-
-    def _fit_multiprocess(self, n_rounds: int=10) -> None:
+    def _fit_multiprocess(self, n_rounds: int, eligible_perc: float) -> None:
         """Run the federated learning algorithm using multiprocessing.
 
         Parameters
@@ -359,7 +326,7 @@ class FedNovaServer(Server):
             progress_fl.update(task_id=task_rounds, advance=1)
             progress_client.update(task_id=task_local, advance=1)
 
-        client_x_round = int(self.n_clients*self.eligible_perc)
+        client_x_round = int(self.n_clients*eligible_perc)
         task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
@@ -369,21 +336,18 @@ class FedNovaServer(Server):
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
                 client_evals = []
-                eligible = self.get_eligible_clients()
+                eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
                 self.broadcast(eligible)
                 progress_client.update(task_id=task_local, completed=0)
                 print(eligible)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for c, client in enumerate(eligible):
-                        
-                        # if client.optimizer is None:
-                        #     client.optimizer, client.scheduler = client.optimizer_cfg(client.model)
-                        client.update_local_epochs(current_round = round, c = c)
+                        client.update_local_epochs(current_round=round, c=c)
 
                         client_eval = pool.apply_async(self._local_train, 
-                                                    args=(client,), 
-                                                    callback=callback_progress)
+                                                       args=(client,), 
+                                                       callback=callback_progress)
                         if client_eval:
                             client_evals.append(client_eval)
                     pool.close()
@@ -419,7 +383,7 @@ class FedNovaServer(Server):
             The clients whose models will be aggregated.
         """
         avg_model_sd = OrderedDict()
-        clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
+        clients_sd = self._get_client_models(eligible)
         with torch.no_grad():
 
             for i, client in enumerate(eligible):
@@ -429,13 +393,13 @@ class FedNovaServer(Server):
                 for group in client.optimizer.param_groups:
                     for p in group['params']:
                         param_state = client.optimizer.state[p]
-                        scale = self.tau_eff/client.optimizer.local_normalizing_vec
+                        scale = self.tau_eff / client.optimizer.local_normalizing_vec
                         param_state['cum_grad'].mul_(weight*scale)
                         param_list.append(param_state['cum_grad'])
 
-            avg_model_sd = OrderedDict()
-            clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
-            with torch.no_grad():
+            # avg_model_sd = OrderedDict()
+            # clients_sd = [eligible[i].send().state_dict() for i in range(len(eligible))]
+            # with torch.no_grad():
                 for key in self.model.state_dict().keys():
                     if "num_batches_tracked" in key:
                         avg_model_sd[key] = deepcopy(clients_sd[0][key])
@@ -463,7 +427,7 @@ class FedNovaServer(Server):
                                 buf.div_(lr)
                             else:
                                 buf = param_state['global_momentum_buffer']
-                                buf.mul_(client.optimizer.gmf).add_(1/lr, param_state['cum_grad'])
+                                buf.mul_(client.optimizer.gmf).add_(param_state['cum_grad'], alpha=1/lr)
                             param_state['old_init'].sub_(lr, buf)
                         else:
                             param_state['old_init'].sub_(param_state['cum_grad'])
@@ -481,41 +445,27 @@ class FedNovaServer(Server):
 
 
 class FedNova(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int,
-                 n_epochs: int,
-                 optimizer_cfg: OptimizerConfigurator,
-                 pattern: str,
-                 model: Module,
-                 loss_fn: Callable,
-                 eligible_perc: float=0.5):
+    
+    def get_optimizer_class(self) -> torch.optim.Optimizer:
+        return FedNovaOptimizer
 
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model,
-                         optimizer_cfg,
-                         loss_fn,
-                         eligible_perc)
-        self.pattern = pattern
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                                lr=config.optimizer.lr, 
+                                                scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        total_train_size = sum([i.size for i in clients_tr_data])
+        self.clients = [FedNovaClient(train_set=clients_tr_data[i],  
+                                        optimizer_cfg=optimizer_cfg, 
+                                        loss_fn=self.loss, 
+                                        validation_set=clients_te_data[i],
+                                        total_train_size = total_train_size,
+                                        pattern = config.pattern,
+                                        local_epochs=config.n_epochs,
+                                        max_epochs=config.max_epochs) for i in range(self.n_clients)]
 
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.data_assignment = data_splitter.assignments
-        total_train_size = sum([i.size for i in data_splitter.client_train_loader])
-        self.clients = [FedNovaClient(train_set=data_splitter.client_train_loader[i],
-                                      optimizer_cfg=self.optimizer_cfg,
-                                      loss_fn=self.loss_fn,
-                                      validation_set=data_splitter.client_test_loader[i],
-                                      pattern = self.pattern,
-                                      total_train_size = total_train_size,
-                                      local_epochs=self.n_epochs,
-                                      max_epochs = self.n_epochs) for i in range(self.n_clients)]
-
-    def init_server(self, **kwargs):
-        self.server = FedNovaServer(self.model, self.clients, self.eligible_perc, weighted=False)
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-            f"P={self.eligible_perc},{self.optimizer_cfg},p={self.pattern})"
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FedNovaServer(model, data, self.clients, **config)
