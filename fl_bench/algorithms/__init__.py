@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Callable, Union, Any, Iterable
 
 import torch
@@ -12,7 +11,22 @@ from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
 
 
 class CentralizedFL():
-    
+    def __init__(self, 
+                 n_clients: int,
+                 data_splitter: DataSplitter, 
+                 hyperparameters: DDict):
+        
+        self.n_clients = n_clients
+        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
+                                                                               hyperparameters.client.batch_size)
+        model = get_model(
+                mname=hyperparameters.model,
+                input_size=data_splitter.num_features(), 
+                num_classes=data_splitter.num_classes()
+            ).to(GlobalSettings().get_device())
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        self.init_server(model, server_data, hyperparameters.server)
+
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return torch.optim.SGD
     
@@ -32,21 +46,6 @@ class CentralizedFL():
 
     def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
         self.server = Server(model, data, self.clients, **config)
-
-    def init_parties(self, 
-                     n_clients: int,
-                     data_splitter: DataSplitter, 
-                     hyperparameters: DDict):
-        self.n_clients = n_clients
-        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
-                                                                               hyperparameters.client.batch_size)
-        model = get_model(
-                mname=hyperparameters.model,
-                input_size=data_splitter.num_features(), 
-                num_classes=data_splitter.num_classes()
-            ).to(GlobalSettings().get_device())
-        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
-        self.init_server(model, server_data, hyperparameters.server)
     
     def set_callbacks(self, callbacks: Union[Callable, Iterable[Callable]]):
         self.server.attach(callbacks)
@@ -73,14 +72,16 @@ from .fedavg import FedAVG
 from .fedavgm import FedAVGM
 from .fedsgd import FedSGD
 from .fedprox import FedProx
-from .scaffold import SCAFFOLD, ScaffoldOptimizer
-from .flhalf import FLHalf
+from .scaffold import SCAFFOLD
+# from .flhalf import FLHalf
 from .fedbn import FedBN
 from .fedopt import FedOpt
 from .moon import MOON
-from .fednova import FedNova, FedNovaOptimizer
+from .fednova import FedNova
 from .fedexp import FedExP
-from .pfedme import PFedMe, pFedMeOptimizer
+from .pfedme import PFedMe
+
+# BOOSTING ALGORITHMS
 from .adaboostf import AdaboostF
 from .adaboostf2 import AdaboostF2
 from .distboostf import DistboostF
@@ -93,23 +94,13 @@ class FedAlgorithmsEnum(Enum):
     FEDSGD = 'fedsgd'
     FEDPROX = 'fedprox'
     SCAFFOLD = 'scaffold'
-    FLHALF = 'flhalf'
+    # FLHALF = 'flhalf'
     FEDBN = 'fedbn'
     FEDOPT = 'fedopt'
     MOON = 'moon'
     FEDNOVA = 'fednova'
     FEDEXP = 'fedexp'
     PEFEDME = 'pfedme'
-
-    optimizer_map = defaultdict(lambda: torch.optim.SGD)
-    optimizer_map.update({
-        'scaffold': ScaffoldOptimizer,
-        'fednova': FedNovaOptimizer,
-        'pfedme': pFedMeOptimizer
-    })
-
-    def optimizer(self) -> torch.optim.Optimizer:
-        return self.optimizer_map[self.value]
 
     def algorithm(self):
         algos = {
@@ -118,7 +109,7 @@ class FedAlgorithmsEnum(Enum):
             'fedsgd': FedSGD,
             'fedprox': FedProx,
             'scaffold': SCAFFOLD,
-            'flhalf': FLHalf,
+            # 'flhalf': FLHalf,
             'fedbn': FedBN,
             'fedopt': FedOpt,
             'moon': MOON,

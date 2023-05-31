@@ -2,7 +2,6 @@ import sys; sys.path.append(".")
 
 import typer
 from rich.pretty import Pretty
-from rich.console import Console
 
 from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter
@@ -10,16 +9,10 @@ from fl_bench.utils import *
 from fl_bench.evaluation import ClassificationEval, ClassificationSklearnEval
 from fl_bench.algorithms import FedAdaboostAlgorithmsEnum, FedAlgorithmsEnum
 
-
 app = typer.Typer()
-console = Console()
 
-# DEFAULTS = load_defaults(console)
+# CONST
 CONFIG_FNAME = "configs/exp_settings.json"
-
-# cli argument
-# file config
-# default config
 
 @app.command()
 def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
@@ -30,8 +23,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     data_splitter = DataSplitter.from_config(cfg.data)
 
     fl_algo_builder = FedAlgorithmsEnum(cfg.method.name)
-    fl_algo = fl_algo_builder.algorithm()()
-    fl_algo.init_parties(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
+    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
     log = cfg.exp.logger.logger(ClassificationEval(fl_algo.server.test_data, 
                                                    fl_algo.loss, 
@@ -64,8 +56,7 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     data_splitter = DataSplitter.from_config(cfg.data)
 
     fl_algo_builder = FedAdaboostAlgorithmsEnum(cfg.method.name)
-    fl_algo = fl_algo_builder.algorithm()()
-    fl_algo.init_parties(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
+    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
     log = cfg.exp.logger.logger(ClassificationSklearnEval(fl_algo.server.test_data, "macro"), 
                                 name=str(cfg),

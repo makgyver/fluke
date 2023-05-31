@@ -121,7 +121,7 @@ class Log(ServerObserver, ChannelObserver):
         self.current_round = 0
     
     def init(self, **kwargs):
-        rich.print(Panel(Pretty(kwargs), title=f"Configuration"))
+        rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
     
     def start_round(self, round: int, global_model: Module):
         self.comm_costs[round] = 0
@@ -279,9 +279,10 @@ class Configuration(DDict):
         self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
         self.exp.logger = LogEnum(self.exp.logger)
     
-    #FIXME this is a temporary implementation
     def __str__(self) -> str:
-        return f"{self.method.name}_{self.data.dataset.value}_{self.data.distribution.value}_C{self.protocol.n_clients}_R{self.protocol.n_rounds}_S{self.exp.seed}" 
+        return f"{self.method.name}_data[{self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''}]" + \
+               f"_proto[C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc}]" + \
+               f"_seed[{self.exp.seed}]"
 
     def __repr__(self) -> str:
         return self.__str__()

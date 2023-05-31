@@ -9,7 +9,7 @@ from fl_bench.utils import OptimizerConfigurator
 
 
 class FedSGD(CentralizedFL):
-    def init_parties(self, 
+    def __init__(self, 
                      n_clients: int,
                      data_splitter: DataSplitter, 
                      hyperparameters: dict):
@@ -18,7 +18,3 @@ class FedSGD(CentralizedFL):
         # Force batch size to 0 == full batch
         hyperparameters.client.batch_size = 0
         super().init_parties(n_clients, data_splitter, hyperparameters)
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds}," + \
-               f"P={self.eligible_perc},{self.optimizer_cfg})"

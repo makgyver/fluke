@@ -156,7 +156,22 @@ class AdaboostF2Server(Server):
 
 
 class AdaboostF2(CentralizedFL):
-    
+
+    def __init__(self, 
+                 n_clients: int,
+                 data_splitter: DataSplitter, 
+                 hyperparameters: DDict):
+        
+        self.n_clients = n_clients
+        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
+                                                                               hyperparameters.client.batch_size)
+        hyperparameters.client.n_classes = data_splitter.num_classes()
+        hyperparameters.server.n_classes = data_splitter.num_classes()
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        self.init_server(StrongClassifier(hyperparameters.server.n_classes), 
+                         server_data, 
+                         hyperparameters.server)
+        
     def init_clients(self, 
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
@@ -172,20 +187,6 @@ class AdaboostF2(CentralizedFL):
 
     def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
         self.server = AdaboostF2Server(model, self.clients, data, **config)
-
-    def init_parties(self, 
-                     n_clients: int,
-                     data_splitter: DataSplitter, 
-                     hyperparameters: DDict):
-        self.n_clients = n_clients
-        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
-                                                                               hyperparameters.client.batch_size)
-        hyperparameters.client.n_classes = data_splitter.num_classes()
-        hyperparameters.server.n_classes = data_splitter.num_classes()
-        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
-        self.init_server(StrongClassifier(hyperparameters.server.n_classes), 
-                         server_data, 
-                         hyperparameters.server)
 
     def activate_checkpoint(self, path: str):
         raise NotImplementedError("AdaboostF2 does not support checkpointing")
