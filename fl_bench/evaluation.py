@@ -1,12 +1,12 @@
+import sys; sys.path.append(".")
 from abc import ABC, abstractmethod
-from sklearn.base import ClassifierMixin
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
 import torch
+from sklearn.base import ClassifierMixin
 from typing import Callable, Literal, Union
 from torchmetrics import Accuracy, Precision, Recall, F1Score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-import sys; sys.path.append(".")
-from fl_bench import GlobalSettings
 from fl_bench.data import FastTensorDataLoader
 
 class Evaluator(ABC):
@@ -58,10 +58,12 @@ class ClassificationEval(Evaluator):
                  data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  loss_fn: Callable, 
                  n_classes: int, 
-                 average: Literal["micro","macro"]="macro"):
+                 average: Literal["micro","macro"]="macro",
+                 device: torch.device=torch.device("cpu")):
         super().__init__(data_loader, loss_fn)
         self.average = average
         self.n_classes = n_classes
+        self.device = device
 
     def evaluate(self, model: torch.nn.Module) -> dict:
         model.eval()
@@ -69,7 +71,6 @@ class ClassificationEval(Evaluator):
         task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
         loss, cnt = 0, 0
-        device = GlobalSettings().get_device()
         if not isinstance(self.data_loader, list):
             self.data_loader = [self.data_loader]
 
@@ -80,7 +81,7 @@ class ClassificationEval(Evaluator):
             f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
 
             for X, y in data_loader:
-                X, y = X.to(device), y.to(device)
+                X, y = X.to(self.device), y.to(self.device)
                 with torch.no_grad():
                     y_hat = model(X)
                     if self.loss_fn is not None:

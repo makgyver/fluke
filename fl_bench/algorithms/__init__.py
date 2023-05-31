@@ -1,72 +1,63 @@
-from abc import ABC
 from collections import defaultdict
-from typing import Callable, Optional, Union, Any, Iterable
+from typing import Callable, Union, Any, Iterable
 
-from torch.nn import Module
+import torch
+from enum import Enum
 
-from client import Client
-from server import Server
-
-from fl_bench.data import DataSplitter
-from fl_bench.utils import OptimizerConfigurator
-
-class FLEnvironment(ABC):
-
-    def init_parties(self, callback: Callable=None, **kwargs):
-        raise NotImplementedError
-
-    def run(self, *args, **kwargs):
-        raise NotImplementedError
+from fl_bench.client import Client
+from fl_bench.server import Server
+from fl_bench import GlobalSettings
+from fl_bench.data import DataSplitter, FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
 
 
-class CentralizedFL(FLEnvironment):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int,
-                 model: Module, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 loss_fn: Callable,
-                 eligibility_percentage: float=0.5):
-        
-        self.n_clients = n_clients
-        self.n_rounds = n_rounds
-        self.n_epochs = n_epochs
-        self.model = model
-        self.optimizer_cfg = optimizer_cfg
-        self.eligibility_percentage = eligibility_percentage
-        self.loss_fn = loss_fn
-        self.data_assignment = None
+class CentralizedFL():
     
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.data_assignment = data_splitter.assignments
-        self.clients = [Client(train_set=data_splitter.client_train_loader[i],  
-                               optimizer_cfg=self.optimizer_cfg, 
-                               loss_fn=self.loss_fn, 
-                               validation_set=data_splitter.client_test_loader[i],
-                               local_epochs=self.n_epochs) for i in range(self.n_clients)]
+    def get_optimizer_class(self) -> torch.optim.Optimizer:
+        return torch.optim.SGD
+    
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              lr=config.optimizer.lr, 
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [Client(train_set=clients_tr_data[i],  
+                               optimizer_cfg=optimizer_cfg, 
+                               loss_fn=self.loss, 
+                               validation_set=clients_te_data[i],
+                               local_epochs=config.n_epochs) for i in range(self.n_clients)]
 
-    def init_server(self, **kwargs):
-        self.server = Server(self.model, self.clients, self.eligibility_percentage, weighted=True)
-        
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = Server(model, data, self.clients, **config)
 
     def init_parties(self, 
+                     n_clients: int,
                      data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        
-        self.init_clients(data_splitter)
-        self.init_server()
+                     hyperparameters: DDict):
+        self.n_clients = n_clients
+        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
+                                                                               hyperparameters.client.batch_size)
+        model = get_model(
+                mname=hyperparameters.model,
+                input_size=data_splitter.num_features(), 
+                num_classes=data_splitter.num_classes()
+            ).to(GlobalSettings().get_device())
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        self.init_server(model, server_data, hyperparameters.server)
+    
+    def set_callbacks(self, callbacks: Union[Callable, Iterable[Callable]]):
         self.server.attach(callbacks)
         self.server.channel.attach(callbacks)
         
-    def run(self):
+    def run(self, n_rounds: int, eligible_perc: float):
         self.server.init()
-        self.server.fit(n_rounds=self.n_rounds)
+        self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc)
     
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"P={self.eligibility_percentage},{self.optimizer_cfg})"
+        return f"{self.__class__.__name__}"
     
     def __repr__(self) -> str:
         return self.__str__()
@@ -90,18 +81,11 @@ from .moon import MOON
 from .fednova import FedNova, FedNovaOptimizer
 from .fedexp import FedExP
 from .pfedme import PFedMe, pFedMeOptimizer
-
 from .adaboostf import AdaboostF
 from .adaboostf2 import AdaboostF2
 from .distboostf import DistboostF
-# from .distboostf2 import DistboostF2
 from .preweakf import PreweakF
 from .preweakf2 import PreweakF2
-
-
-from enum import Enum
-
-import torch
 
 class FedAlgorithmsEnum(Enum):
     FEDAVG = 'fedavg'

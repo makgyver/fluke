@@ -1,13 +1,11 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from fl_bench.server import Server
+import sys; sys.path.append(".")
 
 from abc import ABC
 from copy import deepcopy
 from typing import Callable
 
-import sys; sys.path.append(".")
+from fl_bench.server import Server
 from fl_bench import GlobalSettings, Message
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader

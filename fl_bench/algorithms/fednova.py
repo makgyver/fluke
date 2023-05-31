@@ -252,12 +252,12 @@ class FedNovaServer(Server):
     def __init__(self,
                  model: Module,
                  clients: Iterable[Client],
-                 eligibility_percentage: float=1.,
+                 eligible_perc: float=1.,
                  tau_eff: float=0.,
                  global_step: float=1.,
                  weighted: bool = False): 
 
-        super().__init__(model, clients, eligibility_percentage)
+        super().__init__(model, clients, eligible_perc)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
         self.tau_eff = tau_eff
@@ -278,7 +278,7 @@ class FedNovaServer(Server):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.eligibility_percentage)
+            client_x_round = int(self.n_clients*self.eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
             total_rounds = self.rounds + n_rounds
@@ -315,7 +315,7 @@ class FedNovaServer(Server):
             progress_client.remove_task(task_local)
 
         # with Progress() as progress:
-        #     client_x_round = int(self.n_clients*self.eligibility_percentage)
+        #     client_x_round = int(self.n_clients*self.eligible_perc)
         #     task_rounds = progress.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         #     task_local = progress.add_task("[green]Local Training", total=client_x_round)
 
@@ -359,7 +359,7 @@ class FedNovaServer(Server):
             progress_fl.update(task_id=task_rounds, advance=1)
             progress_client.update(task_id=task_local, advance=1)
 
-        client_x_round = int(self.n_clients*self.eligibility_percentage)
+        client_x_round = int(self.n_clients*self.eligible_perc)
         task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
@@ -489,7 +489,7 @@ class FedNova(CentralizedFL):
                  pattern: str,
                  model: Module,
                  loss_fn: Callable,
-                 eligibility_percentage: float=0.5):
+                 eligible_perc: float=0.5):
 
         super().__init__(n_clients,
                          n_rounds,
@@ -497,7 +497,7 @@ class FedNova(CentralizedFL):
                          model,
                          optimizer_cfg,
                          loss_fn,
-                         eligibility_percentage)
+                         eligible_perc)
         self.pattern = pattern
 
     def init_clients(self, data_splitter: DataSplitter, **kwargs):
@@ -514,8 +514,8 @@ class FedNova(CentralizedFL):
                                       max_epochs = self.n_epochs) for i in range(self.n_clients)]
 
     def init_server(self, **kwargs):
-        self.server = FedNovaServer(self.model, self.clients, self.eligibility_percentage, weighted=False)
+        self.server = FedNovaServer(self.model, self.clients, self.eligible_perc, weighted=False)
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-            f"P={self.eligibility_percentage},{self.optimizer_cfg},p={self.pattern})"
+            f"P={self.eligible_perc},{self.optimizer_cfg},p={self.pattern})"

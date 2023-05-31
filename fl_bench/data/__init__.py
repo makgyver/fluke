@@ -1,11 +1,11 @@
 from __future__ import annotations
 from enum import Enum
 
-import os.path
+from pyparsing import Optional
 from sklearn.model_selection import train_test_split
 import torch
 
-from typing import List, Tuple, Union
+from typing import List, Union
 import numpy as np
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 from sklearn.decomposition import PCA
@@ -135,90 +135,80 @@ class DistributionEnum(Enum):
 
 
 class DataSplitter:
-    """Class to split data into clients.
 
-    Parameters
-    ----------
-    X : torch.Tensor
-        Data.
-    y : torch.Tensor
-        Labels.
-    n_clients : int
-        Number of clients.
-    distribution : Distribution
-        Distribution (non iidness) of data across clients.
-    batch_size : int
-        Batch size.
-    validation_split : float, optional
-        Fraction of data to use for validation/test client-side, by default 0.0.
-    sampling_perc : float, optional
-        Fraction of data to use, by default 1.0.
-    **kwargs
-        Additional keyword arguments.
-    """
+    from fl_bench.data.datasets import DatasetsEnum
+    
+    @classmethod
+    def from_config(cls, config: dict) -> DataSplitter:
+        return DataSplitter(config['dataset'],
+                            config['standardize'],
+                            config['distribution'],
+                            config['validation_split'],
+                            config['sampling_perc'])
+
+
     def __init__(self, 
-                 X: torch.Tensor,
-                 y: torch.Tensor, 
-                 n_clients: int, 
+                 dataset: DatasetsEnum,
+                 standardize: bool=False,
                  distribution: DistributionEnum=DistributionEnum.IID,
-                 batch_size: int=32,
                  validation_split: float=0.0,
                  sampling_perc: float=1.0,
                  **kwargs):
-        assert X.shape[0] == y.shape[0], "X and y must have the same length."
         assert 0 <= validation_split <= 1, "validation_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
-        self.X, self.y = X, y
-        self.n_clients = n_clients
+        self.data_container = dataset.klass()() #FIXME for handling different test set size
+        self.standardize = standardize
+        if standardize:
+            self.data_container.standardize()
+
         self.distribution = distribution
-        self.batch_size = batch_size
         self.validation_split = validation_split
         self.sampling_perc = sampling_perc
         self.kwargs = kwargs
-        self.assign()
+    
+    def num_features(self) -> int:
+        return self.data_container.num_features
 
-    def assign(self) -> DataSplitter:
-        """Assign data to clients."""
-        self.assignments = self._iidness_functions[self.distribution](self, self.X, self.y, self.n_clients, **self.kwargs)
-        # if isinstance(self.X, torch.Tensor):
-        self.client_train_loader = []
-        self.client_test_loader = []
-        # self.total_training_size = 0
-        for c in range(self.n_clients):
-            client_X = self.X[self.assignments[c]]
-            client_y = self.y[self.assignments[c]]
+    def num_classes(self) -> int:
+        return self.data_container.num_classes
+
+    def assign(self, n_clients: int, batch_size: Optional[int]=None, ):
+        Xtr, Ytr = self.data_container.train
+        self.assignments = self._iidness_functions[self.distribution](self, Xtr, Ytr, n_clients, **self.kwargs)
+        client_tr_assignments = []
+        client_te_assignments = []
+        for c in range(n_clients):
+            client_X = Xtr[self.assignments[c]]
+            client_y = Ytr[self.assignments[c]]
             if self.validation_split > 0.0:
-                X_train, X_test, y_train, y_test = train_test_split(client_X, client_y, test_size=self.validation_split, stratify=client_y)
-                self.client_train_loader.append(FastTensorDataLoader(X_train, y_train, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
-                self.client_test_loader.append(FastTensorDataLoader(X_test, y_test, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
+                Xtr_client, Xte_client, Ytr_client, Yte_client = train_test_split(client_X, 
+                                                                                  client_y,
+                                                                                  test_size=self.validation_split, 
+                                                                                  stratify=client_y)
+                client_tr_assignments.append(FastTensorDataLoader(Xtr_client, 
+                                                                     Ytr_client, 
+                                                                     batch_size=batch_size, 
+                                                                     shuffle=True, 
+                                                                     percentage=self.sampling_perc))
+                client_te_assignments.append(FastTensorDataLoader(Xte_client, 
+                                                                    Yte_client, 
+                                                                    batch_size=batch_size, 
+                                                                    shuffle=True, 
+                                                                    percentage=self.sampling_perc))
             else:
-                self.client_train_loader.append(FastTensorDataLoader(client_X, client_y, batch_size=self.batch_size, shuffle=True, percentage=self.sampling_perc))
-                self.client_test_loader.append(None)
-            # self.total_training_size += self.client_train_loader[c].size
-        # elif isinstance(self.X, np.ndarray):
-        #     if self.validation_split > 0.0:
-        #         for c in range(self.n_clients):
-        #             client_X = self.X[self.assignments[c]]
-        #             client_y = self.y[self.assignments[c]]
-        #             X_train, X_test, y_train, y_test = train_test_split(client_X, client_y, test_size=self.validation_split, stratify=client_y)
-        #             self.client_train_loader = [(X_train, y_train) for _ in range(self.n_clients)]
-        #             self.client_test_loader = [(X_test, y_test) for _ in range(self.n_clients)]
-        #     else:  
-        #         self.client_train_loader = [(self.X[self.assignments[c]], self.y[self.assignments[c]]) for c in range(self.n_clients)]
-        #         self.client_test_loader = [None for _ in range(self.n_clients)]
-        return self
+                client_tr_assignments.append(FastTensorDataLoader(client_X, 
+                                                                     client_y, 
+                                                                     batch_size=batch_size, 
+                                                                     shuffle=True, 
+                                                                     percentage=self.sampling_perc))
+                client_te_assignments.append(None)
 
-    # possiamo ottenere la training size dalla size di y(1-val.size)
-    def get_loaders(self) -> Tuple[List[Union[FastTensorDataLoader, np.ndarray]], List[Union[FastTensorDataLoader, np.ndarray]]]:
-        """Get the client-side data loaders.
-
-        Returns
-        -------
-        Tuple[List[FastTensorDataLoader], List[FastTensorDataLoader]]
-            The client-side train and test data loaders.
-        """
-        return self.client_train_loader, self.client_test_loader
+        server_te = FastTensorDataLoader(*self.data_container.test,
+                                         batch_size=100,
+                                         shuffle=False)
+        
+        return (client_tr_assignments, client_te_assignments), server_te
 
     def uniform(self,
                 X: torch.Tensor,

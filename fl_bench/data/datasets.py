@@ -11,9 +11,8 @@ from torchvision.transforms import ToTensor
 
 import numpy as np
 from numpy.random import permutation
-
-from . import DataContainer
-from .dataclass import SVHN
+from fl_bench.data import DataContainer
+from fl_bench.data.dataclass import SVHN
 
 
 class Datasets:

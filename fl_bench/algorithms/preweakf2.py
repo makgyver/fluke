@@ -132,9 +132,9 @@ class PreweakF2Client(Client):
 class PreweakF2Server(Server):
     def __init__(self,
                  clients: Iterable[PreweakF2Client], 
-                 eligibility_percentage: float=0.5, 
+                 eligible_perc: float=0.5, 
                  n_classes: int = 2):
-        super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
+        super().__init__(StrongClassifier(n_classes), clients, eligible_perc, False)
         self.K = n_classes
     
     def init(self):
@@ -195,7 +195,7 @@ class PreweakF2(CentralizedFL):
                  n_clients: int,
                  n_rounds: int, 
                  base_classifier: ClassifierMixin,
-                 eligibility_percentage: float=0.5):
+                 eligible_perc: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -203,7 +203,7 @@ class PreweakF2(CentralizedFL):
                          None, 
                          None, 
                          None,
-                         eligibility_percentage)
+                         eligible_perc)
         self.base_classifier = base_classifier
     
     def init_clients(self, data_splitter: DataSplitter, n_classes: int, **kwargs):
@@ -217,7 +217,7 @@ class PreweakF2(CentralizedFL):
             self.clients.append(PreweakF2Client(X, y, n_classes, self.n_rounds, deepcopy(self.base_classifier)))
 
     def init_server(self, n_classes: int):
-        self.server = PreweakF2Server(self.clients, self.eligibility_percentage, n_classes)
+        self.server = PreweakF2Server(self.clients, self.eligible_perc, n_classes)
         
 
     def init_parties(self, 
@@ -232,7 +232,7 @@ class PreweakF2(CentralizedFL):
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \
-               f"P={self.eligibility_percentage})"
+               f"P={self.eligible_perc})"
 
     def activate_checkpoint(self, path: str):
         raise NotImplementedError("PreweakF does not support checkpointing")

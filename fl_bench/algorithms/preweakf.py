@@ -132,9 +132,9 @@ class PreweakFClient(Client):
 class PreweakFServer(Server):
     def __init__(self,
                  clients: Iterable[PreweakFClient], 
-                 eligibility_percentage: float=0.5, 
+                 eligible_perc: float=0.5, 
                  n_classes: int = 2):
-        super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
+        super().__init__(StrongClassifier(n_classes), clients, eligible_perc, False)
         self.K = n_classes
     
     def init(self):
@@ -144,7 +144,7 @@ class PreweakFServer(Server):
 
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
-            client_x_round = int(self.n_clients*self.eligibility_percentage)
+            client_x_round = int(self.n_clients*self.eligible_perc)
 
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
             weak_classifiers = []
@@ -201,7 +201,7 @@ class PreweakF(CentralizedFL):
                  n_clients: int,
                  n_rounds: int, 
                  base_classifier: ClassifierMixin,
-                 eligibility_percentage: float=0.5):
+                 eligible_perc: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -209,7 +209,7 @@ class PreweakF(CentralizedFL):
                          None, 
                          None, 
                          None,
-                         eligibility_percentage)
+                         eligible_perc)
         self.base_classifier = base_classifier
     
     def init_clients(self, data_splitter: DataSplitter, n_classes: int, **kwargs):
@@ -223,7 +223,7 @@ class PreweakF(CentralizedFL):
             self.clients.append(PreweakFClient(X, y, n_classes, self.n_rounds, deepcopy(self.base_classifier)))
 
     def init_server(self, n_classes: int):
-        self.server = PreweakFServer(self.clients, self.eligibility_percentage, n_classes)
+        self.server = PreweakFServer(self.clients, self.eligible_perc, n_classes)
         
 
     def init_parties(self, 
@@ -238,7 +238,7 @@ class PreweakF(CentralizedFL):
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \
-               f"P={self.eligibility_percentage})"
+               f"P={self.eligible_perc})"
 
     def activate_checkpoint(self, path: str):
         raise NotImplementedError("PreweakF does not support checkpointing")

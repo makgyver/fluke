@@ -84,9 +84,9 @@ class AdaboostF2Client(Client):
 class AdaboostF2Server(Server):
     def __init__(self,
                  clients: Iterable[AdaboostF2Client], 
-                 eligibility_percentage: float=0.5, 
+                 eligible_perc: float=0.5, 
                  n_classes: int = 2):
-        super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
+        super().__init__(StrongClassifier(n_classes), clients, eligible_perc, False)
         self.K = n_classes
     
     def init(self):
@@ -98,7 +98,7 @@ class AdaboostF2Server(Server):
 
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.eligibility_percentage)
+            client_x_round = int(self.n_clients*self.eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
             
@@ -150,7 +150,7 @@ class AdaboostF2(CentralizedFL):
                  n_clients: int,
                  n_rounds: int, 
                  base_classifier: ClassifierMixin,
-                 eligibility_percentage: float=0.5):
+                 eligible_perc: float=0.5):
         
         super().__init__(n_clients,
                          n_rounds,
@@ -158,7 +158,7 @@ class AdaboostF2(CentralizedFL):
                          None, 
                          None, 
                          None,
-                         eligibility_percentage)
+                         eligible_perc)
         self.base_classifier = base_classifier
     
     def init_clients(self, data_splitter: DataSplitter, **kwargs):
@@ -172,7 +172,7 @@ class AdaboostF2(CentralizedFL):
             self.clients.append(AdaboostF2Client(X, y, deepcopy(self.base_classifier)))
 
     def init_server(self, n_classes: int):
-        self.server = AdaboostF2Server(self.clients, self.eligibility_percentage, n_classes)
+        self.server = AdaboostF2Server(self.clients, self.eligible_perc, n_classes)
         
 
     def init_parties(self, 
@@ -186,7 +186,7 @@ class AdaboostF2(CentralizedFL):
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \
-               f"P={self.eligibility_percentage})"
+               f"P={self.eligible_perc})"
 
     def activate_checkpoint(self, path: str):
         raise NotImplementedError("AdaboostF2 does not support checkpointing")

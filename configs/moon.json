@@ -1,14 +1,22 @@
 {
     "name": "moon",
-    "optimizer_parameters": {
-        "lr": 0.01,
-        "scheduler_kwargs": {
-            "step_size": 1,
-            "gamma": 1
-        }
-    },
     "hyperparameters": {
-        "client_mu": 10,
-        "client_tau": 0.5
+        "server": {
+        },
+        "client": {
+            "batch_size": 32,
+            "n_epochs": 5,
+            "loss": "CrossEntropyLoss",
+            "mu": 10,
+            "tau": 0.5,
+            "optimizer": {		
+                "lr": 0.01,
+                "scheduler_kwargs": {
+                    "step_size": 1, 
+                    "gamma": 1
+                }
+            }
+        },
+        "model": "MLP"
     }
 }

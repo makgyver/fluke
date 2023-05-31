@@ -6,10 +6,11 @@ from typing import Callable, Iterable, Union, Optional, Any
 import torch
 from torch.nn import Module
 
-import sys; sys.path.append(".")
+import sys
+from fl_bench.data import FastTensorDataLoader; sys.path.append(".")
 from fl_bench.server import Server
 from fl_bench.client import Client
-from fl_bench.utils import OptimizerConfigurator
+from fl_bench.utils import DDict, OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
 
 class FedOptMode(Enum):
@@ -21,19 +22,19 @@ class FedOptMode(Enum):
 class FedOptServer(Server):
     def __init__(self,
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client], 
-                 mode: FedOptMode=FedOptMode.FedAdam,
+                 mode: str="fedadam",
                  lr: float=0.001,
                  beta1: float=0.9,
                  beta2: float=0.999,
                  tau: float=0.0001,
-                 eligibility_percentage: float=0.5, 
                  weighted: bool=True):
-        super().__init__(model, clients, eligibility_percentage, weighted)
-        assert mode in FedOptMode, "mode must be one of FedOptMode"
+        super().__init__(model, test_data, clients, weighted)
+        # assert mode in FedOptMode, "mode must be one of FedOptMode"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
-        self.mode = mode
+        self.mode = mode if isinstance(mode, FedOptMode) else FedOptMode(mode)
         self.lr = lr
         self.beta1 = beta1
         self.beta2 = beta2
@@ -81,46 +82,9 @@ class FedOptServer(Server):
 
 
 class FedOpt(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 model: Module, 
-                 loss_fn: Callable, 
-                 eligibility_percentage: float,
-                 mode: Union[FedOptMode, str],
-                 server_lr: float,
-                 beta1: float,
-                 beta2: float,
-                 tau: float):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.mode = mode if isinstance(mode, FedOptMode) else FedOptMode(mode)
-        self.beta1 = beta1
-        self.beta2 = beta2
-        self.server_lr = server_lr
-        self.tau = tau
     
-    def init_server(self, **kwargs):
-        self.server = FedOptServer(self.model, 
-                                   self.clients, 
-                                   mode=self.mode,
-                                   lr=self.server_lr,
-                                   beta1=self.beta1,
-                                   beta2=self.beta2,
-                                   tau=self.tau,
-                                   eligibility_percentage=self.eligibility_percentage)
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FedOptServer(model, data, self.clients, **config)
 
-    def __str__(self) -> str:
-        return f"{self.mode.name}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"\u03B7={self.server_lr},\u03B21={self.beta1},\u03B22={self.beta2}," + \
-               f"\u03A4={self.tau},P={self.eligibility_percentage},{self.optimizer_cfg})"
     
 
