@@ -245,6 +245,10 @@ class FedNovaClient(Client):
             np.random.seed(2020+current_round+c)
             self.local_epochs = np.random.randint(low=2, high=self.max_epochs, size=1)[0]
     
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},ratio={self.ratio},pattern={self.pattern},max_epochs={self.max_epochs})"
+
 
 class FedNovaServer(Server):
     def __init__(self,
