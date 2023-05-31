@@ -443,6 +443,9 @@ class FedNovaServer(Server):
                 client.optimizer.local_normalizing_vec = 0
                 client.optimizer.local_steps = 0
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},global_step={self.global_step},tau_eff={self.tau_eff})"
 
 class FedNova(CentralizedFL):
     

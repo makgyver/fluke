@@ -267,3 +267,9 @@ class Server(ObserverSubject):
                 client.restore(checkpoint['client_optimizers'][i])
         except Exception as e:
             self.notify_error(f"Unable to load the checkpoint:\n\t{e}.\nCheckpoint will be ignored.")
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(weighted={self.weighted})"
+
+    def __repr__(self) -> str:
+        return self.__str__()

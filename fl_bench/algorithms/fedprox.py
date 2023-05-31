@@ -45,6 +45,10 @@ class FedProxClient(Client):
                 self.optimizer.step()          
             self.scheduler.step()
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+    
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},mu={self.mu})"
 
 
 class FedProx(CentralizedFL):

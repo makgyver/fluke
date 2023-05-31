@@ -10,11 +10,11 @@ from fl_bench.utils import OptimizerConfigurator
 
 class FedSGD(CentralizedFL):
     def __init__(self, 
-                     n_clients: int,
-                     data_splitter: DataSplitter, 
-                     hyperparameters: dict):
+                 n_clients: int,
+                 data_splitter: DataSplitter, 
+                 hyperparameters: dict):
         # Force single epoch for each client
         hyperparameters.client.n_epochs = 1
         # Force batch size to 0 == full batch
         hyperparameters.client.batch_size = 0
-        super().init_parties(n_clients, data_splitter, hyperparameters)
+        super().__init__(n_clients, data_splitter, hyperparameters)

@@ -79,6 +79,10 @@ class FedOptServer(Server):
                 avg_model_sd[key] = self.model.state_dict()[key] + update
             
             self.model.load_state_dict(avg_model_sd)
+    
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},mode={self.mode},lr={self.lr},beta1={self.beta1},beta2={self.beta2},tau={self.tau})"
 
 
 class FedOpt(CentralizedFL):

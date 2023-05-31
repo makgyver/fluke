@@ -15,7 +15,7 @@ class CentralizedFL():
                  n_clients: int,
                  data_splitter: DataSplitter, 
                  hyperparameters: DDict):
-        
+        self.hyperparameters = hyperparameters
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)
@@ -56,7 +56,8 @@ class CentralizedFL():
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc)
     
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}"
+        algo_hp = ",".join([f"{h}={str(v)}" for h,v in self.hyperparameters.items() if h not in ['client', 'server']])
+        return f"{self.__class__.__name__}({algo_hp},{self.clients[0]},{self.server})"
     
     def __repr__(self) -> str:
         return self.__str__()

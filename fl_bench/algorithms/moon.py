@@ -71,6 +71,11 @@ class MOONClient(Client):
         self.server_model.to("cpu")
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},mu={self.mu},tau={self.tau})"
+    
+    
 class MOON(CentralizedFL):
     
     def init_clients(self, 

@@ -83,6 +83,11 @@ class PFedMeClient(Client):
         self.channel.send(Message(deepcopy(self.shared_model), "model", self), self.server)
     
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},k={self.k},lr={self.lr})"
+    
+
 class PFedMeServer(Server):
     def __init__(self, 
                  model: Module,
@@ -116,6 +121,9 @@ class PFedMeServer(Server):
             param.data = (1 - self.beta) * param.data
             param.data += self.beta * avg_model_sd[key] 
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},beta={self.beta})"
 
 class PFedMe(CentralizedFL):
     def get_optimizer_class(self) -> torch.optim.Optimizer:

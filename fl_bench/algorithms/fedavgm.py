@@ -52,6 +52,10 @@ class FedAVGMServer(Server):
         for key, param in self.model.named_parameters():
             param.grad = avg_model_sd[key].data
         self.optimizer.step()
+    
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},momentum={self.momentum})"
 
 
 class FedAVGM(CentralizedFL):

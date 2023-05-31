@@ -41,7 +41,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     if cfg.exp.checkpoint.save:
         fl_algo.activate_checkpoint(cfg.exp.checkpoint.path)
 
-    rich.print(Panel(Pretty(cfg), title=f"FL algorithm"))
+    rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     # GlobalSettings().set_workers(8)
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
     log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
@@ -64,7 +64,7 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     log.init(**cfg)
     fl_algo.set_callbacks(log)
 
-    rich.print(Panel(Pretty(cfg), title=f"FL algorithm"))
+    rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
 
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
     log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')

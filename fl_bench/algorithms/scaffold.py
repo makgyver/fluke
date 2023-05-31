@@ -128,6 +128,10 @@ class ScaffoldServer(Server):
                 param.data = param.data + self.global_step * server_delta_y
                 server_control.data = server_control.data + server_delta_c.data
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},global_step={self.global_step})"
+
 
 class SCAFFOLD(CentralizedFL):
     """SCAFFOLD Federated Learning Environment.

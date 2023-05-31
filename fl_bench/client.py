@@ -128,3 +128,6 @@ class Client(ABC):
             self.scheduler.load_state_dict(checkpoint["scheduler"])
         
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(batch_size={self.train_set.batch_size},"+\
+               f"loss={self.loss_fn.__class__.__name__},n_epochs={self.local_epochs},optim={self.optimizer_cfg})"
