@@ -41,14 +41,16 @@ class AdaboostF2Client(Client):
     def __init__(self,
                  X: np.ndarray,
                  y: np.ndarray,
+                 n_classes: int,
                  base_classifier: ClassifierMixin,
                  validation_set = None):
         self.X = X
         self.y = y
+        self.K = n_classes
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
         self.server = None
-        self.strong_clf = StrongClassifier(len(np.unique(y)))
+        self.strong_clf = StrongClassifier(self.K)
         self.validation_set = validation_set
     
     def local_train(self) -> None:
@@ -166,7 +168,7 @@ class AdaboostF2(CentralizedFL):
             loader = clients_tr_data[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            self.clients.append(AdaboostF2Client(X, y, deepcopy(base_model), clients_te_data[i]))
+            self.clients.append(AdaboostF2Client(X, y, config.n_classes, deepcopy(base_model), clients_te_data[i]))
 
     def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
         self.server = AdaboostF2Server(model, self.clients, data, **config)
@@ -178,8 +180,9 @@ class AdaboostF2(CentralizedFL):
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)
-        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        hyperparameters.client.n_classes = data_splitter.num_classes()
         hyperparameters.server.n_classes = data_splitter.num_classes()
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
         self.init_server(StrongClassifier(hyperparameters.server.n_classes), 
                          server_data, 
                          hyperparameters.server)
