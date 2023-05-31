@@ -1,22 +1,20 @@
+import sys; sys.path.append(".")
+
+import numpy as np
+from math import log
 from copy import deepcopy
-from typing import Tuple, Union, Any, Optional
+from typing import Tuple, Any
 from pyparsing import Iterable
+from numpy.random import choice
 from sklearn.base import ClassifierMixin
 
-import torch
-from math import log
-import numpy as np
-from numpy.random import choice
-
-import sys
-from fl_bench.evaluation import ClassificationSklearnEval
-
-from fl_bench.utils import DDict, import_module_from_str; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.data import DataSplitter, FastTensorDataLoader
 from fl_bench import GlobalSettings, Message
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.utils import DDict, import_module_from_str
+from fl_bench.evaluation import ClassificationSklearnEval
+from fl_bench.data import DataSplitter, FastTensorDataLoader
 
 
 class StrongClassifier():
@@ -129,7 +127,8 @@ class AdaboostF2Server(Server):
                 self.channel.broadcast(Message(alpha, "alpha", self), eligible)
                 self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
 
-                self.notify_end_round(round + 1, self.model, 0)
+                client_evals = [client.validate() for client in eligible]
+                self.notify_end_round(round + 1, self.model, client_evals)
                 self.rounds += 1 
 
             progress_fl.remove_task(task_rounds)
