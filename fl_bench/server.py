@@ -96,7 +96,7 @@ class Server(ObserverSubject):
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, client_evals)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
                 self.rounds += 1 
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
@@ -143,7 +143,7 @@ class Server(ObserverSubject):
                     pool.join()
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
+                self.notify_(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
                 self.rounds += 1
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
@@ -214,9 +214,9 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.start_round(round, global_model)
     
-    def notify_end_round(self, round: int, global_model: Any, client_evals: Iterable[Any]) -> None:
+    def notify_end_round(self, round: int, global_model: Any, data: FastTensorDataLoader, client_evals: Iterable[Any]) -> None:
         for observer in self._observers:
-            observer.end_round(round, global_model, client_evals)
+            observer.end_round(round, global_model, data, client_evals)
     
     def notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
         for observer in self._observers:

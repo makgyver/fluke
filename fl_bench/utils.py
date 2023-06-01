@@ -22,7 +22,7 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.console import Console
 
-from fl_bench.data import DistributionEnum
+from fl_bench.data import DistributionEnum, FastTensorDataLoader
 from fl_bench.evaluation import Evaluator
 from fl_bench.data.datasets import DatasetsEnum
 
@@ -92,7 +92,7 @@ class ServerObserver():
     def start_round(self, round: int, global_model: Any):
         pass
 
-    def end_round(self, round: int, global_model: Any, client_evals: Iterable[Any]):
+    def end_round(self, round: int, global_model: Any, data: FastTensorDataLoader, client_evals: Iterable[Any]):
         pass
 
     def selected_clients(self, round: int, clients: Iterable):
@@ -130,8 +130,8 @@ class Log(ServerObserver, ChannelObserver):
         if round == 1 and self.comm_costs[0] > 0:
             rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
 
-    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
-        self.history[round] = self.evaluator(global_model)
+    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+        self.history[round] = self.evaluator(global_model, data)
         stats = { 'global': self.history[round] }
 
         if client_evals:
@@ -171,16 +171,19 @@ class WandBLog(Log):
         
     def init(self, **kwargs):
         super().init(**kwargs)
-        self.config["config"] = kwargs
-        self.run = wandb.init(**self.config)
+        if kwargs:
+            self.config["config"] = kwargs
+            self.run = wandb.init(**self.config)
+        else:
+            self.run = wandb.init()
     
     def start_round(self, round: int, global_model: Module):
         super().start_round(round, global_model)
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
-        super().end_round(round, global_model, client_evals)
+    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+        super().end_round(round, global_model, data, client_evals)
         self.run.log(self.history[round], step=round)
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
         if client_evals:
@@ -280,9 +283,9 @@ class Configuration(DDict):
         self.exp.logger = LogEnum(self.exp.logger)
     
     def __str__(self) -> str:
-        return f"{self.method.name}_data[{self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''}]" + \
-               f"_proto[C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc}]" + \
-               f"_seed[{self.exp.seed}]"
+        return f"{self.method.name}_data({self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''})" + \
+               f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
+               f"_seed({self.exp.seed})"
 
     def __repr__(self) -> str:
         return self.__str__()

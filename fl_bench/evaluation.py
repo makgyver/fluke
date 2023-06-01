@@ -20,13 +20,13 @@ class Evaluator(ABC):
         The loss function to consider.
     """
     def __init__(self, 
-                data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
+                # data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                 loss_fn: Callable):
-        self.data_loader = data_loader
+        # self.data_loader = data_loader
         self.loss_fn = loss_fn
     
     @abstractmethod
-    def evaluate(self, model):
+    def evaluate(self, model, eval_data_loader):
         """Evaluate the model.
 
         Parameters
@@ -36,8 +36,8 @@ class Evaluator(ABC):
         """
         pass
 
-    def __call__(self, model):
-        return self.evaluate(model)
+    def __call__(self, model, eval_data_loader):
+        return self.evaluate(model, eval_data_loader)
 
 
 class ClassificationEval(Evaluator):
@@ -55,26 +55,26 @@ class ClassificationEval(Evaluator):
         The average to use for the metrics, by default "macro".
     """
     def __init__(self, 
-                 data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
+                #  data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  loss_fn: Callable, 
                  n_classes: int, 
                  average: Literal["micro","macro"]="macro",
                  device: torch.device=torch.device("cpu")):
-        super().__init__(data_loader, loss_fn)
+        super().__init__(loss_fn)
         self.average = average
         self.n_classes = n_classes
         self.device = device
 
-    def evaluate(self, model: torch.nn.Module) -> dict:
+    def evaluate(self, model: torch.nn.Module, eval_data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]]) -> dict:
         model.eval()
         # TODO: check if this is correct
         task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
         loss, cnt = 0, 0
-        if not isinstance(self.data_loader, list):
-            self.data_loader = [self.data_loader]
+        if not isinstance(eval_data_loader, list):
+            eval_data_loader = [eval_data_loader]
 
-        for data_loader in self.data_loader:
+        for data_loader in eval_data_loader:
             accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
             precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
             recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average=self.average)
@@ -110,17 +110,17 @@ class ClassificationEval(Evaluator):
 class ClassificationSklearnEval(Evaluator):
 
     def __init__(self, 
-                 data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
+                #  data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  average: Literal["micro","macro"]="macro"):
-        super().__init__(data_loader, None)
+        super().__init__(None)
         self.average = average
 
-    def evaluate(self, model: ClassifierMixin) -> dict:
+    def evaluate(self, model: ClassifierMixin, eval_data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]]) -> dict:
         accs, precs, recs, f1s = [], [], [], []
-        if not isinstance(self.data_loader, list):
-            self.data_loader = [self.data_loader]
+        if not isinstance(eval_data_loader, list):
+            eval_data_loader = [eval_data_loader]
 
-        for data_loader in self.data_loader:
+        for data_loader in eval_data_loader:
 
             X, y = data_loader.tensors
             y_hat = model.predict(X)

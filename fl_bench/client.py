@@ -98,7 +98,7 @@ class Client(ABC):
         """
         if self.validation_set is not None:
             n_classes = self.model.output_size
-            return ClassificationEval(self.validation_set, self.loss_fn, n_classes).evaluate(self.model)
+            return ClassificationEval(self.loss_fn, n_classes).evaluate(self.model, self.validation_set)
     
     def checkpoint(self):
         """Checkpoint the optimizer and the scheduler.

@@ -125,7 +125,7 @@ class PreweakFClient(Client):
     
     def validate(self):
         if self.validation_set is not None:
-            return ClassificationSklearnEval(self.validation_set).evaluate(self.strong_clf)
+            return ClassificationSklearnEval().evaluate(self.strong_clf, self.validation_set)
     
     def checkpoint(self):
         raise NotImplementedError("PreweakF does not support checkpointing")
@@ -185,7 +185,7 @@ class PreweakFServer(Server):
 
                 progress_fl.update(task_id=task_rounds, advance=1)
                 client_evals = [client.validate() for client in eligible]
-                self.notify_end_round(round + 1, self.model, client_evals)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
                 self.rounds += 1 
 
             progress_fl.remove_task(task_rounds)

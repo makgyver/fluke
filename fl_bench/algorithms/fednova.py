@@ -305,7 +305,7 @@ class FedNovaServer(Server):
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, client_evals)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
                 self.rounds += 1 
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
@@ -364,7 +364,7 @@ class FedNovaServer(Server):
                     client.optimizer.update_learning_rate(round, n_rounds)
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
                 self.rounds += 1
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)

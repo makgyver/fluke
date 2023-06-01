@@ -25,8 +25,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     fl_algo_builder = FedAlgorithmsEnum(cfg.method.name)
     fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
-    log = cfg.exp.logger.logger(ClassificationEval(fl_algo.server.test_data, 
-                                                   fl_algo.loss, 
+    log = cfg.exp.logger.logger(ClassificationEval(fl_algo.loss, 
                                                    data_splitter.num_classes(), 
                                                    "macro",
                                                    GlobalSettings().get_device()), 
@@ -54,11 +53,11 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     GlobalSettings().set_seed(cfg.exp.seed) 
     GlobalSettings().set_device(cfg.exp.device)
     data_splitter = DataSplitter.from_config(cfg.data)
-
+    
     fl_algo_builder = FedAdaboostAlgorithmsEnum(cfg.method.name)
     fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
-    log = cfg.exp.logger.logger(ClassificationSklearnEval(fl_algo.server.test_data, "macro"), 
+    log = cfg.exp.logger.logger(ClassificationSklearnEval("macro"), 
                                 name=str(cfg),
                                 **cfg.exp.wandb_params)
     log.init(**cfg)

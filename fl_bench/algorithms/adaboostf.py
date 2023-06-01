@@ -82,7 +82,7 @@ class AdaboostFClient(Client):
     
     def validate(self):
         if self.validation_set is not None:
-            return ClassificationSklearnEval(self.validation_set).evaluate(self.strong_clf)
+            return ClassificationSklearnEval().evaluate(self.strong_clf, self.validation_set)
             
     def checkpoint(self):
         raise NotImplementedError("AdaboostF does not support checkpointing")
