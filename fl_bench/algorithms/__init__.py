@@ -56,8 +56,8 @@ class CentralizedFL():
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc)
     
     def __str__(self) -> str:
-        algo_hp = ",".join([f"{h}={str(v)}" for h,v in self.hyperparameters.items() if h not in ['client', 'server']])
-        return f"{self.__class__.__name__}({algo_hp},{self.clients[0]},{self.server})"
+        algo_hp = ",\n\t".join([f"{h}={str(v)}" for h,v in self.hyperparameters.items() if h not in ['client', 'server']])
+        return f"{self.__class__.__name__}(\n\t{algo_hp},\n\t{self.clients[0]},\n\t{self.server}\n)"
     
     def __repr__(self) -> str:
         return self.__str__()
