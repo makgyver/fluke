@@ -126,7 +126,7 @@ class ClassificationSklearnEval(Evaluator):
             y_hat = model.predict(X)
 
             accs.append(accuracy_score(y, y_hat))
-            precs.append(precision_score(y, y_hat, average=self.average))
+            precs.append(precision_score(y, y_hat, average=self.average)) #TODO zero_division
             recs.append(recall_score(y, y_hat, average=self.average))
             f1s.append(f1_score(y, y_hat, average=self.average))
 

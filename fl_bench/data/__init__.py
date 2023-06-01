@@ -187,21 +187,21 @@ class DataSplitter:
                                                                                   test_size=self.validation_split, 
                                                                                   stratify=client_y)
                 client_tr_assignments.append(FastTensorDataLoader(Xtr_client, 
-                                                                     Ytr_client, 
-                                                                     batch_size=batch_size, 
-                                                                     shuffle=True, 
-                                                                     percentage=self.sampling_perc))
+                                                                  Ytr_client, 
+                                                                  batch_size=batch_size, 
+                                                                  shuffle=True, 
+                                                                  percentage=self.sampling_perc))
                 client_te_assignments.append(FastTensorDataLoader(Xte_client, 
-                                                                    Yte_client, 
-                                                                    batch_size=batch_size, 
-                                                                    shuffle=True, 
-                                                                    percentage=self.sampling_perc))
+                                                                  Yte_client, 
+                                                                  batch_size=batch_size, 
+                                                                  shuffle=True, 
+                                                                  percentage=self.sampling_perc))
             else:
                 client_tr_assignments.append(FastTensorDataLoader(client_X, 
-                                                                     client_y, 
-                                                                     batch_size=batch_size, 
-                                                                     shuffle=True, 
-                                                                     percentage=self.sampling_perc))
+                                                                  client_y, 
+                                                                  batch_size=batch_size, 
+                                                                  shuffle=True, 
+                                                                  percentage=self.sampling_perc))
                 client_te_assignments.append(None)
 
         server_te = FastTensorDataLoader(*self.data_container.test,

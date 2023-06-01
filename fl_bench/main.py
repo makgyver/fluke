@@ -1,11 +1,14 @@
 import sys; sys.path.append(".")
 
 import typer
+
+import rich
+from rich.panel import Panel
 from rich.pretty import Pretty
 
 from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter
-from fl_bench.utils import *
+from fl_bench.utils import Configuration, plot_comparison
 from fl_bench.evaluation import ClassificationEval, ClassificationSklearnEval
 from fl_bench.algorithms import FedAdaboostAlgorithmsEnum, FedAlgorithmsEnum
 
@@ -25,12 +28,12 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     fl_algo_builder = FedAlgorithmsEnum(cfg.method.name)
     fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
-    log = cfg.exp.logger.logger(ClassificationEval(fl_algo.loss, 
+    log = cfg.log.logger.logger(ClassificationEval(fl_algo.loss, 
                                                    data_splitter.num_classes(), 
                                                    "macro",
                                                    GlobalSettings().get_device()), 
                                 name=str(cfg),
-                                **cfg.exp.wandb_params)
+                                **cfg.log.wandb_params)
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     
@@ -43,7 +46,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     # GlobalSettings().set_workers(8)
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
+    # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 
 @app.command()
@@ -54,19 +57,19 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     GlobalSettings().set_device(cfg.exp.device)
     data_splitter = DataSplitter.from_config(cfg.data)
     
-    fl_algo_builder = FedAdaboostAlgorithmsEnum(cfg.method.name)
-    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
-
-    log = cfg.exp.logger.logger(ClassificationSklearnEval("macro"), 
+    log = cfg.log.logger.logger(ClassificationSklearnEval("macro"), 
                                 name=str(cfg),
-                                **cfg.exp.wandb_params)
+                                **cfg.log.wandb_params)
     log.init(**cfg)
+
+    fl_algo_builder = FedAdaboostAlgorithmsEnum(cfg.method.name)
+    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)    
     fl_algo.set_callbacks(log)
 
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
 
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
+    # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 
 @app.command()

@@ -171,11 +171,8 @@ class WandBLog(Log):
         
     def init(self, **kwargs):
         super().init(**kwargs)
-        if kwargs:
-            self.config["config"] = kwargs
-            self.run = wandb.init(**self.config)
-        else:
-            self.run = wandb.init()
+        self.config["config"] = kwargs
+        self.run = wandb.init(**self.config)
     
     def start_round(self, round: int, global_model: Module):
         super().start_round(round, global_model)
@@ -280,7 +277,7 @@ class Configuration(DDict):
         self.data.distribution = DistributionEnum(self.data.distribution)
         self.data.dataset = DatasetsEnum(self.data.dataset)
         self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
-        self.exp.logger = LogEnum(self.exp.logger)
+        self.log.logger = LogEnum(self.log.logger)
     
     def __str__(self) -> str:
         return f"{self.method.name}_data({self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''})" + \

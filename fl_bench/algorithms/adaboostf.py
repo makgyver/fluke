@@ -135,7 +135,7 @@ class AdaboostFServer(Server):
                 self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
                 
                 client_evals = [client.validate() for client in eligible]
-                self.notify_end_round(round + 1, self.model, client_evals)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
                 self.rounds += 1 
 
                 # if self.checkpoint_path is not None:
