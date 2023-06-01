@@ -103,6 +103,13 @@ class FedAlgorithmsEnum(Enum):
     FEDEXP = 'fedexp'
     PEFEDME = 'pfedme'
 
+    @classmethod
+    def contains(cls, member: object) -> bool:
+        if isinstance(member, str):
+            return member in cls._value2member_map_.keys()
+        elif isinstance(member, FedAlgorithmsEnum):
+            return member.value in cls._member_names_
+        
     def algorithm(self):
         algos = {
             'fedavg': FedAVG,
@@ -127,6 +134,13 @@ class FedAdaboostAlgorithmsEnum(Enum):
     DISTBOOSTF = 'distboostf'
     PREWEAKF = 'preweakf'
     PREWEAKF2 = 'preweakf2'
+
+    @classmethod
+    def contains(cls, member: object) -> bool:
+        if isinstance(member, str):
+            return member in cls._value2member_map_.keys()
+        elif isinstance(member, FedAdaboostAlgorithmsEnum):
+            return member.value in cls._member_names_
 
     def algorithm(self):
         algos = {

@@ -275,6 +275,13 @@ class DatasetsEnum(Enum):
     VEHICLE = "vehicle"
     VOWEL = "vowel"
 
+    @classmethod
+    def contains(cls, member: object) -> bool:
+        if isinstance(member, str):
+            return member in cls._value2member_map_.keys()
+        elif isinstance(member, DatasetsEnum):
+            return member.value in cls._member_names_
+
     def klass(self):
         DATASET_MAP = {
             "mnist": Datasets.MNIST,
