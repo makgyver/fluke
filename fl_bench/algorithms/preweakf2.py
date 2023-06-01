@@ -2,8 +2,8 @@ import sys; sys.path.append(".")
 
 import numpy as np
 from math import log
-from copy import deepcopy
 from typing import Any
+from copy import deepcopy
 from pyparsing import Iterable
 from numpy.random import choice
 from sklearn.base import ClassifierMixin

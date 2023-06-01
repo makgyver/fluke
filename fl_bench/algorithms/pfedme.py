@@ -1,10 +1,10 @@
 import sys; sys.path.append(".")
 
-import torch
 from copy import deepcopy
 from collections import OrderedDict
 from typing import Any, Callable, Iterable, List
 
+import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 

@@ -1,22 +1,27 @@
+import sys; sys.path.append(".")
+
 from enum import Enum
 from copy import deepcopy
+from typing import Iterable, Any
 from collections import OrderedDict
-from typing import Callable, Iterable, Union, Optional, Any
 
 import torch
 from torch.nn import Module
 
-import sys
-from fl_bench.data import FastTensorDataLoader; sys.path.append(".")
+from fl_bench.utils import DDict
 from fl_bench.server import Server
 from fl_bench.client import Client
-from fl_bench.utils import DDict, OptimizerConfigurator
+from fl_bench.data import FastTensorDataLoader
 from fl_bench.algorithms import CentralizedFL
+
 
 class FedOptMode(Enum):
     FedAdam = "adam"
     FedYogi = "yogi"
     FedAdagrad = "adagrad"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class FedOptServer(Server):

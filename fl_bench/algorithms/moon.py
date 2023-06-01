@@ -1,15 +1,16 @@
+import sys; sys.path.append(".")
+
 from copy import deepcopy
-from typing import Callable, Iterable, Any, Optional, Union
+from typing import Callable
 
 import torch
-from torch.nn import Module, CosineSimilarity
+from torch.nn import CosineSimilarity
 
-import sys
-from fl_bench import Message; sys.path.append(".")
+from fl_bench import Message
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 
 
 class MOONClient(Client):
@@ -75,7 +76,7 @@ class MOONClient(Client):
         to_str = super().__str__()
         return f"{to_str[:-1]},mu={self.mu},tau={self.tau})"
     
-    
+
 class MOON(CentralizedFL):
     
     def init_clients(self, 

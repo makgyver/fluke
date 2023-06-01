@@ -1,25 +1,22 @@
-from typing import Any, Callable, Iterable
-import multiprocessing as mp
-from torch.nn import Module
+import sys; sys.path.append(".")
+
+import numpy as np
 from copy import deepcopy
-
+import multiprocessing as mp
 from collections import OrderedDict
-
-import sys
-from fl_bench.data import DataSplitter; sys.path.append(".")
-from utils import OptimizerConfigurator
-from algorithms import CentralizedFL
-
-from server import Server
+from typing import Any, Callable, Iterable
 
 import torch
+from torch.nn import Module
 from torch.optim.optimizer import Optimizer, required
-import numpy as np
 
 from fl_bench.client import Client
-from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
-from fl_bench.data import DataSplitter, FastTensorDataLoader
+from fl_bench.server import Server
 from fl_bench import GlobalSettings, Message
+from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import OptimizerConfigurator
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 
 
 

@@ -1,19 +1,18 @@
-from typing import Any, Callable, Iterable
+import sys; sys.path.append(".")
+
 from copy import deepcopy
+from typing import Any, Callable, Iterable
 
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from client import Client
 from fl_bench import Message
 from fl_bench.client import Client
-from server import Server
-
-import sys; sys.path.append(".")
+from fl_bench.server import Server
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
 from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
-from fl_bench.data import DataSplitter, FastTensorDataLoader
 
 
 class ScaffoldOptimizer(Optimizer):
