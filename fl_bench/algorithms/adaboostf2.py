@@ -87,6 +87,9 @@ class AdaboostF2Client(Client):
     def restore(self, checkpoint):
         raise NotImplementedError("AdaboostF2 does not support checkpointing")
 
+    def __str__(self) -> str:
+        return f"AdaboostF2Client(base_classifier={self.base_classifier})"
+    
 
 class AdaboostF2Server(Server):
     
@@ -161,7 +164,7 @@ class AdaboostF2(CentralizedFL):
                  n_clients: int,
                  data_splitter: DataSplitter, 
                  hyperparameters: DDict):
-        
+        self.hyperparameters = hyperparameters
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)

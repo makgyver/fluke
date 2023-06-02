@@ -51,7 +51,7 @@ class DistboostHyp(ClassifierMixin):
         return np.argmax(y_pred, axis=1)
     
 
-class DistboostClient(Client):
+class DistboostFClient(Client):
 
     def __init__(self,
                  X: np.ndarray,
@@ -99,11 +99,14 @@ class DistboostClient(Client):
     def restore(self, checkpoint):
         raise NotImplementedError("DistboostF does not support checkpointing")
 
+    def __str__(self) -> str:
+        return f"DistboostFClient(base_classifier={self.base_classifier})"
+
 
 class DistboostFServer(Server):
     def __init__(self,
                  model: Any,
-                 clients: Iterable[DistboostClient], 
+                 clients: Iterable[DistboostFClient], 
                  test_data: FastTensorDataLoader,
                  n_classes: int = 2):
         super().__init__(model, test_data, clients, False)
@@ -154,7 +157,7 @@ class DistboostFServer(Server):
 
     
     def aggregate(self, 
-                  eligible: Iterable[DistboostClient], 
+                  eligible: Iterable[DistboostFClient], 
                   weak_learners: Iterable[ClassifierMixin]) -> Tuple[ClassifierMixin, float]:
 
         aggr_hp = DistboostHyp(weak_learners, self.K)
@@ -175,7 +178,7 @@ class DistboostF(CentralizedFL):
                  n_clients: int,
                  data_splitter: DataSplitter, 
                  hyperparameters: DDict):
-        
+        self.hyperparameters = hyperparameters
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)
@@ -197,7 +200,7 @@ class DistboostF(CentralizedFL):
             loader = clients_tr_data[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            self.clients.append(DistboostClient(X, y, config.n_classes, deepcopy(base_model), clients_te_data[i]))
+            self.clients.append(DistboostFClient(X, y, config.n_classes, deepcopy(base_model), clients_te_data[i]))
 
     def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
         self.server = DistboostFServer(model, self.clients, data, **config)        

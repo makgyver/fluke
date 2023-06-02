@@ -133,6 +133,9 @@ class PreweakF2Client(Client):
     def restore(self, checkpoint):
         raise NotImplementedError("PreweakF does not support checkpointing")
 
+    def __str__(self) -> str:
+        return f"PreweakF2Client(n_estimators={self.n_estimators}, base_classifier={self.base_classifier})"
+
 
 class PreweakF2Server(Server):
     def __init__(self,
@@ -202,7 +205,7 @@ class PreweakF2(CentralizedFL):
                  n_clients: int,
                  data_splitter: DataSplitter, 
                  hyperparameters: DDict):
-        
+        self.hyperparameters = hyperparameters
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)

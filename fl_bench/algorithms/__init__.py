@@ -57,7 +57,8 @@ class CentralizedFL():
     
     def __str__(self) -> str:
         algo_hp = ",\n\t".join([f"{h}={str(v)}" for h,v in self.hyperparameters.items() if h not in ['client', 'server']])
-        return f"{self.__class__.__name__}(\n\t{algo_hp},\n\t{self.clients[0]},\n\t{self.server}\n)"
+        algo_hp = f"\n\t{algo_hp}," if algo_hp else ""
+        return f"{self.__class__.__name__}({algo_hp}\n\t{self.clients[0]},\n\t{self.server}\n)"
     
     def __repr__(self) -> str:
         return self.__str__()
