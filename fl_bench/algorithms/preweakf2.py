@@ -175,7 +175,7 @@ class PreweakF2Server(Server):
 
                 progress_fl.update(task_id=task_rounds, advance=1)
                 client_evals = [client.validate() for client in eligible]
-                self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
                 self.rounds += 1 
 
             progress_fl.remove_task(task_rounds)

@@ -143,7 +143,7 @@ class Server(ObserverSubject):
                     pool.join()
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
-                self.notify_(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
                 self.rounds += 1
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
