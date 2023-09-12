@@ -24,15 +24,16 @@ class MLP(nn.Module):
         self.output_size = num_classes
         self.fc1 = nn.Linear(input_size, 200)
         #self.fc1_drop = nn.Dropout(0.2)
-        self.fc2 = nn.Linear(200, 100)
+        self.fc2 = nn.Linear(200, 200) 
         #self.fc2_drop = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(100, num_classes)
+        self.fc3 = nn.Linear(200, num_classes) 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, self.input_size)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        return F.log_softmax(self.fc3(x), dim=1)
+        #return F.log_softmax(self.fc3(x), dim=1)
+        return self.fc3(x)
     
     def forward_(self, x: torch.Tensor, int_layer: int=0) -> torch.Tensor:
         """Partial forward pass of the model.
@@ -213,6 +214,43 @@ class CNN(nn.Module):
         # flatten the output of conv2 to (batch_size, 32 * 7 * 7)
         x = x.view(x.size(0), -1)       
         return F.log_softmax(self.out(x), dim=1) #, x    # return x for visualization
+
+class CustomCNN(nn.Module):
+    """Custom convolutional neural network (CNN) model.
+
+    This model is based on the description given in the paper "Federated Learning with Dynamic Regularization":
+    - Two convolutional layers with 64 5x5 filters.
+    - Two 2x2 max pooling layers.
+    - Two fully connected layers with 394 and 192 neurons.
+    - A softmax layer.
+    """
+    def __init__(self):
+        super(CustomCNN, self).__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5, stride=1, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5, stride=1, padding=2),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+        )
+        
+        self.fc1 = nn.Linear(64*8*8, 394)
+        self.fc2 = nn.Linear(394, 192)
+        self.out = nn.Linear(192, 10) 
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x.view(x.size(0), -1)  # flatten the tensor
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return F.log_softmax(self.out(x), dim=1)
+
 
 
 class Block(nn.Module):
