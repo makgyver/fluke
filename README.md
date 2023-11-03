@@ -23,7 +23,7 @@ The `EXP_CONFIG` is a json file contains the following fields:
 - `n_rounds`: the number of communication rounds
 - `batch_size`: the batch size used client-side for training the model
 - `n_epochs`: the number of epochs used client-side for training the model
-- `eligibility_percentage`: the percentage of clients that are elegible for training in each round
+- `eligible_perc`: the percentage of clients that are elegible for training in each round
 - `loss`: the loss function used for training the model. It must be a valid PyTorch loss function
 - `distribution`: the data distribution used for training the model. 
   It must be one of the following: 

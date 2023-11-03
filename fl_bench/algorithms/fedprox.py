@@ -1,17 +1,14 @@
-from copy import deepcopy
-from typing import Callable, Iterable, Union, Any, Optional
+import sys; sys.path.append(".")
 
 import torch
-from torch.nn import Module
+from copy import deepcopy
+from typing import Callable
 from algorithms import CentralizedFL
+
 from fl_bench import Message
-from server import Server
-
-import sys; sys.path.append(".")
-from fl_bench.utils import OptimizerConfigurator
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter, FastTensorDataLoader
-
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 
 class FedProxClient(Client):
     def __init__(self,
@@ -48,6 +45,10 @@ class FedProxClient(Client):
                 self.optimizer.step()          
             self.scheduler.step()
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+    
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},mu={self.mu})"
 
 
 class FedProx(CentralizedFL):
@@ -71,37 +72,22 @@ class FedProx(CentralizedFL):
         The mu parameter for the FedProx algorithm.
     loss_fn : Callable
         The loss function.
-    eligibility_percentage : float, optional
+    eligible_perc : float, optional
         The percentage of clients to be selected for training, by default 0.5.
     """
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int,
-                 optimizer_cfg: OptimizerConfigurator,
-                 model: Module,
-                 client_mu: float,
-                 loss_fn: Callable,
-                 eligibility_percentage: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.client_mu = client_mu
     
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [FedProxClient(train_set=data_splitter.client_train_loader[i], 
-                                      mu=self.client_mu,
-                                      optimizer_cfg=self.optimizer_cfg, 
-                                      loss_fn=self.loss_fn, 
-                                      validation_set=data_splitter.client_test_loader[i],
-                                      local_epochs=self.n_epochs) for i in range(self.n_clients)]
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              lr=config.optimizer.lr, 
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [FedProxClient(train_set=clients_tr_data[i], 
+                                      mu=config.mu,
+                                      optimizer_cfg=optimizer_cfg, 
+                                      loss_fn=self.loss, 
+                                      validation_set=clients_te_data[i],
+                                      local_epochs=config.n_epochs) for i in range(self.n_clients)]
     
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"\u03BC={self.client_mu},P={self.eligibility_percentage},{self.optimizer_cfg})"

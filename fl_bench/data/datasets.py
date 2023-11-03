@@ -11,9 +11,8 @@ from torchvision.transforms import ToTensor
 
 import numpy as np
 from numpy.random import permutation
-
-from . import DataContainer
-from .dataclass import SVHN
+from fl_bench.data import DataContainer
+from fl_bench.data.dataclass import SVHN
 
 
 class Datasets:
@@ -275,6 +274,13 @@ class DatasetsEnum(Enum):
     SPLICE = "splice"
     VEHICLE = "vehicle"
     VOWEL = "vowel"
+
+    @classmethod
+    def contains(cls, member: object) -> bool:
+        if isinstance(member, str):
+            return member in cls._value2member_map_.keys()
+        elif isinstance(member, DatasetsEnum):
+            return member.value in cls._member_names_
 
     def klass(self):
         DATASET_MAP = {

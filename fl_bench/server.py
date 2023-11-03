@@ -1,20 +1,21 @@
 from __future__ import annotations
+
+import numpy as np
+from copy import deepcopy
+import multiprocessing as mp
+from typing import Iterable, Any
+from collections import OrderedDict
+
+import torch
+from torch.nn import Module
+
+from fl_bench.channel import Channel
+from fl_bench.data import FastTensorDataLoader
+from fl_bench import GlobalSettings, Message, ObserverSubject
+
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from fl_bench.client import Client
-
-from collections import OrderedDict
-from copy import deepcopy
-from typing import Iterable
-import numpy as np 
-from typing import Any
-import torch
-from torch.nn import Module
-import multiprocessing as mp
-
-from fl_bench.channel import Channel
-from fl_bench import GlobalSettings, Message, ObserverSubject
-
 
 class Server(ObserverSubject):
     """Standard Server for Federated Learning.
@@ -32,8 +33,8 @@ class Server(ObserverSubject):
     """
     def __init__(self,
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client], 
-                 eligibility_percentage: float=0.5, 
                  weighted: bool=False):
         super().__init__()
         self.device = GlobalSettings().get_device()
@@ -41,11 +42,11 @@ class Server(ObserverSubject):
         self.clients = clients
         self.channel = Channel()
         self.n_clients = len(clients)
-        self.eligibility_percentage = eligibility_percentage
         self.weighted = weighted
         self.callbacks = []
         self.rounds = 0
         self.checkpoint_path = None
+        self.test_data = test_data
 
         for client in self.clients:
             client.set_server(self)
@@ -63,7 +64,7 @@ class Server(ObserverSubject):
     def _broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message(self.model, "model", self), eligible)
 
-    def fit(self, n_rounds: int=10) -> None:
+    def fit(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
         """Run the federated learning algorithm.
         Parameters
         ----------
@@ -76,14 +77,14 @@ class Server(ObserverSubject):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*self.eligibility_percentage)
+            client_x_round = int(self.n_clients*eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
             total_rounds = self.rounds + n_rounds
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
-                eligible = self.get_eligible_clients()
+                eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
                 self._broadcast_model(eligible)
                 client_evals = []
@@ -95,14 +96,14 @@ class Server(ObserverSubject):
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
                 self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, client_evals)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
                 self.rounds += 1 
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
     
-    def _fit_multiprocess(self, n_rounds: int=10) -> None:
+    def _fit_multiprocess(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
         """Run the federated learning algorithm using multiprocessing.
 
         Parameters
@@ -116,7 +117,7 @@ class Server(ObserverSubject):
             progress_fl.update(task_id=task_rounds, advance=1)
             progress_client.update(task_id=task_local, advance=1)
 
-        client_x_round = int(self.n_clients*self.eligibility_percentage)
+        client_x_round = int(self.n_clients*eligible_perc)
         task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
         task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
@@ -126,29 +127,30 @@ class Server(ObserverSubject):
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
                 client_evals = []
-                eligible = self.get_eligible_clients()
+                eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
-                self.channel.broadcast(Message(self.model, "model", self), eligible)
+                self._broadcast_model(eligible)
                 progress_client.update(task_id=task_local, completed=0)
                 with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
                     for client in eligible:
                         pool.apply_async(self._local_train,
                                          args=(client,), 
                                          callback=callback_progress)
-                        client_eval = self.channel.receive(self, client, "eval")
-                        client_evals.append(client_eval)
+                        client_eval = client.validate()
+                        if client_eval:
+                            client_evals.append(client_eval)
                     pool.close()
                     pool.join()
                 client_evals = [c.get() for c in client_evals]
                 self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, client_evals if client_evals[0] is not None else None)
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
                 self.rounds += 1
                 if self.checkpoint_path is not None:
                     self.save(self.checkpoint_path)
         progress_fl.remove_task(task_rounds)
         progress_client.remove_task(task_local)
 
-    def get_eligible_clients(self) -> Iterable[Client]:
+    def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
 
         The number of clients is determined by the `elegibility_percentage` attribute.
@@ -158,9 +160,9 @@ class Server(ObserverSubject):
         Iterable[Client]
             The clients that will participate in the current round.
         """
-        if self.eligibility_percentage == 1:
+        if eligible_perc == 1:
             return self.clients
-        n = int(self.n_clients * self.eligibility_percentage)
+        n = int(self.n_clients * eligible_perc)
         return np.random.choice(self.clients, n)
 
 
@@ -212,9 +214,9 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.start_round(round, global_model)
     
-    def notify_end_round(self, round: int, global_model: Any, client_evals: Iterable[Any]) -> None:
+    def notify_end_round(self, round: int, global_model: Any, data: FastTensorDataLoader, client_evals: Iterable[Any]) -> None:
         for observer in self._observers:
-            observer.end_round(round, global_model, client_evals)
+            observer.end_round(round, global_model, data, client_evals)
     
     def notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
         for observer in self._observers:
@@ -265,3 +267,9 @@ class Server(ObserverSubject):
                 client.restore(checkpoint['client_optimizers'][i])
         except Exception as e:
             self.notify_error(f"Unable to load the checkpoint:\n\t{e}.\nCheckpoint will be ignored.")
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(weighted={self.weighted})"
+
+    def __repr__(self) -> str:
+        return self.__str__()

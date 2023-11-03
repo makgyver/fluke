@@ -1,20 +1,19 @@
-import sys
-from fl_bench import Message
+import sys; sys.path.append(".")
 
-from fl_bench.data import DataSplitter, FastTensorDataLoader; sys.path.append(".")
-
-from collections import OrderedDict
 from copy import deepcopy
+from collections import OrderedDict
 from typing import Any, Callable, Iterable, List
-import torch
 
+import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
+from fl_bench import Message
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.utils import OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 
 
 class pFedMeOptimizer(Optimizer):
@@ -32,6 +31,7 @@ class pFedMeOptimizer(Optimizer):
                     + group["lamda"] * (param_p.data - param_l.data)
                     + group["mu"] * param_p.data
                 )
+
 
 class PFedMeClient(Client):
     def __init__(self,
@@ -83,14 +83,19 @@ class PFedMeClient(Client):
         self.channel.send(Message(deepcopy(self.shared_model), "model", self), self.server)
     
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},k={self.k},lr={self.lr})"
+    
+
 class PFedMeServer(Server):
     def __init__(self, 
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
                  beta: float=0.5,
-                 eligibility_percentage: float=0.5, 
                  weighted: bool=False):
-        super().__init__(model, clients, eligibility_percentage, weighted)
+        super().__init__(model, test_data, clients, weighted)
         self.beta = beta
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
@@ -116,43 +121,30 @@ class PFedMeServer(Server):
             param.data = (1 - self.beta) * param.data
             param.data += self.beta * avg_model_sd[key] 
 
-class PFedMe(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 model: Module, 
-                 beta: float,
-                 k: int,
-                 client_lr: float,
-                 loss_fn: Callable, 
-                 eligibility_percentage: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.beta = beta
-        self.k = k
-        self.client_lr = client_lr
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},beta={self.beta})"
 
-    def init_server(self, **kwargs):
-        self.server = PFedMeServer(self.model, 
-                                   self.clients, 
-                                   self.beta, 
-                                   self.eligibility_percentage, 
-                                   weighted=True)
+class PFedMe(CentralizedFL):
+    def get_optimizer_class(self) -> torch.optim.Optimizer:
+        return pFedMeOptimizer
     
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [PFedMeClient(train_set=data_splitter.client_train_loader[i], 
-                                     k=self.k,
-                                     lr=self.client_lr,
-                                     optimizer_cfg=self.optimizer_cfg, 
-                                     loss_fn=self.loss_fn, 
-                                     validation_set=data_splitter.client_test_loader[i],
-                                     local_epochs=self.n_epochs) for i in range(self.n_clients)]
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = PFedMeServer(model, data, self.clients, **config)
+
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              lr=config.optimizer.lr, 
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [PFedMeClient(train_set=clients_tr_data[i], 
+                                     k=config.k,
+                                     lr=config.lr,
+                                     optimizer_cfg=optimizer_cfg, 
+                                     loss_fn=self.loss, 
+                                     validation_set=clients_te_data[i],
+                                     local_epochs=config.n_epochs) for i in range(self.n_clients)]

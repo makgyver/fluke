@@ -1,15 +1,16 @@
+import sys; sys.path.append(".")
+
 from copy import deepcopy
-from typing import Callable, Iterable, Any, Optional, Union
+from typing import Callable
 
 import torch
-from torch.nn import Module, CosineSimilarity
+from torch.nn import CosineSimilarity
 
-import sys
-from fl_bench import Message; sys.path.append(".")
+from fl_bench import Message
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 
 
 class MOONClient(Client):
@@ -71,40 +72,25 @@ class MOONClient(Client):
         self.server_model.to("cpu")
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
-class MOON(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 model: Module, 
-                 client_mu: float,
-                 client_tau: float,
-                 loss_fn: Callable, 
-                 eligibility_percentage: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.client_mu = client_mu
-        self.client_tau = client_tau
-    
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [ MOONClient(train_set=data_splitter.client_train_loader[i], 
-                                    mu=self.client_mu,
-                                    tau=self.client_tau,
-                                    optimizer_cfg=self.optimizer_cfg, 
-                                    loss_fn=self.loss_fn, 
-                                    validation_set=data_splitter.client_test_loader[i],
-                                    local_epochs=self.n_epochs) for i in range(self.n_clients) ]
-    
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"\u03BC={self.client_mu},\u03C4={self.client_tau},P={self.eligibility_percentage}," + \
-               f"{self.optimizer_cfg})"
+        to_str = super().__str__()
+        return f"{to_str[:-1]},mu={self.mu},tau={self.tau})"
     
+
+class MOON(CentralizedFL):
+    
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg=OptimizerConfigurator(self.get_optimizer_class(), 
+                                            lr=config.optimizer.lr, 
+                                            scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [MOONClient(train_set=clients_tr_data[i],  
+                                   mu=config.mu,
+                                   tau=config.tau,
+                                   optimizer_cfg=optimizer_cfg, 
+                                   loss_fn=self.loss, 
+                                   validation_set=clients_te_data[i],
+                                   local_epochs=config.n_epochs) for i in range(self.n_clients)]

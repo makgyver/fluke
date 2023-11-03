@@ -1,11 +1,14 @@
-from abc import ABC, abstractmethod
 import sys
-import pickle
-from typing import Any, Optional, Tuple, Union, Iterable
 import torch
+import random
+import pickle
+import numpy as np
 import multiprocessing as mp
-from rich.progress import Progress, Live
 from rich.console import Group
+from rich.progress import Progress, Live
+from typing import Any, Optional, Union, Iterable
+
+import fl_bench.utils
 
 class Singleton(type):
     """Singleton metaclass."""
@@ -43,6 +46,7 @@ class GlobalSettings(metaclass=Singleton):
     """Global settings for the library.""" 
     
     _device = 'cpu'
+    _seed = 0
     _workers = 1
 
     _progress_FL = None
@@ -59,6 +63,23 @@ class GlobalSettings(metaclass=Singleton):
                                          self._progress_clients,
                                          self._progress_server))
 
+    def set_seed(self, seed: int) -> None:
+        """Set seed for reproducibility.
+
+        Parameters
+        ----------
+        seed : int
+            Seed to set.
+        """
+        self._seed = seed
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+
     def auto_device(self) -> torch.device:
         """Set device to cuda if available, otherwise cpu.
         
@@ -70,7 +91,7 @@ class GlobalSettings(metaclass=Singleton):
         self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         return self._device
     
-    def set_device(self, device_name: str) -> torch.device:
+    def set_device(self, device: fl_bench.utils.DeviceEnum) -> torch.device:
         """Set the device.
         
         Parameters
@@ -84,10 +105,10 @@ class GlobalSettings(metaclass=Singleton):
             The device.
         """
 
-        if device_name == "auto":
+        if device == fl_bench.utils.DeviceEnum.AUTO:
             return GlobalSettings().auto_device()
 
-        self._device = torch.device(device_name)
+        self._device = torch.device(device.value)
         return self._device
     
     def get_device(self):
@@ -162,6 +183,16 @@ class GlobalSettings(metaclass=Singleton):
             The live renderer.
         """
         return self._live_renderer
+
+    def get_seed(self):
+        """Get the seed.
+        
+        Returns
+        -------
+        int
+            The seed.
+        """
+        return self._seed
 
 
 class Message:

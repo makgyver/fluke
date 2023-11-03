@@ -1,26 +1,21 @@
-from collections import OrderedDict
-from copy import deepcopy
-from typing import Any, Callable, Iterable, Optional, Union
+import sys; sys.path.append(".")
 
 import torch
-from torch.nn import Module
+from copy import deepcopy
+from typing import Any, Iterable
+from collections import OrderedDict
 
-import sys; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.utils import OptimizerConfigurator, diff_model
+from fl_bench.utils import DDict, diff_model
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
 
 
 class FedExPServer(Server):
-    def __init__(self,
-                 model: Module,
-                 n_clients: int,
-                 eligibility_percentage: float=0.5):
-        super().__init__(model, n_clients, eligibility_percentage)
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        clients_sd = [self.receive(eligible[i], "model").payload.state_dict() for i in range(len(eligible))]
+        clients_sd = self._get_client_models(eligible)
         clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]
         eta, mu_diff = self._compute_eta(clients_diff)
         
@@ -53,22 +48,6 @@ class FedExPServer(Server):
     
 
 class FedExP(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int,
-                 optimizer_cfg: OptimizerConfigurator,
-                 model: Module,
-                 loss_fn: Callable,
-                 eligibility_percentage: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
     
-    def init_server(self, **kwargs):
-        self.server = FedExPServer(self.model, self.clients, self.eligibility_percentage)
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FedExPServer(model, data, self.clients, **config)

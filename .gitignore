@@ -23,3 +23,5 @@ data/cifar-10-batches-py/data_batch_3
 data/cifar-10-batches-py/data_batch_2
 data/cifar-10-batches-py/data_batch_1
 data/cifar-10-batches-py/batches.meta
+exp_configs/*
+alg_configs/*

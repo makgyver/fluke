@@ -1,8 +1,8 @@
-
-from collections import defaultdict
 import sys; sys.path.append(".")
 
 from typing import Any, Dict, List
+from collections import defaultdict
+
 from fl_bench import Message, ObserverSubject
 
 

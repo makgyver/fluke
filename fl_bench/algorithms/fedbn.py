@@ -1,17 +1,20 @@
-from collections import OrderedDict
-from copy import deepcopy
-from typing import Iterable, Any, Optional, Union
-import torch
+import sys; sys.path.append(".")
 
-import sys
-from fl_bench import Message; sys.path.append(".")
+import torch
+from copy import deepcopy
+from typing import Iterable, Any
+from collections import OrderedDict
+
+from fl_bench import Message
 from fl_bench.server import Server
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter;
 from fl_bench.algorithms import CentralizedFL
-    
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
+
 
 class FedBNClient(Client):
+
     def receive(self, message: Message) -> None:
         if message.msg_type == "model":
             model = message.payload
@@ -22,6 +25,7 @@ class FedBNClient(Client):
                     for key in model.state_dict().keys():
                         if not key.startswith("bn"):
                             self.model.state_dict()[key].data.copy_(model.state_dict()[key])
+
 
 class FedBNServer(Server):
 
@@ -50,15 +54,19 @@ class FedBNServer(Server):
 
 class FedBN(CentralizedFL):
     
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, \
-            "Number of clients in data splitter and the FL environment must be the same"
-        self.data_assignment = data_splitter.assignments
-        self.clients = [FedBNClient(train_set=data_splitter.client_train_loader[i], 
-                                    optimizer_cfg=self.optimizer_cfg, 
-                                    loss_fn=self.loss_fn, 
-                                    validation_set=data_splitter.client_test_loader[i],
-                                    local_epochs=self.n_epochs) for i in range(self.n_clients)]
-
-    def init_server(self, **kwargs):
-        self.server = FedBNServer(self.model, self.clients, self.eligibility_percentage, weighted=True)
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg=OptimizerConfigurator(self.get_optimizer_class(), 
+                                            lr=config.optimizer.lr, 
+                                            scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [FedBNClient(train_set=clients_tr_data[i],  
+                                    optimizer_cfg=optimizer_cfg, 
+                                    loss_fn=self.loss, 
+                                    validation_set=clients_te_data[i],
+                                    local_epochs=config.n_epochs) for i in range(self.n_clients)]
+    
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FedBNServer(model, data, self.clients, **config)

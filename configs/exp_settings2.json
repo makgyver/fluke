@@ -5,23 +5,15 @@
     	"eligible_perc": 1
 	},
 	"data": {
-		"dataset": "satimage",
-		"standardize": false,
+		"dataset": "adult",
+		"standardize": true,
     	"distribution": "iid",
-    	"validation_split": 0.0,
+    	"validation_split": 0.1,
     	"sampling_perc": 1.0
 	},
 	"exp": {
 		"seed": 5,
-    	"device": "auto",
-    	"checkpoint": {
-        	"save": false,
-        	"load": false,
-        	"path": "./checkpoints/TODO.pt"
-    	}
-	},
-	"log": {
-		"logger": "local",
+    	"logger": "local",
     	"wandb_params": {
         	"project": "fl-bench",
         	"entity": "mlgroup",

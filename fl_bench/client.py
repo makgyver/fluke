@@ -1,13 +1,11 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from fl_bench.server import Server
+import sys; sys.path.append(".")
 
 from abc import ABC
 from copy import deepcopy
 from typing import Callable
 
-import sys; sys.path.append(".")
+from fl_bench.server import Server
 from fl_bench import GlobalSettings, Message
 from fl_bench.utils import OptimizerConfigurator
 from fl_bench.data import FastTensorDataLoader
@@ -100,7 +98,7 @@ class Client(ABC):
         """
         if self.validation_set is not None:
             n_classes = self.model.output_size
-            return ClassificationEval(self.validation_set, self.loss_fn, n_classes).evaluate(self.model)
+            return ClassificationEval(self.loss_fn, n_classes).evaluate(self.model, self.validation_set)
     
     def checkpoint(self):
         """Checkpoint the optimizer and the scheduler.
@@ -130,3 +128,6 @@ class Client(ABC):
             self.scheduler.load_state_dict(checkpoint["scheduler"])
         
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(batch_size={self.train_set.batch_size},"+\
+               f"loss={self.loss_fn.__class__.__name__},n_epochs={self.local_epochs},optim={self.optimizer_cfg})"

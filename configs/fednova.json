@@ -1,14 +1,24 @@
 {
     "name": "fednova",
-    "optimizer_parameters": {
-        "lr": 0.01,
-        "momentum":0.9,
-        "scheduler_kwargs": {
-            "step_size": 1, 
-            "gamma": 1
-        }
-    },
     "hyperparameters": {
-        "pattern": "constant"
+        "server": {
+            "global_step": 1,
+            "tau_eff": 0
+        },
+        "client": {
+            "batch_size": 32,
+            "n_epochs": 5,
+            "loss": "CrossEntropyLoss",
+            "pattern": "constant",
+            "max_epochs": 3,
+            "optimizer": {		
+                "lr": 0.01,
+                "scheduler_kwargs": {
+                    "step_size": 1, 
+                    "gamma": 1
+                }
+            }
+        },
+        "model": "MLP"
     }
 }

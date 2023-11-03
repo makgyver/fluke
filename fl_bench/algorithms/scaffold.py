@@ -1,19 +1,18 @@
-from typing import Callable, Iterable
+import sys; sys.path.append(".")
+
 from copy import deepcopy
+from typing import Any, Callable, Iterable
 
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from client import Client
 from fl_bench import Message
 from fl_bench.client import Client
-from server import Server
-
-import sys; sys.path.append(".")
+from fl_bench.server import Server
 from fl_bench.algorithms import CentralizedFL
-from fl_bench.utils import OptimizerConfigurator
-from fl_bench.data import DataSplitter, FastTensorDataLoader
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 
 
 class ScaffoldOptimizer(Optimizer):
@@ -45,8 +44,6 @@ class ScaffoldClient(Client):
                  loss_fn: Callable,
                  validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3):
-        assert optimizer_cfg.optimizer == ScaffoldOptimizer, \
-            "ScaffoldClient only supports ScaffoldOptimizer"
         super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
         self.control = None
         self.delta_c = None
@@ -101,10 +98,10 @@ class ScaffoldClient(Client):
 class ScaffoldServer(Server):
     def __init__(self,
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 global_step: float=1.,
-                 eligibility_percentage: float=0.5):
-        super().__init__(model, clients, eligibility_percentage)
+                 global_step: float=1.):
+        super().__init__(model, test_data, clients, False)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.global_step = global_step
     
@@ -130,6 +127,10 @@ class ScaffoldServer(Server):
                 param.data = param.data + self.global_step * server_delta_y
                 server_control.data = server_control.data + server_delta_c.data
 
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},global_step={self.global_step})"
+
 
 class SCAFFOLD(CentralizedFL):
     """SCAFFOLD Federated Learning Environment.
@@ -150,42 +151,27 @@ class SCAFFOLD(CentralizedFL):
         Model to be trained.
     loss_fn : Callable
         Loss function.
-    eligibility_percentage : float, optional
+    eligible_perc : float, optional
         Percentage of clients to be selected for each communication round, by default 0.5.
     """
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int,
-                 optimizer_cfg: OptimizerConfigurator,
-                 global_step: float,
-                 model: Module,
-                 loss_fn: Callable,
-                 eligibility_percentage: float=0.5):
+    
+    def get_optimizer_class(self) -> torch.optim.Optimizer:
+        return ScaffoldOptimizer
+    
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              lr=config.optimizer.lr, 
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [ScaffoldClient(train_set=clients_tr_data[i],  
+                                       optimizer_cfg=optimizer_cfg, 
+                                       loss_fn=self.loss, 
+                                       validation_set=clients_te_data[i],
+                                       local_epochs=config.n_epochs) for i in range(self.n_clients)]
         
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.global_step = global_step
-    
-    def init_clients(self, data_splitter: DataSplitter, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [ScaffoldClient(train_set=data_splitter.client_train_loader[i], 
-                                        optimizer_cfg=self.optimizer_cfg, 
-                                        loss_fn=self.loss_fn, 
-                                        validation_set=data_splitter.client_test_loader[i],
-                                        local_epochs=self.n_epochs) for i in range(self.n_clients)]
-    
-    def init_server(self, **kwargs):
-        self.server = ScaffoldServer(self.model, 
-                                     self.clients, 
-                                     self.global_step, 
-                                     self.eligibility_percentage)
-    
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"G={self.global_step},P={self.eligibility_percentage},{self.optimizer_cfg})"
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = ScaffoldServer(model, data, self.clients, **config)
+

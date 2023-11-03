@@ -1,19 +1,20 @@
+import sys; sys.path.append(".")
+
+import numpy as np
+from math import log
+from typing import Any
 from copy import deepcopy
-from typing import Union, Any, List, Optional
 from pyparsing import Iterable
+from numpy.random import choice
 from sklearn.base import ClassifierMixin
 
-import torch
-from math import log
-import numpy as np
-from numpy.random import choice
-
-import sys; sys.path.append(".")
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.data import DataSplitter
 from fl_bench import GlobalSettings, Message
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.utils import DDict, import_module_from_str
+from fl_bench.evaluation import ClassificationSklearnEval
+from fl_bench.data import DataSplitter, FastTensorDataLoader
 
 class Samme():
 
@@ -85,14 +86,17 @@ class PreweakFClient(Client):
                  y: np.ndarray,
                  n_classes: int,
                  n_estimators: int,
-                 base_classifier: ClassifierMixin):
+                 base_classifier: ClassifierMixin,
+                 validation_set = None):
         self.X = X
         self.y = y
         self.K = n_classes
         self.n_estimators = n_estimators
         self.base_classifier = base_classifier
         self.d = np.ones(self.X.shape[0])
+        self.strong_clf = StrongClassifier(self.K)
         self.server = None
+        self.validation_set = validation_set
     
     def local_train(self) -> None:
         samme = Samme(self.n_estimators, self.base_classifier)
@@ -100,8 +104,8 @@ class PreweakFClient(Client):
         self.channel.send(Message(samme.clfs, "weak_classifiers", self), self.server)
     
     def compute_predictions(self) -> None:
-        all_weak_classifiers = self.channel.receive(self, self.server, "all_weak_classifiers").payload
-        self.predictions = np.array([clf.predict(self.X) for clf in all_weak_classifiers])
+        self.weak_classifiers = self.channel.receive(self, self.server, "all_weak_classifiers").payload
+        self.predictions = np.array([clf.predict(self.X) for clf in self.weak_classifiers])
 
     def compute_errors(self) -> None:
         errors = []
@@ -112,6 +116,7 @@ class PreweakFClient(Client):
     def update_dist(self) -> None:
         best_clf_id = self.channel.receive(self, self.server, msg_type="best_clf_id").payload
         alpha = self.channel.receive(self, self.server, msg_type="alpha").payload
+        self.strong_clf.update(self.weak_classifiers[best_clf_id], alpha)
         predictions = self.predictions[best_clf_id]
         self.d *= np.exp(alpha * (self.y != predictions))
     
@@ -119,32 +124,36 @@ class PreweakFClient(Client):
         self.channel.send(Message(sum(self.d), "norm", sender=self), self.server)
     
     def validate(self):
-        # TODO: implement validation
-        raise NotImplementedError
+        if self.validation_set is not None:
+            return ClassificationSklearnEval().evaluate(self.strong_clf, self.validation_set)
     
     def checkpoint(self):
         raise NotImplementedError("PreweakF does not support checkpointing")
 
     def restore(self, checkpoint):
         raise NotImplementedError("PreweakF does not support checkpointing")
+    
+    def __str__(self) -> str:
+        return f"PreweakFClient(n_estimators={self.n_estimators}, base_classifier={self.base_classifier})"
 
 
 class PreweakFServer(Server):
     def __init__(self,
+                 model: Any,
                  clients: Iterable[PreweakFClient], 
-                 eligibility_percentage: float=0.5, 
+                 test_data: FastTensorDataLoader,
                  n_classes: int = 2):
-        super().__init__(StrongClassifier(n_classes), clients, eligibility_percentage, False)
+        super().__init__(model, test_data, clients, False)
         self.K = n_classes
     
     def init(self):
         pass
     
-    def fit(self, n_rounds: int) -> None:
+    def fit(self, n_rounds: int, eligible_perc: float) -> None:
 
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
-            client_x_round = int(self.n_clients*self.eligibility_percentage)
+            client_x_round = int(self.n_clients*eligible_perc)
 
             progress_samme = progress_fl.add_task("Local Samme fit", total=self.n_clients)
             weak_classifiers = []
@@ -167,7 +176,7 @@ class PreweakFServer(Server):
 
             for round in range(self.rounds, total_rounds):
                 self.notify_start_round(round + 1, self.model)
-                eligible = self.get_eligible_clients()
+                eligible = self.get_eligible_clients(eligible_perc)
                 self.notify_selected_clients(round + 1, eligible)
 
                 best_clf_id, alpha = self.aggregate(eligible)
@@ -178,7 +187,8 @@ class PreweakFServer(Server):
                 self.channel.broadcast(Message(("update_dist", {}), "__action__", self), eligible)
 
                 progress_fl.update(task_id=task_rounds, advance=1)
-                self.notify_end_round(round + 1, self.model, 0)
+                client_evals = [client.validate() for client in eligible]
+                self.notify_end_round(round + 1, self.model, self.test_data, client_evals  if client_evals[0] is not None else None)
                 self.rounds += 1 
 
             progress_fl.remove_task(task_rounds)
@@ -197,49 +207,42 @@ class PreweakFServer(Server):
 
 
 class PreweakF(CentralizedFL):
-    def __init__(self,
+    def __init__(self, 
                  n_clients: int,
-                 n_rounds: int, 
-                 base_classifier: ClassifierMixin,
-                 eligibility_percentage: float=0.5):
+                 data_splitter: DataSplitter, 
+                 hyperparameters: DDict):
+        self.hyperparameters = hyperparameters
+        self.n_clients = n_clients
+        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
+                                                                               hyperparameters.client.batch_size)
+        hyperparameters.client.n_classes = data_splitter.num_classes()
+        hyperparameters.server.n_classes = data_splitter.num_classes()
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        self.init_server(StrongClassifier(hyperparameters.server.n_classes), 
+                         server_data, 
+                         hyperparameters.server)
         
-        super().__init__(n_clients,
-                         n_rounds,
-                         0,
-                         None, 
-                         None, 
-                         None,
-                         eligibility_percentage)
-        self.base_classifier = base_classifier
-    
-    def init_clients(self, data_splitter: DataSplitter, n_classes: int, **kwargs):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.data_assignment = data_splitter.assignments
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
         self.clients = []
+        config.clf_args.random_state = GlobalSettings().get_seed()
+        base_model = import_module_from_str(config.base_classifier)(**config.clf_args)
         for i in range(self.n_clients):
-            loader = data_splitter.client_train_loader[i]
+            loader = clients_tr_data[i]
             tensor_X, tensor_y = loader.tensors
             X, y = tensor_X.numpy(), tensor_y.numpy()
-            self.clients.append(PreweakFClient(X, y, n_classes, self.n_rounds, deepcopy(self.base_classifier)))
-
-    def init_server(self, n_classes: int):
-        self.server = PreweakFServer(self.clients, self.eligibility_percentage, n_classes)
-        
-
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        
-        n_classes = len(torch.unique(data_splitter.y))
-        self.init_clients(data_splitter, n_classes)
-        self.init_server(n_classes)
-        self.server.attach(callbacks)
-        self.server.channel.attach(callbacks)
+            self.clients.append(PreweakFClient(X, 
+                                               y, 
+                                               config.n_classes, 
+                                               config.n_clfs, 
+                                               deepcopy(base_model), 
+                                               clients_te_data[i]))
     
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},clf={self.base_classifier}," + \
-               f"P={self.eligibility_percentage})"
-
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = PreweakFServer(model, self.clients, data, **config)
+        
     def activate_checkpoint(self, path: str):
         raise NotImplementedError("PreweakF does not support checkpointing")
     

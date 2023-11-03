@@ -1,17 +1,25 @@
 {
     "name": "fedopt",
-    "optimizer_parameters": {
-        "lr": 0.01,
-        "scheduler_kwargs": {
-            "step_size": 1,
-            "gamma": 1
-        }
-    },
     "hyperparameters": {
-        "mode": "yogi",
-        "server_lr": 0.01,
-        "beta1": 0.9,
-        "beta2": 0.999,
-        "tau": 0.001
+        "server": {
+            "mode": "yogi",
+            "lr": 0.01,
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "tau": 0.001
+        },
+        "client": {
+            "batch_size": 32,
+            "n_epochs": 5,
+            "loss": "CrossEntropyLoss",
+            "optimizer": {		
+                "lr": 0.01,
+                "scheduler_kwargs": {
+                    "step_size": 1, 
+                    "gamma": 1
+                }
+            }
+        },
+        "model": "MLP"
     }
 }

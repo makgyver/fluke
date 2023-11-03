@@ -1,31 +1,34 @@
-from collections import OrderedDict
+from __future__ import annotations
+
 import os
 import json
-import random
+import typer
+import wandb
+import importlib
 import numpy as np
 import pandas as pd
+from enum import Enum
+import matplotlib.pyplot as plt
+from typing import Any, Iterable
+from collections import OrderedDict
+
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR
-import matplotlib.pyplot as plt
-import json
-import importlib
-from enum import Enum
-from typing import Any, Optional, Iterable
 
-import typer
-import wandb
-from fl_bench import Message
-from fl_bench.data import DistributionEnum
-from fl_bench.data.datasets import DatasetsEnum
-from fl_bench.evaluation import Evaluator
-
-
+import rich
+from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.console import Console
-from rich.panel import Panel
-import rich
+
+from fl_bench.data import DistributionEnum, FastTensorDataLoader
+from fl_bench.evaluation import Evaluator
+from fl_bench.data.datasets import DatasetsEnum
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from fl_bench import Message
 
 console = Console()
 
@@ -34,22 +37,6 @@ class DeviceEnum(Enum):
     CUDA: str = "cuda"
     AUTO: str = "auto"
 
-
-def set_seed(seed: int) -> None:
-    """Set seed for reproducibility.
-
-    Parameters
-    ----------
-    seed : int
-        Seed to set.
-    """
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
 
 class OptimizerConfigurator:
     """Optimizer configurator.
@@ -105,7 +92,7 @@ class ServerObserver():
     def start_round(self, round: int, global_model: Any):
         pass
 
-    def end_round(self, round: int, global_model: Any, client_evals: Iterable[Any]):
+    def end_round(self, round: int, global_model: Any, data: FastTensorDataLoader, client_evals: Iterable[Any]):
         pass
 
     def selected_clients(self, round: int, clients: Iterable):
@@ -119,12 +106,13 @@ class ServerObserver():
 
 
 class ChannelObserver():
-
+    
     def message_received(self, message: Message):
         pass
 
 
 class Log(ServerObserver, ChannelObserver):
+
     def __init__(self, evaluator: Evaluator):
         self.evaluator = evaluator
         self.history = {}
@@ -133,7 +121,7 @@ class Log(ServerObserver, ChannelObserver):
         self.current_round = 0
     
     def init(self, **kwargs):
-        rich.print(Panel(Pretty(kwargs), title=f"Configuration"))
+        rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
     
     def start_round(self, round: int, global_model: Module):
         self.comm_costs[round] = 0
@@ -142,8 +130,8 @@ class Log(ServerObserver, ChannelObserver):
         if round == 1 and self.comm_costs[0] > 0:
             rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
 
-    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
-        self.history[round] = self.evaluator(global_model)
+    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+        self.history[round] = self.evaluator(global_model, data)
         stats = { 'global': self.history[round] }
 
         if client_evals:
@@ -154,7 +142,7 @@ class Log(ServerObserver, ChannelObserver):
         
         stats['comm_cost'] = self.comm_costs[round]
 
-        rich.print(Panel(Pretty(stats), title=f"Round: {round}"))
+        rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
     
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
@@ -191,8 +179,8 @@ class WandBLog(Log):
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_model: Module, client_evals: Iterable[Any]):
-        super().end_round(round, global_model, client_evals)
+    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+        super().end_round(round, global_model, data, client_evals)
         self.run.log(self.history[round], step=round)
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
         if client_evals:
@@ -241,54 +229,6 @@ def plot_comparison(*log_paths: str,
     plt.show()
 
 
-def load_defaults(console, config_path: Optional[str]=None):
-    defaults = {
-        "name": "no_name",
-        "seed": 987654,
-        "device": "auto",
-        "n_clients": 100,
-        "n_rounds": 100,
-        "batch_size": 20,
-        "n_epochs": 5,
-        "eligibility_percentage": 0.5,
-        "loss": "CrossEntropyLoss",
-        "distribution": "iid",
-        "model": "MLP",
-        "dataset": "mnist",
-        "standardize": False,
-        "validation": 0.0,
-        "sampling": 1.0,
-        "checkpoint": {
-            "save": 0,
-            "load": 0,
-            "path": "./checkpoints/checkpoint.pt"
-        },
-        "logger": "local",
-        "wandb_params": {
-            "project": "fl-bench",
-            "entity": "mlgroup",
-            "tags": []
-        }
-    }
-
-    config = {}
-
-    if config_path is not None:
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
-        except Exception as e:
-            console.print(f'Could not load config.json: {e}')
-
-        for key in defaults.keys():
-            if not key in config:
-                console.log(f"[bold yellow]Warn:[/] key {key} not found in config.json, using default value {defaults[key]}")
-                config[key] = defaults[key]
-
-        return config
-    else:
-        return defaults
-
 def _get_class_from_str(module_name: str, class_name: str) -> Any:
     module = importlib.import_module(module_name)
     class_ = getattr(module, class_name)
@@ -306,30 +246,46 @@ def get_scheduler(sname:str) -> torch.nn.Module:
 def cli_option(default: Any, help: str) -> Any:
     return typer.Option(default=None, show_default=default, help=help)
 
-class Config(dict):
+
+class DDict(dict):
+    """A dictionary that can be accessed with dot notation recursively."""
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
 
-    def __init__(self, defaults: dict, config_fname: str, cli_args: dict):
-        self.update(defaults)
-        self.update(self._read_defaults(config_fname))
-        self._fix_enums()
-        self.update({k:v for k,v in cli_args.items() if v is not None})
-        self._read_alg_cfg()
+    def __init__(self, d: dict):
+        self.update(d)
     
-    def _read_defaults(self, config_fname: str) -> dict:
-        with open(config_fname) as f:
-            return json.load(f)
+    def update(self, d: dict):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                self[k] = DDict(v)
+            else:
+                self[k] = v
+                
+class Configuration(DDict):
+    def __init__(self, config_exp_path: str, config_alg_path: str):
+        with open(config_exp_path) as f:
+            config_exp = json.load(f)
+        with open(config_alg_path) as f:
+            config_alg = json.load(f)
+
+        self.update(config_exp)
+        self.update({"method": config_alg})
+        self._fix_enums()
     
     def _fix_enums(self):
-        self["distribution"] = DistributionEnum(self["distribution"])
-        self["dataset"] = DatasetsEnum(self["dataset"])
-        self["device"] = DeviceEnum(self["device"])
-        self["logger"] = LogEnum(self["logger"])
+        self.data.distribution = DistributionEnum(self.data.distribution)
+        self.data.dataset = DatasetsEnum(self.data.dataset)
+        self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
+        self.log.logger = LogEnum(self.log.logger)
     
-    def _read_alg_cfg(self):
-        with open(self["alg_cfg"]) as f:
-            self["method"] = json.load(f)
+    def __str__(self) -> str:
+        return f"{self.method.name}_data({self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''})" + \
+               f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
+               f"_seed({self.exp.seed})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 def diff_model(model_dict1: dict, model_dict2: dict):
@@ -338,7 +294,6 @@ def diff_model(model_dict1: dict, model_dict2: dict):
 
 def import_module_from_str(name: str) -> Any:
     components = name.split('.')
-    mod = __import__(components[0])
-    for comp in components[1:]:
-        mod = getattr(mod, comp)
+    mod = importlib.import_module(".".join(components[:-1]))
+    mod = getattr(mod, components[-1])
     return mod

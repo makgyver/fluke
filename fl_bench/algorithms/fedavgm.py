@@ -1,32 +1,37 @@
-from collections import OrderedDict
-from copy import deepcopy
-from typing import Callable, Iterable
-import torch
+import sys; sys.path.append(".")
 
+from copy import deepcopy
+from typing import Any, Iterable
+from collections import OrderedDict
+
+import torch
 from torch.nn import Module
 
-import sys
-from fl_bench.client import Client; sys.path.append(".")
+from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.utils import OptimizerConfigurator, diff_model
+from fl_bench.utils import DDict, diff_model
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.data import FastTensorDataLoader
+
 
 class FedAVGMServer(Server):
     def __init__(self, 
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
                  momentum: float=0.9,
-                 eligibility_percentage: float=0.5, 
                  weighted: bool=True):
-        super().__init__(model, clients, eligibility_percentage, weighted)
+        super().__init__(model, test_data, clients, weighted)
         self.momentum = momentum
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1.0, momentum=self.momentum, nesterov=True)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), 
+                                         lr=1.0, 
+                                         momentum=self.momentum, 
+                                         nesterov=True)
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]
-        # clients_diff = clients_sd
 
         with torch.no_grad():
             for key in self.model.state_dict().keys():
@@ -47,31 +52,14 @@ class FedAVGMServer(Server):
         for key, param in self.model.named_parameters():
             param.grad = avg_model_sd[key].data
         self.optimizer.step()
+    
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},momentum={self.momentum})"
+
 
 class FedAVGM(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 model: Module, 
-                 server_momentum: float,
-                 loss_fn: Callable, 
-                 eligibility_percentage: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.server_momentum = server_momentum
 
-    def init_server(self, **kwargs):
-        self.server = FedAVGMServer(self.model, 
-                                    self.clients, 
-                                    self.server_momentum, 
-                                    self.eligibility_percentage, 
-                                    weighted=True)
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FedAVGMServer(model, data, self.clients, **config)
     
