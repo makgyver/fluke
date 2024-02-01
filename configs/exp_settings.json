@@ -5,7 +5,7 @@
     	"eligible_perc": 1
 	},
 	"data": {
-		"dataset": "satimage",
+		"dataset": "mnist",
 		"standardize": false,
     	"distribution": "iid",
     	"validation_split": 0.0,

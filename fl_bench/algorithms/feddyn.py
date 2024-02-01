@@ -1,46 +1,37 @@
+from collections import OrderedDict
+import sys; sys.path.append(".")
+
 from copy import deepcopy
-from typing import Callable, Iterable, Union, Any, Optional
+from typing import Callable, Iterable, Any
 import numpy as np
 
 import torch
 from torch.nn import Module
 from algorithms import CentralizedFL
+from fl_bench import Message
 from server import Server
 
-import sys; sys.path.append(".")
-from fl_bench.utils import OptimizerConfigurator
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
 from fl_bench.client import Client
-from fl_bench.data import DataSplitter, FastTensorDataLoader
+from fl_bench.data import FastTensorDataLoader
 
 
-def get_all_params_of(model) -> torch.Tensor:
+def get_all_params_of(model, copy=True) -> torch.Tensor:
     # restituisce un unico tensore che contiene tutti i parametri del modello
     result = None
     for param in model.parameters():
         if result == None:
-            result = param.clone().detach().reshape(-1)
+            result = param.clone().detach().reshape(-1) if copy else param.reshape(-1)
         else:
-            result = torch.cat((result, param.clone().detach().reshape(-1)), 0)
-    return result
-
-def wrap_all_params_of(model) -> torch.Tensor:
-    result = None
-    for param in model.parameters():
-        if result == None:
-            result = param.reshape(-1)
-        else:
-            result = torch.cat((result, param.reshape(-1)), 0)
+            result = torch.cat((result, param.clone().detach().reshape(-1)), 0) if copy else torch.cat((result, param.reshape(-1)), 0)
     return result
 
 def load_all_params(device, model, params):
-    # aggiornamento parametri model 
     dict_param = deepcopy(dict(model.named_parameters()))
     idx = 0
     for name, param in model.named_parameters():
         weights = param.data 
         length = len(weights.reshape(-1)) # numero di elementi nel parametro
-        #dict_param[name].data.copy_(torch.tensor(params[idx:idx+length].reshape(weights.shape)).to(device))
-        # copia i valori dei parametri dal vettore params al parametro corrispondente nel modello
         dict_param[name].data.copy_(params[idx:idx+length].clone().detach().reshape(weights.shape).to(device))
         idx += length
     
@@ -51,34 +42,36 @@ def load_all_params(device, model, params):
 class FedDynServer(Server):
     def __init__(self,
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 eligibility_percentage: float=0.5,
                  alpha: float=0.01):
-        super().__init__(model, clients, eligibility_percentage)
+        super().__init__(model, test_data, clients, False)
         self.alpha = alpha
         self.cld_mdl = deepcopy(self.model)
-        
+
+    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+        self.channel.broadcast(Message((self.model, self.cld_mdl), "model", self), eligible)
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         
-        clients_sd = {key: eligible[key].send() for key in range(len(eligible))}
-        num_participants = len(eligible)
+        avg_model_sd = OrderedDict()
+        clients_sd = self._get_client_models(eligible, state_dict=False)
+        
         with torch.no_grad():
-
-            # da implementazione ufficiale:
-            # https://github.com/alpemreacar/FedDyn/tree/48a19fac440ef079ce563da8e0c2896f8256fef9
-            #avg_mdl_param = np.mean(clnt_params_list[selected_clnts], axis = 0)
-            #cld_mdl_param = avg_mdl_param + np.mean(local_param_list, axis=0)
-
-            avg_mdl = None
-            for idx in clients_sd.keys():
-                client_params = get_all_params_of(clients_sd[idx])
-                if avg_mdl == None:
-                    avg_mdl = client_params
-                else:
-                    avg_mdl += client_params
-
-            avg_mdl /= num_participants
+            for key in self.model.state_dict().keys():
+                if "num_batches_tracked" in key:
+                    avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
+                    continue
+                den = 0
+                for i, client_sd in enumerate(clients_sd):
+                    client_sd = client_sd.state_dict()
+                    weight = 1 if not self.weighted else eligible[i].n_examples
+                    den += weight
+                    if key not in avg_model_sd:
+                        avg_model_sd[key] = weight * client_sd[key]
+                    else:
+                        avg_model_sd[key] += weight * client_sd[key]
+                avg_model_sd[key] /= den
 
             avg_grad = None
             grad_count = 0
@@ -93,14 +86,9 @@ class FedDynServer(Server):
             if grad_count > 0:
                 avg_grad /= grad_count
 
-            load_all_params(self.device, self.model, avg_mdl)
-            load_all_params(self.device, self.cld_mdl, avg_mdl + avg_grad)
-
-
-    def broadcast(self, eligible: Iterable[Client]=None) -> None:
-        eligible = eligible if eligible is not None else self.clients
-        for client in eligible:
-            client.receive(deepcopy(self.model), self.cld_mdl)   
+            # load_all_params(self.device, self.model, avg_model_sd)
+            self.model.load_state_dict(avg_model_sd)
+            load_all_params(self.device, self.cld_mdl, get_all_params_of(self.model) + avg_grad)
         
 
 class FedDynClient(Client):
@@ -120,23 +108,21 @@ class FedDynClient(Client):
         self.weight_decay = weight_decay             
                     
         self.prev_grads = None 
-        
-                     
-    def receive(self, model, cld_mdl):
+    
+
+    def _receive_model(self) -> None:
+        model, cld_mdl = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
             self.model = deepcopy(model)
-            # Initialize the first gradient to zero
             self.prev_grads = torch.zeros_like(get_all_params_of(self.model))
         else:
-            #self.model.load_state_dict(deepcopy(cld_mdl.state_dict()))
-            self.model = deepcopy(cld_mdl)
+            self.model.load_state_dict(cld_mdl.state_dict())
               
         
     def local_train(self, override_local_epochs: int=0):
-
-        n_trn = self.train_set.size
-
         epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
+
         alpha_coef_adpt = self.alpha / self.weight_list # adaptive alpha coef da implementazione ufficiale 
         
         server_params = get_all_params_of(self.model)
@@ -144,124 +130,69 @@ class FedDynClient(Client):
         for params in self.model.parameters():
             params.requires_grad = True
 
-        #self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        #self.optimizer, self.scheduler = self.optimizer_cfg(self.model, alpha_coef_adpt + self.weight_decay)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, weight_decay= alpha_coef_adpt + self.weight_decay)
+        if not self.optimizer:
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model, weight_decay=alpha_coef_adpt + self.weight_decay)
+
         self.model.train()
 
         for e in range(epochs):
-            # Training 
-            epoch_loss = 0 
             loss = None
             for i, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                
-                y_pred = self.model(X)
-                loss = self.loss_fn(y_pred, y)
+                self.optimizer.zero_grad()
+                y_hat = self.model(X)
+                loss = self.loss_fn(y_hat, y)
 
-                # --- Dynamic regularization --- #
-                curr_params = wrap_all_params_of(self.model)
+                # Dynamic regularization
+                curr_params = get_all_params_of(self.model, False)
                 penalty = alpha_coef_adpt * torch.sum(curr_params * (-server_params + self.prev_grads))
                 loss = loss + penalty
 
-                self.optimizer.zero_grad() 
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(parameters=self.model.parameters(), max_norm=10)
                 self.optimizer.step()
-                epoch_loss += loss.item() * list(y.size())[0]
 
-            if (e+1) % 5 == 0:
-                epoch_loss /= n_trn
-                if self.weight_decay != None:
-                    # Add L2 loss to complete f_i
-                    curr_params = get_all_params_of(self.model)
-                    epoch_loss += (alpha_coef_adpt+self.weight_decay)/2 * torch.sum(curr_params * curr_params)
-                print("Epoch %3d, Training Loss: %.4f" %(e+1, epoch_loss))
-                self.model.train()
-
-        for params in self.model.parameters():
-            params.requires_grad = False
-        self.model.eval()
+            self.scheduler.step()
 
         # update the previous gradients 
         curr_params = get_all_params_of(self.model)
         self.prev_grads += curr_params - server_params
         
-        return self.validate
+        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+    
+    def __str__(self) -> str:
+        to_str = super().__str__()
+        return f"{to_str[:-1]},alpha={self.alpha}, weight_decay={self.weight_decay})"
         
 
 class FedDyn(CentralizedFL):
-    """FedDyn Federated Learning Environment.
-    Parameters
-    ----------
-    n_clients : int
-        Number of clients in the FL environment.
-    n_rounds : int
-        Number of communication rounds.
-    n_epochs : int
-        Number of epochs per communication round.
-    optimizer_cfg : OptimizerConfigurator
-        Optimizer configurator for the clients.
-    model : torch.nn.Module
-        Model to be trained.
-    loss_fn : Callable
-        Loss function.
-    eligibility_percentage : float, optional
-        Percentage of clients to be selected for each communication round, by default 0.5.
-    alpha : float, optional
-        By default 0.1. 
-    """
-    def __init__(self,
-                 n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int,
-                 optimizer_cfg: OptimizerConfigurator,
-                 model: Module,
-                 alpha: float,
-                 weight_decay: float,
-                 loss_fn: Callable,
-                 eligibility_percentage: float=0.5):
-        
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.alpha = alpha
-        self.weight_decay = weight_decay
+    """FedDyn Federated Learning Environment."""
     
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-                         
-        weight_list = np.asarray([data_splitter.client_train_loader[i].tensors[0].shape[0] for i in range(self.n_clients)])
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              lr=config.optimizer.lr, 
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        weight_list = np.asarray([clients_tr_data[i].tensors[0].shape[0] for i in range(self.n_clients)])
         weight_list = weight_list / np.sum(weight_list) * self.n_clients 
     
-        self.clients = [FedDynClient(train_set=data_splitter.client_train_loader[i], 
-                                        optimizer_cfg=self.optimizer_cfg, 
-                                        weight_decay = self.weight_decay,
-                                        loss_fn=self.loss_fn, 
-                                        weight_list = weight_list[i],
-                                        validation_set=data_splitter.client_test_loader[i],
-                                        alpha = self.alpha,
-                                        local_epochs=self.n_epochs) for i in range(self.n_clients)]
-                         
-                        
-    
-                         
-        self.server = FedDynServer(self.model, 
-                                     self.clients, 
-                                     self.eligibility_percentage,
-                                     self.alpha)
-        self.server.attach(callbacks)
-    
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"A={self.alpha},P={self.eligibility_percentage},{self.optimizer_cfg})"
+        self.clients = [FedDynClient(train_set=clients_tr_data[i], 
+                                        optimizer_cfg=optimizer_cfg, 
+                                        loss_fn=self.loss,
+                                        weight_decay=config.weight_decay,
+                                        weight_list=weight_list[i],
+                                        validation_set=clients_te_data[i],
+                                        alpha=config.alpha,
+                                        local_epochs=config.n_epochs) for i in range(self.n_clients)]
+        
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FedDynServer(model,
+                                   data,
+                                   self.clients,
+                                   **config)
     
     
     

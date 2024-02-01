@@ -1,14 +1,23 @@
 {
     "name": "feddyn",
-    "optimizer_parameters": {
-        "lr": 0.1,
-        "scheduler_kwargs": {
-            "step_size": 1
-        }
-    },
-  "hyperparameters": {
-    "alpha": 0.01,
-    "weight_decay": 1e-3
-  }
-    
+    "hyperparameters": {
+        "server": {
+            
+        },
+        "client": {
+            "batch_size": 32,
+            "n_epochs": 5,
+            "loss": "CrossEntropyLoss",
+            "alpha": 0.01,
+            "weight_decay": 1e-3,
+            "optimizer": {		
+                "lr": 0.01,
+                "scheduler_kwargs": {
+                    "step_size": 1, 
+                    "gamma": 1
+                }
+            }
+        },
+        "model": "MLP"
+    }
 }

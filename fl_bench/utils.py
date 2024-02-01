@@ -62,7 +62,9 @@ class OptimizerConfigurator:
             self.scheduler_kwargs = {"step_size": 1, "gamma": 1}
         self.optimizer_kwargs = optimizer_kwargs
     
-    def __call__(self, model: Module):
+    def __call__(self, model: Module, **override_kwargs):
+        if override_kwargs:
+            self.optimizer_kwargs.update(override_kwargs)
         optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
         scheduler = StepLR(optimizer, **self.scheduler_kwargs)
         return optimizer, scheduler

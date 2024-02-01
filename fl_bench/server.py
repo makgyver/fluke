@@ -178,8 +178,10 @@ class Server(ObserverSubject):
         if path is not None:
             self.load(path)
 
-    def _get_client_models(self, eligible: Iterable[Client]):
-        return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]
+    def _get_client_models(self, eligible: Iterable[Client], state_dict: bool=True):
+        if state_dict:
+            return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]
+        return [self.channel.receive(self, client, "model").payload for client in eligible]
 
     def aggregate(self, eligible: Iterable[Client]) -> None:
         """Aggregate the models of the clients.

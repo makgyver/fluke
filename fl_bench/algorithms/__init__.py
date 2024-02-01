@@ -89,6 +89,7 @@ from .adaboostf2 import AdaboostF2
 from .distboostf import DistboostF
 from .preweakf import PreweakF
 from .preweakf2 import PreweakF2
+from .feddyn import FedDyn
 
 class FedAlgorithmsEnum(Enum):
     FEDAVG = 'fedavg'
@@ -103,6 +104,7 @@ class FedAlgorithmsEnum(Enum):
     FEDNOVA = 'fednova'
     FEDEXP = 'fedexp'
     PEFEDME = 'pfedme'
+    FEDDYN = 'feddyn'
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -124,7 +126,8 @@ class FedAlgorithmsEnum(Enum):
             'moon': MOON,
             'fednova': FedNova,
             'fedexp': FedExP,
-            'pfedme': PFedMe
+            'pfedme': PFedMe,
+            'feddyn': FedDyn
         }
 
         return algos[self.value]
