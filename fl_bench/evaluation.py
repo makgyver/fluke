@@ -71,6 +71,9 @@ class ClassificationEval(Evaluator):
         task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
         loss, cnt = 0, 0
+        if eval_data_loader is None:
+            return {}
+        
         if not isinstance(eval_data_loader, list):
             eval_data_loader = [eval_data_loader]
 

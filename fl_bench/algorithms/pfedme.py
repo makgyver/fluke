@@ -80,8 +80,10 @@ class PFedMeClient(Client):
             
             self.scheduler.step()     
         self.model.load_state_dict(self.shared_model.state_dict())
-        self.channel.send(Message(deepcopy(self.shared_model), "model", self), self.server)
+        self._send_model()
     
+    def _send_model(self):
+        self.channel.send(Message(deepcopy(self.shared_model), "model", self), self.server)
 
     def __str__(self) -> str:
         to_str = super().__str__()

@@ -58,6 +58,9 @@ class Client(ABC):
         else:
             self.model.load_state_dict(msg.payload.state_dict())
     
+    def _send_model(self):
+        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+
     def local_train(self, override_local_epochs: int=0) -> dict:
         """Train the local model.
 
@@ -86,7 +89,7 @@ class Client(ABC):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self._send_model()
     
     def validate(self):
         """Validate/test the local model.

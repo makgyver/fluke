@@ -8,25 +8,25 @@ import math
 class MLP(nn.Module):
     """Three-layer perceptron (MLP) model.
     Each layer is fully connected with 50 hidden units and ReLU activation.
-    The size of the input layer is ``input_size`` and the size of the output layer is ``num_classes``.
+    The size of the input layer is ``input_size`` and the size of the output layer is ``output_size``.
     The output layer uses a softmax activation.
 
     Parameters
     ----------
     input_size : int
         Size of the input layer.
-    num_classes : int
+    output_size : int
         Size of the output layer.
     """
-    def __init__(self, input_size: int=28*28, num_classes: int=10):
+    def __init__(self, input_size: int=28*28, output_size: int=10):
         super(MLP, self).__init__()
         self.input_size = input_size
-        self.output_size = num_classes
+        self.output_size = output_size
         self.fc1 = nn.Linear(input_size, 200)
         #self.fc1_drop = nn.Dropout(0.2)
         self.fc2 = nn.Linear(200, 100)
         #self.fc2_drop = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(100, num_classes)
+        self.fc3 = nn.Linear(100, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, self.input_size)
@@ -65,25 +65,25 @@ class MLP(nn.Module):
 class MLP_BN(nn.Module):
     """Three-layer perceptron (MLP) model with batch normalization.
     Each layer is fully connected with 50 hidden units and bith batch normalization and ReLU activation.
-    The size of the input layer is ``input_size`` and the size of the output layer is ``num_classes``.
+    The size of the input layer is ``input_size`` and the size of the output layer is ``output_size``.
     The output layer uses a softmax activation.
 
     Parameters
     ----------
     input_size : int
         Size of the input layer.
-    num_classes : int
+    output_size : int
         Size of the output layer.
     """
-    def __init__(self, input_size: int=28*28, num_classes: int=10):
+    def __init__(self, input_size: int=28*28, output_size: int=10):
         super(MLP_BN, self).__init__()
         self.input_size = input_size
-        self.output_size = num_classes
+        self.output_size = output_size
         self.fc1 = nn.Linear(input_size, 200)
         self.bn1 = nn.BatchNorm1d(200)
         self.fc2 = nn.Linear(200, 100)
         self.bn2 = nn.BatchNorm1d(100)
-        self.fc3 = nn.Linear(100, num_classes)
+        self.fc3 = nn.Linear(100, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         #x = torchvision.transforms.functional.rgb_to_grayscale(x, num_output_channels=1)
@@ -130,16 +130,16 @@ class DigitModel(nn.Module):
 
     It is a convolutional neural network with 3 convolutional layers and 3 fully connected layers.
     Each layer uses ReLU activation and batch normalization.
-    The size of the output layer is ``num_classes`` and it uses a softmax activation.
+    The size of the output layer is ``output_size`` and it uses a softmax activation.
 
     Parameters
     ----------
-    num_classes : int
+    output_size : int
         Number of classes, i.e., the size of the output layer.
     """
-    def __init__(self, num_classes: int=10, **kwargs):
+    def __init__(self, output_size: int=10, **kwargs):
         super(DigitModel, self).__init__()
-        self.output_size = num_classes
+        self.output_size = output_size
         self.conv1 = nn.Conv2d(3, 64, 5, 1, 2)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 64, 5, 1, 2)
@@ -152,7 +152,7 @@ class DigitModel(nn.Module):
         self.bn4 = nn.BatchNorm1d(394)
         self.fc2 = nn.Linear(394, 192)
         self.bn5 = nn.BatchNorm1d(192)
-        self.fc3 = nn.Linear(192, num_classes)
+        self.fc3 = nn.Linear(192, output_size)
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -312,10 +312,10 @@ class ResNet18(nn.Module):
     ----------
     image_channels : int
         Number of channels in the input image.
-    num_classes : int
+    output_size : int
         Size of the output layer.
     """
-    def __init__(self, image_channels: int=3, num_classes: int=10):
+    def __init__(self, image_channels: int=3, output_size: int=10):
         
         super(ResNet18, self).__init__()
         self.in_channels = 64
@@ -332,7 +332,7 @@ class ResNet18(nn.Module):
         self.layer4 = self.__make_layer(256, 512, stride=2)
         
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512, num_classes)
+        self.fc = nn.Linear(512, output_size)
         
     def __make_layer(self, in_channels, out_channels, stride):
         
@@ -472,7 +472,7 @@ class Bottleneck(nn.Module):
 
 class ResNetCifar10(nn.Module):
 
-    def __init__(self, block, layers, num_classes=10, zero_init_residual=False,
+    def __init__(self, block, layers, output_size=10, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNetCifar10, self).__init__()
@@ -503,7 +503,7 @@ class ResNetCifar10(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.fc = nn.Linear(512 * block.expansion, output_size)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -594,10 +594,10 @@ def ResNet18_cifar10(**kwargs):
     return ResNetCifar10(BasicBlock, [2, 2, 2, 2], **kwargs)
 
 class ResNetCifar10_basic(ResNetCifar10):
-    def __init__(self, block=BasicBlock, layers=[2,2,2,2], num_classes=10, zero_init_residual=False,
+    def __init__(self, block=BasicBlock, layers=[2,2,2,2], output_size=10, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
-        super(ResNetCifar10_basic, self).__init__(block, layers, num_classes, zero_init_residual,
+        super(ResNetCifar10_basic, self).__init__(block, layers, output_size, zero_init_residual,
                     groups, width_per_group, replace_stride_with_dilation,
                     norm_layer)
 
@@ -646,7 +646,7 @@ class VGG(nn.Module):
     '''
     VGG model 
     '''
-    def __init__(self, features = make_layers(cfg['A'])): 
+    def __init__(self, input_size: int=784, output_size: int=10, features = make_layers(cfg['A'])): 
         super(VGG, self).__init__()
         self.features = features
         self.classifier = nn.Sequential(
@@ -656,7 +656,7 @@ class VGG(nn.Module):
             nn.Dropout(),
             nn.Linear(512, 512),
             nn.ReLU(True),
-            nn.Linear(512, 10),
+            nn.Linear(512, output_size),
         )
          # Initialize weights
         for m in self.modules():
@@ -671,9 +671,6 @@ class VGG(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x
-
-
-
 
 
 def vgg11():
@@ -714,3 +711,190 @@ def vgg19():
 def vgg19_bn():
     """VGG 19-layer model (configuration 'E') with batch normalization"""
     return VGG(make_layers(cfg['E'], batch_norm=True))
+
+
+class FLHalf_E(nn.Module):
+    def __init__(self, input_size=28*28, output_size=64):
+        super(FLHalf_E, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(28*28, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        return self.encoder(x)#x.view(-1, 28*28))
+
+
+class FLHalf_D(nn.Module):
+    def __init__(self, input_size=64, output_size=10):
+        super(FLHalf_D, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        # Decoder
+        self.downstream = nn.Sequential(
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Linear(32, 10),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        return self.downstream(x)
+
+class EDModule(nn.Module):
+    def __init__(self, encoder: nn.Module, decoder: nn.Module):
+        super(EDModule, self).__init__()
+        self.E = encoder
+        self.D = decoder
+
+    def forward(self, x):
+        x = self.E(x)
+        x = self.D(x)
+        return x
+
+class FLHalf_F(EDModule):
+    def __init__(self, input_size=28*28, output_size=10):
+        super(FLHalf_F, self).__init__(FLHalf_E(), FLHalf_D())
+        self.input_size = input_size
+        self.output_size = output_size
+    
+    def init(self):
+        pass
+
+
+class FLHalf_Dprime(nn.Module):
+    def __init__(self, input_size=100, output_size=10):
+        super(FLHalf_Dprime, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        # Decoder
+        self.downstream = nn.Sequential(
+            nn.Linear(input_size, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Linear(32, output_size),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        return self.downstream(x)
+
+class FedDiselNet_E(nn.Module):
+    
+    def __init__(self, input_size=784, output_size=64):
+        super(FedDiselNet_E, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        # Decoder
+        self.fed_E = nn.Sequential(
+            nn.Linear(28*28, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU()
+        )
+    
+    def forward(self, x):
+        x = x.view(-1, 28*28)
+        return self.fed_E(x)
+
+
+class FedDiselNet(nn.Module):
+
+    def __init__(self, input_size=784, output_size=10):
+        super(FedDiselNet, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        # Decoder
+        self.private_E = nn.Sequential(
+            nn.Linear(28*28, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU()
+        )
+
+        # Decoder
+        self.fed_E = FedDiselNet_E()
+
+        # Decoder
+        self.downstream = nn.Sequential(
+            nn.Linear(64*2, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Linear(32, output_size),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x):
+        x = x.view(-1, 28*28)
+        x_p = self.private_E(x)
+        x_f = self.fed_E(x)
+        pred = self.downstream(torch.cat((x_p, x_f), 1))
+        return pred
+
+
+class VGG9(nn.Module):
+
+    def _conv_layer(self, in_channels, out_channels, kernel_size, stride=1, padding=0, groups=1, bias=False, seed=0):
+        conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, groups=groups, stride=stride, bias=bias)
+        torch.manual_seed(seed); torch.nn.init.xavier_normal_(conv.weight)
+        return conv
+    
+    def _linear_layer(self, in_features, out_features, bias=False, seed=0):
+        fc = nn.Linear(in_features, out_features, bias=bias)
+        torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
+        return fc
+    
+    def __init__(self, input_size: int=784, output_size: int=10, seed: int=98765):
+        super(VGG9, self).__init__()
+        self._seed = seed
+        self.input_size = input_size
+        self.output_size = output_size
+        self.layers = nn.Sequential(
+            self._conv_layer(in_channels=1, out_channels=16, kernel_size=3, padding=1, bias=False, seed=seed), #FIXME
+            nn.ReLU(True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            self._conv_layer(in_channels=16, out_channels=32, kernel_size=3, padding=1, bias=False, seed=seed),
+            nn.ReLU(True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            self._conv_layer(in_channels=32, out_channels=64, kernel_size=3, padding=1, bias=False, seed=seed),
+            nn.ReLU(True),
+            self._conv_layer(in_channels=64, out_channels=128, kernel_size=3, padding=1, bias=False, seed=seed),
+            nn.ReLU(True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            self._conv_layer(in_channels=128, out_channels=256, kernel_size=3, padding=1, bias=False, seed=seed),
+            nn.ReLU(True),
+            self._conv_layer(in_channels=256, out_channels=512, kernel_size=3, padding=1, bias=False, seed=seed),
+            nn.ReLU(True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            self._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
+            nn.ReLU(True),
+            self._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
+        )
+
+    def forward(self, x):
+        x = self.layers(x)
+        x = self.classifier(x)
+        return x

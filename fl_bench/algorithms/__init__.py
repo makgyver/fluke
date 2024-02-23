@@ -22,7 +22,7 @@ class CentralizedFL():
         model = get_model(
                 mname=hyperparameters.model,
                 input_size=data_splitter.num_features(), 
-                num_classes=data_splitter.num_classes()
+                output_size=data_splitter.num_classes()
             ).to(GlobalSettings().get_device())
         self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
         self.init_server(model, server_data, hyperparameters.server)
@@ -34,8 +34,10 @@ class CentralizedFL():
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
                      config: DDict):
+        optimizer_args = config.optimizer
+        del optimizer_args['scheduler_kwargs']
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              lr=config.optimizer.lr, 
+                                              **optimizer_args,
                                               scheduler_kwargs=config.optimizer.scheduler_kwargs)
         self.loss = get_loss(config.loss)
         self.clients = [Client(train_set=clients_tr_data[i],  
@@ -75,13 +77,14 @@ from .fedavgm import FedAVGM
 from .fedsgd import FedSGD
 from .fedprox import FedProx
 from .scaffold import SCAFFOLD
-# from .flhalf import FLHalf
+from .flhalf import FLHalf
 from .fedbn import FedBN
 from .fedopt import FedOpt
 from .moon import MOON
 from .fednova import FedNova
 from .fedexp import FedExP
 from .pfedme import PFedMe
+from .feddisel import FedDisel
 
 # BOOSTING ALGORITHMS
 from .adaboostf import AdaboostF
@@ -97,7 +100,7 @@ class FedAlgorithmsEnum(Enum):
     FEDSGD = 'fedsgd'
     FEDPROX = 'fedprox'
     SCAFFOLD = 'scaffold'
-    # FLHALF = 'flhalf'
+    FLHALF = 'flhalf'
     FEDBN = 'fedbn'
     FEDOPT = 'fedopt'
     MOON = 'moon'
@@ -105,6 +108,7 @@ class FedAlgorithmsEnum(Enum):
     FEDEXP = 'fedexp'
     PEFEDME = 'pfedme'
     FEDDYN = 'feddyn'
+    FEDDISEL = 'feddisel'
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -120,14 +124,15 @@ class FedAlgorithmsEnum(Enum):
             'fedsgd': FedSGD,
             'fedprox': FedProx,
             'scaffold': SCAFFOLD,
-            # 'flhalf': FLHalf,
+            'flhalf': FLHalf,
             'fedbn': FedBN,
             'fedopt': FedOpt,
             'moon': MOON,
             'fednova': FedNova,
             'fedexp': FedExP,
             'pfedme': PFedMe,
-            'feddyn': FedDyn
+            'feddyn': FedDyn,
+            'feddisel': FedDisel
         }
 
         return algos[self.value]

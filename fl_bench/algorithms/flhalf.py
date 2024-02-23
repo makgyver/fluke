@@ -1,177 +1,226 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Callable, Iterable, Union, Optional, Any
+import random
+from typing import Callable, Iterable, Sequence, Union, Optional, Any
 
 import torch
 from torch.nn import Module, MSELoss
 
 import sys
 
-from fl_bench import GlobalSettings; sys.path.append(".")
+from fl_bench import GlobalSettings, Message
+from fl_bench.evaluation import ClassificationEval; sys.path.append(".")
 from rich.progress import Progress
+import torch.nn.functional as F
+from torch import nn
 
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator
+from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
 from fl_bench.algorithms import CentralizedFL
+from fl_bench.net import EDModule
+
+def _set_seed(seed: int) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)
+    gen = torch.Generator()
+    gen.manual_seed(seed)
+    
+def relative_projection(encoder: nn.Module, x: torch.Tensor, anchors: torch.Tensor, normalize_out: bool=True) -> torch.Tensor:
+    # return x
+    enc_x = encoder(x)
+    enc_a = encoder(anchors)
+    x = F.normalize(enc_x, p=2, dim=-1)
+    anchors = F.normalize(enc_a, p=2, dim=-1)
+    rel_proj =  torch.einsum("bm, am -> ba", x, anchors)
+    return rel_proj if not normalize_out else F.normalize(rel_proj, p=2, dim=-1)
+
+def generate_anchors(num_anchors: int, dim: int, seed: int=98765) -> torch.Tensor:
+    _set_seed(seed)
+    return torch.randn((num_anchors, dim))
 
 
 class FLHalfClient(Client):
     def __init__(self,
                  train_set: FastTensorDataLoader,
-                 private_layers: Iterable,
+                 model: EDModule,
+                 n_private_epochs: int,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3):
         super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
-        self.private_layers = private_layers
+        self.n_private_epochs = n_private_epochs
+        self.private_model = deepcopy(model)
+        self.private_model.init()
+        self.anchors = None
+
+    def _private_train(self):
+        if self.anchors is None:
+            self.anchors = self.channel.receive(self, self.server, msg_type="anchors").payload
+
+        self.private_model.train()
+        self.private_optimizer, self.private_scheduler = self.optimizer_cfg(self.private_model)
+        for _ in range(self.n_private_epochs):
+            loss = None
+            for _, (X, y) in enumerate(self.train_set):
+                X, y = X.to(self.device), y.to(self.device)
+                self.private_optimizer.zero_grad()
+                # y_hat = self.private_model(X)
+                rel_x = relative_projection(self.private_model.E, X.view(X.size(0), -1), self.anchors)
+                y_hat = self.private_model.D(rel_x)
+                loss = self.loss_fn(y_hat, y)
+                loss.backward()
+                self.private_optimizer.step()
+            self.private_scheduler.step()
+        self.model = deepcopy(self.private_model)
     
-    def _generate_fake_examples(self):
-        shape = list(self.train_set.tensors[0].shape)
-        # shape[0] = int(shape[0] * .3)
-        fake_data = torch.rand(shape)
-        _, fake_targets = self.model.forward_(fake_data, len(self.private_layers))
-        return fake_data, fake_targets
-    
-    def receive(self, model):
-        if self.model is None:
-            self.model = deepcopy(model)
-        else:
-            with torch.no_grad():
-                for key in model.state_dict().keys():
-                    skip = bool(sum([key.startswith(n) for n in self.private_layers]))
-                    if not skip:
-                        self.model.state_dict()[key].data.copy_(model.state_dict()[key])
-    
-    def send(self):
-        return super().send(), self._generate_fake_examples()
+    def _receive_model(self) -> None:
+        msg = self.channel.receive(self, self.server, msg_type="model")
+        self.model.D.load_state_dict(msg.payload.state_dict())
+
+    def local_train(self, override_local_epochs: int=0) -> dict:
+        # if self.anchors is None:
+        #     self.anchors = self.channel.receive(self, self.server, msg_type="anchors").payload
+
+        epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        self._receive_model()
+        self.model.train()
+        # print(self.anchors.shape)
+        if self.optimizer is None:
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+        for _ in range(epochs):
+            loss = None
+            for _, (X, y) in enumerate(self.train_set):
+                # X = relative_projection(self.private_model.E, X.view(X.size(0), -1), self.anchors)
+                X, y = X.to(self.device), y.to(self.device)
+                self.optimizer.zero_grad()
+                # y_hat = self.model(X)
+                # print(self.model.E, X.shape, self.anchors.shape)
+                rel_x = relative_projection(self.model.E, X.view(X.size(0), -1), self.anchors)
+                y_hat = self.model.D(rel_x)
+                loss = self.loss_fn(y_hat, y)
+                loss.backward()
+                self.optimizer.step()
+            self.scheduler.step()
+        self.channel.send(Message(deepcopy(self.model.D), "model", self), self.server)
+
+    def validate(self):
+        if self.validation_set is not None:
+            n_classes = self.model.output_size
+            test_loader = self.validation_set.transform(lambda x: relative_projection(self.private_model.E, x.view(x.size(0), -1), self.anchors))
+            return ClassificationEval(self.loss_fn, n_classes).evaluate(self.model.D, test_loader)
+
 
 
 class FLHalfServer(Server):
     def __init__(self,
                  model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 private_layers: Iterable,
-                 n_epochs: int,
-                 batch_size: int,
-                 optimizer_cfg: OptimizerConfigurator,
-                 global_step: float=.05,
-                 eligibility_percentage: float=0.5,):
-        super().__init__(model, clients, eligibility_percentage)
-        self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        self.global_step = global_step
-        self.private_layers = private_layers
-        self.n_epochs = n_epochs
-        self.batch_size = batch_size
-        self.optimizer, self.scheduler = optimizer_cfg(self.model)
+                 n_anchors: int=100,
+                 seed_anchors: int=98765,
+                 weighted: bool=True):
+        super().__init__(model, test_data, clients, weighted)
+        self.n_anchors = n_anchors
+        self.seed_anchors = seed_anchors
+
+    def fit(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
+        """Run the federated learning algorithm.
+        Parameters
+        ----------
+        n_rounds : int, optional
+            The number of rounds to run, by default 10.
+        """
+        if GlobalSettings().get_workers() > 1:
+            return self._fit_multiprocess(n_rounds)
+
+        anchors = generate_anchors(self.n_anchors, 784, seed=self.seed_anchors) #FIX ME
+        for client in self.clients:
+            self.channel.send(Message(anchors, "anchors", self), client)
+
+        # Preparation step
+        # the following code run private_train across all clients with progress bar
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Client's Private Training", total=len(self.clients))
+            for client in self.clients:
+                self.channel.send(Message((client._private_train, {}), "__action__", self), client)
+                progress.update(task, advance=1)
     
-    def _private_train(self, clients_fake_x, clients_fake_y):
-        train_loader = FastTensorDataLoader(clients_fake_x, 
-                                            clients_fake_y, 
-                                            batch_size=self.batch_size, 
-                                            shuffle=True)
-        loss_fn = MSELoss()
+        # anchors = generate_anchors(self.n_anchors, 784, seed=self.seed_anchors) #FIX ME
+        # for client in self.clients:
+        #     self.channel.send(Message(anchors, "anchors", self), client)
+
         with GlobalSettings().get_live_renderer():
-            progress = GlobalSettings().get_progress_bar("server")
-            client_x_round = int(len(train_loader) * self.n_epochs)
-            server_train = progress.add_task("[blue]Server Training", total=client_x_round)
-            for _ in range(self.n_epochs):
-                loss = None
-                for _, (X, y) in enumerate(train_loader):
-                    X, y = X.to(self.device), y.to(self.device)
-                    self.optimizer.zero_grad()
-                    _, y_hat = self.model.forward_(X, len(self.private_layers))
-                    loss = loss_fn(y_hat, y)
-                    loss.backward(retain_graph=True)
-                    self.optimizer.step()
-                    progress.update(task_id=server_train, advance=1)
-                self.scheduler.step()
-            progress.remove_task(server_train)
+            progress_fl = GlobalSettings().get_progress_bar("FL")
+            progress_client = GlobalSettings().get_progress_bar("clients")
+            client_x_round = int(self.n_clients*eligible_perc)
+            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+            task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
-    def aggregate(self, eligible: Iterable[Client]) -> None:
-        avg_model_sd = OrderedDict()
-        clients_sd = []
-        clients_fake_x = []
-        clients_fake_y = []
-        for i in range(len(eligible)):
-            client_model, (client_fake_x, client_fake_y) = eligible[i].send()
-            clients_sd.append(client_model.state_dict())
-            clients_fake_x.append(client_fake_x)
-            clients_fake_y.append(client_fake_y)
-        
-        self._private_train(torch.cat(clients_fake_x, 0), torch.cat(clients_fake_y, 0))
-
-        global_model_dict = self.model.state_dict()
-        with torch.no_grad():
-            for key in global_model_dict.keys():
-                if key.split(".")[0] in self.private_layers:
-                    avg_model_sd[key] = deepcopy(global_model_dict[key])
-                    continue
-                elif "num_batches_tracked" in key:
-                    avg_model_sd[key] = deepcopy(clients_sd[0][key])
-                    continue
-
-                den = 0
-                for i, client_sd in enumerate(clients_sd):
-                    weight = eligible[i].n_examples
-                    den += weight
-                    if key not in avg_model_sd:
-                        avg_model_sd[key] = weight * client_sd[key]
-                    else:
-                        avg_model_sd[key] += weight * client_sd[key]
-                avg_model_sd[key] /= den #len(eligible)
-        self.model.load_state_dict(avg_model_sd)
+            total_rounds = self.rounds + n_rounds
+            for round in range(self.rounds, total_rounds):
+                self.notify_start_round(round + 1, self.model)
+                eligible = self.get_eligible_clients(eligible_perc)
+                self.notify_selected_clients(round + 1, eligible)
+                self._broadcast_model(eligible)
+                client_evals = []
+                for c, client in enumerate(eligible):
+                    self.channel.send(Message((client.local_train, {}), "__action__", self), client)
+                    client_eval = client.validate()
+                    if client_eval:
+                        client_evals.append(client_eval)
+                    progress_client.update(task_id=task_local, completed=c+1)
+                    progress_fl.update(task_id=task_rounds, advance=1)
+                self.aggregate(eligible)
+                self.notify_end_round(round + 1, self.model, None, client_evals)
+                self.rounds += 1 
+                if self.checkpoint_path is not None:
+                    self.save(self.checkpoint_path)
+            progress_fl.remove_task(task_rounds)
+            progress_client.remove_task(task_local)
 
 
 class FLHalf(CentralizedFL):
-    def __init__(self,
+    def __init__(self, 
                  n_clients: int,
-                 n_rounds: int, 
-                 n_epochs: int, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 model: Module, 
-                 loss_fn: Callable, 
-                 eligibility_percentage: float,
-                 private_layers: Iterable,
-                 server_n_epochs: int,
-                 server_batch_size: int,
-                 server_optimizer_cfg: OptimizerConfigurator=OptimizerConfigurator(torch.optim.SGD, lr=0.01)):
+                 data_splitter: DataSplitter, 
+                 hyperparameters: DDict):
+        self.hyperparameters = hyperparameters
+        self.n_clients = n_clients
+        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
+                                                                               hyperparameters.client.batch_size)
+        model = get_model(
+                mname=hyperparameters.model,
+                input_size=hyperparameters.server.n_anchors, #data_splitter.num_features(), #
+                output_size=data_splitter.num_classes()
+            ).to(GlobalSettings().get_device())
+        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
+        self.init_server(model, server_data, hyperparameters.server)
+
+    def get_optimizer_class(self) -> torch.optim.Optimizer:
+        return torch.optim.Adam
+    
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict):
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              lr=config.optimizer.lr, 
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        model = get_model(
+                mname=config.model
+            ).to(GlobalSettings().get_device())
         
-        super().__init__(n_clients,
-                         n_rounds,
-                         n_epochs,
-                         model, 
-                         optimizer_cfg, 
-                         loss_fn,
-                         eligibility_percentage)
-        self.private_layers = private_layers
-        self.server_n_epochs = server_n_epochs
-        self.server_batch_size = server_batch_size
-        self.server_optimizer_cfg = server_optimizer_cfg
+        self.clients = [FLHalfClient(train_set=clients_tr_data[i], 
+                               model=model,                            
+                               n_private_epochs=config.n_private_epochs,
+                               optimizer_cfg=optimizer_cfg, 
+                               loss_fn=self.loss, 
+                               validation_set=clients_te_data[i],
+                               local_epochs=config.n_epochs) for i in range(self.n_clients)]
 
-    def init_parties(self, 
-                     data_splitter: DataSplitter, 
-                     callbacks: Optional[Union[Any, Iterable[Any]]]=None):
-        assert data_splitter.n_clients == self.n_clients, "Number of clients in data splitter and the FL environment must be the same"
-        self.clients = [FLHalfClient (train_set=data_splitter.client_train_loader[i], 
-                                      private_layers=self.private_layers,
-                                      optimizer_cfg=self.optimizer_cfg, 
-                                      loss_fn=self.loss_fn, 
-                                      validation_set=data_splitter.client_test_loader[i],
-                                      local_epochs=self.n_epochs) for i in range(self.n_clients)]
-
-        self.server = FLHalfServer(self.model,
-                                   self.clients, 
-                                   private_layers=self.private_layers, 
-                                   n_epochs=self.server_n_epochs,
-                                   batch_size=self.server_batch_size,
-                                   optimizer_cfg=self.server_optimizer_cfg,
-                                   eligibility_percentage=self.eligibility_percentage)
-        self.server.attach(callbacks)
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(C={self.n_clients},R={self.n_rounds},E={self.n_epochs}," + \
-               f"P={self.eligibility_percentage},{self.optimizer_cfg}, pri={self.private_layers}," + \
-               f"SE={self.server_n_epochs},SB={self.server_batch_size})"
+    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+        self.server = FLHalfServer(model, None, self.clients, **config)

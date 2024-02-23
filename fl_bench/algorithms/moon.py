@@ -70,7 +70,7 @@ class MOONClient(Client):
         
         self.prev_model.to("cpu")
         self.server_model.to("cpu")
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self._send_model()
 
     def __str__(self) -> str:
         to_str = super().__str__()

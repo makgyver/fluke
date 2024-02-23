@@ -158,7 +158,7 @@ class FedDynClient(Client):
         curr_params = get_all_params_of(self.model)
         self.prev_grads += curr_params - server_params
         
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self._send_model()
     
     def __str__(self) -> str:
         to_str = super().__str__()

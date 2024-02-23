@@ -100,6 +100,10 @@ class FastTensorDataLoader:
 
     def __len__(self) -> int:
         return self.n_batches
+    
+    def transform(self, f: callable, axis=(0,)) -> None:
+        tensors = [f(t) if i in axis else t for i, t in enumerate(self.tensors)]
+        return FastTensorDataLoader(*tensors, batch_size=self.batch_size, shuffle=self.shuffle, percentage=1.0)
 
 
 
@@ -139,12 +143,8 @@ class DataSplitter:
     from fl_bench.data.datasets import DatasetsEnum
     
     @classmethod
-    def from_config(cls, config: dict) -> DataSplitter:
-        return DataSplitter(config['dataset'],
-                            config['standardize'],
-                            config['distribution'],
-                            config['validation_split'],
-                            config['sampling_perc'])
+    def from_config(cls, config: dict) -> DataSplitter:        
+        return config['dataset'].splitter()(**config)
 
 
     def __init__(self, 
@@ -173,7 +173,7 @@ class DataSplitter:
     def num_classes(self) -> int:
         return self.data_container.num_classes
 
-    def assign(self, n_clients: int, batch_size: Optional[int]=None, ):
+    def assign(self, n_clients: int, batch_size: Optional[int]=None):
         Xtr, Ytr = self.data_container.train
         self.assignments = self._iidness_functions[self.distribution](self, Xtr, Ytr, n_clients, **self.kwargs)
         client_tr_assignments = []
@@ -499,3 +499,33 @@ class DataSplitter:
         DistributionEnum.LABEL_PATHOLOGICAL_SKEWED: label_pathological_skew,
         DistributionEnum.COVARIATE_SHIFT: covariate_shift
     }
+
+
+class DummyDataSplitter(DataSplitter):
+
+    from fl_bench.data.datasets import DatasetsEnum
+
+    def __init__(self, 
+                 dataset: DatasetsEnum,
+                 num_features: int,
+                 num_classes: int,
+                 **kwargs):
+
+        self.data_container = None
+        self.standardize = False
+        self.distribution = DistributionEnum.IID
+        self.validation_split = 0.0
+        self.sampling_perc = 1.0
+        self.client_tr_assignments, self.client_te_assignments, self.server_te = dataset.klass()()
+        self._num_features = num_features
+        self._num_classes = num_classes
+    
+    def num_features(self) -> int:
+        return self._num_features
+
+    def num_classes(self) -> int:
+        return self._num_classes
+
+    def assign(self, n_clients: int, batch_size: Optional[int]=None):
+        return (self.client_tr_assignments, self.client_te_assignments), self.server_te
+        

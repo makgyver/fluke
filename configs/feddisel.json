@@ -1,16 +1,13 @@
 {
-    "name": "flhalf",
+    "name": "feddisel",
     "hyperparameters": {
         "server": {
-            "seed_anchors": 98765,
-            "n_anchors": 64
         },
         "client": {
             "batch_size": 32,
             "n_epochs": 5,
-            "n_private_epochs": 30,
             "loss": "CrossEntropyLoss",
-            "model": "FLHalf_F",
+            "model": "FedDiselNet",
             "optimizer": {		
                 "lr": 0.01,
                 "scheduler_kwargs": {
@@ -19,6 +16,6 @@
                 }
             }
         },
-        "model": "FLHalf_D"
+        "model": "FedDiselNet_E"
     }
 }

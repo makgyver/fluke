@@ -92,6 +92,9 @@ class ScaffoldClient(Client):
             delta_c.data = new_control.data - local_control.data
             local_control.data = new_control.data
         
+        self._send_model()
+    
+    def _send_model(self):
         self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 

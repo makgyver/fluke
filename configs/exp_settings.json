@@ -1,15 +1,17 @@
 {
     "protocol": {
-		"n_clients": 10,
-    	"n_rounds": 200,
+		"n_clients": 100,
+    	"n_rounds": 100,
     	"eligible_perc": 1
 	},
 	"data": {
-		"dataset": "mnist",
+		"dataset": "femnist",
 		"standardize": false,
     	"distribution": "iid",
-    	"validation_split": 0.0,
-    	"sampling_perc": 1.0
+    	"validation_split": 0.1,
+    	"sampling_perc": 0.1,
+		"num_features": 784,
+		"num_classes": 62
 	},
 	"exp": {
 		"seed": 5,

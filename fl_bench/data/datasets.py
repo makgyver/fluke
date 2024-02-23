@@ -1,5 +1,7 @@
 from __future__ import annotations
 from enum import Enum
+import os
+import json
 
 import pandas as pd
 from sklearn.datasets import load_svmlight_file
@@ -11,7 +13,7 @@ from torchvision.transforms import ToTensor
 
 import numpy as np
 from numpy.random import permutation
-from fl_bench.data import DataContainer
+from fl_bench.data import DataContainer, FastTensorDataLoader
 from fl_bench.data.dataclass import SVHN
 
 
@@ -255,13 +257,67 @@ class Datasets:
         return Datasets.SVMLIGHT(filename, None, test_size, seed)
 
 
+    @classmethod
+    def FEMNIST(cls, batch_size=10):
+
+        assert os.path.exists('data/FEMNIST'), "FEMNIST data ('data/FEMNIST') not found."
+        assert os.path.exists('data/FEMNIST/train'), "FEMNIST train data ('data/FEMNIST/train') not found."
+        assert os.path.exists('data/FEMNIST/test'), "FEMNIST test data ('data/FEMNIST/test') not found."
+
+        # TRAINING
+        train_dir = 'data/FEMNIST/train'
+        files = os.listdir(train_dir)
+        dict_train = {}
+        for file in files:
+            with open(os.path.join(train_dir, file)) as f:
+                data = json.load(f)  
+            dict_train.update(data["user_data"])
+
+        # TEST
+        test_dir = 'data/FEMNIST/test'
+        files = os.listdir(test_dir)
+        dict_test = {}
+        for file in files:
+            with open(os.path.join(test_dir, file)) as f:
+                data = json.load(f)
+            dict_test.update(data["user_data"])
+
+        client_tr_assignments = []
+        for udata in dict_train.values():
+            Xtr_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
+            ytr_client = torch.LongTensor(udata["y"])
+            client_tr_assignments.append(
+                FastTensorDataLoader(
+                    Xtr_client, 
+                    ytr_client, 
+                    batch_size=batch_size, 
+                    shuffle=True, 
+                    percentage=1.0
+                )
+            )
+        
+        client_te_assignments = []
+        for udata in dict_test.values():
+            Xte_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
+            yte_client = torch.LongTensor(udata["y"])
+            client_te_assignments.append(
+                FastTensorDataLoader(
+                    Xte_client, 
+                    yte_client, 
+                    batch_size=batch_size, 
+                    shuffle=True, 
+                    percentage=1.0
+                )
+            )
+        
+        return client_tr_assignments, client_te_assignments, None
 
 class DatasetsEnum(Enum):
     MNIST = "mnist"
     MNIST4D = "mnist4d"
     MNISTM = "mnistm"
     SVHN = "svhn"
-    # FEMNIST = "femnist"
+    FEMNIST = "femnist"
     EMNIST = "emnist"
     CIFAR10 = "cifar10"
     LETTER = "letter"
@@ -288,7 +344,7 @@ class DatasetsEnum(Enum):
             "mnistm": Datasets.MNISTM,
             "mnist4d": Datasets.MNIST4D,
             "svhn": Datasets.SVHN,
-            # "femnist": Datasets.FEMNIST,
+            "femnist": Datasets.FEMNIST,
             "emnist": Datasets.EMNIST,
             "cifar10": Datasets.CIFAR10,
             "letter": Datasets.LETTER,
@@ -304,4 +360,11 @@ class DatasetsEnum(Enum):
         } 
         return DATASET_MAP[self.value]
 
+    def splitter(self):
+        from . import DataSplitter, DummyDataSplitter
+
+        if self.value == "femnist":
+            return DummyDataSplitter
+        else:
+            return DataSplitter
 
