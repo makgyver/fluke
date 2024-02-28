@@ -36,7 +36,7 @@ class FedProxClient(Client):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
             loss = None
-            for i, (X, y) in enumerate(self.train_set):
+            for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
@@ -44,7 +44,7 @@ class FedProxClient(Client):
                 loss.backward()
                 self.optimizer.step()          
             self.scheduler.step()
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self._send_model()
     
     def __str__(self) -> str:
         to_str = super().__str__()
@@ -80,9 +80,12 @@ class FedProx(CentralizedFL):
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
                      config: DDict):
+        scheduler_kwargs = config.optimizer.scheduler_kwargs
+        optimizer_args = config.optimizer
+        del optimizer_args['scheduler_kwargs']
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              lr=config.optimizer.lr, 
-                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+                                              **optimizer_args,
+                                              scheduler_kwargs=scheduler_kwargs)
         self.loss = get_loss(config.loss)
         self.clients = [FedProxClient(train_set=clients_tr_data[i], 
                                       mu=config.mu,
