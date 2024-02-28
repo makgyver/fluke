@@ -30,7 +30,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
 
     log = cfg.log.logger.logger(ClassificationEval(fl_algo.loss, 
                                                    data_splitter.num_classes(), 
-                                                   "macro",
+                                                   cfg.exp.average,
                                                    GlobalSettings().get_device()), 
                                 name=str(cfg),
                                 **cfg.log.wandb_params)

@@ -58,7 +58,7 @@ class ClassificationEval(Evaluator):
                 #  data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  loss_fn: Callable, 
                  n_classes: int, 
-                 average: Literal["micro","macro"]="macro",
+                 average: Literal["micro","macro"]="micro",
                  device: torch.device=torch.device("cpu")):
         super().__init__(loss_fn)
         self.average = average

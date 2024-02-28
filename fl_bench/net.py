@@ -852,7 +852,7 @@ class FedDiselNet(nn.Module):
         return pred
 
 
-class VGG9(nn.Module):
+class VGG9_E(nn.Module):
 
     def _conv_layer(self, in_channels, out_channels, kernel_size, stride=1, padding=0, groups=1, bias=False, seed=0):
         conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, groups=groups, stride=stride, bias=bias)
@@ -864,12 +864,12 @@ class VGG9(nn.Module):
         torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
         return fc
     
-    def __init__(self, input_size: int=784, output_size: int=10, seed: int=98765):
-        super(VGG9, self).__init__()
+    def __init__(self, input_size: int=784, output_size: int=62, seed: int=98765):
+        super(VGG9_E, self).__init__()
         self._seed = seed
         self.input_size = input_size
         self.output_size = output_size
-        self.layers = nn.Sequential(
+        self.fed_E = nn.Sequential(
             self._conv_layer(in_channels=1, out_channels=16, kernel_size=3, padding=1, bias=False, seed=seed), #FIXME
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
@@ -887,6 +887,25 @@ class VGG9(nn.Module):
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
+
+    def forward(self, x):
+        return self.fed_E(x)
+    
+
+class VGG9(nn.Module):
+    
+    def _linear_layer(self, in_features, out_features, bias=False, seed=0):
+        fc = nn.Linear(in_features, out_features, bias=bias)
+        torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
+        return fc
+
+    def __init__(self, input_size: int=784, output_size: int=62, seed: int=98765):
+        super(VGG9, self).__init__()
+        self._seed = seed
+        self.input_size = input_size
+        self.output_size = output_size
+
+        self.fed_E = VGG9_E(input_size, output_size, seed)
         self.classifier = nn.Sequential(
             nn.Flatten(),
             self._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
@@ -895,6 +914,6 @@ class VGG9(nn.Module):
         )
 
     def forward(self, x):
-        x = self.layers(x)
+        x = self.fed_E(x)
         x = self.classifier(x)
         return x

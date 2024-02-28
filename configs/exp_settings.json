@@ -1,20 +1,21 @@
 {
     "protocol": {
-		"n_clients": 100,
+		"n_clients": 730,
     	"n_rounds": 100,
-    	"eligible_perc": 1
+    	"eligible_perc": 0.007
 	},
 	"data": {
 		"dataset": "femnist",
 		"standardize": false,
     	"distribution": "iid",
-    	"validation_split": 0.1,
-    	"sampling_perc": 0.1,
+    	"validation_split": 0.2,
+    	"sampling_perc": 1.0,
 		"num_features": 784,
 		"num_classes": 62
 	},
 	"exp": {
 		"seed": 5,
+		"average": "micro",
     	"device": "auto",
     	"checkpoint": {
         	"save": false,
@@ -23,11 +24,11 @@
     	}
 	},
 	"log": {
-		"logger": "local",
+		"logger": "wandb",
     	"wandb_params": {
         	"project": "fl-bench",
         	"entity": "mlgroup",
-        	"tags": ["FEDADA"]
+        	"tags": ["FEDAVG_FEMNIST"]
     	}
 	}
 }

@@ -1,4 +1,3 @@
-
 .DS_Store
 *.pyc
 .vscode/launch.json
@@ -25,3 +24,4 @@ data/cifar-10-batches-py/data_batch_1
 data/cifar-10-batches-py/batches.meta
 exp_configs/*
 alg_configs/*
+data/FEMNIST/*

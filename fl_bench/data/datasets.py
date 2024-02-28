@@ -2,6 +2,7 @@ from __future__ import annotations
 from enum import Enum
 import os
 import json
+from rich.progress import Progress, track
 
 import pandas as pd
 from sklearn.datasets import load_svmlight_file
@@ -268,7 +269,7 @@ class Datasets:
         train_dir = 'data/FEMNIST/train'
         files = os.listdir(train_dir)
         dict_train = {}
-        for file in files:
+        for file in track(files, "Loading FEMNIST train data..."):
             with open(os.path.join(train_dir, file)) as f:
                 data = json.load(f)  
             dict_train.update(data["user_data"])
@@ -277,13 +278,16 @@ class Datasets:
         test_dir = 'data/FEMNIST/test'
         files = os.listdir(test_dir)
         dict_test = {}
-        for file in files:
+        for file in track(files, "Loading FEMNIST test data..."):
             with open(os.path.join(test_dir, file)) as f:
                 data = json.load(f)
             dict_test.update(data["user_data"])
 
+
+            
         client_tr_assignments = []
-        for udata in dict_train.values():
+        for k in track(sorted(dict_train), "Creating training data loader..."):
+            udata = dict_train[k]
             Xtr_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             ytr_client = torch.LongTensor(udata["y"])
             client_tr_assignments.append(
@@ -297,19 +301,23 @@ class Datasets:
             )
         
         client_te_assignments = []
-        for udata in dict_test.values():
+        for k in track(sorted(dict_train), "Creating testing data loader..."):
+            udata = dict_test[k]
             Xte_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             yte_client = torch.LongTensor(udata["y"])
             client_te_assignments.append(
                 FastTensorDataLoader(
                     Xte_client, 
                     yte_client, 
-                    batch_size=batch_size, 
+                    batch_size=64, 
                     shuffle=True, 
                     percentage=1.0
                 )
             )
-        
+            
+        perm = permutation(len(client_tr_assignments))
+        client_tr_assignments = [client_tr_assignments[i] for i in perm]
+        client_te_assignments = [client_te_assignments[i] for i in perm]
         return client_tr_assignments, client_te_assignments, None
 
 class DatasetsEnum(Enum):

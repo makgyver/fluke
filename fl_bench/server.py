@@ -199,17 +199,19 @@ class Server(ObserverSubject):
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:
-                    avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                    avg_model_sd[key] = clients_sd[0][key].clone()
                     continue
-                den = 0
+                elif "weight" not in key:
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
+                    continue
+                num_ex = [eligible[i].n_examples for i, _ in enumerate(clients_sd)]
+                tot_ex = sum(num_ex)
+                weights = [1. / len(clients_sd)] * len(clients_sd) if not self.weighted else [num_ex[i] / tot_ex for i in range(len(clients_sd))]
                 for i, client_sd in enumerate(clients_sd):
-                    weight = 1 if not self.weighted else eligible[i].n_examples
-                    den += weight
                     if key not in avg_model_sd:
-                        avg_model_sd[key] = weight * client_sd[key]
+                        avg_model_sd[key] = weights[i] * client_sd[key]
                     else:
-                        avg_model_sd[key] += weight * client_sd[key]
-                avg_model_sd[key] /= den
+                        avg_model_sd[key] += weights[i] * client_sd[key]
             self.model.load_state_dict(avg_model_sd)
     
     def notify_start_round(self, round: int, global_model: Any) -> None:
