@@ -165,9 +165,13 @@ class SCAFFOLD(CentralizedFL):
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
                      config: DDict):
+        scheduler_kwargs = config.optimizer.scheduler_kwargs
+        optimizer_args = config.optimizer
+        del optimizer_args['scheduler_kwargs']
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              lr=config.optimizer.lr, 
-                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+                                              **optimizer_args,
+                                              scheduler_kwargs=scheduler_kwargs)
+        
         self.loss = get_loss(config.loss)
         self.clients = [ScaffoldClient(train_set=clients_tr_data[i],  
                                        optimizer_cfg=optimizer_cfg, 
