@@ -16,50 +16,56 @@ To run an algorithm in FL-Bench you need to create two configuration files:
 Some examples of these files can be found in the `configs` folder.
 
 The `EXP_CONFIG` is a json file contains the following fields:
-- `name`: the name of the experiment
-- `seed`: the seed used for reproducibility purposes
-- `device`: the device used for training the model. If `auto`, the device is automatically selected
-- `n_clients`: the number of clients in the federated learning system
-- `n_rounds`: the number of communication rounds
-- `batch_size`: the batch size used client-side for training the model
-- `n_epochs`: the number of epochs used client-side for training the model
-- `eligible_perc`: the percentage of clients that are elegible for training in each round
-- `loss`: the loss function used for training the model. It must be a valid PyTorch loss function
-- `distribution`: the data distribution used for training the model. 
-  It must be one of the following: 
-    - `iid`: iid
-    - `qnt`: quantity skewed
-    - `classqnt`: classwise quantity skewed
-    - `lblqnt`: label quantity skewed
-    - `dir`: label dirichlet skewed
-    - `path`: label pathological skewed
-    - `covshift`: covariate shift
-- `model`: the model to train. It must be a valid PyTorch model defined in the `net.py` file
-- `dataset`: the dataset used for training the model. It must be one of the following:
-    - `mnist`: MNIST
-    - `mnistm`: MNISTM
-    - `emnist`: EMNIST
-    - `cifar10`: CIFAR10
-    - `svhn`: SVHN
-- `validation`: the percentage of the training dataset used for validation
-- `sampling`: percentage of the dataset considered for training. 
-  If `1.0`, the whole dataset is used for training.
-- `checkpoint`: the checkpoint configuration. It must be a dictionary with the following fields:
-    - `save`: if `true`, the model and the client optimizer are saved after each round
-    - `path`: the path where the checkpoint is saved
-    - `load`: if `true`, the checkpoint is loaded from the `path` before starting the training
-- `logger`: the logger used for logging the results. It must be one of the following:
-    - `local`: the results are logged locally
-    - `wandb`: the results are logged on wandb
-- `wandb_params`: the parameters used for logging on wandb. Used only if `logger` is set to `wandb`.
-  It must be a dictionary with the following fields:
-    - `project`: the name of the project on wandb
-    - `entity`: the name of the entity on wandb
-    - `tags`: the tags used for logging on wandb
+- `protocol`: must contains a dictionary with the overall federated protocol settings, namely:
+    - `n_clients`: the number of clients in the federated learning system
+    - `n_rounds`: the number of communication rounds
+    - `eligible_perc`: the percentage of clients that are elegible for training in each round
+- `data`: must contains a dictionary with all settings regarding the data loading process, namely:
+    - `dataset`: the dataset used for training the model. It must be one of the following: `mnist`, `mnistm`, `emnist`, `cifar10`, `svhn`, and `femnist`.
+    - `validation_split`: the percentage of the local datasets used as test/validation set
+    - `standardize`: boolean value that indicates whether the features have to be standardized or not
+    - `distribution`: the data distribution used for training the model. 
+      It must be one of the following: 
+        - `iid`: iid
+        - `qnt`: quantity skewed
+        - `classqnt`: classwise quantity skewed
+        - `lblqnt`: label quantity skewed
+        - `dir`: label dirichlet skewed
+        - `path`: label pathological skewed
+        - `covshift`: covariate shift
+    - `sampling_perc`: percentage of the dataset considered for training. 
+      If `1.0`, the whole dataset is used for training.
+    - `num_features`
+    - `num_classes`
+- `exp`: must contains the other settings for the experiment:
+    - `seed`: the seed used for reproducibility purposes
+    - `device`: the device used for training the model. If `auto`, the device is automatically selected
+    - `average`: the averaging method using in the evaluation (e.g., "macro", "micro")
+    - `checkpoint`: the checkpoint configuration. It must be a dictionary with the following fields:
+        - `save`: if `true`, the model and the client optimizer are saved after each round
+        - `path`: the path where the checkpoint is saved
+        - `load`: if `true`, the checkpoint is loaded from the `path` before starting the training
+- `log`: must contains a dictionary with the settings for the logging:
+  - `logger`: the logger used for logging the results. It must be one of the following:
+      - `local`: the results are logged locally
+      - `wandb`: the results are logged on wandb
+  - `wandb_params`: the parameters used for logging on wandb. Used only if `logger` is set to `wandb`.
+    It must be a dictionary with the following fields:
+      - `project`: the name of the project on wandb
+      - `entity`: the name of the entity on wandb
+      - `tags`: the tags used for logging on wandb
 
 
 The `ALG_CONFIG` is a json file containing the following fields:
 - `name`: the name of the algorithm
+- `hyperparameters`: contains the dictinaries for the hyperparameters for clients and server:
+    - `server`: must contains a dictionary with the server hyperparameters (e.g., `{"weighted": true}`)
+
+
+- `batch_size`: the batch size used client-side for training the model
+- `loss`: the loss function used for training the model. It must be a valid PyTorch loss function
+- `n_epochs`: the number of epochs used client-side for training the model
+- `model`: the model to train. It must be a valid PyTorch model defined in the `net.py` file
 - `optimizer_parameters`: the parameters used for the optimizer. 
   It must be a dictionary with the following fields:
     - `lr`: the learning rate
