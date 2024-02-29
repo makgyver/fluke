@@ -70,7 +70,7 @@ The `ALG_CONFIG` is a json file containing the following fields:
     - `client`: must contains a dictionary with the client hyperparameters, for example:
         - `batch_size`: the batch size used client-side for training the model
         - `loss`: the loss function used for training the model. It must be a valid PyTorch loss function
-        - `n_epochs`: the number of epochs used client-side for training the model
+        - `local_epochs`: the number of epochs used client-side for training the model
         - `optimizer_parameters`: the parameters used for the optimizer. 
           It must be a dictionary with the following fields:
             - `lr`: the learning rate
@@ -89,7 +89,7 @@ python fl_bench/main.py --config=EXP_CONFIG run ALG_CONFIG [OPTIONS]
 ```
 where the OPTIONS are:
 ```bash
---dataset                   [mnist|mnistm|svhn|emnist|cifar10]  Dataset [default: (mnist)]  
+--dataset                   [mnist|mnistm|svhn|emnist|cifar10|femnist]  Dataset [default: (mnist)]  
 --n-clients                 INTEGER  Number of clients [default: 5]
 --n-rounds                  INTEGER  Number of rounds [default: 100] 
 --n-epochs                  INTEGER  Number of client-side epochs [default: 5]
