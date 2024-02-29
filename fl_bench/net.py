@@ -894,7 +894,8 @@ class VGG9_E(nn.Module):
 
 class VGG9(nn.Module):
     
-    def _linear_layer(self, in_features, out_features, bias=False, seed=0):
+    @classmethod
+    def _linear_layer(cls, in_features, out_features, bias=False, seed=0):
         fc = nn.Linear(in_features, out_features, bias=bias)
         torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
         return fc
@@ -908,9 +909,9 @@ class VGG9(nn.Module):
         self.fed_E = VGG9_E(input_size, output_size, seed)
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            self._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
+            VGG9._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
             nn.ReLU(True),
-            self._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
+            VGG9._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
         )
 
     def forward(self, x):
@@ -934,11 +935,9 @@ class FedDiselVGG9(nn.Module):
         # Decoder
         self.downstream = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(512*2, 256),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Linear(256, output_size),
-            nn.Sigmoid()
+            VGG9._linear_layer(in_features=512*2, out_features=256, bias=False),
+            nn.ReLU(True),
+            VGG9._linear_layer(in_features=256, out_features=output_size, bias=False)
         )
 
     def forward(self, x):

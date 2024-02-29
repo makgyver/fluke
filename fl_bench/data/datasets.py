@@ -2,7 +2,7 @@ from __future__ import annotations
 from enum import Enum
 import os
 import json
-from rich.progress import Progress, track
+from rich.progress import track
 
 import pandas as pd
 from sklearn.datasets import load_svmlight_file

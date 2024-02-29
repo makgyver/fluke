@@ -10,21 +10,23 @@ from fl_bench import Message
 from fl_bench.client import Client
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
+from fl_bench.utils import DDict, OptimizerConfigurator, clear_cache, get_loss
 
 
 class MOONClient(Client):
     def __init__(self,
                  train_set: FastTensorDataLoader,
-                 mu: float,
-                 tau: float,
+                 validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 validation_set: FastTensorDataLoader=None,
-                 local_epochs: int=3):
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
-        self.mu = mu
-        self.tau = tau
+                 local_epochs: int,
+                 mu: float,
+                 tau: float):
+        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        self.hyper_params.update({
+            "mu": mu,
+            "tau": tau
+        })
         self.prev_model = None
         self.server_model = None
 
@@ -39,9 +41,12 @@ class MOONClient(Client):
         self.server_model = model
 
     def local_train(self, override_local_epochs: int=0):
-        epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         cos = CosineSimilarity(dim=-1).to(self.device)
+        self.model.to(self.device)
+        self.prev_model.to(self.device)
+        self.server_model.to(self.device)
         self.model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -55,47 +60,26 @@ class MOONClient(Client):
                 z_local = self.model.fed_E(X)#, -1)
                 loss_sup = self.loss_fn(y_hat, y)
 
-                self.prev_model.to(self.device)
-                self.server_model.to(self.device)
-
                 z_prev = self.prev_model.fed_E(X)#, -1)
                 z_global = self.server_model.fed_E(X)#, -1)
 
-                sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.tau
-                sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.tau
+                sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
+                sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau
                 loss_con = -torch.log(torch.exp(sim_lg) / (torch.exp(sim_lg) + torch.exp(sim_lp))).mean()
 
-                loss = loss_sup + self.mu * loss_con
+                loss = loss_sup + self.hyper_params.mu * loss_con
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
         
         self.prev_model.to("cpu")
         self.server_model.to("cpu")
+        self.model.to("cpu")
+        clear_cache()
         self._send_model()
-
-    def __str__(self) -> str:
-        to_str = super().__str__()
-        return f"{to_str[:-1]},mu={self.mu},tau={self.tau})"
     
 
 class MOON(CentralizedFL):
     
-    def init_clients(self, 
-                     clients_tr_data: list[FastTensorDataLoader], 
-                     clients_te_data: list[FastTensorDataLoader], 
-                     config: DDict):
-        scheduler_kwargs = config.optimizer.scheduler_kwargs
-        optimizer_args = config.optimizer
-        del optimizer_args['scheduler_kwargs']
-        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              **optimizer_args,
-                                              scheduler_kwargs=scheduler_kwargs)
-        self.loss = get_loss(config.loss)
-        self.clients = [MOONClient(train_set=clients_tr_data[i],  
-                                   mu=config.mu,
-                                   tau=config.tau,
-                                   optimizer_cfg=optimizer_cfg, 
-                                   loss_fn=self.loss, 
-                                   validation_set=clients_te_data[i],
-                                   local_epochs=config.n_epochs) for i in range(self.n_clients)]
+    def get_client_class(self) -> Client:
+        return MOONClient

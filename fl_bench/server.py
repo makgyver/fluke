@@ -206,6 +206,7 @@ class Server(ObserverSubject):
         """
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
+        weights = self._get_client_weights(eligible)
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:
@@ -214,7 +215,6 @@ class Server(ObserverSubject):
                 # elif "weight" not in key:
                 #     avg_model_sd[key] = self.model.state_dict()[key].clone()
                 #     continue
-                weights = self._get_client_weights(eligible)
                 for i, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
                         avg_model_sd[key] = weights[i] * client_sd[key]

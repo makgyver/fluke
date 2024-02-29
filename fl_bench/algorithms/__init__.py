@@ -5,7 +5,6 @@ from enum import Enum
 
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter, FastTensorDataLoader
 from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
 
@@ -91,6 +90,30 @@ class CentralizedFL():
         self.server.load(path)
 
 
+class PersonalizedFL(CentralizedFL):
+    
+    def init_clients(self, 
+                     clients_tr_data: list[FastTensorDataLoader], 
+                     clients_te_data: list[FastTensorDataLoader], 
+                     config: DDict) -> None:
+
+        model = get_model(mname=config.model)
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              **config.optimizer.exclude('scheduler_kwargs'),
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        self.loss = get_loss(config.loss)
+        self.clients = [
+            self.get_client_class()(
+                model=model,
+                train_set=clients_tr_data[i],  
+                validation_set=clients_te_data[i],
+                optimizer_cfg=optimizer_cfg, 
+                loss_fn=self.loss, 
+                **config.exclude('optimizer', 'loss', 'batch_size', 'model')
+            ) 
+            for i in range(self.n_clients)]
+
+
 # FEDERATED LEARNING ALGORITHMS
 from .fedavg import FedAVG
 from .fedavgm import FedAVGM
@@ -105,6 +128,7 @@ from .fednova import FedNova
 from .fedexp import FedExP
 from .pfedme import PFedMe
 from .feddisel import FedDisel
+from .feddyn import FedDyn
 
 # FEDERATED BOOSTING ALGORITHMS
 from .adaboostf import AdaboostF
@@ -112,7 +136,7 @@ from .adaboostf2 import AdaboostF2
 from .distboostf import DistboostF
 from .preweakf import PreweakF
 from .preweakf2 import PreweakF2
-from .feddyn import FedDyn
+
 
 class FedAlgorithmsEnum(Enum):
     FEDAVG = 'fedavg'

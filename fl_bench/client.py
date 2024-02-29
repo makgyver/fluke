@@ -1,5 +1,7 @@
 from __future__ import annotations
-import sys; sys.path.append(".")
+import sys
+
+import torch; sys.path.append(".")
 
 from abc import ABC
 from copy import deepcopy
@@ -91,8 +93,8 @@ class Client(ABC):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        clear_cache()
         self.model.to("cpu")
+        clear_cache()
         self._send_model()
     
     def validate(self):
@@ -141,3 +143,16 @@ class Client(ABC):
         hpstr = "," + hpstr if hpstr else ""
         return f"{self.__class__.__name__}(optim={self.optimizer_cfg}, "+\
                f"batch_size={self.train_set.batch_size}{hpstr})"
+
+
+class PFLClient(Client):
+
+    def __init__(self,
+                 model: torch.nn.Module,
+                 train_set: FastTensorDataLoader,
+                 validation_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable,
+                 local_epochs: int=3):
+        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        self.private_model = model
