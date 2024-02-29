@@ -172,9 +172,12 @@ class FedDyn(CentralizedFL):
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
                      config: DDict):
+        scheduler_kwargs = config.optimizer.scheduler_kwargs
+        optimizer_args = config.optimizer
+        del optimizer_args['scheduler_kwargs']
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              lr=config.optimizer.lr, 
-                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+                                              **optimizer_args,
+                                              scheduler_kwargs=scheduler_kwargs)
         self.loss = get_loss(config.loss)
         weight_list = np.asarray([clients_tr_data[i].tensors[0].shape[0] for i in range(self.n_clients)])
         weight_list = weight_list / np.sum(weight_list) * self.n_clients 
