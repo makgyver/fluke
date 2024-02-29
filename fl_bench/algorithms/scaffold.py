@@ -12,7 +12,7 @@ from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator, get_loss
+from fl_bench.utils import DDict, OptimizerConfigurator, clear_cache, get_loss
 
 
 class ScaffoldOptimizer(Optimizer):
@@ -40,11 +40,11 @@ class ScaffoldOptimizer(Optimizer):
 class ScaffoldClient(Client):
     def __init__(self,
                  train_set: FastTensorDataLoader,
+                 validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3):
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.control = None
         self.delta_c = None
         self.delta_y = None
@@ -62,9 +62,10 @@ class ScaffoldClient(Client):
         self.server_control = server_control
     
     def local_train(self, override_local_epochs: int=0):
-        epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         server_model = deepcopy(self.model)
+        self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -74,7 +75,7 @@ class ScaffoldClient(Client):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
-                loss = self.loss_fn(y_hat, y)
+                loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step(self.server_control, self.control)
             self.scheduler.step()
@@ -84,7 +85,7 @@ class ScaffoldClient(Client):
             delta_y.data = local_model.data.detach() - server_model.data.detach()
         
         new_controls = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        coeff = 1. / (self.local_epochs * len(self.train_set) * self.scheduler.get_last_lr()[0])
+        coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set) * self.scheduler.get_last_lr()[0])
         for local_control, server_control, new_control, delta_y in zip(self.control, self.server_control, new_controls, self.delta_y):
             new_control.data = local_control.data - server_control.data - delta_y.data * coeff
 
@@ -92,6 +93,8 @@ class ScaffoldClient(Client):
             delta_c.data = new_control.data - local_control.data
             local_control.data = new_control.data
         
+        self.model.to("cpu")
+        clear_cache()
         self._send_model()
     
     def _send_model(self):
@@ -106,7 +109,9 @@ class ScaffoldServer(Server):
                  global_step: float=1.):
         super().__init__(model, test_data, clients, False)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        self.global_step = global_step
+        self.hyper_params.update({
+            "global_step": global_step
+        })
     
     def _broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
@@ -127,12 +132,8 @@ class ScaffoldServer(Server):
                 server_delta_c.data = server_delta_c.data / self.n_clients
 
             for param, server_control, server_delta_y, server_delta_c in zip(self.model.parameters(), self.control, delta_y, delta_c):
-                param.data = param.data + self.global_step * server_delta_y
+                param.data = param.data + self.hyper_params.global_step * server_delta_y
                 server_control.data = server_control.data + server_delta_c.data
-
-    def __str__(self) -> str:
-        to_str = super().__str__()
-        return f"{to_str[:-1]},global_step={self.global_step})"
 
 
 class SCAFFOLD(CentralizedFL):
@@ -161,24 +162,9 @@ class SCAFFOLD(CentralizedFL):
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return ScaffoldOptimizer
     
-    def init_clients(self, 
-                     clients_tr_data: list[FastTensorDataLoader], 
-                     clients_te_data: list[FastTensorDataLoader], 
-                     config: DDict):
-        scheduler_kwargs = config.optimizer.scheduler_kwargs
-        optimizer_args = config.optimizer
-        del optimizer_args['scheduler_kwargs']
-        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              **optimizer_args,
-                                              scheduler_kwargs=scheduler_kwargs)
-        
-        self.loss = get_loss(config.loss)
-        self.clients = [ScaffoldClient(train_set=clients_tr_data[i],  
-                                       optimizer_cfg=optimizer_cfg, 
-                                       loss_fn=self.loss, 
-                                       validation_set=clients_te_data[i],
-                                       local_epochs=config.n_epochs) for i in range(self.n_clients)]
-        
-    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
-        self.server = ScaffoldServer(model, data, self.clients, **config)
+    def get_client_class(self) -> Client:
+        return ScaffoldClient
+
+    def get_server_class(self) -> Server:
+        return ScaffoldServer
 

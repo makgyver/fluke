@@ -50,14 +50,16 @@ class MOONClient(Client):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                y_hat, z_local = self.model.forward_(X, -1)
+                #FIXME
+                y_hat = self.model(X)
+                z_local = self.model.fed_E(X)#, -1)
                 loss_sup = self.loss_fn(y_hat, y)
 
                 self.prev_model.to(self.device)
                 self.server_model.to(self.device)
 
-                _, z_prev = self.prev_model.forward_(X, -1)
-                _, z_global = self.server_model.forward_(X, -1)
+                z_prev = self.prev_model.fed_E(X)#, -1)
+                z_global = self.server_model.fed_E(X)#, -1)
 
                 sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.tau
                 sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.tau
@@ -83,9 +85,12 @@ class MOON(CentralizedFL):
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
                      config: DDict):
-        optimizer_cfg=OptimizerConfigurator(self.get_optimizer_class(), 
-                                            lr=config.optimizer.lr, 
-                                            scheduler_kwargs=config.optimizer.scheduler_kwargs)
+        scheduler_kwargs = config.optimizer.scheduler_kwargs
+        optimizer_args = config.optimizer
+        del optimizer_args['scheduler_kwargs']
+        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
+                                              **optimizer_args,
+                                              scheduler_kwargs=scheduler_kwargs)
         self.loss = get_loss(config.loss)
         self.clients = [MOONClient(train_set=clients_tr_data[i],  
                                    mu=config.mu,

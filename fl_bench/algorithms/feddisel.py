@@ -21,7 +21,7 @@ from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.net import EDModule
 
-# FEDerated DISentanglment Learning
+# FEDerated DISEntanglment Learning
 class FedDiselClient(Client):
     def __init__(self,
                  train_set: FastTensorDataLoader,
@@ -51,9 +51,7 @@ class FedDisel(CentralizedFL):
                                               lr=config.optimizer.lr, 
                                               scheduler_kwargs=config.optimizer.scheduler_kwargs)
         self.loss = get_loss(config.loss)
-        model = get_model(
-                mname=config.model
-            ).to(GlobalSettings().get_device())
+        model = get_model(mname=config.model).to(GlobalSettings().get_device())
         
         self.clients = [FedDiselClient(train_set=clients_tr_data[i],    
                                        model=model,                    

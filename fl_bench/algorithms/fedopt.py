@@ -39,11 +39,14 @@ class FedOptServer(Server):
         # assert mode in FedOptMode, "mode must be one of FedOptMode"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
-        self.mode = mode if isinstance(mode, FedOptMode) else FedOptMode(mode)
-        self.lr = lr
-        self.beta1 = beta1
-        self.beta2 = beta2
-        self.tau = tau
+
+        self.hyper_params.update({
+            "mode": mode,
+            "lr": lr,
+            "beta1": beta1,
+            "beta2": beta2,
+            "tau": tau
+        })
         self._init_moments()
 
     def _init_moments(self):
@@ -53,7 +56,7 @@ class FedOptServer(Server):
             if not "num_batches_tracked" in key:
                 self.m[key] = torch.zeros_like(self.model.state_dict()[key])
                 # This guarantees that the second moment is >= 0 and <= tau^2
-                self.v[key] = torch.rand_like(self.model.state_dict()[key]) * self.tau ** 2
+                self.v[key] = torch.rand_like(self.model.state_dict()[key]) * self.hyper_params.tau ** 2
     
     def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
@@ -66,34 +69,30 @@ class FedOptServer(Server):
 
                 den, diff = 0, 0
                 for i, client_sd in enumerate(clients_sd):
-                    weight = 1 if not self.weighted else eligible[i].n_examples
+                    weight = 1 if not self.hyper_params.weighted else eligible[i].n_examples
                     diff += weight * (client_sd[key] - self.model.state_dict()[key])
                     den += weight
                 diff /= den
-                self.m[key] = self.beta1 * self.m[key] + (1 - self.beta1) * diff
+                self.m[key] = self.hyper_params.beta1 * self.m[key] + (1 - self.hyper_params.beta1) * diff
 
                 diff_2 = diff ** 2
-                if self.mode == FedOptMode.FedAdam:
-                    self.v[key] = self.beta2 * self.v[key] + (1 - self.beta2) * diff_2
-                elif self.mode == FedOptMode.FedYogi:
-                    self.v[key] -= (1 - self.beta2) * diff_2 * torch.sign(self.v[key] - diff_2)
-                elif self.mode == FedOptMode.FedAdagrad:
+                if self.hyper_params.mode == FedOptMode.FedAdam:
+                    self.v[key] = self.hyper_params.beta2 * self.v[key] + (1 - self.hyper_params.beta2) * diff_2
+                elif self.hyper_params.mode == FedOptMode.FedYogi:
+                    self.v[key] -= (1 - self.hyper_params.beta2) * diff_2 * torch.sign(self.v[key] - diff_2)
+                elif self.hyper_params.mode == FedOptMode.FedAdagrad:
                     self.v[key] += diff_2
                     
-                update = self.m[key] + self.lr * self.m[key] / (torch.sqrt(self.v[key]) + self.tau)
+                update = self.m[key] + self.hyper_params.lr * self.m[key] / (torch.sqrt(self.v[key]) + self.hyper_params.tau)
                 avg_model_sd[key] = self.model.state_dict()[key] + update
             
             self.model.load_state_dict(avg_model_sd)
-    
-    def __str__(self) -> str:
-        to_str = super().__str__()
-        return f"{to_str[:-1]},mode={self.mode},lr={self.lr},beta1={self.beta1},beta2={self.beta2},tau={self.tau})"
 
 
 class FedOpt(CentralizedFL):
     
-    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
-        self.server = FedOptServer(model, data, self.clients, **config)
+    def get_server_class(self) -> Server:
+        return FedOptServer
 
     
 

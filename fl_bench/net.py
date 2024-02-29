@@ -917,3 +917,33 @@ class VGG9(nn.Module):
         x = self.fed_E(x)
         x = self.classifier(x)
         return x
+    
+
+class FedDiselVGG9(nn.Module):
+    def __init__(self, input_size=784, output_size=62):
+        super(FedDiselVGG9, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        # Encoder private
+        self.private_E = VGG9_E()
+
+        # Encoder fed
+        self.fed_E = VGG9_E()
+
+        # Decoder
+        self.downstream = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(512*2, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Linear(256, output_size),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x_p = self.private_E(x)
+        x_f = self.fed_E(x)
+        emb = torch.cat((x_p, x_f), 1)
+        pred = self.downstream(emb)
+        return pred

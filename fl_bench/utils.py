@@ -248,6 +248,11 @@ def get_scheduler(sname:str) -> torch.nn.Module:
 def cli_option(default: Any, help: str) -> Any:
     return typer.Option(default=None, show_default=default, help=help)
 
+def clear_cache(ipc: bool=False):
+    torch.cuda.empty_cache()
+    if ipc:
+        torch.cuda.ipc_collect()
+
 
 class DDict(dict):
     """A dictionary that can be accessed with dot notation recursively."""
@@ -263,6 +268,10 @@ class DDict(dict):
                 self[k] = DDict(v)
             else:
                 self[k] = v
+    
+    def exclude(self, *keys: str):
+        return DDict({k: v for k, v in self.items() if k not in keys})
+
                 
 class Configuration(DDict):
     def __init__(self, config_exp_path: str, config_alg_path: str):

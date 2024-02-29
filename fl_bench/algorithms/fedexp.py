@@ -7,9 +7,8 @@ from collections import OrderedDict
 
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.utils import DDict, diff_model
+from fl_bench.utils import diff_model
 from fl_bench.algorithms import CentralizedFL
-from fl_bench.data import FastTensorDataLoader
 
 
 class FedExPServer(Server):
@@ -49,5 +48,5 @@ class FedExPServer(Server):
 
 class FedExP(CentralizedFL):
     
-    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
-        self.server = FedExPServer(model, data, self.clients, **config)
+    def get_server_class(self) -> Server:
+        return FedExPServer

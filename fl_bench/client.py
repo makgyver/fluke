@@ -7,7 +7,7 @@ from typing import Callable
 
 from fl_bench.server import Server
 from fl_bench import GlobalSettings, Message
-from fl_bench.utils import OptimizerConfigurator
+from fl_bench.utils import DDict, OptimizerConfigurator, clear_cache
 from fl_bench.data import FastTensorDataLoader
 from fl_bench.evaluation import ClassificationEval
 
@@ -30,18 +30,19 @@ class Client(ABC):
     """
     def __init__(self,
                  train_set: FastTensorDataLoader,
+                 validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 validation_set: FastTensorDataLoader=None,
                  local_epochs: int=3):
-
+        self.hyper_params = DDict({
+            "loss_fn": loss_fn,
+            "local_epochs": local_epochs
+        })
         self.train_set = train_set
         self.validation_set = validation_set
         self.n_examples = train_set.size
         self.model = None
         self.optimizer_cfg = optimizer_cfg
-        self.loss_fn = loss_fn
-        self.local_epochs = local_epochs
         self.optimizer = None
         self.scheduler = None
         self.device = GlobalSettings().get_device()
@@ -74,9 +75,10 @@ class Client(ABC):
         dict
             The evaluation results if the validation set is not None, otherwise None.
         """
-        epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         self.model.train()
+        self.model.to(self.device)
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
@@ -85,10 +87,12 @@ class Client(ABC):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
-                loss = self.loss_fn(y_hat, y)
+                loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
+        clear_cache()
+        self.model.to("cpu")
         self._send_model()
     
     def validate(self):
@@ -100,8 +104,9 @@ class Client(ABC):
             The evaluation results.
         """
         if self.validation_set is not None:
-            n_classes = self.model.output_size
-            return ClassificationEval(self.loss_fn, n_classes).evaluate(self.model, self.validation_set)
+            return ClassificationEval(self.hyper_params.loss_fn,
+                                      self.model.output_size).evaluate(self.model, 
+                                                                       self.validation_set)
     
     def checkpoint(self):
         """Checkpoint the optimizer and the scheduler.
@@ -132,5 +137,7 @@ class Client(ABC):
         
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(batch_size={self.train_set.batch_size},"+\
-               f"loss={self.loss_fn.__class__.__name__},n_epochs={self.local_epochs},optim={self.optimizer_cfg})"
+        hpstr = ",".join([f"{h}={str(v)}" for h,v in self.hyper_params.items()])
+        hpstr = "," + hpstr if hpstr else ""
+        return f"{self.__class__.__name__}(optim={self.optimizer_cfg}, "+\
+               f"batch_size={self.train_set.batch_size}{hpstr})"

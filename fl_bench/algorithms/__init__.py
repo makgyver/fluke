@@ -11,6 +11,15 @@ from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
 
 
 class CentralizedFL():
+    """Generic Centralized Federated Learning algorithm.
+
+    This class is a generic implementation of a centralized federated learning algorithm. 
+
+    Args:
+        n_clients (int): Number of clients.
+        data_splitter (DataSplitter): Data splitter object.
+        hyperparameters (DDict): Hyperparameters for the algorithm.
+    """
     def __init__(self, 
                  n_clients: int,
                  data_splitter: DataSplitter, 
@@ -19,36 +28,45 @@ class CentralizedFL():
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)
+        # Federated model
         model = get_model(
                 mname=hyperparameters.model,
                 input_size=data_splitter.num_features(), 
                 output_size=data_splitter.num_classes()
-            ).to(GlobalSettings().get_device())
+            )
+
         self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
         self.init_server(model, server_data, hyperparameters.server)
 
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return torch.optim.SGD
+
+    def get_client_class(self) -> Client:
+        return Client
+
+    def get_server_class(self) -> Server:
+        return Server
     
     def init_clients(self, 
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
-                     config: DDict):
-        scheduler_kwargs = config.optimizer.scheduler_kwargs
-        optimizer_args = config.optimizer
-        del optimizer_args['scheduler_kwargs']
+                     config: DDict) -> None:
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              **optimizer_args,
-                                              scheduler_kwargs=scheduler_kwargs)
+                                              **config.optimizer.exclude('scheduler_kwargs'),
+                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
         self.loss = get_loss(config.loss)
-        self.clients = [Client(train_set=clients_tr_data[i],  
-                               optimizer_cfg=optimizer_cfg, 
-                               loss_fn=self.loss, 
-                               validation_set=clients_te_data[i],
-                               local_epochs=config.n_epochs) for i in range(self.n_clients)]
+        self.clients = [
+            self.get_client_class()(
+                train_set=clients_tr_data[i],  
+                validation_set=clients_te_data[i],
+                optimizer_cfg=optimizer_cfg, 
+                loss_fn=self.loss, 
+                **config.exclude('optimizer', 'loss', 'batch_size')
+            ) 
+            for i in range(self.n_clients)]
 
     def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
-        self.server = Server(model, data, self.clients, **config)
+        self.server = self.get_server_class()(model, data, self.clients, **config)
     
     def set_callbacks(self, callbacks: Union[Callable, Iterable[Callable]]):
         self.server.attach(callbacks)
@@ -73,6 +91,7 @@ class CentralizedFL():
         self.server.load(path)
 
 
+# FEDERATED LEARNING ALGORITHMS
 from .fedavg import FedAVG
 from .fedavgm import FedAVGM
 from .fedsgd import FedSGD
@@ -87,7 +106,7 @@ from .fedexp import FedExP
 from .pfedme import PFedMe
 from .feddisel import FedDisel
 
-# BOOSTING ALGORITHMS
+# FEDERATED BOOSTING ALGORITHMS
 from .adaboostf import AdaboostF
 from .adaboostf2 import AdaboostF2
 from .distboostf import DistboostF

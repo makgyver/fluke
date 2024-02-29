@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-from copy import deepcopy
 import multiprocessing as mp
 from typing import Iterable, Any
 from collections import OrderedDict
@@ -9,6 +8,7 @@ from collections import OrderedDict
 import torch
 from torch.nn import Module
 
+from fl_bench.utils import DDict
 from fl_bench.channel import Channel
 from fl_bench.data import FastTensorDataLoader
 from fl_bench import GlobalSettings, Message, ObserverSubject
@@ -37,17 +37,18 @@ class Server(ObserverSubject):
                  clients: Iterable[Client], 
                  weighted: bool=False):
         super().__init__()
+        self.hyper_params = DDict({
+            "weighted": weighted
+        })
         self.device = GlobalSettings().get_device()
         self.model = model
         self.clients = clients
         self.channel = Channel()
         self.n_clients = len(clients)
-        self.weighted = weighted
         self.callbacks = []
         self.rounds = 0
         self.checkpoint_path = None
         self.test_data = test_data
-
         for client in self.clients:
             client.set_server(self)
     
@@ -103,6 +104,7 @@ class Server(ObserverSubject):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
     
+    #CHECKME
     def _fit_multiprocess(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
         """Run the federated learning algorithm using multiprocessing.
 
@@ -183,11 +185,19 @@ class Server(ObserverSubject):
             return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
+    def _get_client_weights(self, eligible: Iterable[Client]):
+        if "weighted" in self.hyper_params.keys() and self.hyper_params.weighted:
+            num_ex = [client.n_examples for client in eligible]
+            tot_ex = sum(num_ex)
+            return [num_ex[i] / tot_ex for i in range(len(eligible))]
+        else:
+            return [1. / len(eligible)] * len(eligible)
+        
     def aggregate(self, eligible: Iterable[Client]) -> None:
         """Aggregate the models of the clients.
 
-        The aggregation is done by averaging the models of the clients. If the attribute `weighted` 
-        is True, the clients are weighted by their number of samples.
+        The aggregation is done by averaging the models of the clients. If the hyperparameter 
+        `weighted` is True, the clients are weighted by their number of samples.
 
         Parameters
         ----------
@@ -201,12 +211,10 @@ class Server(ObserverSubject):
                 if "num_batches_tracked" in key:
                     avg_model_sd[key] = clients_sd[0][key].clone()
                     continue
-                elif "weight" not in key:
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
-                num_ex = [eligible[i].n_examples for i, _ in enumerate(clients_sd)]
-                tot_ex = sum(num_ex)
-                weights = [1. / len(clients_sd)] * len(clients_sd) if not self.weighted else [num_ex[i] / tot_ex for i in range(len(clients_sd))]
+                # elif "weight" not in key:
+                #     avg_model_sd[key] = self.model.state_dict()[key].clone()
+                #     continue
+                weights = self._get_client_weights(eligible)
                 for i, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
                         avg_model_sd[key] = weights[i] * client_sd[key]
@@ -273,7 +281,8 @@ class Server(ObserverSubject):
             self.notify_error(f"Unable to load the checkpoint:\n\t{e}.\nCheckpoint will be ignored.")
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(weighted={self.weighted})"
+        hpstr = ",".join([f"{h}={str(v)}" for h,v in self.hyper_params.items()])
+        return f"{self.__class__.__name__}({hpstr})"
 
     def __repr__(self) -> str:
         return self.__str__()
