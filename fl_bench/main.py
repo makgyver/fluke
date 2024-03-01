@@ -8,7 +8,7 @@ from rich.pretty import Pretty
 
 from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter
-from fl_bench.utils import Configuration, plot_comparison
+from fl_bench.utils import Configuration
 from fl_bench.evaluation import ClassificationEval, ClassificationSklearnEval
 from fl_bench.algorithms import FedAdaboostAlgorithmsEnum, FedAlgorithmsEnum
 
@@ -63,7 +63,7 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     log.init(**cfg)
 
     fl_algo_builder = FedAdaboostAlgorithmsEnum(cfg.method.name)
-    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)    
+    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
     fl_algo.set_callbacks(log)
 
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
@@ -72,15 +72,8 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
     # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 
-@app.command()
-def compare(paths: list[str]=typer.Argument(..., help='Log files to compare'),
-            show_loss: bool=typer.Option(True, help='Show loss graph'),
-            local: bool=typer.Option(False, help='Compare client-side results')):
-    plot_comparison(*paths, local=local, show_loss=show_loss)
-
-
 @app.callback()
-def main(config: str=typer.Option(CONFIG_FNAME, help="Configuration file")): 
+def main(config: str=typer.Option(CONFIG_FNAME, help="Configuration file")):
     global CONFIG_FNAME
     CONFIG_FNAME = config
 
