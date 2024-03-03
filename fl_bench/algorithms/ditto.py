@@ -68,6 +68,7 @@ class DittoClient(PFLClient):
 
         self.private_model.train()
         self.private_model.to(self.device)
+        w_prev.to(self.device)
 
         if self.local_optimizer is None:
             self.local_optimizer, self.local_scheduler = self.optimizer_cfg(self.private_model)
@@ -84,6 +85,7 @@ class DittoClient(PFLClient):
             self.local_scheduler.step()
 
         self.private_model.to("cpu")
+        w_prev.to("cpu")
         clear_cache()
         self._send_model()
 
