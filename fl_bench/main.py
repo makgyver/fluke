@@ -10,7 +10,8 @@ from fl_bench import GlobalSettings
 from fl_bench.data import DataSplitter
 from fl_bench.utils import Configuration
 from fl_bench.evaluation import ClassificationEval, ClassificationSklearnEval
-from fl_bench.algorithms import FedAdaboostAlgorithmsEnum, FedAlgorithmsEnum
+from fl_bench.algorithms import FedAlgorithmsEnum
+from fl_bench.algorithms.boost import FedAdaboostAlgorithmsEnum
 
 app = typer.Typer()
 

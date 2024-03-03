@@ -1,4 +1,6 @@
-import sys; sys.path.append(".")
+import sys 
+sys.path.append(".")
+sys.path.append("..")
 
 import numpy as np
 from math import log

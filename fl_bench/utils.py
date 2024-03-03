@@ -8,7 +8,6 @@ import importlib
 import numpy as np
 import pandas as pd
 from enum import Enum
-import matplotlib.pyplot as plt
 from typing import Any, Iterable
 from collections import OrderedDict
 

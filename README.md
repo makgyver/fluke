@@ -144,7 +144,9 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481 -- **Work in progress**
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w -- **Work in progress**
 - [ ] Implement Ditto - https://arxiv.org/pdf/2012.04221.pdf
-- [ ] Implement FedADMM - https://arxiv.org/pdf/2204.03529.pdf
+- [ ] Implement APFL - https://arxiv.org/pdf/2003.13461.pdf
+- [ ] Implement FedRep - https://arxiv.org/abs/2102.07078 -- **Work in progress**
+- [ ] Implement FedPer - https://arxiv.org/abs/1912.00818
 - [ ] Add support to validation
 - [ ] Add documentation + check typing -- **Work in progress**
 
