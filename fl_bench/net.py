@@ -256,7 +256,7 @@ class VGG9(nn.Module):
         self.output_size = output_size
 
         self.fed_E = VGG9_E(input_size, output_size, seed)
-        self.classifier = nn.Sequential(
+        self.downstream = nn.Sequential(
             nn.Flatten(),
             VGG9._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
             nn.ReLU(True),
@@ -265,7 +265,7 @@ class VGG9(nn.Module):
 
     def forward(self, x):
         x = self.fed_E(x)
-        x = self.classifier(x)
+        x = self.downstream(x)
         return x
     
 

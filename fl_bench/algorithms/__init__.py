@@ -129,6 +129,8 @@ from .fedexp import FedExP
 from .pfedme import PFedMe
 from .feddisel import FedDisel
 from .feddyn import FedDyn
+from .fedper import FedPer
+from .fedrep import FedRep
 
 
 class FedAlgorithmsEnum(Enum):
@@ -146,6 +148,8 @@ class FedAlgorithmsEnum(Enum):
     PEFEDME = 'pfedme'
     FEDDYN = 'feddyn'
     FEDDISEL = 'feddisel'
+    FEDPER = 'fedper'
+    FEDREP = 'fedrep'
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -169,7 +173,9 @@ class FedAlgorithmsEnum(Enum):
             'fedexp': FedExP,
             'pfedme': PFedMe,
             'feddyn': FedDyn,
-            'feddisel': FedDisel
+            'feddisel': FedDisel,
+            'fedper': FedPer,
+            'fedrep': FedRep
         }
 
         return algos[self.value]
