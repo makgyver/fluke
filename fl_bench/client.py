@@ -156,3 +156,9 @@ class PFLClient(Client):
                  local_epochs: int=3):
         super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.private_model = model
+    
+    def validate(self):
+        if self.validation_set is not None:
+            return ClassificationEval(self.hyper_params.loss_fn,
+                                      self.private_model.output_size).evaluate(self.private_model, 
+                                                                               self.validation_set)
