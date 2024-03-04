@@ -54,6 +54,7 @@ The `EXP_CONFIG` is a json file contains the following fields:
       - `logger`: the logger used for logging the results. It must be one of the following:
           - `local`: the results are logged locally
           - `wandb`: the results are logged on wandb
+      - `eval_every`: the number of rounds after which the model(s) is/are evaluated
       - `wandb_params`: the parameters used for logging on wandb. Used only if `logger` is set to `wandb`.
         It must be a dictionary with the following fields:
           - `project`: the name of the project on wandb
