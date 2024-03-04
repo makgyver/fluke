@@ -1,19 +1,18 @@
-from collections import OrderedDict
+import sys; sys.path.append(".")
 from copy import deepcopy
 import random
-from typing import Callable, Iterable, Sequence, Union, Optional, Any
+from typing import Callable, Iterable, Any
+
 
 import torch
-from torch.nn import Module, MSELoss
+from torch import nn
+from torch.nn import Module
+import torch.nn.functional as F
+from rich.progress import Progress
 
-import sys
 
 from fl_bench import GlobalSettings, Message
-from fl_bench.evaluation import ClassificationEval; sys.path.append(".")
-from rich.progress import Progress
-import torch.nn.functional as F
-from torch import nn
-
+from fl_bench.evaluation import ClassificationEval
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import DataSplitter, FastTensorDataLoader
@@ -43,38 +42,39 @@ def generate_anchors(num_anchors: int, dim: int, seed: int=98765) -> torch.Tenso
 
 class FLHalfClient(Client):
     def __init__(self,
-                 train_set: FastTensorDataLoader,
                  model: EDModule,
-                 n_private_epochs: int,
+                 train_set: FastTensorDataLoader,
+                 validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 validation_set: FastTensorDataLoader=None,
-                 local_epochs: int=3):
-        super().__init__(train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
-        self.n_private_epochs = n_private_epochs
-        self.private_model = deepcopy(model)
-        self.private_model.init()
+                 local_epochs: int,
+                 tau: int):
+        super().__init__(model, train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+        self.personalized_model.init()
+        self.hyper_params.update({
+            "tau": tau
+        })
         self.anchors = None
 
     def _private_train(self):
         if self.anchors is None:
             self.anchors = self.channel.receive(self, self.server, msg_type="anchors").payload
 
-        self.private_model.train()
-        self.private_optimizer, self.private_scheduler = self.optimizer_cfg(self.private_model)
-        for _ in range(self.n_private_epochs):
+        self.personalized_model.train()
+        self.private_optimizer, self.private_scheduler = self.optimizer_cfg(self.personalized_model)
+        for _ in range(self.hyper_params.tau):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.private_optimizer.zero_grad()
                 # y_hat = self.private_model(X)
-                rel_x = relative_projection(self.private_model.E, X.view(X.size(0), -1), self.anchors)
-                y_hat = self.private_model.D(rel_x)
+                rel_x = relative_projection(self.personalized_model.E, X.view(X.size(0), -1), self.anchors)
+                y_hat = self.personalized_model.D(rel_x)
                 loss = self.loss_fn(y_hat, y)
                 loss.backward()
                 self.private_optimizer.step()
             self.private_scheduler.step()
-        self.model = deepcopy(self.private_model)
+        self.model = deepcopy(self.personalized_model)
     
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
@@ -109,7 +109,7 @@ class FLHalfClient(Client):
     def validate(self):
         if self.validation_set is not None:
             n_classes = self.model.output_size
-            test_loader = self.validation_set.transform(lambda x: relative_projection(self.private_model.E, x.view(x.size(0), -1), self.anchors))
+            test_loader = self.validation_set.transform(lambda x: relative_projection(self.personalized_model.E, x.view(x.size(0), -1), self.anchors))
             return ClassificationEval(self.loss_fn, n_classes).evaluate(self.model.D, test_loader)
 
 
@@ -180,8 +180,11 @@ class FLHalfServer(Server):
                     self.save(self.checkpoint_path)
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
+        
+        self.finalize()
 
 
+#FIXME
 class FLHalf(CentralizedFL):
     def __init__(self, 
                  n_clients: int,
@@ -202,25 +205,8 @@ class FLHalf(CentralizedFL):
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return torch.optim.Adam
     
-    def init_clients(self, 
-                     clients_tr_data: list[FastTensorDataLoader], 
-                     clients_te_data: list[FastTensorDataLoader], 
-                     config: DDict):
-        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              lr=config.optimizer.lr, 
-                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
-        self.loss = get_loss(config.loss)
-        model = get_model(
-                mname=config.model
-            ).to(GlobalSettings().get_device())
-        
-        self.clients = [FLHalfClient(train_set=clients_tr_data[i], 
-                               model=model,                            
-                               n_private_epochs=config.n_private_epochs,
-                               optimizer_cfg=optimizer_cfg, 
-                               loss_fn=self.loss, 
-                               validation_set=clients_te_data[i],
-                               local_epochs=config.n_epochs) for i in range(self.n_clients)]
+    def get_client_class(self) -> Client:
+        return FLHalfClient
 
-    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
-        self.server = FLHalfServer(model, None, self.clients, **config)
+    def get_server_class(self) -> Server:
+        return FLHalfServer

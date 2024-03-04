@@ -16,7 +16,7 @@ class FedPerClient(PFLClient):
 
     def _receive_model(self) -> None:
         if self.model is None:
-            self.model = self.private_model
+            self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.model.fed_E.load_state_dict(msg.payload.state_dict())
     

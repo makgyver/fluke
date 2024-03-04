@@ -1,6 +1,6 @@
 from __future__ import annotations
+from copy import deepcopy
 
-import os
 import json
 import typer
 import wandb
@@ -102,7 +102,7 @@ class ServerObserver():
     def error(self, error: str):
         pass
 
-    def finished(self):
+    def finished(self,  client_evals: Iterable[Any]):
         pass
 
 
@@ -114,12 +114,13 @@ class ChannelObserver():
 
 class Log(ServerObserver, ChannelObserver):
 
-    def __init__(self, evaluator: Evaluator):
+    def __init__(self, evaluator: Evaluator, eval_every: int=1):
         self.evaluator = evaluator
         self.history = {}
         self.client_history = {}
         self.comm_costs = {0: 0}
         self.current_round = 0
+        self.eval_every = eval_every
     
     def init(self, **kwargs):
         rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
@@ -132,23 +133,29 @@ class Log(ServerObserver, ChannelObserver):
             rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
 
     def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
-        self.history[round] = self.evaluator(global_model, data)
-        stats = { 'global': self.history[round] }
+        if round % self.eval_every == 0:
+            self.history[round] = self.evaluator(global_model, data)
+            stats = { 'global': self.history[round] }
 
-        if client_evals:
-            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-            self.client_history[round] = client_mean
-            stats['local'] = client_mean
-        
-        stats['comm_cost'] = self.comm_costs[round]
+            if client_evals:
+                client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
+                client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+                self.client_history[round] = client_mean
+                stats['local'] = client_mean
+            
+            stats['comm_cost'] = self.comm_costs[round]
 
-        rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
+            rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
     
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
     
-    def finished(self):
+    def finished(self, client_evals: Iterable[Any]):
+        if client_evals:
+            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
+            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+            self.client_history[self.current_round + 1] = client_mean
+            rich.print(Panel(Pretty(client_mean, expand_all=True), title=f"Overall local performance"))
         rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}), 
                          title=f"Total communication cost"))
     
@@ -166,8 +173,8 @@ class Log(ServerObserver, ChannelObserver):
 
 
 class WandBLog(Log):
-    def __init__(self, evaluator: Evaluator, **config):
-        super().__init__(evaluator)
+    def __init__(self, evaluator: Evaluator, eval_every: int, **config):
+        super().__init__(evaluator, eval_every)
         self.config = config
         
     def init(self, **kwargs):
@@ -182,10 +189,11 @@ class WandBLog(Log):
 
     def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
         super().end_round(round, global_model, data, client_evals)
-        self.run.log(self.history[round], step=round)
-        self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
-        if client_evals:
-            self.run.log(self.client_history[round], step=round)
+        if round % self.eval_every == 0:
+            self.run.log(self.history[round], step=round)
+            self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
+            if client_evals:
+                self.run.log(self.client_history[round], step=round)
     
     def save(self, path: str):
         super().save(path)
@@ -269,3 +277,9 @@ def import_module_from_str(name: str) -> Any:
     mod = importlib.import_module(".".join(components[:-1]))
     mod = getattr(mod, components[-1])
     return mod
+
+def merge_models(model_1: Module, model_2: Module, lam: float):
+    merged_model = deepcopy(model_1)
+    for name, param in merged_model.named_parameters():
+        param.data = (1 - lam) * model_1.get_parameter(name).data + lam  * model_2.get_parameter(name).data
+    return merged_model

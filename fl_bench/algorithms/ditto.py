@@ -1,17 +1,14 @@
-import sys
+import sys; sys.path.append(".")
 from typing import Any, Callable
 
 import torch
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.evaluation import ClassificationEval
-
-from fl_bench.utils import OptimizerConfigurator, clear_cache; sys.path.append(".")
 from copy import deepcopy
 
-from fl_bench import Message
-from fl_bench.server import Server
 from fl_bench.client import PFLClient
+from fl_bench.data import FastTensorDataLoader
 from fl_bench.algorithms import PersonalizedFL
+from fl_bench.utils import OptimizerConfigurator, clear_cache
+
 
 # https://arxiv.org/pdf/2012.04221.pdf
 class DittoClient(PFLClient):
@@ -26,8 +23,8 @@ class DittoClient(PFLClient):
                  tau: int = 3,
                  lam: float = 0.1):
         super().__init__(model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
-        self.local_optimizer = None
-        self.local_scheduler = None
+        self.pers_optimizer = None
+        self.pers_scheduler = None
         self.hyper_params.update({
             "tau": tau,
             "lam": lam
@@ -66,25 +63,25 @@ class DittoClient(PFLClient):
         self.model.to("cpu")
         clear_cache()
 
-        self.private_model.train()
-        self.private_model.to(self.device)
+        self.personalized_model.train()
+        self.personalized_model.to(self.device)
         w_prev.to(self.device)
 
-        if self.local_optimizer is None:
-            self.local_optimizer, self.local_scheduler = self.optimizer_cfg(self.private_model)
+        if self.pers_optimizer is None:
+            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.personalized_model)
         
         for _ in range(self.hyper_params.tau):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                self.local_optimizer.zero_grad()
-                y_hat = self.private_model(X)
-                loss = self.hyper_params.loss_fn(y_hat, y) + self.hyper_params.lam * self._proximal_loss(self.private_model, w_prev)
+                self.pers_optimizer.zero_grad()
+                y_hat = self.personalized_model(X)
+                loss = self.hyper_params.loss_fn(y_hat, y) + self.hyper_params.lam * self._proximal_loss(self.personalized_model, w_prev)
                 loss.backward()
-                self.local_optimizer.step()
-            self.local_scheduler.step()
+                self.pers_optimizer.step()
+            self.pers_scheduler.step()
 
-        self.private_model.to("cpu")
+        self.personalized_model.to("cpu")
         w_prev.to("cpu")
         clear_cache()
         self._send_model()

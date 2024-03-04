@@ -20,9 +20,7 @@ class Evaluator(ABC):
         The loss function to consider.
     """
     def __init__(self, 
-                # data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                 loss_fn: Callable):
-        # self.data_loader = data_loader
         self.loss_fn = loss_fn
     
     @abstractmethod
@@ -55,7 +53,6 @@ class ClassificationEval(Evaluator):
         The average to use for the metrics, by default "macro".
     """
     def __init__(self, 
-                #  data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  loss_fn: Callable, 
                  n_classes: int, 
                  average: Literal["micro","macro"]="micro",
@@ -113,7 +110,6 @@ class ClassificationEval(Evaluator):
 class ClassificationSklearnEval(Evaluator):
 
     def __init__(self, 
-                #  data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]], 
                  average: Literal["micro","macro"]="macro"):
         super().__init__(None)
         self.average = average

@@ -72,8 +72,8 @@ class Server(ObserverSubject):
         n_rounds : int, optional
             The number of rounds to run, by default 10.
         """
-        if GlobalSettings().get_workers() > 1:
-            return self._fit_multiprocess(n_rounds)
+        # if GlobalSettings().get_workers() > 1:
+        #     return self._fit_multiprocess(n_rounds)
 
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
@@ -103,54 +103,60 @@ class Server(ObserverSubject):
                     self.save(self.checkpoint_path)
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
+        
+        self.finalize()
+    
+    def finalize(self):
+        client_evals = [client.validate() for client in self.clients]
+        self.notify_finalize(client_evals if client_evals[0] else None)
     
     #CHECKME
-    def _fit_multiprocess(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
-        """Run the federated learning algorithm using multiprocessing.
+    # def _fit_multiprocess(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
+    #     """Run the federated learning algorithm using multiprocessing.
 
-        Parameters
-        ----------
-        n_rounds : int, optional
-            The number of rounds to run, by default 10.
-        """
-        progress_fl = GlobalSettings().get_progress_bar("FL")
-        progress_client = GlobalSettings().get_progress_bar("clients")
-        def callback_progress(result):
-            progress_fl.update(task_id=task_rounds, advance=1)
-            progress_client.update(task_id=task_local, advance=1)
+    #     Parameters
+    #     ----------
+    #     n_rounds : int, optional
+    #         The number of rounds to run, by default 10.
+    #     """
+    #     progress_fl = GlobalSettings().get_progress_bar("FL")
+    #     progress_client = GlobalSettings().get_progress_bar("clients")
+    #     def callback_progress(result):
+    #         progress_fl.update(task_id=task_rounds, advance=1)
+    #         progress_client.update(task_id=task_local, advance=1)
 
-        client_x_round = int(self.n_clients*eligible_perc)
-        task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-        task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
+    #     client_x_round = int(self.n_clients*eligible_perc)
+    #     task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+    #     task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
-        total_rounds = self.rounds + n_rounds
+    #     total_rounds = self.rounds + n_rounds
         
-        with GlobalSettings().get_live_renderer():
-            for round in range(self.rounds, total_rounds):
-                self.notify_start_round(round + 1, self.model)
-                client_evals = []
-                eligible = self.get_eligible_clients(eligible_perc)
-                self.notify_selected_clients(round + 1, eligible)
-                self._broadcast_model(eligible)
-                progress_client.update(task_id=task_local, completed=0)
-                with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
-                    for client in eligible:
-                        pool.apply_async(self._local_train,
-                                         args=(client,), 
-                                         callback=callback_progress)
-                        client_eval = client.validate()
-                        if client_eval:
-                            client_evals.append(client_eval)
-                    pool.close()
-                    pool.join()
-                client_evals = [c.get() for c in client_evals]
-                self.aggregate(eligible)
-                self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
-                self.rounds += 1
-                if self.checkpoint_path is not None:
-                    self.save(self.checkpoint_path)
-        progress_fl.remove_task(task_rounds)
-        progress_client.remove_task(task_local)
+    #     with GlobalSettings().get_live_renderer():
+    #         for round in range(self.rounds, total_rounds):
+    #             self.notify_start_round(round + 1, self.model)
+    #             client_evals = []
+    #             eligible = self.get_eligible_clients(eligible_perc)
+    #             self.notify_selected_clients(round + 1, eligible)
+    #             self._broadcast_model(eligible)
+    #             progress_client.update(task_id=task_local, completed=0)
+    #             with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
+    #                 for client in eligible:
+    #                     pool.apply_async(self._local_train,
+    #                                      args=(client,), 
+    #                                      callback=callback_progress)
+    #                     client_eval = client.validate()
+    #                     if client_eval:
+    #                         client_evals.append(client_eval)
+    #                 pool.close()
+    #                 pool.join()
+    #             client_evals = [c.get() for c in client_evals]
+    #             self.aggregate(eligible)
+    #             self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
+    #             self.rounds += 1
+    #             if self.checkpoint_path is not None:
+    #                 self.save(self.checkpoint_path)
+    #     progress_fl.remove_task(task_rounds)
+    #     progress_client.remove_task(task_local)
 
     def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
@@ -212,9 +218,6 @@ class Server(ObserverSubject):
                 if "num_batches_tracked" in key:
                     avg_model_sd[key] = clients_sd[0][key].clone()
                     continue
-                # elif "weight" not in key:
-                #     avg_model_sd[key] = self.model.state_dict()[key].clone()
-                #     continue
                 for i, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
                         avg_model_sd[key] = weights[i] * client_sd[key]
@@ -245,6 +248,10 @@ class Server(ObserverSubject):
     def notify_receive(self, msg: Message) -> None:
         for observer in self._observers:
             observer.receive(msg)
+    
+    def notify_finalize(self) -> None:
+        for observer in self._observers:
+            observer.finished()
     
     def save(self, path: str) -> None:
         """Save the model to a checkpoint.

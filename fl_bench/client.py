@@ -1,8 +1,7 @@
 from __future__ import annotations
-import sys
+import sys; sys.path.append(".")
 
-import torch; sys.path.append(".")
-
+import torch
 from abc import ABC
 from copy import deepcopy
 from typing import Callable
@@ -155,10 +154,10 @@ class PFLClient(Client):
                  loss_fn: Callable,
                  local_epochs: int=3):
         super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
-        self.private_model = model
+        self.personalized_model = model
     
     def validate(self):
         if self.validation_set is not None:
             return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.private_model.output_size).evaluate(self.private_model, 
-                                                                               self.validation_set)
+                                      self.personalized_model.output_size).evaluate(self.personalized_model, 
+                                                                                    self.validation_set)

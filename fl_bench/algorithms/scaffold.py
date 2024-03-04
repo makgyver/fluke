@@ -12,7 +12,7 @@ from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator, clear_cache, get_loss
+from fl_bench.utils import OptimizerConfigurator, clear_cache
 
 
 class ScaffoldOptimizer(Optimizer):

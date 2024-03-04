@@ -23,8 +23,8 @@ class FedRepClient(PFLClient):
                  local_epochs: int = 3,
                  tau: int = 3):
         super().__init__(model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
-        self.local_optimizer = None
-        self.local_scheduler = None
+        self.pers_optimizer = None
+        self.pers_scheduler = None
         self.hyper_params.update({
             "tau": tau
         })
@@ -39,19 +39,19 @@ class FedRepClient(PFLClient):
         for name, parameter in self.model.named_parameters():
             parameter.requires_grad = ('downstream' in name)
 
-        if self.local_optimizer is None:
-            self.local_optimizer, self.local_scheduler = self.optimizer_cfg(self.model.downstream)
+        if self.pers_optimizer is None:
+            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.downstream)
         
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                self.local_optimizer.zero_grad()
+                self.pers_optimizer.zero_grad()
                 y_hat = self.model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
-                self.local_optimizer.step()
-            self.local_scheduler.step()
+                self.pers_optimizer.step()
+            self.pers_scheduler.step()
         
         # update downstream layers
         for name, parameter in self.model.named_parameters():
@@ -80,7 +80,7 @@ class FedRepClient(PFLClient):
 
     def _receive_model(self) -> None:
         if self.model is None:
-            self.model = self.private_model
+            self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.model.fed_E.load_state_dict(msg.payload.state_dict())
     

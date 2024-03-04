@@ -33,6 +33,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
                                                    data_splitter.num_classes(), 
                                                    cfg.exp.average,
                                                    GlobalSettings().get_device()), 
+                                eval_every=cfg.log.eval_every,
                                 name=str(cfg),
                                 **cfg.log.wandb_params)
     log.init(**cfg)
