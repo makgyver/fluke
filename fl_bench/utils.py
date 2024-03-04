@@ -156,7 +156,11 @@ class Log(ServerObserver, ChannelObserver):
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[self.current_round + 1] = client_mean
             rich.print(Panel(Pretty(client_mean, expand_all=True), title=f"Overall local performance"))
-        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}), 
+        
+        if self.history[self.current_round]:
+            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True), title=f"Overall global performance"))
+        
+        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True), 
                          title=f"Total communication cost"))
     
     def save(self, path: str):

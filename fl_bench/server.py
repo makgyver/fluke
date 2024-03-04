@@ -249,9 +249,9 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.receive(msg)
     
-    def notify_finalize(self) -> None:
+    def notify_finalize(self, client_evals: Iterable[Any]) -> None:
         for observer in self._observers:
-            observer.finished()
+            observer.finished(client_evals)
     
     def save(self, path: str) -> None:
         """Save the model to a checkpoint.

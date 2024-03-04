@@ -105,6 +105,11 @@ class Client(ABC):
             The evaluation results.
         """
         if self.validation_set is not None:
+            if self.model is None:
+                # ask for the model and receive it
+                self.channel.send(Message(self.server.model, "model", self.server), self)
+                self._receive_model()
+            
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.model.output_size).evaluate(self.model, 
                                                                        self.validation_set)
