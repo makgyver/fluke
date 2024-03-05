@@ -2,6 +2,21 @@ import torch
 import torch.nn as nn
 from torch.functional import F
 
+class MLP_E(nn.Module):
+    def __init__(self, input_size: int=28*28, output_size: int=10):
+        super(MLP_E, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.fc1 = nn.Linear(input_size, 200)
+        self.fc2 = nn.Linear(200, 100)
+
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, self.input_size)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return x
+    
 class MLP(nn.Module):
     """Three-layer perceptron (MLP) model.
     Each layer is fully connected with 50 hidden units and ReLU activation.
@@ -19,15 +34,28 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.input_size = input_size
         self.output_size = output_size
-        self.fc1 = nn.Linear(input_size, 200)
-        self.fc2 = nn.Linear(200, 100)
+        self.fed_E = MLP_E(input_size, output_size)
         self.fc3 = nn.Linear(100, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x.view(-1, self.input_size)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.fed_E(x)
         return F.log_softmax(self.fc3(x), dim=1)
+
+
+class FedDiselMLP(nn.Module):
+    def __init__(self, input_size: int=28*28, output_size: int=10):
+        super(FedDiselMLP, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+        self.fed_E = MLP_E(input_size, output_size)
+        self.private_E = MLP_E(input_size, output_size)
+        self.downstream = nn.Linear(100*2, output_size)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_p = self.private_E(x)
+        x_f = self.fed_E(x)
+        emb = torch.cat((x_p, x_f), 1)
+        return F.log_softmax(self.downstream(emb), dim=1)
 
 
 class MLP_BN(nn.Module):

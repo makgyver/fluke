@@ -92,9 +92,9 @@ class FastTensorDataLoader:
         if self.i >= self.size:
             raise StopIteration
         batch = tuple(t[self.i: self.i+self.batch_size] for t in self.tensors)
-        # Useful in case of batch norm layers
-        if batch[0].shape[0] == 1:
-            raise StopIteration
+        # FIXME: Useful in case of batch norm layers
+        # if batch[0].shape[0] == 1:
+        #     raise StopIteration
         self.i += self.batch_size
         return batch
 
@@ -184,8 +184,8 @@ class DataSplitter:
             if self.validation_split > 0.0:
                 Xtr_client, Xte_client, Ytr_client, Yte_client = train_test_split(client_X, 
                                                                                   client_y,
-                                                                                  test_size=self.validation_split, 
-                                                                                  stratify=client_y)
+                                                                                  test_size=self.validation_split)#, 
+                                                                                #   stratify=client_y)
                 client_tr_assignments.append(FastTensorDataLoader(Xtr_client, 
                                                                   Ytr_client, 
                                                                   batch_size=batch_size, 
@@ -383,7 +383,7 @@ class DataSplitter:
         """
         assert beta > 0, "beta must be > 0"
         labels = set(torch.unique(torch.LongTensor(y)).numpy())
-        pk = {c: dirichlet([beta]*n, size=1)[0] for c in labels}
+        pk = {c: dirichlet([beta]*n) for c in labels}
         assignment = np.zeros(y.shape[0])
         for c in labels:
             ids = np.where(y == c)[0]

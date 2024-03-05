@@ -107,6 +107,9 @@ class Server(ObserverSubject):
         self.finalize()
     
     def finalize(self):
+        self._broadcast_model(self.clients)
+        for client in self.clients:
+            client._receive_model()
         client_evals = [client.validate() for client in self.clients]
         self.notify_finalize(client_evals if client_evals[0] else None)
     

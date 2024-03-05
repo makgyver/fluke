@@ -80,12 +80,14 @@ class LogEnum(Enum):
     LOCAL = "local"
     WANDB = "wandb"
 
-    def logger(self, classification_eval, **wandb_config):
+    def logger(self, classification_eval, eval_every, **wandb_config):
         if self == LogEnum.LOCAL:
-            return Log(classification_eval)
+            return Log(classification_eval, 
+                       eval_every if eval_every else 1)
         else:
             return WandBLog(
                 classification_eval,
+                eval_every if eval_every else 1,
                 **wandb_config)
 
 class ServerObserver():

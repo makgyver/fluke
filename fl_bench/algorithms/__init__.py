@@ -28,10 +28,9 @@ class CentralizedFL():
         (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
                                                                                hyperparameters.client.batch_size)
         # Federated model
-        model = get_model(
-                mname=hyperparameters.model,
-                input_size=data_splitter.num_features(), 
-                output_size=data_splitter.num_classes()
+        model = self.init_model(
+                model_name=hyperparameters.model,
+                **hyperparameters.net_args if 'net_args' in hyperparameters else {}
             )
 
         self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
@@ -45,7 +44,10 @@ class CentralizedFL():
 
     def get_server_class(self) -> Server:
         return Server
-    
+
+    def init_model(self, model_name, **args):
+        return get_model(mname=model_name, **args)
+        
     def init_clients(self, 
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
