@@ -58,7 +58,7 @@ class MOONClient(Client):
                 #FIXME
                 y_hat = self.model(X)
                 z_local = self.model.fed_E(X)#, -1)
-                loss_sup = self.loss_fn(y_hat, y)
+                loss_sup = self.hyper_params.loss_fn(y_hat, y)
 
                 z_prev = self.prev_model.fed_E(X)#, -1)
                 z_global = self.server_model.fed_E(X)#, -1)
