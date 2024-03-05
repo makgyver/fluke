@@ -196,15 +196,15 @@ class WandBLog(Log):
     def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
         super().end_round(round, global_model, data, client_evals)
         if round % self.eval_every == 0:
-            self.run.log(self.history[round], step=round)
+            self.run.log({ "global": self.history[round]}, step=round)
             self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
             if client_evals:
-                self.run.log(self.client_history[round], step=round)
+                self.run.log({ "local": self.client_history[round]}, step=round)
     
     def finished(self, client_evals: Iterable[Any]):
         super().finished(client_evals)
         if client_evals:
-            self.run.log(self.client_history[self.current_round+1], step=self.current_round+1)
+            self.run.log({"local" : self.client_history[self.current_round+1]}, step=self.current_round+1)
     
     def save(self, path: str):
         super().save(path)
