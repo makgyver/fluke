@@ -201,6 +201,11 @@ class WandBLog(Log):
             if client_evals:
                 self.run.log(self.client_history[round], step=round)
     
+    def finished(self, client_evals: Iterable[Any]):
+        super().finished(client_evals)
+        if client_evals:
+            self.run.log(self.client_history[self.current_round+1], step=self.current_round+1)
+    
     def save(self, path: str):
         super().save(path)
         self.run.finish()
