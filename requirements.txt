@@ -13,3 +13,4 @@ torchvision==0.14.1
 typer==0.7.0
 urllib3==1.26.13
 wandb==0.13.7
+datasets==2.18.0

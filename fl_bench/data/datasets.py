@@ -1,20 +1,25 @@
 from __future__ import annotations
-from enum import Enum
 import os
 import json
+import torch
+import numpy as np
+import pandas as pd
+from enum import Enum
+
+from numpy.random import permutation
+
 from rich.progress import track
 
-import pandas as pd
 from sklearn.datasets import load_svmlight_file
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-import torch
-from torchvision import datasets
-from torchvision.transforms import ToTensor
 
-import numpy as np
-from numpy.random import permutation
-from fl_bench.data import DataContainer, FastTensorDataLoader
+from datasets import load_dataset
+
+from torchvision import datasets
+from torchvision.transforms import ToTensor, Lambda
+
+from fl_bench.data import DataContainer, FastTensorDataLoader, support
 
 
 class Datasets:
@@ -27,6 +32,7 @@ class Datasets:
     def MNIST(cls, 
               path: str="data", 
               transforms: callable=ToTensor) -> DataContainer:
+        
         train_data = datasets.MNIST(
             root = path,
             train = True,                         
@@ -54,6 +60,7 @@ class Datasets:
     def MNIST4D(cls,
                 path: str="data", 
                 transforms: callable=ToTensor) -> DataContainer:
+        
         mnist_dc = Datasets.MNIST(path, transforms)
         return DataContainer(mnist_dc.train[0][:, None, :, :], 
                              mnist_dc.train[1],
@@ -62,9 +69,41 @@ class Datasets:
                              10)
     
     @classmethod
+    def MNISTM(cls,
+               path: str="data", 
+               transforms: callable=ToTensor) -> DataContainer:
+        
+        train_data = support.MNISTM(
+            root = path,
+            train = True,                         
+            transform = transforms(), 
+            download = True,            
+        )
+
+        test_data = support.MNISTM(
+            root = path, 
+            train = False, 
+            transform = transforms(),
+            download = True
+        )
+
+        train_data.data = torch.Tensor(train_data.data / 255.)
+        test_data.data = torch.Tensor(test_data.data / 255.)
+
+        train_data.data = torch.movedim(train_data.data, 3, 1)
+        test_data.data = torch.movedim(test_data.data, 3, 1)
+
+        return DataContainer(train_data.data, 
+                             train_data.targets,
+                             test_data.data, 
+                             test_data.targets, 
+                             10)
+
+    @classmethod
     def EMNIST(cls,
                path: str="data", 
                transforms: callable=ToTensor) -> DataContainer:
+        
         train_data = datasets.EMNIST(
             root=path,
             split="balanced",
@@ -174,6 +213,56 @@ class Datasets:
                              torch.LongTensor(test_data.targets), 
                              100)
 
+
+    def TINY_IMAGENET(cls, 
+                      path: str="data", 
+                      transforms: callable=ToTensor) -> DataContainer:
+        
+        
+        tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet', 
+                                           split='train', 
+                                           cache_dir=path)
+
+        tiny_imagenet_test = load_dataset('Maysee/tiny-imagenet', 
+                                          split='valid', 
+                                          cache_dir=path)
+
+        X_train, y_train = [], []
+        X_test, y_test = [], []
+
+        fix_bw_trans = Lambda(lambda x: x.repeat(1, 3, 1, 1))
+
+        for image in track(tiny_imagenet_train, "Loading Tiny ImageNet train data..."):
+            y = image['label']
+            image = image['image']
+            x = ToTensor()(image).unsqueeze(0)
+            if x.shape != torch.Size([1, 3, 64, 64]):
+                x = fix_bw_trans(x)
+            X_train.append(x)
+            y_train.append(y)
+
+        for image in track(tiny_imagenet_test, "Loading Tiny ImageNet test data..."):
+            y = image['label']
+            image = image['image']
+            x = ToTensor()(image).unsqueeze(0)
+            if x.shape != torch.Size([1, 3, 64, 64]):
+                x = fix_bw_trans(x)
+            X_test.append(x)
+            y_test.append(y)
+
+        train_data = torch.vstack(X_train)
+        test_data = torch.vstack(X_test)
+
+        idxperm = torch.randperm(train_data.shape[0])
+        train_data = train_data[idxperm]
+        y_train = torch.LongTensor(y_train)[idxperm]
+        y_test = torch.LongTensor(y_test)
+
+        return DataContainer(train_data, 
+                             y_train, 
+                             test_data, 
+                             y_test, 
+                             200)
 
     @classmethod
     def LETTER(cls, filename: str="data/letter.csv", test_size: float=0.2, seed: int=42) -> DataContainer:
@@ -345,6 +434,7 @@ class DatasetsEnum(Enum):
     SPLICE = "splice"
     VEHICLE = "vehicle"
     VOWEL = "vowel"
+    TINY_IMAGENET = "tiny_imagenet"
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -371,7 +461,8 @@ class DatasetsEnum(Enum):
             "krvskp": Datasets.KRVSKP,
             "splice": Datasets.SPLICE,
             "vehicle": Datasets.VEHICLE,
-            "vowel": Datasets.VOWEL
+            "vowel": Datasets.VOWEL,
+            "tiny_imagenet": Datasets.TINY_IMAGENET
         } 
         return DATASET_MAP[self.value]
 
