@@ -334,7 +334,7 @@ class Datasets:
     
     @classmethod
     def SEGMENTATION(cls, filename_tr="data/segmentation.tr.svmlight", filename_te="data/segmentation.te.svmlight", test_size=0.2, seed=42):
-        return Datasets.SVMLIGHT(filename_tr, filename_te, 0.2, 42)
+        return Datasets.SVMLIGHT(filename_tr, filename_te, test_size, 42)
     
     @classmethod
     def ADULT(cls, filename_tr="data/adult.tr.svmlight", filename_te="data/adult.te.svmlight", test_size=0.2, seed=42):
