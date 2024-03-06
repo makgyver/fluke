@@ -101,7 +101,21 @@ class FastTensorDataLoader:
     def __len__(self) -> int:
         return self.n_batches
     
-    def transform(self, f: callable, axis=(0,)) -> None:
+    def transform(self, f: callable, axis=(0,)) -> FastTensorDataLoader:
+        """Transform the data according to the function `f`.
+
+        Parameters
+        ----------
+        f : callable
+            The transformation function.
+        axis : tuple, optional
+            The axis along which to apply the transformation, by default (0,).
+
+        Returns
+        -------
+        FastTensorDataLoader
+            The transformed data.
+        """
         tensors = [f(t) if i in axis else t for i, t in enumerate(self.tensors)]
         return FastTensorDataLoader(*tensors, batch_size=self.batch_size, shuffle=self.shuffle, percentage=1.0)
 
@@ -123,27 +137,41 @@ class DistributionEnum(Enum):
     def __eq__(self, other) -> bool:
         return self.value == other.value
 
-# # Map distribution to string
-# IIDNESS_MAP = {
-#     Distribution.IID: "iid",
-#     Distribution.QUANTITY_SKEWED: "qnt",
-#     Distribution.CLASSWISE_QUANTITY_SKEWED: "classqnt",
-#     Distribution.LABEL_QUANTITY_SKEWED: "lblqnt",
-#     Distribution.LABEL_DIRICHLET_SKEWED: "dir",
-#     Distribution.LABEL_PATHOLOGICAL_SKEWED: "path",
-#     Distribution.COVARIATE_SHIFT: "covshift"
-# }
-
-# Map string to distribution
-# INV_IIDNESS_MAP = {v: k for k, v in IIDNESS_MAP.items()}
-
 
 class DataSplitter:
+    """Utility class for splitting the data across clients.
 
+    Parameters
+    ----------
+    dataset : DatasetsEnum
+        The dataset.
+    standardize : bool, optional
+        Whether to standardize the data, by default False.
+    distribution : DistributionEnum, optional
+        The distribution of the data across clients, by default DistributionEnum.IID.
+    validation_split : float, optional
+        The percentage of the training data to use for validation/test client-side, by default 0.0.
+    sampling_perc : float, optional
+        The percentage of the data to be sampled, by default 1.0.
+    **kwargs : dict
+        Additional parameters.
+    """
     from fl_bench.data.datasets import DatasetsEnum
     
     @classmethod
-    def from_config(cls, config: dict) -> DataSplitter:        
+    def from_config(cls, config: dict) -> DataSplitter:
+        """Create a DataSplitter from a configuration dictionary.
+
+        Parameters
+        ----------
+        config : dict
+            The configuration dictionary.
+
+        Returns
+        -------
+        DataSplitter
+            The DataSplitter instance.
+        """
         return config['dataset'].splitter()(**config)
 
 
@@ -173,7 +201,25 @@ class DataSplitter:
     def num_classes(self) -> int:
         return self.data_container.num_classes
 
-    def assign(self, n_clients: int, batch_size: Optional[int]=None):
+    def assign(self, 
+               n_clients: int, 
+               batch_size: Optional[int]=None) -> tuple[tuple[FastTensorDataLoader, 
+                                                              Optional[FastTensorDataLoader]], 
+                                                        FastTensorDataLoader]:
+        """Assign the data to the clients according to the distribution.
+
+        Parameters
+        ----------
+        n_clients : int
+            The number of clients.
+        batch_size : int, optional
+            The batch size, by default None.
+
+        Returns
+        -------
+        tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]], FastTensorDataLoader]
+            The clients' training and validation/test assignments, and the server's test assignment.
+        """
         Xtr, Ytr = self.data_container.train
         self.assignments = self._iidness_functions[self.distribution](self, Xtr, Ytr, n_clients, **self.kwargs)
         client_tr_assignments = []
@@ -205,7 +251,7 @@ class DataSplitter:
                 client_te_assignments.append(None)
 
         server_te = FastTensorDataLoader(*self.data_container.test,
-                                         batch_size=100,
+                                         batch_size=128,
                                          shuffle=False)
         
         return (client_tr_assignments, client_te_assignments), server_te
@@ -230,9 +276,15 @@ class DataSplitter:
         List[torch.Tensor]
             The examples' ids assignment.
         """
+        assert X.shape[0] >= n, "# of instances must be > than #clients"
+
         ex_client = X.shape[0] // n
         idx = np.random.permutation(X.shape[0])
-        return [idx[range(ex_client*i, ex_client*(i+1))] for i in range(n)]
+        assignment = [idx[range(ex_client*i, ex_client*(i+1))] for i in range(n)]
+        # Assign the remaining examples to the first clients
+        if X.shape[0] % n > 0:
+            assignment[0] = np.concatenate((assignment[0], idx[ex_client*n:]))
+        return assignment
 
 
     def quantity_skew(self,
@@ -261,8 +313,8 @@ class DataSplitter:
             The number of clients upon which the examples are distributed.
         min_quantity: int, default 2
             The minimum quantity of examples to assign to each user.
-        alpha: float=4.
-            Hyper-parameter of the power law density function  $P(x; a) = a x^{a-1}$.
+        alpha: float, default 4.
+            Hyper-parameter of the power law density function  $P(x; a) = a x^{a-1}$, with a > 0.
 
         Returns
         -------
@@ -286,6 +338,7 @@ class DataSplitter:
                                  alpha: float=4.) -> List[torch.Tensor]:
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
+
         labels = list(range(len(torch.unique(torch.LongTensor(y)).numpy())))
         lens = [np.where(y == l)[0].shape[0] for l in labels]
         min_lbl = min(lens)
@@ -502,6 +555,17 @@ class DataSplitter:
 
 
 class DummyDataSplitter(DataSplitter):
+    """This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST).
+
+    Parameters
+    ----------
+    dataset : DatasetsEnum
+        The dataset
+    num_features : int
+        The number of features of the dataset.
+    num_classes : int
+        The number of classes of the dataset.
+    """
 
     from fl_bench.data.datasets import DatasetsEnum
 
@@ -510,7 +574,6 @@ class DummyDataSplitter(DataSplitter):
                  num_features: int,
                  num_classes: int,
                  **kwargs):
-
         self.data_container = None
         self.standardize = False
         self.distribution = DistributionEnum.IID
