@@ -358,14 +358,19 @@ class Datasets:
 
 
     @classmethod
-    def FEMNIST(cls, batch_size=10):
+    def FEMNIST(cls, 
+                path: str="./data",
+                batch_size: int=10):
 
-        assert os.path.exists('data/FEMNIST'), "FEMNIST data ('data/FEMNIST') not found."
-        assert os.path.exists('data/FEMNIST/train'), "FEMNIST train data ('data/FEMNIST/train') not found."
-        assert os.path.exists('data/FEMNIST/test'), "FEMNIST test data ('data/FEMNIST/test') not found."
+        femnist_path = os.path.join(path, "FEMNIST")
+        train_dir = os.path.join(femnist_path, 'train')
+        test_dir = os.path.join(femnist_path, 'test')
+
+        assert os.path.exists(femnist_path), f"FEMNIST data ({femnist_path}) not found."
+        assert os.path.exists(train_dir), f"FEMNIST train data ({train_dir}') not found."
+        assert os.path.exists(test_dir), f"FEMNIST test data ({test_dir}') not found."
 
         # TRAINING
-        train_dir = 'data/FEMNIST/train'
         files = os.listdir(train_dir)
         dict_train = {}
         for file in track(files, "Loading FEMNIST train data..."):
@@ -374,15 +379,12 @@ class Datasets:
             dict_train.update(data["user_data"])
 
         # TEST
-        test_dir = 'data/FEMNIST/test'
         files = os.listdir(test_dir)
         dict_test = {}
         for file in track(files, "Loading FEMNIST test data..."):
             with open(os.path.join(test_dir, file)) as f:
                 data = json.load(f)
             dict_test.update(data["user_data"])
-
-
             
         client_tr_assignments = []
         for k in track(sorted(dict_train), "Creating training data loader..."):
@@ -422,6 +424,7 @@ class Datasets:
 
 class DatasetsEnum(Enum):
     MNIST = "mnist"
+    MNISTM = "mnistm"
     MNIST4D = "mnist4d"
     SVHN = "svhn"
     FEMNIST = "femnist"
@@ -452,6 +455,7 @@ class DatasetsEnum(Enum):
             "mnist": Datasets.MNIST,
             "mnist4d": Datasets.MNIST4D,
             "svhn": Datasets.SVHN,
+            "mnistm": Datasets.MNISTM,
             "femnist": Datasets.FEMNIST,
             "emnist": Datasets.EMNIST,
             "cifar10": Datasets.CIFAR10,
