@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from fl_bench.client import Client
 
+
 class Server(ObserverSubject):
     """Standard Server for Federated Learning.
 
@@ -53,13 +54,6 @@ class Server(ObserverSubject):
             client.set_server(self)
     
     def _local_train(self, client: Client) -> None:
-        """Train the client model locally.
-
-        Parameters
-        ----------
-        client : Client
-            The client to train.
-        """
         self.channel.send(Message((client.local_train, {}), "__action__", self), client)
     
     def _broadcast_model(self, eligible: Iterable[Client]) -> None:
@@ -67,10 +61,13 @@ class Server(ObserverSubject):
 
     def fit(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
         """Run the federated learning algorithm.
+
         Parameters
         ----------
         n_rounds : int, optional
             The number of rounds to run, by default 10.
+        eligible_perc : float, optional
+            The percentage of clients that will be selected for each round, by default 0.1.
         """
         # if GlobalSettings().get_workers() > 1:
         #     return self._fit_multiprocess(n_rounds)
@@ -106,7 +103,12 @@ class Server(ObserverSubject):
         
         self.finalize()
     
-    def finalize(self):
+    def finalize(self) -> None:
+        """Finalize the federated learning process.
+
+        The finalize method is called at the end of the federated learning process. It is used to
+        send the final model to the clients and to notify the observers that the process has ended.
+        """
         self._broadcast_model(self.clients)
         for client in self.clients:
             client._receive_model()
@@ -164,8 +166,11 @@ class Server(ObserverSubject):
     def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
 
-        The number of clients is determined by the `elegibility_percentage` attribute.
-
+        Parameters
+        ----------
+        eligible_perc : float
+            The percentage of clients that will be selected for the current round.
+        
         Returns
         -------
         Iterable[Client]
