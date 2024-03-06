@@ -63,18 +63,13 @@ class Client(ABC):
     def _send_model(self):
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
-    def local_train(self, override_local_epochs: int=0) -> dict:
-        """Train the local model.
+    def local_train(self, override_local_epochs: int=0) -> None:
+        """Client's local training.
 
         Parameters
         ----------
         override_local_epochs : int, optional
-            Override the number of local epochs, by default 0. If 0, use the default value.
-        
-        Returns
-        -------
-        dict
-            The evaluation results if the validation set is not None, otherwise None.
+            Override the number of local epochs, by default 0. If 0, use `self.hyper_params.local_epochs`.
         """
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
@@ -98,6 +93,8 @@ class Client(ABC):
     
     def validate(self):
         """Validate/test the local model.
+
+        The validation/test only occurs if the `validation_set` is not `None`.
 
         Returns
         -------
@@ -150,7 +147,23 @@ class Client(ABC):
 
 
 class PFLClient(Client):
+    """Personalized Federated Learning client.
 
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The personalized model.
+    train_set : FastTensorDataLoader
+        The local training set.
+    optimizer_cfg : OptimizerConfigurator
+        The optimizer configurator.
+    loss_fn : Callable
+        The loss function.
+    validation_set : FastTensorDataLoader, optional
+        The local validation/test set, by default None.
+    local_epochs : int, optional
+        The number of local epochs, by default 3.
+    """
     def __init__(self,
                  model: torch.nn.Module,
                  train_set: FastTensorDataLoader,
@@ -162,6 +175,16 @@ class PFLClient(Client):
         self.personalized_model = model
     
     def validate(self):
+        """Validate/test the local model.
+
+        The validation/test only occurs if the `validation_set` is not `None`.
+        Differently from the `Client` class, the `personalized_model` is used instead of `model`.
+
+        Returns
+        -------
+        dict
+            The evaluation results.
+        """
         if self.validation_set is not None:
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.personalized_model.output_size).evaluate(self.personalized_model, 
