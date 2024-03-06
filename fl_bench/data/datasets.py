@@ -30,7 +30,7 @@ class Datasets:
 
     @classmethod
     def MNIST(cls, 
-              path: str="data", 
+              path: str="../data", 
               transforms: callable=ToTensor) -> DataContainer:
         
         train_data = datasets.MNIST(
@@ -58,7 +58,7 @@ class Datasets:
     
     @classmethod
     def MNIST4D(cls,
-                path: str="data", 
+                path: str="../data", 
                 transforms: callable=ToTensor) -> DataContainer:
         
         mnist_dc = Datasets.MNIST(path, transforms)
@@ -70,7 +70,7 @@ class Datasets:
     
     @classmethod
     def MNISTM(cls,
-               path: str="data", 
+               path: str="../data", 
                transforms: callable=ToTensor) -> DataContainer:
         
         train_data = support.MNISTM(
@@ -101,7 +101,7 @@ class Datasets:
 
     @classmethod
     def EMNIST(cls,
-               path: str="data", 
+               path: str="../data", 
                transforms: callable=ToTensor) -> DataContainer:
         
         train_data = datasets.EMNIST(
@@ -128,7 +128,7 @@ class Datasets:
     
     @classmethod
     def SVHN(cls,
-             path: str="data", 
+             path: str="../data", 
              transforms: callable=ToTensor) -> DataContainer:
         
         train_data = datasets.SVHN(
@@ -153,7 +153,7 @@ class Datasets:
 
     @classmethod
     def CIFAR10(cls,
-                path: str="data", 
+                path: str="../data", 
                 transforms: callable=ToTensor) -> DataContainer:
         
         train_data = datasets.CIFAR10(
@@ -184,8 +184,8 @@ class Datasets:
 
     @classmethod
     def CIFAR100(cls,
-                path: str="data", 
-                transforms: callable=ToTensor) -> DataContainer:
+                 path: str="../data", 
+                 transforms: callable=ToTensor) -> DataContainer:
     
         train_data = datasets.CIFAR100(
             root = path,
@@ -214,10 +214,10 @@ class Datasets:
                              100)
 
 
+    @classmethod
     def TINY_IMAGENET(cls, 
-                      path: str="data", 
-                      transforms: callable=ToTensor) -> DataContainer:
-        
+                      path: str="../data", 
+                      transforms: callable=None) -> DataContainer:
         
         tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet', 
                                            split='train', 
@@ -252,6 +252,10 @@ class Datasets:
 
         train_data = torch.vstack(X_train)
         test_data = torch.vstack(X_test)
+
+        if transforms is not None:
+            train_data = transforms(train_data)
+            test_data = transforms(test_data)
 
         idxperm = torch.randperm(train_data.shape[0])
         train_data = train_data[idxperm]
