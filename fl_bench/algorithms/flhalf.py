@@ -1,8 +1,7 @@
 import sys; sys.path.append(".")
 from copy import deepcopy
 import random
-from typing import Callable, Iterable, Any
-
+from typing import Callable, Iterable
 
 import torch
 from torch import nn
@@ -10,13 +9,12 @@ from torch.nn import Module
 import torch.nn.functional as F
 from rich.progress import Progress
 
-
 from fl_bench import GlobalSettings, Message
 from fl_bench.evaluation import ClassificationEval
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
+from fl_bench.utils import DDict, OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.net import EDModule
 
@@ -133,8 +131,8 @@ class FLHalfServer(Server):
         n_rounds : int, optional
             The number of rounds to run, by default 10.
         """
-        if GlobalSettings().get_workers() > 1:
-            return self._fit_multiprocess(n_rounds)
+        # if GlobalSettings().get_workers() > 1:
+        #     return self._fit_multiprocess(n_rounds)
 
         anchors = generate_anchors(self.n_anchors, 784, seed=self.seed_anchors) #FIX ME
         for client in self.clients:
@@ -190,18 +188,13 @@ class FLHalf(CentralizedFL):
                  n_clients: int,
                  data_splitter: DataSplitter, 
                  hyperparameters: DDict):
-        self.hyperparameters = hyperparameters
-        self.n_clients = n_clients
-        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
-                                                                               hyperparameters.client.batch_size)
-        model = get_model(
-                mname=hyperparameters.model,
-                input_size=hyperparameters.server.n_anchors, #data_splitter.num_features(), #
-                output_size=data_splitter.num_classes()
-            ).to(GlobalSettings().get_device())
-        self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
-        self.init_server(model, server_data, hyperparameters.server)
-
+        
+        hyperparameters["net_args"] = {
+            "input_size": hyperparameters.server.n_anchors,
+            "output_size": data_splitter.num_classes()
+        }
+        super().__init__(n_clients, data_splitter, hyperparameters)
+    
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return torch.optim.Adam
     

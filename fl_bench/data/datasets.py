@@ -15,7 +15,6 @@ from torchvision.transforms import ToTensor
 import numpy as np
 from numpy.random import permutation
 from fl_bench.data import DataContainer, FastTensorDataLoader
-from fl_bench.data.dataclass import SVHN
 
 
 class Datasets:
@@ -25,18 +24,20 @@ class Datasets:
     """
 
     @classmethod
-    def MNIST(cls) -> DataContainer:
+    def MNIST(cls, 
+              path: str="data", 
+              transforms: callable=ToTensor) -> DataContainer:
         train_data = datasets.MNIST(
-            root = 'data',
+            root = path,
             train = True,                         
-            transform = ToTensor(), 
+            transform = transforms(), 
             download = True,            
         )
 
         test_data = datasets.MNIST(
-            root = 'data', 
+            root = path, 
             train = False, 
-            transform = ToTensor(),
+            transform = transforms(),
             download = True
         )
 
@@ -50,111 +51,84 @@ class Datasets:
                              10)
     
     @classmethod
-    def MNIST4D(cls) -> DataContainer:
-        train_data = datasets.MNIST(
-            root = 'data',
-            train = True,                         
-            transform = ToTensor(), 
-            download = True,            
-        )
-
-        test_data = datasets.MNIST(
-            root = 'data', 
-            train = False, 
-            transform = ToTensor(),
-            download = True
-        )
-
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
-
-        train_data.data = train_data.data[:, None, :, :]  # added because probably without the transformation it does not have the correct number of dimension
-                                                          # in this way the dimension to the convolutional layer are correct (64,1,28,28)
-        test_data.data = test_data.data[:, None, :, :]
-
-        return DataContainer(train_data.data, 
-                             train_data.targets,
-                             test_data.data, 
-                             test_data.targets, 
+    def MNIST4D(cls,
+                path: str="data", 
+                transforms: callable=ToTensor) -> DataContainer:
+        mnist_dc = Datasets.MNIST(path, transforms)
+        return DataContainer(mnist_dc.train[0][:, None, :, :], 
+                             mnist_dc.train[1],
+                             mnist_dc.test[0][:, None, :, :], 
+                             mnist_dc.test[1], 
                              10)
     
     @classmethod
-    def MNISTM(cls) -> DataContainer:
-        train_data = datasets.MNIST(
-            root = 'data',
-            train = True,                         
-            transform = ToTensor(), 
-            download = True,            
-        )
-
-        test_data = datasets.MNIST(
-            root = 'data', 
-            train = False, 
-            transform = ToTensor(),
-            download = True
-        )
-        return DataContainer(train_data.data / 255., 
-                             train_data.targets, 
-                             test_data.data / 255., 
-                             test_data.targets, 
-                             10)
-    
-    @classmethod
-    def EMNIST(cls) -> DataContainer:
+    def EMNIST(cls,
+               path: str="data", 
+               transforms: callable=ToTensor) -> DataContainer:
         train_data = datasets.EMNIST(
-            root="data",
+            root=path,
             split="balanced",
             train=True, 
-            transform=ToTensor(),
+            transform=transforms(),
             download = True
         )
 
         test_data = datasets.EMNIST(
-            root="data",
+            root=path,
             split="balanced", 
             train=False,
-            transform=ToTensor(),
+            transform=transforms(),
             download = True
         )
+
         return DataContainer(train_data.data / 255.,
                              train_data.targets, 
                              test_data.data / 255., 
                              test_data.targets, 
-                             26)
+                             47)
     
     @classmethod
-    def SVHN(cls) -> DataContainer:
-        train_data = SVHN(
-            root = 'data',
-            train = True,
+    def SVHN(cls,
+             path: str="data", 
+             transforms: callable=ToTensor) -> DataContainer:
+        
+        train_data = datasets.SVHN(
+            root = path,
+            split = "train",
+            transform=transforms(),
             download = True
         )
 
-        test_data = SVHN(
-            root = 'data',
-            train = False,
+        test_data = datasets.SVHN(
+            root = path,
+            split = "test",
+            transform=transforms(),
             download = True
         )
+
         return DataContainer(train_data.data / 255., 
-                             train_data.targets, 
+                             train_data.labels, 
                              test_data.data / 255.,
-                             test_data.targets, 
+                             test_data.labels, 
                              10)
 
     @classmethod
-    def CIFAR10(cls) -> DataContainer:
+    def CIFAR10(cls,
+                path: str="data", 
+                transforms: callable=ToTensor) -> DataContainer:
+        
         train_data = datasets.CIFAR10(
-            root = 'data',
+            root = path,
             train = True,
             download = True, 
-            transform = None
+            transform = transforms()
         )
 
         test_data = datasets.CIFAR10(
-            root = 'data',
+            root = path,
             train = False,
             download = True, 
-            transform = None
+            transform = transforms()
         )
         
         train_data.data = torch.Tensor(train_data.data / 255.)
@@ -168,6 +142,38 @@ class Datasets:
                              test_data.data, 
                              torch.LongTensor(test_data.targets), 
                              10)
+
+    @classmethod
+    def CIFAR100(cls,
+                path: str="data", 
+                transforms: callable=ToTensor) -> DataContainer:
+    
+        train_data = datasets.CIFAR100(
+            root = path,
+            train = True,
+            download = True, 
+            transform = transforms()
+        )
+
+        test_data = datasets.CIFAR100(
+            root = path,
+            train = False,
+            download = True, 
+            transform = transforms()
+        )
+        
+        train_data.data = torch.Tensor(train_data.data / 255.)
+        test_data.data = torch.Tensor(test_data.data / 255.)
+
+        train_data.data = torch.movedim(train_data.data, 3, 1)
+        test_data.data = torch.movedim(test_data.data, 3, 1)
+
+        return DataContainer(train_data.data, 
+                             torch.LongTensor(train_data.targets), 
+                             test_data.data, 
+                             torch.LongTensor(test_data.targets), 
+                             100)
+
 
     @classmethod
     def LETTER(cls, filename: str="data/letter.csv", test_size: float=0.2, seed: int=42) -> DataContainer:
@@ -320,14 +326,15 @@ class Datasets:
         client_te_assignments = [client_te_assignments[i] for i in perm]
         return client_tr_assignments, client_te_assignments, None
 
+
 class DatasetsEnum(Enum):
     MNIST = "mnist"
     MNIST4D = "mnist4d"
-    MNISTM = "mnistm"
     SVHN = "svhn"
     FEMNIST = "femnist"
     EMNIST = "emnist"
     CIFAR10 = "cifar10"
+    CIFAR100 = "cifar100"
     LETTER = "letter"
     PENDIGITS = "pendigits"
     SATIMAGE = "satimage"
@@ -349,12 +356,12 @@ class DatasetsEnum(Enum):
     def klass(self):
         DATASET_MAP = {
             "mnist": Datasets.MNIST,
-            "mnistm": Datasets.MNISTM,
             "mnist4d": Datasets.MNIST4D,
             "svhn": Datasets.SVHN,
             "femnist": Datasets.FEMNIST,
             "emnist": Datasets.EMNIST,
             "cifar10": Datasets.CIFAR10,
+            "cifar100": Datasets.CIFAR100,
             "letter": Datasets.LETTER,
             "pendigits": Datasets.PENDIGITS,
             "satimage": Datasets.SATIMAGE,
