@@ -197,7 +197,7 @@ class WandBLog(Log):
         super().end_round(round, global_model, data, client_evals)
         if round % self.eval_every == 0:
             self.run.log({ "global": self.history[round]}, step=round)
-            self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
+            self.run.log({ "comm_cost": self.comm_costs[round]}, step=round)
             if client_evals:
                 self.run.log({ "local": self.client_history[round]}, step=round)
     
