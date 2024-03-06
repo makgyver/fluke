@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 import torch
 from sklearn.base import ClassifierMixin
-from typing import Callable, Literal, Union
+from typing import Callable, Literal, Union, Iterable
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
@@ -19,8 +19,7 @@ class Evaluator(ABC):
     loss_fn : Callable
         The loss function to consider.
     """
-    def __init__(self, 
-                loss_fn: Callable):
+    def __init__(self, loss_fn: Callable):
         self.loss_fn = loss_fn
     
     @abstractmethod
@@ -39,18 +38,26 @@ class Evaluator(ABC):
 
 
 class ClassificationEval(Evaluator):
-    """Evaluate a classification model.
+    """Evaluate a classification pytorch model.
+
+    The metrics computed are accuracy, precision, recall, f1 and the loss according to the provided
+    loss function `loss_fn`.
 
     Parameters
     ----------
-    data_loader : FastTensorDataLoader
-        The data loader to use for evaluation.
     loss_fn : Callable
         The loss function to consider.
     n_classes : int, optional
         The number of classes.
     average : Literal["micro","macro"], optional
-        The average to use for the metrics, by default "macro".
+        The average to use for the metrics, by default "micro".
+    device : torch.device, optional
+        The device to use for evaluation, by default torch.device("cpu").
+    
+    Returns
+    -------
+    dict[str, float]
+        The dictionary containing the computed metrics.
     """
     def __init__(self, 
                  loss_fn: Callable, 
@@ -62,9 +69,22 @@ class ClassificationEval(Evaluator):
         self.n_classes = n_classes
         self.device = device
 
-    def evaluate(self, model: torch.nn.Module, eval_data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]]) -> dict:
+    def evaluate(self, 
+                 model: torch.nn.Module, 
+                 eval_data_loader: Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]) -> dict:
+        """Evaluate the model.
+
+        Parameters
+        ----------
+        eval_data_loader : FastTensorDataLoader or Iterable[FastTensorDataLoader]
+            The data loader(s) to use for evaluation.
+        
+        Returns
+        -------
+        dict[str, float]
+            The dictionary containing the computed metrics.
+        """
         model.eval()
-        # TODO: check if this is correct
         task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
         loss, cnt = 0, 0
@@ -108,13 +128,29 @@ class ClassificationEval(Evaluator):
     
 
 class ClassificationSklearnEval(Evaluator):
+    """Evaluate a classification sklearn-compliant model.
+
+    The metrics computed are accuracy, precision, recall, and f1.
+
+    Parameters
+    ----------
+    average : Literal["micro","macro"], optional
+        The average to use for the metrics, by default "macro".
+    
+    Returns
+    -------
+    dict[str, float]
+        The dictionary containing the computed metrics.
+    """
 
     def __init__(self, 
                  average: Literal["micro","macro"]="macro"):
         super().__init__(None)
         self.average = average
 
-    def evaluate(self, model: ClassifierMixin, eval_data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]]) -> dict:
+    def evaluate(self, 
+                 model: ClassifierMixin, 
+                 eval_data_loader: Union[FastTensorDataLoader, list[FastTensorDataLoader]]) -> dict:
         accs, precs, recs, f1s = [], [], [], []
         if not isinstance(eval_data_loader, list):
             eval_data_loader = [eval_data_loader]
