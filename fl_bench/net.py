@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.functional import F
-from torchvision.models import resnet18
+from torchvision.models import resnet50, resnet18
 
 
 #############################################
@@ -464,86 +464,26 @@ class FedavgCNN(nn.Module):
         return x
 
 
-# RESNET
-    
-class ResBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, downsample):
-        super().__init__()
-        if downsample:
-            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2),
-                nn.BatchNorm2d(out_channels)
-            )
-        else:
-            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
-            self.shortcut = nn.Sequential()
-
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-
-    def forward(self, input):
-        shortcut = self.shortcut(input)
-        input = nn.ReLU()(self.bn1(self.conv1(input)))
-        input = nn.ReLU()(self.bn2(self.conv2(input)))
-        input = input + shortcut
-        return nn.ReLU()(input)
-
 class ResNet18(nn.Module):
-    def __init__(self, input_size=3, output_size=10):
+    def __init__(self, output_size=10):
         super(ResNet18, self).__init__()
-        self.input_size = input_size
         self.output_size = output_size
-
-        super().__init__()
-        self.layer0 = nn.Sequential(
-            nn.Conv2d(input_size, 64, kernel_size=7, stride=2, padding=3),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU()
-        )
-
-        self.layer1 = nn.Sequential(
-            
-            ResBlock(64, 64, downsample=False),
-            
-            ResBlock(64, 64, downsample=False)
-        )
-
-        self.layer2 = nn.Sequential(
-            
-            ResBlock(64, 128, downsample=True),
-            
-            ResBlock(128, 128, downsample=False)
-        )
-
-        self.layer3 = nn.Sequential(
-            
-            ResBlock(128, 256, downsample=True),
-            
-            ResBlock(256, 256, downsample=False)
-        )
+        self.resnet = resnet18(num_classes=output_size)
+    
+    def forward(self, x):
+        return self.resnet(x)
 
 
-        self.layer4 = nn.Sequential(
-            
-            ResBlock(256, 512, downsample=True),
-            
-            ResBlock(512, 512, downsample=False)
-        )
+class ResNet50(nn.Module):
+    def __init__(self, output_size=10):
+        super(ResNet50, self).__init__()
+        self.output_size = output_size
+        self.resnet = resnet50(num_classes=output_size)
+    
+    def forward(self, x):
+        return self.resnet(x)
 
-        self.gap = torch.nn.AdaptiveAvgPool2d(1)
-        self.fc = torch.nn.Linear(512, output_size)
 
-    def forward(self, input):
-        input = self.layer0(input)
-        input = self.layer1(input)
-        input = self.layer2(input)
-        input = self.layer3(input)
-        input = self.layer4(input)
-        input = self.gap(input)
-        input = torch.flatten(input, start_dim=1)
-        input = self.fc(input)
 
-        return input
+
+        

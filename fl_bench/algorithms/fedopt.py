@@ -8,7 +8,6 @@ from collections import OrderedDict
 import torch
 from torch.nn import Module
 
-from fl_bench.utils import DDict
 from fl_bench.server import Server
 from fl_bench.client import Client
 from fl_bench.data import FastTensorDataLoader

@@ -16,6 +16,6 @@
                 }
             }
         },
-        "model": "ResNet18"
+        "model": "NewResNet18"
     }
 }
