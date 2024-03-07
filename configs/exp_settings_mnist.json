@@ -1,0 +1,33 @@
+{
+    "protocol": {
+		"n_clients": 100,
+    	"n_rounds": 100,
+    	"eligible_perc": 0.1
+	},
+	"data": {
+		"dataset": "mnist",
+		"standardize": false,
+    	"distribution": "dir",
+    	"validation_split": 0.1,
+    	"sampling_perc": 0.5,
+		"beta": 0.1
+	},
+	"exp": {
+		"seed": 42,
+		"average": "micro",
+    	"device": "cpu",
+    	"checkpoint": {
+        	"save": false,
+        	"load": false,
+        	"path": "./checkpoints/TODO.pt"
+    	}
+	},
+	"log": {
+		"logger": "local",
+    	"wandb_params": {
+        	"project": "fl-bench",
+        	"entity": "mlgroup",
+        	"tags": ["DIR_MNIST"]
+    	}
+	}
+}
