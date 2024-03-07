@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.functional import F
+from torchvision.models import resnet18
 
 
 #############################################
@@ -117,7 +118,7 @@ class MLP_E(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         return x
-    
+
 class MLP(nn.Module):
     """Three-layer perceptron (MLP) model.
     Each layer is fully connected with 50 hidden units and ReLU activation.
@@ -368,7 +369,7 @@ class VGG9_E(nn.Module):
 
     def forward(self, x):
         return self.fed_E(x)
-    
+
 
 class VGG9(nn.Module):
     
@@ -396,7 +397,7 @@ class VGG9(nn.Module):
         x = self.fed_E(x)
         x = self.downstream(x)
         return x
-    
+
 
 class FedDiselVGG9(nn.Module):
     def __init__(self, input_size=784, output_size=62):
@@ -424,3 +425,125 @@ class FedDiselVGG9(nn.Module):
         emb = torch.cat((x_p, x_f), 1)
         pred = self.downstream(emb)
         return pred
+
+    # NEW NETWORKS
+
+class FedavgCNN(nn.Module):
+    def __init__(self, input_size=(28,28), output_size=10):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
+        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.norm1 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
+
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding=2)
+        self.norm2 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
+        self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        self.local3 = nn.Linear(4096, 384)
+        self.local4 = nn.Linear(384, 192)
+        self.softmax_linear = nn.Linear(192, output_size)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = self.pool1(x)
+        x = self.norm1(x)
+
+        x = F.relu(self.conv2(x))
+        x = self.norm2(x)
+        x = self.pool2(x)
+
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.local3(x))
+        x = F.relu(self.local4(x))
+        x = self.softmax_linear(x)
+
+        return x
+
+
+# RESNET
+    
+class ResBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, downsample):
+        super().__init__()
+        if downsample:
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1)
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=2),
+                nn.BatchNorm2d(out_channels)
+            )
+        else:
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
+            self.shortcut = nn.Sequential()
+
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+    def forward(self, input):
+        shortcut = self.shortcut(input)
+        input = nn.ReLU()(self.bn1(self.conv1(input)))
+        input = nn.ReLU()(self.bn2(self.conv2(input)))
+        input = input + shortcut
+        return nn.ReLU()(input)
+
+class ResNet18(nn.Module):
+    def __init__(self, input_size=3, output_size=10):
+        super(ResNet18, self).__init__()
+        self.input_size = input_size
+        self.output_size = output_size
+
+        super().__init__()
+        self.layer0 = nn.Sequential(
+            nn.Conv2d(input_size, 64, kernel_size=7, stride=2, padding=3),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU()
+        )
+
+        self.layer1 = nn.Sequential(
+            
+            ResBlock(64, 64, downsample=False),
+            
+            ResBlock(64, 64, downsample=False)
+        )
+
+        self.layer2 = nn.Sequential(
+            
+            ResBlock(64, 128, downsample=True),
+            
+            ResBlock(128, 128, downsample=False)
+        )
+
+        self.layer3 = nn.Sequential(
+            
+            ResBlock(128, 256, downsample=True),
+            
+            ResBlock(256, 256, downsample=False)
+        )
+
+
+        self.layer4 = nn.Sequential(
+            
+            ResBlock(256, 512, downsample=True),
+            
+            ResBlock(512, 512, downsample=False)
+        )
+
+        self.gap = torch.nn.AdaptiveAvgPool2d(1)
+        self.fc = torch.nn.Linear(512, output_size)
+
+    def forward(self, input):
+        input = self.layer0(input)
+        input = self.layer1(input)
+        input = self.layer2(input)
+        input = self.layer3(input)
+        input = self.layer4(input)
+        input = self.gap(input)
+        input = torch.flatten(input, start_dim=1)
+        input = self.fc(input)
+
+        return input
