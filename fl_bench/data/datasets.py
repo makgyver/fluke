@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import json
 import torch
+import string
 import numpy as np
 import pandas as pd
 from enum import Enum
@@ -422,6 +423,87 @@ class Datasets:
         return client_tr_assignments, client_te_assignments, None
 
 
+    @classmethod
+    def SHAKESPEARE(cls, 
+                    path: str="./data",
+                    batch_size: int=10):
+
+        shake_path = os.path.join(path, "shakespeare")
+        train_dir = os.path.join(shake_path, 'train')
+        test_dir = os.path.join(shake_path, 'test')
+
+        assert os.path.exists(shake_path), f"shakespeare data ({shake_path}) not found."
+        assert os.path.exists(train_dir), f"shakespeare train data ({train_dir}') not found."
+        assert os.path.exists(test_dir), f"shakespeare test data ({test_dir}') not found."
+
+        all_chr = string.printable
+        chr_map = {c: i for i, c in enumerate(all_chr)}
+
+        # TRAINING
+        files = os.listdir(train_dir)
+        dict_train = {}
+        for file in track(files, "Loading Shakespeare train data..."):
+            with open(os.path.join(train_dir, file)) as f:
+                data = json.load(f)  
+            dict_train.update(data["user_data"])
+        
+        # TEST
+        files = os.listdir(test_dir)
+        dict_test = {}
+        for file in track(files, "Loading Shakespeare test data..."):
+            with open(os.path.join(test_dir, file)) as f:
+                data = json.load(f)
+            dict_test.update(data["user_data"])
+
+        client_tr_assignments = []
+        for k in track(sorted(dict_train), "Creating training data loader..."):
+            udata = dict_train[k]
+            inputs, targets = udata['x'], udata['y']
+            for idx in range(len(inputs)):
+                inputs[idx] = [chr_map[char] for char in inputs[idx]]
+            for idx in range(len(targets)):
+                targets[idx] = [chr_map[char] for char in targets[idx]]
+            
+            Xtr_client = torch.LongTensor(inputs)
+            ytr_client = torch.LongTensor(targets)
+            client_tr_assignments.append(
+                FastTensorDataLoader(
+                    Xtr_client, 
+                    ytr_client, 
+                    batch_size=batch_size, 
+                    shuffle=True, 
+                    percentage=1.0
+                )
+            )
+        
+
+        client_te_assignments = []
+        for k in track(sorted(dict_train), "Creating test data loader..."):
+            udata = dict_test[k]
+            inputs, targets = udata['x'], udata['y']
+            for idx in range(len(inputs)):
+                inputs[idx] = [chr_map[char] for char in inputs[idx]]
+            for idx in range(len(targets)):
+                targets[idx] = [chr_map[char] for char in targets[idx]]
+                
+            Xte_client = torch.LongTensor(inputs)
+            yte_client = torch.LongTensor(targets)
+            client_te_assignments.append(
+                FastTensorDataLoader(
+                    Xte_client, 
+                    yte_client, 
+                    batch_size=batch_size, 
+                    shuffle=True, 
+                    percentage=1.0
+                )
+            )
+        
+        perm = permutation(len(client_tr_assignments))
+        client_tr_assignments = [client_tr_assignments[i] for i in perm]
+        client_te_assignments = [client_te_assignments[i] for i in perm]
+        return client_tr_assignments, client_te_assignments, None
+    
+
 class DatasetsEnum(Enum):
     MNIST = "mnist"
     MNISTM = "mnistm"
@@ -431,6 +513,8 @@ class DatasetsEnum(Enum):
     EMNIST = "emnist"
     CIFAR10 = "cifar10"
     CIFAR100 = "cifar100"
+    TINY_IMAGENET = "tiny_imagenet"
+    SHAKESPEARE = "shakespeare"
     LETTER = "letter"
     PENDIGITS = "pendigits"
     SATIMAGE = "satimage"
@@ -441,7 +525,7 @@ class DatasetsEnum(Enum):
     SPLICE = "splice"
     VEHICLE = "vehicle"
     VOWEL = "vowel"
-    TINY_IMAGENET = "tiny_imagenet"
+    
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -460,6 +544,8 @@ class DatasetsEnum(Enum):
             "emnist": Datasets.EMNIST,
             "cifar10": Datasets.CIFAR10,
             "cifar100": Datasets.CIFAR100,
+            "tiny_imagenet": Datasets.TINY_IMAGENET,
+            "shakespeare": Datasets.SHAKESPEARE,
             "letter": Datasets.LETTER,
             "pendigits": Datasets.PENDIGITS,
             "satimage": Datasets.SATIMAGE,
@@ -469,15 +555,15 @@ class DatasetsEnum(Enum):
             "krvskp": Datasets.KRVSKP,
             "splice": Datasets.SPLICE,
             "vehicle": Datasets.VEHICLE,
-            "vowel": Datasets.VOWEL,
-            "tiny_imagenet": Datasets.TINY_IMAGENET
+            "vowel": Datasets.VOWEL
         } 
         return DATASET_MAP[self.value]
 
     def splitter(self):
         from . import DataSplitter, DummyDataSplitter
 
-        if self.value == "femnist":
+        # LEAF datasets are already divided into clients
+        if self.value == "femnist" or self.value == "shakespeare":
             return DummyDataSplitter
         else:
             return DataSplitter
