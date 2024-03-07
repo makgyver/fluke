@@ -7,24 +7,35 @@ from torch.functional import F
 # MNIST networks
 #############################################
 
-# FedAvg: https://arxiv.org/pdf/1602.05629.pdf
+# FedAvg: https://arxiv.org/pdf/1602.05629.pdf - hidden_size=[200,200], w/o softmax
+# SuPerFed - https://arxiv.org/pdf/2109.07628v3.pdf - hidden_size=[200,200], w/o softmax
+# pFedMe: https://arxiv.org/pdf/2006.08848.pdf - hidden_size=[100,100], w/ softmax
+# FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w - hidden_size=[200,100], w/o softmax
 class MNIST_2NN(nn.Module):
-    def __init__(self):
+    def __init__(self, 
+                 hidden_size: tuple[int, int]=(200, 200),
+                 softmax: bool=True):
         super(MNIST_2NN, self).__init__()
         self.input_size = 28*28
         self.output_size = 10
+        self.use_softmax = softmax
 
-        self.fc1 = nn.Linear(28*28, 200)
-        self.fc2 = nn.Linear(200, 200)
-        self.fc3 = nn.Linear(200, 10)
+        self.fc1 = nn.Linear(28*28, hidden_size[0])
+        self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
+        self.fc3 = nn.Linear(hidden_size[1], 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, x.shape[1]*x.shape[2])
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        return self.fc3(x)
+        if self.use_softmax:
+            return F.softmax(self.fc3(x), dim=1)
+        else:
+            return self.fc3(x)
+
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf
+# SuPerFed - https://arxiv.org/pdf/2109.07628v3.pdf
 # works with 1 channel input - MNIST4D
 class MNIST_CNN(nn.Module):
     def __init__(self):
@@ -77,6 +88,19 @@ class FedBN_CNN(nn.Module):
         x = F.relu(self.bn5(self.fc1(x)))
         x = F.relu(self.bn6(self.fc2(x)))
         return self.fc3(x)
+
+
+# FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N
+# Logistic Regression
+class MNIST_LR(nn.Module):
+    def __init__(self, num_classes: int=10):
+        super(MNIST_LR, self).__init__()
+        self.num_classes = num_classes
+        self.fc = nn.Linear(784, num_classes)
+    
+    def forward(self, x):
+        x = x.view(-1, 784)
+        return F.softmax(self.fc(x), dim=1)
 
 
 class MLP_E(nn.Module):

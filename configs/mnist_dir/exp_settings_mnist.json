@@ -5,7 +5,7 @@
     	"eligible_perc": 0.1
 	},
 	"data": {
-		"dataset": "mnist4d",
+		"dataset": "mnist",
 		"standardize": false,
     	"distribution": "iid",
     	"validation_split": 0.1,
