@@ -2,17 +2,20 @@
     "name": "fedprox",
     "hyperparameters": {
         "server": {
+            "weighted": true
         },
         "client": {
-            "batch_size": 32,
-            "n_epochs": 5,
+            "batch_size": 10,
+            "local_epochs": 10,
             "loss": "CrossEntropyLoss",
             "mu": 0.3,
-            "optimizer": {		
+            "optimizer": {
                 "lr": 0.01,
+                "weight_decay": 0.0001,
+                "momentum": 0.9,
                 "scheduler_kwargs": {
-                    "step_size": 1, 
-                    "gamma": 1
+                    "step_size": 10, 
+                    "gamma": 0.995
                 }
             }
         },

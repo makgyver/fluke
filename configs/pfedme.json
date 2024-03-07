@@ -4,22 +4,22 @@
         "server": {
         },
         "client": {
-            "batch_size": 32,
-            "n_epochs": 5,
+            "batch_size": 10,
+            "local_epochs": 10,
             "loss": "CrossEntropyLoss",
             "beta": 2,
             "k": 5,
-            "lr": 0.01,
+            "mu": 0.01,
             "optimizer": {		
-                "lr": 0.05,
+                "lr": 0.01,
                 "lamda": 30,
                 "mu": 0.001,
                 "scheduler_kwargs": {
-                    "step_size": 1, 
-                    "gamma": 1
+                    "step_size": 10, 
+                    "gamma": 0.995
                 }
             }
         },
-        "model": "MLP"
+        "model": "VGG9"
     }
 }

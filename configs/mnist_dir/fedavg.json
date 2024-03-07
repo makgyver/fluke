@@ -1,8 +1,8 @@
 {
-    "name": "fedavgm",
+    "name": "fedavg",
     "hyperparameters": {
         "server": {
-            "momentum": 0.9
+            "weighted": true
         },
         "client": {
             "batch_size": 10,
@@ -11,12 +11,13 @@
             "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,
+                "momentum": 0.9,
                 "scheduler_kwargs": {
                     "step_size": 10, 
                     "gamma": 0.995
                 }
             }
         },
-        "model": "MLP"
+        "model": "MNIST_2NN"
     }
 }

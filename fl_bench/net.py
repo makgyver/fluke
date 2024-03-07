@@ -2,6 +2,83 @@ import torch
 import torch.nn as nn
 from torch.functional import F
 
+
+#############################################
+# MNIST networks
+#############################################
+
+# FedAvg: https://arxiv.org/pdf/1602.05629.pdf
+class MNIST_2NN(nn.Module):
+    def __init__(self):
+        super(MNIST_2NN, self).__init__()
+        self.input_size = 28*28
+        self.output_size = 10
+
+        self.fc1 = nn.Linear(28*28, 200)
+        self.fc2 = nn.Linear(200, 200)
+        self.fc3 = nn.Linear(200, 10)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, x.shape[1]*x.shape[2])
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
+
+# FedAvg: https://arxiv.org/pdf/1602.05629.pdf
+# works with 1 channel input - MNIST4D
+class MNIST_CNN(nn.Module):
+    def __init__(self):
+        super(MNIST_CNN, self).__init__()
+        self.output_size = 10
+
+        self.conv1 = nn.Conv2d(1, 32, 5, 1)
+        self.conv2 = nn.Conv2d(32, 64, 5, 1)
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 10)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, 2, 2)
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2, 2)
+        x = x.view(-1, 1024)
+        x = F.relu(self.fc1(x))
+        return F.softmax(self.fc2(x), dim=1)
+
+# FedBN: https://openreview.net/pdf?id=6YEQUn0QICG
+class FedBN_CNN(nn.Module):
+    def __init__(self, channels: int=1):
+        super(FedBN_CNN, self).__init__()
+        self.output_size = 10
+
+        self.conv1 = nn.Conv2d(channels, 64, 5, 1, 2)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(64, 64, 5, 1, 2)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, 5, 1, 2)
+        self.bn3 = nn.BatchNorm2d(128)
+        # this layer is erroneously reported in the paper
+        self.conv4 = nn.Conv2d(128, 128, 5, 1, 2)
+        self.bn4 = nn.BatchNorm2d(128)
+        self.fc1 = nn.Linear(6272, 2048)
+        self.bn5 = nn.BatchNorm1d(2048)
+        self.fc2 = nn.Linear(2048, 512)
+        self.bn6 = nn.BatchNorm1d(512)
+        self.fc3 = nn.Linear(512, 10)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.max_pool2d(x, 2, 2)
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.max_pool2d(x, 2, 2)
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = x.view(-1, 6272)
+        x = F.relu(self.bn5(self.fc1(x)))
+        x = F.relu(self.bn6(self.fc2(x)))
+        return self.fc3(x)
+
+
 class MLP_E(nn.Module):
     def __init__(self, input_size: int=28*28, output_size: int=10):
         super(MLP_E, self).__init__()

@@ -7,7 +7,7 @@
         },
         "client": {
             "batch_size": 32,
-            "n_epochs": 5,
+            "local_epochs": 5,
             "n_private_epochs": 30,
             "loss": "CrossEntropyLoss",
             "model": "FLHalf_F",

@@ -1,22 +1,20 @@
 {
     "protocol": {
-		"n_clients": 730,
-    	"n_rounds": 10,
-    	"eligible_perc": 0.007
+		"n_clients": 100,
+    	"n_rounds": 100,
+    	"eligible_perc": 0.1
 	},
 	"data": {
-		"dataset": "femnist",
+		"dataset": "mnist4d",
 		"standardize": false,
     	"distribution": "iid",
-    	"validation_split": 0.2,
-    	"sampling_perc": 1.0,
-		"num_features": 784,
-		"num_classes": 62
+    	"validation_split": 0.1,
+    	"sampling_perc": 0.5
 	},
 	"exp": {
-		"seed": 5,
+		"seed": 42,
 		"average": "micro",
-    	"device": "auto",
+    	"device": "cpu",
     	"checkpoint": {
         	"save": false,
         	"load": false,
@@ -24,12 +22,11 @@
     	}
 	},
 	"log": {
-		"logger": "wandb",
-		"eval_every": 1,
+		"logger": "local",
     	"wandb_params": {
         	"project": "fl-bench",
         	"entity": "mlgroup",
-        	"tags": ["FEDPROX_FEMNIST"]
+        	"tags": ["DIR_MNIST"]
     	}
 	}
 }
