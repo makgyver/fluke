@@ -5,11 +5,11 @@
             "weighted": true        
         },
         "client": {
-            "batch_size": 80,
-            "local_epochs": 10,
+            "batch_size": 50,
+            "local_epochs": 5,
             "loss": "CrossEntropyLoss",
             "optimizer": {		
-                "lr": 0.01,
+                "lr": 0.1,
                 "weight_decay": 0.00001,
                 "momentum": 0.9,
                 "scheduler_kwargs": {
@@ -18,6 +18,6 @@
                 }
             }
         },
-        "model": "ResNet50"
+        "model": "LeNet5"
     }
 }

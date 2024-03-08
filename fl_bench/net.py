@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import torch.nn as nn
 from torch.functional import F
 from torchvision.models import resnet50, resnet18, resnet34
@@ -91,7 +92,7 @@ class FedBN_CNN(nn.Module):
         return self.fc3(x)
 
 
-# FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N
+# FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N (MNIST and FEMNIST)
 # Logistic Regression
 class MNIST_LR(nn.Module):
     def __init__(self, num_classes: int=10):
@@ -102,6 +103,103 @@ class MNIST_LR(nn.Module):
     def forward(self, x):
         x = x.view(-1, 784)
         return F.softmax(self.fc(x), dim=1)
+
+
+class ResidualBlock(nn.Module):
+
+    def __init__(self, in_channels, out_channels, kernel_size, padding, stride):
+        super(ResidualBlock, self).__init__()
+        self.conv_res1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+                                   padding=padding, stride=stride, bias=False)
+        self.conv_res1_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
+        self.conv_res2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size,
+                                   padding=padding, bias=False)
+        self.conv_res2_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
+
+        if stride != 1:
+            # in case stride is not set to 1, we need to downsample the residual so that
+            # the dimensions are the same when we add them together
+            self.downsample = nn.Sequential(
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
+            )
+        else:
+            self.downsample = None
+
+        self.relu = nn.ReLU(inplace=False)
+
+    def forward(self, x):
+        residual = x
+        out = self.relu(self.conv_res1_bn(self.conv_res1(x)))
+        out = self.conv_res2_bn(self.conv_res2(out))
+
+        if self.downsample is not None:
+            residual = self.downsample(residual)
+
+        out = self.relu(out)
+        out += residual
+        return out
+
+
+# SuPerFed - https://arxiv.org/pdf/2001.01523.pdf (CIFAR-100)
+class ResNet9(nn.Module):
+    def __init__(self):
+        super(ResNet9, self).__init__()
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(num_features=64, momentum=0.9),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(num_features=128, momentum=0.9),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            ResidualBlock(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(num_features=256, momentum=0.9),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(num_features=256, momentum=0.9),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            ResidualBlock(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.fc = nn.Linear(in_features=1024, out_features=100, bias=True)
+
+    def forward(self, x):
+        out = self.conv(x)
+        out = out.view(-1, out.shape[1] * out.shape[2] * out.shape[3])
+        out = self.fc(out)
+        return out
+
+# DITTO: https://arxiv.org/pdf/2012.04221.pdf (FEMNIST)
+class FEMNIST_CNN(nn.Module):
+    def __init__(self):
+        super(FEMNIST_CNN, self).__init__()
+        self.output_size = 62
+        
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=5, padding=2)
+        self.fc1 = nn.Linear(7 * 7 * 32, 128)
+        self.fc2 = nn.Linear(128, 62)
+        
+        self.dropout1 = nn.Dropout2d(p=0.25)
+        self.dropout2 = nn.Dropout(p=0.5)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        x = self.dropout1(x)
+        x = x.view(-1, 7 * 7 * 32)
+        x = F.relu(self.fc1(x))
+        x = self.dropout2(x)
+        x = self.fc2(x)
+        return x
 
 
 class MLP_E(nn.Module):
@@ -496,21 +594,33 @@ class ResNet50(nn.Module):
 # FedRep: https://arxiv.org/pdf/2102.07078.pdf (CIFAR-100 and CIFAR-10)
 # LG-FedAvg: https://arxiv.org/pdf/2001.01523.pdf
 class LeNet5(nn.Module):
-
-    def __init__(self, channels=3, output_size=100):
+    def __init__(self, output_size=100):
         super(LeNet5, self).__init__()
-        self.conv1 = nn.Conv2d(channels, 6, 5, padding=2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1   = nn.Linear(16*5*5, 120)
-        self.fc2   = nn.Linear(120, 84)
-        self.fc3   = nn.Linear(84, output_size)
-
+        self.output_size = output_size
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(3, 6, kernel_size=5, stride=1, padding=0),
+            nn.BatchNorm2d(6),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(6, 16, kernel_size=5, stride=1, padding=0),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size = 2, stride = 2))
+        self.fc = nn.Linear(400, 120)
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(120, 84)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Linear(84, output_size)
+        
     def forward(self, x):
-        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
-        x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
-        x = x.view(-1, torch.prod(x.size()[1:]))
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = out.reshape(out.size(0), -1)
+        out = self.fc(out)
+        out = self.relu(out)
+        out = self.fc1(out)
+        out = self.relu1(out)
+        out = self.fc2(out)
+        return out
 

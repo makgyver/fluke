@@ -10,6 +10,7 @@
             "loss": "CrossEntropyLoss",
             "optimizer": {		
                 "lr": 0.31,
+                "weight_decay": 0.0001,
                 "scheduler_kwargs": {
                     "step_size": 1, 
                     "gamma": 1

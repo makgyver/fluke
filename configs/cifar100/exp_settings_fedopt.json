@@ -2,10 +2,10 @@
     "protocol": {
 		"n_clients": 100,
     	"n_rounds": 100,
-    	"eligible_perc": 0.02
+    	"eligible_perc": 0.1
 	},
 	"data": {
-		"dataset": "cifar10",
+		"dataset": "cifar100",
 		"standardize": false,
     	"distribution": "iid",
     	"validation_split": 0.2,
@@ -14,7 +14,7 @@
 	"exp": {
 		"seed": 42,
 		"average": "micro",
-    	"device": "mps",
+    	"device": "cpu",
     	"checkpoint": {
         	"save": false,
         	"load": false,
