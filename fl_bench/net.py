@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.functional import F
-from torchvision.models import resnet50, resnet18
+from torchvision.models import resnet50, resnet18, resnet34
 
 
 #############################################
@@ -463,7 +463,7 @@ class FedavgCNN(nn.Module):
 
         return x
 
-
+# FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
 class ResNet18(nn.Module):
     def __init__(self, output_size=10):
         super(ResNet18, self).__init__()
@@ -473,7 +473,17 @@ class ResNet18(nn.Module):
     def forward(self, x):
         return self.resnet(x)
 
-
+# FedPer: https://arxiv.org/pdf/1912.00818.pdf (CIFAR-100)
+class ResNet34(nn.Module):
+    def __init__(self, output_size=100):
+        super(ResNet34, self).__init__()
+        self.output_size = output_size
+        self.resnet = resnet34(num_classes=output_size)
+    
+    def forward(self, x):
+        return self.resnet(x)
+    
+# MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR-100)
 class ResNet50(nn.Module):
     def __init__(self, output_size=100):
         super(ResNet50, self).__init__()

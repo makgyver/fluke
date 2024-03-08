@@ -2,7 +2,7 @@ import sys; sys.path.append(".")
 
 from enum import Enum
 from copy import deepcopy
-from typing import Iterable, Any
+from typing import Iterable
 from collections import OrderedDict
 
 import torch
