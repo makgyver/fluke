@@ -61,7 +61,7 @@ class MNISTM(VisionDataset):
         else:
             data_file = self.test_file
 
-        print(os.path.join(self.processed_folder, data_file))
+        # print(os.path.join(self.processed_folder, data_file))
 
         self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file))
 
@@ -122,7 +122,7 @@ class MNISTM(VisionDataset):
                                          extract_root=self.processed_folder,
                                          filename=filename, md5=md5)
 
-        print('Done!')
+        # print('Done!')
 
     def extra_repr(self):
         return "Split: {}".format("Train" if self.train is True else "Test")

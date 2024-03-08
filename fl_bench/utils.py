@@ -7,6 +7,7 @@ import wandb
 import importlib
 import numpy as np
 import pandas as pd
+import psutil
 from enum import Enum
 from typing import Any, Iterable
 from collections import OrderedDict
@@ -35,6 +36,7 @@ class DeviceEnum(Enum):
     CPU: str = "cpu"
     CUDA: str = "cuda"
     AUTO: str = "auto"
+    MPS: str = "mps"
 
 
 class OptimizerConfigurator:
@@ -148,6 +150,7 @@ class Log(ServerObserver, ChannelObserver):
             stats['comm_cost'] = self.comm_costs[round]
 
             rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
+        rich.print(f"  MEMORY USAGE: {psutil.virtual_memory().used / 1e9:.2f} GB")
     
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
@@ -175,7 +178,7 @@ class Log(ServerObserver, ChannelObserver):
             json.dump(json_to_save, f, indent=4)
         
     def error(self, error: str):
-        console.print(f"[bold red]Error: {error}[/bold red]")
+        rich.print(f"[bold red]Error: {error}[/bold red]")
 
 
 class WandBLog(Log):
@@ -270,13 +273,13 @@ class Configuration(DDict):
         self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
         self.log.logger = LogEnum(self.log.logger)
     
-    def __str__(self) -> str:
-        return f"{self.method.name}_data({self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''})" + \
-               f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
-               f"_seed({self.exp.seed})"
+    # def __str__(self) -> str:
+    #     return f"{self.method.name}_data({self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''})" + \
+    #            f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
+    #            f"_seed({self.exp.seed})"
 
-    def __repr__(self) -> str:
-        return self.__str__()
+    # def __repr__(self) -> str:
+    #     return self.__str__()
 
 
 def diff_model(model_dict1: dict, model_dict2: dict):

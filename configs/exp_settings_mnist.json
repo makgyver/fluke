@@ -2,7 +2,7 @@
     "protocol": {
 		"n_clients": 100,
     	"n_rounds": 100,
-    	"eligible_perc": 0.1
+    	"eligible_perc": 1
 	},
 	"data": {
 		"dataset": "mnist",

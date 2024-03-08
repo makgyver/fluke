@@ -107,10 +107,10 @@ class ClassificationEval(Evaluator):
                     if self.loss_fn is not None:
                         loss += self.loss_fn(y_hat, y).item()
 
-                accuracy.update(y_hat, y)
-                precision.update(y_hat, y)
-                recall.update(y_hat, y)
-                f1.update(y_hat, y)
+                accuracy.update(y_hat.cpu(), y.cpu())
+                precision.update(y_hat.cpu(), y.cpu())
+                recall.update(y_hat.cpu(), y.cpu())
+                f1.update(y_hat.cpu(), y.cpu())
 
             cnt += len(data_loader)
             accs.append(accuracy.compute().item())
