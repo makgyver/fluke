@@ -426,14 +426,13 @@ class FedDiselVGG9(nn.Module):
         pred = self.downstream(emb)
         return pred
 
-    # NEW NETWORKS
-
+# FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
+# FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
 class FedavgCNN(nn.Module):
     def __init__(self, input_size=(28,28), output_size=10):
         super().__init__()
         self.input_size = input_size
         self.output_size = output_size
-
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -492,4 +491,26 @@ class ResNet50(nn.Module):
     
     def forward(self, x):
         return self.resnet(x)
+
+
+# FedRep: https://arxiv.org/pdf/2102.07078.pdf (CIFAR-100 and CIFAR-10)
+# LG-FedAvg: https://arxiv.org/pdf/2001.01523.pdf
+class LeNet5(nn.Module):
+
+    def __init__(self, channels=3, output_size=100):
+        super(LeNet5, self).__init__()
+        self.conv1 = nn.Conv2d(channels, 6, 5, padding=2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1   = nn.Linear(16*5*5, 120)
+        self.fc2   = nn.Linear(120, 84)
+        self.fc3   = nn.Linear(84, output_size)
+
+    def forward(self, x):
+        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+        x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
+        x = x.view(-1, torch.prod(x.size()[1:]))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
