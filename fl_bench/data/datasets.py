@@ -361,7 +361,26 @@ class Datasets:
     @classmethod
     def FEMNIST(cls, 
                 path: str="./data",
-                batch_size: int=10):
+                batch_size: int=10,
+                filter: str="all"):
+
+        def _filter_femnist(udata, filter):
+            # 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+            # 01234567890123456789012345678901234567890123456789012345678901
+            if filter == "all":
+                return udata
+            elif filter == "uppercase":
+                udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 36 and y > 9]
+                udata["y"] = [y for y in udata["y"] if y < 36 and y > 9]
+            elif filter == "lowercase":
+                udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y > 35]
+                udata["y"] = [y for y in udata["y"] if y > 35]
+            elif filter == "digits":
+                udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 10]
+                udata["y"] = [y for y in udata["y"] if y < 10]
+            else:
+                raise ValueError(f"Invalid filter: {filter}")
+                
 
         femnist_path = os.path.join(path, "FEMNIST")
         train_dir = os.path.join(femnist_path, 'train')
@@ -390,6 +409,7 @@ class Datasets:
         client_tr_assignments = []
         for k in track(sorted(dict_train), "Creating training data loader..."):
             udata = dict_train[k]
+            udata = _filter_femnist(udata, filter)
             Xtr_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             ytr_client = torch.LongTensor(udata["y"])
             client_tr_assignments.append(
@@ -405,6 +425,7 @@ class Datasets:
         client_te_assignments = []
         for k in track(sorted(dict_train), "Creating testing data loader..."):
             udata = dict_test[k]
+            udata = _filter_femnist(udata, filter)
             Xte_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             yte_client = torch.LongTensor(udata["y"])
             client_te_assignments.append(
