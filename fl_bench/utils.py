@@ -20,7 +20,6 @@ from torch.optim.lr_scheduler import StepLR
 import rich
 from rich.panel import Panel
 from rich.pretty import Pretty
-from rich.console import Console
 
 from fl_bench.data import DistributionEnum, FastTensorDataLoader
 from fl_bench.evaluation import Evaluator
@@ -29,8 +28,6 @@ from fl_bench.data.datasets import DatasetsEnum
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from fl_bench import Message
-
-console = Console()
 
 class DeviceEnum(Enum):
     CPU: str = "cpu"
@@ -269,7 +266,7 @@ class Configuration(DDict):
     
     def _fix_enums(self):
         self.data.distribution = DistributionEnum(self.data.distribution)
-        self.data.dataset = DatasetsEnum(self.data.dataset)
+        self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
         self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
         self.log.logger = LogEnum(self.log.logger)
     

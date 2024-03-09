@@ -4,13 +4,17 @@ from enum import Enum
 from pyparsing import Optional
 from sklearn.model_selection import train_test_split
 import torch
-
+import rich
 from typing import List, Union
 import numpy as np
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from scipy.stats.mstats import mquantiles
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from fl_bench.utils import DDict
 
 
 class DataContainer:
@@ -159,7 +163,7 @@ class DataSplitter:
     from fl_bench.data.datasets import DatasetsEnum
     
     @classmethod
-    def from_config(cls, config: dict) -> DataSplitter:
+    def from_config(cls, config: DDict) -> DataSplitter:
         """Create a DataSplitter from a configuration dictionary.
 
         Parameters
@@ -172,8 +176,16 @@ class DataSplitter:
         DataSplitter
             The DataSplitter instance.
         """
-        return config['dataset'].splitter()(**config)
+        return config.dataset.name.splitter()(dataset=config.dataset.name, 
+                                              builder_args=config.dataset.exclude('name'),
+                                              **config.exclude('dataset'))
 
+    def _safe_train_test_split(self, X, y, test_size):
+        try:
+            return train_test_split(X, y, test_size=test_size, stratify=y)
+        except ValueError:
+            rich.print("[bold red]Warning: [/bold red] Stratified split failed. Falling back to random split.")
+            return train_test_split(X, y, test_size=test_size)
 
     def __init__(self, 
                  dataset: DatasetsEnum,
@@ -181,11 +193,12 @@ class DataSplitter:
                  distribution: DistributionEnum=DistributionEnum.IID,
                  validation_split: float=0.0,
                  sampling_perc: float=1.0,
+                 builder_args: DDict={},
                  **kwargs):
         assert 0 <= validation_split <= 1, "validation_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
-        self.data_container = dataset.klass()() #FIXME for handling different test set size
+        self.data_container = dataset.klass()(**builder_args)
         self.standardize = standardize
         if standardize:
             self.data_container.standardize()
@@ -195,8 +208,8 @@ class DataSplitter:
         self.sampling_perc = sampling_perc
         self.kwargs = kwargs
     
-    def num_features(self) -> int:
-        return self.data_container.num_features
+    # def num_features(self) -> int:
+    #     return self.data_container.num_features
 
     def num_classes(self) -> int:
         return self.data_container.num_classes
@@ -228,10 +241,9 @@ class DataSplitter:
             client_X = Xtr[self.assignments[c]]
             client_y = Ytr[self.assignments[c]]
             if self.validation_split > 0.0:
-                Xtr_client, Xte_client, Ytr_client, Yte_client = train_test_split(client_X, 
-                                                                                  client_y,
-                                                                                  test_size=self.validation_split)#, 
-                                                                                #   stratify=client_y)
+                Xtr_client, Xte_client, Ytr_client, Yte_client = self._safe_train_test_split(client_X, 
+                                                                                             client_y,
+                                                                                             test_size=self.validation_split)
                 client_tr_assignments.append(FastTensorDataLoader(Xtr_client, 
                                                                   Ytr_client, 
                                                                   batch_size=batch_size, 
@@ -571,20 +583,39 @@ class DummyDataSplitter(DataSplitter):
 
     def __init__(self, 
                  dataset: DatasetsEnum,
-                 num_features: int,
-                 num_classes: int,
+                #  num_features: int,
+                #  num_classes: int,
+                 builder_args: DDict,
                  **kwargs):
         self.data_container = None
         self.standardize = False
         self.distribution = DistributionEnum.IID
         self.validation_split = 0.0
         self.sampling_perc = 1.0
-        self.client_tr_assignments, self.client_te_assignments, self.server_te = dataset.klass()()
-        self._num_features = num_features
-        self._num_classes = num_classes
+        self.client_tr_assignments, self.client_te_assignments, self.server_te = dataset.klass()(**builder_args)
+        # self._num_features = num_features
+        self._num_classes = self._compute_num_classes()
     
-    def num_features(self) -> int:
-        return self._num_features
+    def _compute_num_classes(self) -> int:
+        
+        labels = set()
+        for ftdl in self.client_tr_assignments:
+            y = ftdl.tensors[1]
+            labels.update(set(list(y.numpy())))
+
+        for ftdl in self.client_te_assignments:
+            if ftdl:
+                y = ftdl.tensors[1]
+                labels.update(set(list(y.numpy())))
+        
+        if self.server_te:
+            y = self.server_te.tensors[1]
+            labels.update(set(list(y.numpy())))
+
+        return len(labels)
+    
+    # def num_features(self) -> int:
+    #     return self._num_features
 
     def num_classes(self) -> int:
         return self._num_classes

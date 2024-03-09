@@ -113,6 +113,8 @@ class ClassificationEval(Evaluator):
                 f1.update(y_hat.cpu(), y.cpu())
 
             cnt += len(data_loader)
+            if cnt == 0:
+                return {}
             accs.append(accuracy.compute().item())
             precs.append(precision.compute().item())
             recs.append(recall.compute().item())

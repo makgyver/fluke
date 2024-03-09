@@ -26,9 +26,9 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
                     epochs: int = typer.Option(0, help='Number of epochs to run')):
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    GlobalSettings().set_seed(cfg.exp.seed) 
+    GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_container = cfg.data.dataset.klass()()
+    data_container = cfg.data.dataset.klass()(**cfg.data.dataset.exclude('name'))
 
     device = GlobalSettings().get_device()
 
@@ -46,7 +46,7 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
 
-    evaluator = ClassificationEval(criterion, data_container.num_classes, cfg.exp.average, device=device)
+    evaluator = ClassificationEval(criterion, data_container.num_classes(), cfg.exp.average, device=device)
 
     # log = cfg.log.logger.logger(evaluator,
     #                             eval_every=cfg.log.eval_every,
@@ -83,7 +83,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
     log = cfg.log.logger.logger(ClassificationEval(fl_algo.loss, 
-                                                   data_splitter.num_classes(), 
+                                                   data_splitter.num_classes(),
                                                    cfg.exp.average,
                                                    GlobalSettings().get_device()), 
                                 eval_every=cfg.log.eval_every,

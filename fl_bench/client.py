@@ -145,6 +145,9 @@ class Client(ABC):
         return f"{self.__class__.__name__}(optim={self.optimizer_cfg}, "+\
                f"batch_size={self.train_set.batch_size}{hpstr})"
 
+    def __repr__(self) -> str:
+        return super().__repr__()
+
 
 class PFLClient(Client):
     """Personalized Federated Learning client.

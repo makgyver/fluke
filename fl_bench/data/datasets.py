@@ -365,23 +365,23 @@ class Datasets:
                 filter: str="all"):
 
         def _filter_femnist(udata, filter):
-            # 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
-            # 01234567890123456789012345678901234567890123456789012345678901
+            # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+            # labels : 01234567890123456789012345678901234567890123456789012345678901
             if filter == "all":
                 return udata
             elif filter == "uppercase":
                 udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 36 and y > 9]
-                udata["y"] = [y for y in udata["y"] if y < 36 and y > 9]
+                udata["y"] = [y - 10 for y in udata["y"] if y < 36 and y > 9]
             elif filter == "lowercase":
                 udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y > 35]
-                udata["y"] = [y for y in udata["y"] if y > 35]
+                udata["y"] = [y - 36 for y in udata["y"] if y > 35]
             elif filter == "digits":
                 udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 10]
                 udata["y"] = [y for y in udata["y"] if y < 10]
             else:
                 raise ValueError(f"Invalid filter: {filter}")
-                
-
+            return udata
+        
         femnist_path = os.path.join(path, "FEMNIST")
         train_dir = os.path.join(femnist_path, 'train')
         test_dir = os.path.join(femnist_path, 'test')

@@ -2,10 +2,13 @@
     "protocol": {
 		"n_clients": 100,
     	"n_rounds": 100,
-    	"eligible_perc": 1
+    	"eligible_perc": 0.1
 	},
 	"data": {
-		"dataset": "mnist",
+		"dataset": {
+			"name": "femnist",
+			"filter": "digits"
+		},
 		"standardize": false,
     	"distribution": "dir",
     	"validation_split": 0.1,
