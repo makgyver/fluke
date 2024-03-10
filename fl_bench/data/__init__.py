@@ -601,16 +601,16 @@ class DummyDataSplitter(DataSplitter):
         labels = set()
         for ftdl in self.client_tr_assignments:
             y = ftdl.tensors[1]
-            labels.update(set(list(y.numpy())))
+            labels.update(set(list(y.numpy().flatten())))
 
         for ftdl in self.client_te_assignments:
             if ftdl:
                 y = ftdl.tensors[1]
-                labels.update(set(list(y.numpy())))
+                labels.update(set(list(y.numpy().flatten())))
         
         if self.server_te:
             y = self.server_te.tensors[1]
-            labels.update(set(list(y.numpy())))
+            labels.update(set(list(y.numpy().flatten())))
 
         return len(labels)
     

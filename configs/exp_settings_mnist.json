@@ -1,13 +1,12 @@
 {
     "protocol": {
-		"n_clients": 100,
+		"n_clients": 600,
     	"n_rounds": 100,
-    	"eligible_perc": 0.1
+    	"eligible_perc": 0.008
 	},
 	"data": {
 		"dataset": {
-			"name": "femnist",
-			"filter": "digits"
+			"name": "shakespeare"
 		},
 		"standardize": false,
     	"distribution": "dir",

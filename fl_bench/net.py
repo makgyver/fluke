@@ -1,13 +1,8 @@
 import torch
-import numpy as np
+import string
 import torch.nn as nn
 from torch.functional import F
 from torchvision.models import resnet50, resnet18, resnet34
-
-
-#############################################
-# MNIST networks
-#############################################
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf - hidden_size=[200,200], w/o softmax
 # SuPerFed - https://arxiv.org/pdf/2109.07628v3.pdf - hidden_size=[200,200], w/o softmax
@@ -204,11 +199,6 @@ class VGG9_E(nn.Module):
         torch.manual_seed(seed); torch.nn.init.xavier_normal_(conv.weight)
         return conv
     
-    def _linear_layer(self, in_features, out_features, bias=False, seed=0):
-        fc = nn.Linear(in_features, out_features, bias=bias)
-        torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
-        return fc
-    
     def __init__(self, input_size: int=784, output_size: int=62, seed: int=98765):
         super(VGG9_E, self).__init__()
         self._seed = seed
@@ -365,3 +355,25 @@ class LeNet5(nn.Module):
         out = self.fc2(out)
         return out
 
+# SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (Shakespeare)
+class Shakespeare_LSTM(nn.Module):
+
+    def __init__(self, seed=42):
+        super(Shakespeare_LSTM, self).__init__()
+        self.output_size = len(string.printable)
+
+        self.encoder = nn.Embedding(self.output_size, 8)
+        self.rnn = nn.LSTM(
+            input_size=8,
+            hidden_size=256,
+            num_layers=2,
+            batch_first=True,
+            bias=False
+        )
+        self.classifier = VGG9._linear_layer(256, self.output_size, bias=False, seed=seed)
+
+    def forward(self, x):
+        encoded = self.encoder(x)
+        output, _ = self.rnn(encoded)
+        output = self.classifier(output[:, -1, :])
+        return output

@@ -483,7 +483,7 @@ class Datasets:
             for idx in range(len(inputs)):
                 inputs[idx] = [chr_map[char] for char in inputs[idx]]
             for idx in range(len(targets)):
-                targets[idx] = [chr_map[char] for char in targets[idx]]
+                targets[idx] = chr_map[targets[idx]]
             
             Xtr_client = torch.LongTensor(inputs)
             ytr_client = torch.LongTensor(targets)
@@ -505,7 +505,7 @@ class Datasets:
             for idx in range(len(inputs)):
                 inputs[idx] = [chr_map[char] for char in inputs[idx]]
             for idx in range(len(targets)):
-                targets[idx] = [chr_map[char] for char in targets[idx]]
+                targets[idx] = chr_map[targets[idx]]
                 
             Xte_client = torch.LongTensor(inputs)
             yte_client = torch.LongTensor(targets)

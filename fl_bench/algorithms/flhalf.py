@@ -16,7 +16,7 @@ from fl_bench.server import Server
 from fl_bench.data import DataSplitter, FastTensorDataLoader
 from fl_bench.utils import DDict, OptimizerConfigurator
 from fl_bench.algorithms import CentralizedFL
-from fl_bench.net import EDModule
+# from fl_bench.net import EDModule
 
 def _set_seed(seed: int) -> None:
     random.seed(seed)
@@ -40,7 +40,7 @@ def generate_anchors(num_anchors: int, dim: int, seed: int=98765) -> torch.Tenso
 
 class FLHalfClient(Client):
     def __init__(self,
-                 model: EDModule,
+                 model: nn.Module,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,

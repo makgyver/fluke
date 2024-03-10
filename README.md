@@ -86,23 +86,8 @@ The `ALG_CONFIG` is a json file containing the following fields:
 
 To run an algorithm, you need to run the following command:
 ```bash
-python fl_bench/main.py --config=EXP_CONFIG run ALG_CONFIG [OPTIONS]
+python fl_bench/main.py --config=EXP_CONFIG run ALG_CONFIG
 ```
-where the OPTIONS are:
-```bash
---dataset                   [mnist|mnistm|svhn|emnist|cifar10|femnist]  Dataset [default: (mnist)]  
---n-clients                 INTEGER  Number of clients [default: 5]
---n-rounds                  INTEGER  Number of rounds [default: 100] 
---n-epochs                  INTEGER  Number of client-side epochs [default: 5]
---batch-size                INTEGER  Client-side batch size [default: 225]
---elegibility-percentage    FLOAT    Elegibility percentage [default: 0.5]
---distribution              INTEGER  Data distribution [default: 1] 
---seed                      INTEGER  Seed [default: 42]
---logger                    [local|wandb]   Log method [default: (local)]
---device                    [cpu|cuda|auto] Device to use [default: (auto)] 
-```
-
-the optional arguments override the values in the `EXP_CONFIG` file.
 
 This is an example of command:
 ```bash
@@ -149,15 +134,10 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] Check the correctness of pFedMe -- **Work in progress**
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481 -- **Work in progress**
 - [ ] Implement FedDyn - https://openreview.net/pdf?id=B7v4QMR6Z9w -- **Work in progress**
-- [x] Implement Ditto - https://arxiv.org/pdf/2012.04221.pdf
-- [x] Implement APFL - https://arxiv.org/pdf/2003.13461.pdf
-- [x] Implement FedRep - https://arxiv.org/abs/2102.07078
-- [x] Implement FedPer - https://arxiv.org/abs/1912.00818
 - [ ] Add support to validation
 - [ ] Add documentation + check typing -- **Work in progress**
 
 ## Desiderata
-- [ ] Add NAS
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package
