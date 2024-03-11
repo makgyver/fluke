@@ -310,7 +310,7 @@ class ResNet34(nn.Module):
     
     def forward(self, x):
         return self.resnet(x)
-    
+
 # MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR-100)
 class ResNet50(nn.Module):
     def __init__(self, output_size=100):
@@ -373,7 +373,39 @@ class Shakespeare_LSTM(nn.Module):
         self.classifier = VGG9._linear_layer(256, self.output_size, bias=False, seed=seed)
 
     def forward(self, x):
-        encoded = self.encoder(x)
-        output, _ = self.rnn(encoded)
-        output = self.classifier(output[:, -1, :])
-        return output
+        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+        x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
+        x = x.view(-1, torch.prod(x.size()[1:]))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+# MOONS: https://arxiv.org/pdf/2103.16257.pdf
+class MoonsCNN(nn.Module):
+    def __init__(self):
+        super(MoonsCNN, self).__init__()
+        self.output_size = 10
+
+        self.conv1 = nn.Conv2d(3, 6, kernel_size=5)
+        self.pool1 = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
+        self.pool2 = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(16*5*5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.projection_head = nn.Linear(84, 256)
+        self.out = nn.Linear(256, self.output_size)
+
+    def forward(self, x):
+        x = self.pool1(F.relu(self.conv1(x)))
+        x = self.pool2(F.relu(self.conv2(x)))
+        x = x.view(-1, 400)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        # The paper is not clear about the activation of
+        # the projection head (PH). We go with ReLU since they
+        # cite https://arxiv.org/pdf/2002.05709.pdf where 
+        # it is shown that non-linear PHs works better.
+        x = F.relu(self.projection_head(x)) 
+        x = self.out(x)
+        return x
