@@ -136,10 +136,11 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] Check the correctness of FedDyn -- **Work in progress**
 - [ ] Implement LG-FedAvg - https://arxiv.org/abs/2001.01523
 - [ ] Implement SuPerFed - https://arxiv.org/abs/2109.07628v3
-- [ ] Add support to validation
 - [ ] Add documentation + check typing -- **Work in progress**
+- [ ] Implement configuration file validator
 
 ## Desiderata
+- [ ] Add support to validation
 - [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package
