@@ -34,11 +34,15 @@ class Client(ABC):
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int=3):
+                 local_epochs: int=3,
+                 **additional_hyper_params):
         self.hyper_params = DDict({
             "loss_fn": loss_fn,
             "local_epochs": local_epochs
         })
+
+        self.hyper_params.update(additional_hyper_params)
+
         self.train_set = train_set
         self.validation_set = validation_set
         self.n_examples = train_set.size
