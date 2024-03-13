@@ -99,7 +99,6 @@ class MNIST_LR(nn.Module):
         x = x.view(-1, 784)
         return F.softmax(self.fc(x), dim=1)
 
-
 class ResidualBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, padding, stride):
@@ -191,7 +190,7 @@ class FEMNIST_CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-
+# FIXME: Quale algoritmo? Quale dataset?
 class VGG9_E(nn.Module):
 
     def _conv_layer(self, in_channels, out_channels, kernel_size, stride=1, padding=0, groups=1, bias=False, seed=0):
@@ -324,6 +323,7 @@ class ResNet50(nn.Module):
 
 # FedRep: https://arxiv.org/pdf/2102.07078.pdf (CIFAR-100 and CIFAR-10)
 # LG-FedAvg: https://arxiv.org/pdf/2001.01523.pdf
+# FIXME: LG-FedAvg non è nella lista degli algoritmi implementati
 class LeNet5(nn.Module):
     def __init__(self, output_size=100):
         super(LeNet5, self).__init__()
@@ -381,7 +381,7 @@ class Shakespeare_LSTM(nn.Module):
         x = self.fc3(x)
         return x
 
-# MOONS: https://arxiv.org/pdf/2103.16257.pdf
+# MOONS: https://arxiv.org/pdf/2103.16257.pdf (CIFAR10)
 class MoonsCNN(nn.Module):
     def __init__(self):
         super(MoonsCNN, self).__init__()
