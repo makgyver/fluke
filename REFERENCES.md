@@ -42,5 +42,11 @@ Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated Learn
 <a id="14">[FedDyn 2021]</a>
 Durmus Alp Emre Acar, Yue Zhao, Ramon Matas, Matthew Mattina, Paul Whatmough, and Venkatesh Saligrama. Federated Learning with Dynamic Regularization. ICLR 2021. URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
 
-<a id="15">[Adaboost.F, PreWeak.F, Distboost.F 2022]</a>
+<a id="15">[LG-FedAvg]</a>
+Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach, David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally: Federated Learning with Local and Global Representations. URL: https://arxiv.org/abs/2001.01523
+
+<a id="16">[SuPerFed]</a>
+Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for Personalized Federated Learning. KDD 2022. URL: https://arxiv.org/pdf/2109.07628v3.pdf
+
+<a id="17">[Adaboost.F, PreWeak.F, Distboost.F 2022]</a>
 Mirko Polato, Roberto Esposito, and Marco Aldinucci. Boosting the Federation: Cross-Silo Federated Learning without Gradient Descent. IJCNN 2022. URL: https://ieeexplore.ieee.org/document/9892284
