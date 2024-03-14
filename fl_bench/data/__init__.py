@@ -178,7 +178,9 @@ class DataSplitter:
         """
         return config.dataset.name.splitter()(dataset=config.dataset.name, 
                                               builder_args=config.dataset.exclude('name'),
-                                              **config.exclude('dataset'))
+                                              distribution=config.distribution.name,
+                                              **config.exclude('dataset', 'distribution'),
+                                              **config.distribution.exclude('name'))
 
     def _safe_train_test_split(self, X, y, test_size):
         try:
@@ -191,11 +193,11 @@ class DataSplitter:
                  dataset: DatasetsEnum,
                  standardize: bool=False,
                  distribution: DistributionEnum=DistributionEnum.IID,
-                 validation_split: float=0.0,
+                 client_split: float=0.0,
                  sampling_perc: float=1.0,
                  builder_args: DDict={},
                  **kwargs):
-        assert 0 <= validation_split <= 1, "validation_split must be between 0 and 1."
+        assert 0 <= client_split <= 1, "validation_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
         self.data_container = dataset.klass()(**builder_args)
@@ -204,7 +206,7 @@ class DataSplitter:
             self.data_container.standardize()
 
         self.distribution = distribution
-        self.validation_split = validation_split
+        self.validation_split = client_split
         self.sampling_perc = sampling_perc
         self.kwargs = kwargs
     

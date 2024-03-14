@@ -82,21 +82,21 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
     fl_algo_builder = FedAlgorithmsEnum(cfg.method.name)
     fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
-    log = cfg.log.logger.logger(ClassificationEval(fl_algo.loss, 
+    log = cfg.logger.name.logger(ClassificationEval(fl_algo.loss, 
                                                    data_splitter.num_classes(),
                                                    cfg.exp.average,
                                                    GlobalSettings().get_device()), 
-                                eval_every=cfg.log.eval_every,
+                                eval_every=cfg.logger.eval_every,
                                 name=str(cfg),
-                                **cfg.log.wandb_params)
+                                **cfg.logger.exclude('name', 'eval_every'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     
-    if cfg.exp.checkpoint.load:
-        fl_algo.load_checkpoint(cfg.exp.checkpoint.path)
+    # if cfg.exp.checkpoint.load:
+    #     fl_algo.load_checkpoint(cfg.exp.checkpoint.path)
     
-    if cfg.exp.checkpoint.save:
-        fl_algo.activate_checkpoint(cfg.exp.checkpoint.path)
+    # if cfg.exp.checkpoint.save:
+    #     fl_algo.activate_checkpoint(cfg.exp.checkpoint.path)
 
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     # GlobalSettings().set_workers(8)
@@ -125,6 +125,15 @@ def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algor
 
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
     # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
+
+
+@app.command()
+def validate(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+    cfg = Configuration(CONFIG_FNAME, alg_cfg)
+    cfg._validate()
+    rich.print(Panel(Pretty(cfg, expand_all=True), title=f"Configuration"))
+    
+
 
 
 @app.callback()

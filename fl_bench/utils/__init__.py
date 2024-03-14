@@ -1,6 +1,5 @@
 from __future__ import annotations
-from copy import deepcopy
-
+import os
 import json
 import typer
 import wandb
@@ -10,10 +9,9 @@ import pandas as pd
 import psutil
 from enum import Enum
 from typing import Any, Iterable
-from collections import OrderedDict
 
 import torch
-from torch.nn import Module, Parameter
+from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR
 
@@ -147,7 +145,8 @@ class Log(ServerObserver, ChannelObserver):
             stats['comm_cost'] = self.comm_costs[round]
 
             rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-        rich.print(f"  MEMORY USAGE: {psutil.virtual_memory().used / 1e9:.2f} GB")
+
+        rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
     
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
@@ -254,6 +253,7 @@ class DDict(dict):
 
                 
 class Configuration(DDict):
+
     def __init__(self, config_exp_path: str, config_alg_path: str):
         with open(config_exp_path) as f:
             config_exp = json.load(f)
@@ -262,21 +262,98 @@ class Configuration(DDict):
 
         self.update(config_exp)
         self.update({"method": config_alg})
-        self._fix_enums()
+        self._validate()
     
-    def _fix_enums(self):
-        self.data.distribution = DistributionEnum(self.data.distribution)
-        self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
-        self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
-        self.log.logger = LogEnum(self.log.logger)
-    
-    # def __str__(self) -> str:
-    #     return f"{self.method.name}_data({self.data.dataset.value},{self.data.distribution.value}{',std' if self.data.standardize else ''})" + \
-    #            f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
-    #            f"_seed({self.exp.seed})"
+    def _validate(self) -> bool:
+        
+        EXP_OPT_KEYS = {
+            "average": "micro",
+            "device": "cpu",
+            "seed": 42
+        }
 
-    # def __repr__(self) -> str:
-    #     return self.__str__()
+        LOG_OPT_KEYS = {
+            "name": "local",
+            "eval_every": 1
+        }
+
+        FIRST_LVL_KEYS = ["data", "protocol", "method"]
+        FIRST_LVL_OPT_KEYS = {
+            "exp": EXP_OPT_KEYS,
+            "logger": LOG_OPT_KEYS
+        }
+        PROTO_REQUIRED_KEYS = ["n_clients", "eligible_perc", "n_rounds"]
+        DATA_REQUIRED_KEYS = ["distribution", "dataset"]
+        DATA_OPT_KEYS = {
+            "sampling_perc": 1.0, 
+            "client_split": 0.0,
+            "standardize": False
+        }
+        
+        ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]
+        HP_REQUIRED_KEYS = ["model", "client", "server"]
+        CLIENT_HP_REQUIRED_KEYS = ["loss", "batch_size", "local_epochs", "optimizer"]
+        WANDB_REQUIRED_KEYS = ["project", "entity", ]
+
+        error = False
+        for k in FIRST_LVL_KEYS:
+            if k not in self:
+                f = "experiment" if k != "method" else "algorithm"
+                rich.print(f"Error: {k} is required in the {f} configuration file")
+                error = True
+        
+        for k, v in FIRST_LVL_OPT_KEYS.items():
+            if k not in self:
+                self[k] = DDict(v)
+        
+        for k in PROTO_REQUIRED_KEYS:
+            if k not in self.protocol:
+                rich.print(f"Error: {k} is required for key 'protocol'.")
+                error = True
+        
+        for k in DATA_REQUIRED_KEYS:
+            if k not in self.data:
+                rich.print(f"Error: {k} is required for key 'data'.")
+                error = True
+        
+        for k, v in DATA_OPT_KEYS.items():
+            if k not in self.data:
+                self.data[k] = v
+
+        for k, v in EXP_OPT_KEYS.items():
+            if k not in self.exp:
+                self.exp[k] = v
+
+        for k in ALG_1L_REQUIRED_KEYS:
+            if k not in self.method:
+                rich.print(f"Error: {k} is required for key 'method'.")
+                error = True
+        
+        for k in HP_REQUIRED_KEYS:
+            if k not in self.method.hyperparameters:
+                rich.print(f"Error: {k} is required for key 'hyperparameters' in 'method'.")
+                error = True
+        
+        for k in CLIENT_HP_REQUIRED_KEYS:
+            if k not in self.method.hyperparameters.client:
+                rich.print(f"Error: {k} is required as hyperparameter of 'client'.")
+                error = True
+        
+        if 'logger' in self and self.logger.name == "wandb":
+            for k in WANDB_REQUIRED_KEYS:
+                rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
+                error = True
+        
+        if not error:
+            self.data.distribution.name = DistributionEnum(self.data.distribution.name)
+            self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
+            self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
+            self.logger.name = LogEnum(self.logger.name)
+
+        if error:
+            raise ValueError("Configuration validation failed.")
+
+
 
 def import_module_from_str(name: str) -> Any:
     components = name.split('.')
