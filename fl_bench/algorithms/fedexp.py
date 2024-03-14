@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 from fl_bench.client import Client
 from fl_bench.server import Server
-from fl_bench.utils import diff_model
+from fl_bench.utils.model import diff_model
 from fl_bench.algorithms import CentralizedFL
 
 

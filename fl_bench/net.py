@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import torch
 import string
 import torch.nn as nn
@@ -204,7 +205,7 @@ class VGG9_E(nn.Module):
         self._seed = seed
         self.input_size = input_size
         self.output_size = output_size
-        self.fed_E = nn.Sequential(
+        self.encoder = nn.Sequential(
             self._conv_layer(in_channels=1, out_channels=16, kernel_size=3, padding=1, bias=False, seed=seed), #FIXME
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
@@ -224,7 +225,7 @@ class VGG9_E(nn.Module):
         )
 
     def forward(self, x):
-        return self.fed_E(x)
+        return self.encoder(x)
 
 
 # SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (FEMNIST)
@@ -242,7 +243,7 @@ class VGG9(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
 
-        self.fed_E = VGG9_E(input_size, output_size, seed)
+        self.encoder = VGG9_E(input_size, output_size, seed)
         self.downstream = nn.Sequential(
             nn.Flatten(),
             VGG9._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
@@ -251,7 +252,7 @@ class VGG9(nn.Module):
         )
 
     def forward(self, x):
-        x = self.fed_E(x)
+        x = self.encoder(x)
         x = self.downstream(x)
         return x
 
@@ -409,3 +410,45 @@ class MoonsCNN(nn.Module):
         x = F.relu(self.projection_head(x)) 
         x = self.out(x)
         return x
+
+
+class GlobalLocalNet(nn.Module):
+    """Global-Local Network (Abstract Class)
+
+    A network that has two subnetworks, one is meant to be shared (global) and one is meant to be
+    personalized (local). The forward method should work as expected, but the forward_local and
+    forward_global methods should be used to get the output of the local and global subnetworks, 
+    respectively. If this is not possible, they fallback to the forward method (default behavior).
+    """
+
+    @abstractmethod
+    def get_local(self):
+        """Return the local subnetwork"""
+        pass
+
+    @abstractmethod
+    def get_global(self):
+        """Return the global subnetwork"""
+        pass
+
+    def forward_local(self, x):
+        return self.forward(x)
+
+    def forward_global(self, x):
+        return self.forward(x)
+
+
+# FedPer: https://arxiv.org/pdf/1912.00818.pdf (FEMNIST - meant to be used by FedPer)
+class FedPer_VGG9(GlobalLocalNet, VGG9):
+
+    def get_local(self):
+        return self.downstream
+
+    def get_global(self):
+        return self.encoder
+
+    def forward_local(self, z):
+        return self.downstream(z)
+
+    def forward_global(self, x):
+        return self.encoder(x)

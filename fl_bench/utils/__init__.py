@@ -13,7 +13,7 @@ from typing import Any, Iterable
 from collections import OrderedDict
 
 import torch
-from torch.nn import Module
+from torch.nn import Module, Parameter
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR
 
@@ -278,19 +278,9 @@ class Configuration(DDict):
     # def __repr__(self) -> str:
     #     return self.__str__()
 
-
-def diff_model(model_dict1: dict, model_dict2: dict):
-    assert model_dict1.keys() == model_dict2.keys(), "Models have not the same architecture"
-    return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
-
 def import_module_from_str(name: str) -> Any:
     components = name.split('.')
     mod = importlib.import_module(".".join(components[:-1]))
     mod = getattr(mod, components[-1])
     return mod
 
-def merge_models(model_1: Module, model_2: Module, lam: float):
-    merged_model = deepcopy(model_1)
-    for name, param in merged_model.named_parameters():
-        param.data = (1 - lam) * model_1.get_parameter(name).data + lam  * model_2.get_parameter(name).data
-    return merged_model

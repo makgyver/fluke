@@ -134,8 +134,8 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] Check the correctness of pFedMe -- **Work in progress**
 - [ ] Implement FedNova - https://arxiv.org/abs/2007.07481 -- **Work in progress**
 - [ ] Check the correctness of FedDyn -- **Work in progress**
-- [ ] Implement LG-FedAvg - https://arxiv.org/abs/2001.01523
-- [ ] Implement SuPerFed - https://arxiv.org/abs/2109.07628v3
+- [x] Implement LG-FedAvg - https://arxiv.org/abs/2001.01523
+- [x] Implement SuPerFed - https://arxiv.org/abs/2109.07628v3
 - [ ] Add documentation + check typing -- **Work in progress**
 - [ ] Implement configuration file validator
 

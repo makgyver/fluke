@@ -10,7 +10,8 @@ from fl_bench.server import Server
 from fl_bench.client import Client, PFLClient
 from fl_bench.algorithms import PersonalizedFL
 from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator, clear_cache, merge_models
+from fl_bench.utils import OptimizerConfigurator, clear_cache
+from fl_bench.utils.model import merge_models
 
 
 # https://arxiv.org/pdf/2012.04221.pdf

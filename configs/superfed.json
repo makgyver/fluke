@@ -1,5 +1,5 @@
 {
-    "name": "fedprox",
+    "name": "superfed",
     "hyperparameters": {
         "server": {
             "weighted": true
@@ -8,8 +8,12 @@
             "batch_size": 10,
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
-            "mu": 0.3,
-            "optimizer": {
+            "mode": "mm",
+            "mu": 0.01,
+            "nu": 2,
+            "start_mix": 1,
+            "model": "VGG9",
+            "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,
                 "momentum": 0.9,
@@ -19,6 +23,6 @@
                 }
             }
         },
-        "model": "MNIST_2NN"
+        "model": "VGG9"
     }
 }
