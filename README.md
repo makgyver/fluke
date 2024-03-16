@@ -22,11 +22,16 @@ The `EXP_CONFIG` is a json file contains the following fields:
     - `eligible_perc`: the percentage of clients that are elegible for training in each round
 
 - `data`: must contains a dictionary with all settings regarding the data loading process, namely:
-    - `dataset`: the dataset used for training the model. It must be one of the following: `mnist`, `mnistm`, `emnist`, `cifar10`, `svhn`, and `femnist`.
-    - `validation_split`: the percentage of the local datasets used as test/validation set
+    - `dataset`: the dataset used for training the model. This is a dictionary with a single 
+      mandatory filed, i.e., `name` which is the name of the dataset. To date the following datasets 
+      are supported: `mnist`, `mnistm`, `emnist`, `femnist`, `cifar10`, `cifar100`, `svhn`, 
+      `tiny_imagenet`, `shakespeare` and `femnist`. All other fields are treated as parameters for 
+      the specific dataset. Please see `fl_bench.data.datasets` for more details.
+    - `client_split`: the percentage of the local datasets used as test set
     - `standardize`: boolean value that indicates whether the features have to be standardized or not
-    - `distribution`: the data distribution used for training the model. 
-      It must be one of the following: 
+    - `distribution`: the data distribution used for the experiment. It is a dictionary with a single
+      mandatory field, i.e., `name` which is the name of the distribution. To date the following
+      distributions are supported:
         - `iid`: iid
         - `qnt`: quantity skewed
         - `classqnt`: classwise quantity skewed
@@ -34,55 +39,51 @@ The `EXP_CONFIG` is a json file contains the following fields:
         - `dir`: label dirichlet skewed
         - `path`: label pathological skewed
         - `covshift`: covariate shift
+      All other fields are treated as parameters for the specific distribution. Please see 
+      `fl_bench.data` for more details.
     - `sampling_perc`: percentage of the dataset considered for training. 
       If `1.0`, the whole dataset is used for training.
-      
-    And only for FEMNIST:
-    - `num_features`: the number of features (784)
-    - `num_classes`: the number of classes (62)
     
 - `exp`: must contains the other settings for the experiment:
     - `seed`: the seed used for reproducibility purposes
     - `device`: the device used for training the model. If `auto`, the device is automatically selected
     - `average`: the averaging method using in the evaluation (e.g., "macro", "micro")
-    - `checkpoint`: the checkpoint configuration. It must be a dictionary with the following fields:
-        - `save`: if `true`, the model and the client optimizer are saved after each round
-        - `path`: the path where the checkpoint is saved
-        - `load`: if `true`, the checkpoint is loaded from the `path` before starting the training
         
-- `log`: must contains a dictionary with the settings for the logging:
-      - `logger`: the logger used for logging the results. It must be one of the following:
+- `logger`: must contains a dictionary with the settings for the logging:
+      - `name`: the logger used for logging the results. It must be one of the following:
           - `local`: the results are logged locally
           - `wandb`: the results are logged on wandb
       - `eval_every`: the number of rounds after which the model(s) is/are evaluated
-      - `wandb_params`: the parameters used for logging on wandb. Used only if `logger` is set to `wandb`.
-        It must be a dictionary with the following fields:
-          - `project`: the name of the project on wandb
-          - `entity`: the name of the entity on wandb
-          - `tags`: the tags used for logging on wandb
+    In the case of `wandb` as logger, the following fields must be specified:
+      - `project`: the name of the project on wandb
+      - `entity`: the name of the entity on wandb
+      - `tags`: the tags used for logging on wandb
 
 
 The `ALG_CONFIG` is a json file containing the following fields:
 - `name`: the name of the algorithm
-- `model`: the model to train. It must be a valid PyTorch model defined in the `net.py` file
 - `hyperparameters`: contains the dictinaries for the hyperparameters for clients and server:
+    - `model`: the model to train. It must be a valid PyTorch model defined in the `net.py` file
+
     - `server`: must contains a dictionary with the server hyperparameters (e.g., `{"weighted": true}`)
 
     - `client`: must contains a dictionary with the client hyperparameters, for example:
         - `batch_size`: the batch size used client-side for training the model
         - `loss`: the loss function used for training the model. It must be a valid PyTorch loss function
         - `local_epochs`: the number of epochs used client-side for training the model
-        - `optimizer_parameters`: the parameters used for the optimizer. 
+        - `optimizer`: the parameters used for the optimizer. 
           It must be a dictionary with the following fields:
             - `lr`: the learning rate
-            - `scheduler_kwargs`: the parameters used for the learning rate scheduler. 
-              It must be a dictionary with the following fields:
-                - `step_size`: the step size used for the learning rate scheduler
-                - `gamma`: the gamma used for the learning rate scheduler
+          All other parameters are optional.
+        - `scheduler`: (optional) the parameters used for the learning rate scheduler. 
+          It must be a dictionary with the following fields:
+            - `step_size`: the step size used for the learning rate scheduler
+            - `gamma`: the gamma used for the learning rate scheduler
         
-        For example, the `fedprox` algorithm requires also the following hyperparameters:
-        - `mu`: the mu used for the FedProx algorithm
-        - `lambda`: the lambda used for the FedProx algorithm
+    All other hyper-parameters added to either `client` or `server` are algorithm-specific. 
+    For example, the `fedprox` algorithm requires also the following hyperparameters for `client`:
+      - `mu`: the mu used for the FedProx algorithm
+      - `lambda`: the lambda used for the FedProx algorithm
 
 To run an algorithm, you need to run the following command:
 ```bash
@@ -96,14 +97,6 @@ python fl_bench/main.py --config=configs/exp_settings.json run configs/fedavg.js
 the command run the `fedavg` algorithm on the `mnist` dataset (see `exp_settings.json`) with the 
 all the parameters specified in the `exp_settings.json` file and the `fedavg.json` file.
 
-If you want, for example, to change the number of clients, you can run the following command:
-```bash
-python fl_bench/main.py --config=configs/exp_settings.json run configs/fedavg.json --n-clients=10
-```
-
-or you can change the number of clients in the `exp_settings.json` file and run the above command without
-specifying the `--n-clients` option.
-
 To date, the following (nn-based) federated algorithms are implemented:
 - FedAvg (`fedavg`)
 - FedSGD (`fedsgd`)
@@ -113,15 +106,15 @@ To date, the following (nn-based) federated algorithms are implemented:
 - FedOpt (`fedopt`)
 - MOON (`moon`)
 - FedExP(`fedexp`)
-- FedNova (`fednova`) [**To be tested**]
-- pFedMe (`pfedme`) [**To be tested**]
-- FedDyn (`feddyn`) [**To be tested**]
 - Ditto (`ditto`)
 - APFL (`apfl`)
 - FedRep (`fedrep`)
 - FedPer (`fedper`)
-- LG-FedAvg (`lgfedavg`) [**To be tested**]
 - SuPerFed (`superfed`)
+- LG-FedAvg (`lgfedavg`) [**To be tested**]
+- FedNova (`fednova`) [**To be tested**]
+- pFedMe (`pfedme`) [**To be tested**]
+- FedDyn (`feddyn`) [**To be tested**]
 
 FL-bench also offers the following (non nn-based) federated algorithms:
 - Adaboost.F (`adaboostf`)
