@@ -224,7 +224,7 @@ class Server(ObserverSubject):
         with torch.no_grad():
             for key in self.model.state_dict().keys():
                 if "num_batches_tracked" in key:
-                    avg_model_sd[key] = clients_sd[0][key].clone()
+                    # avg_model_sd[key] = clients_sd[0][key].clone()
                     continue
                 for i, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:

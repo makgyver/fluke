@@ -452,3 +452,28 @@ class FedPer_VGG9(GlobalLocalNet, VGG9):
 
     def forward_global(self, x):
         return self.encoder(x)
+    
+
+# https://github.com/Xtra-Computing/NIID-Bench
+class SimpleCNN(nn.Module):
+    def __init__(self, hidden_dims=(100,100), output_dim=10):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+
+        # for now, we hard coded this network
+        # i.e. we fix the number of hidden layers i.e. 2 layers
+        self.fc1 = nn.Linear(16*5*5, hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1], output_dim)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 5 * 5)
+
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
