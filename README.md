@@ -113,7 +113,7 @@ To date, the following (nn-based) federated algorithms are implemented:
 - FedOpt (`fedopt`)
 - MOON (`moon`)
 - FedExP(`fedexp`)
-- FedNova (`fednova`) [**Work in progress**]
+- FedNova (`fednova`) [**To be tested**]
 - pFedMe (`pfedme`) [**To be tested**]
 - FedDyn (`feddyn`) [**To be tested**]
 - Ditto (`ditto`)
@@ -136,6 +136,7 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 - [ ] Check the correctness of pFedMe -- **Work in progress**
 - [ ] Check the correctness of FedDyn -- **Work in progress**
 - [ ] Check the correctness of FedNova -- **Work in progress**
+- [ ] Check the correctness of LG-FedAvg -- **Work in progress**
 - [ ] Add documentation + check typing -- **Work in progress**
 - [x] Implement configuration file validator
 
