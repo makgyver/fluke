@@ -40,6 +40,7 @@ def generate_anchors(num_anchors: int, dim: int, seed: int=98765) -> torch.Tenso
 
 class FLHalfClient(Client):
     def __init__(self,
+                 index: int,
                  model: nn.Module,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
@@ -47,7 +48,7 @@ class FLHalfClient(Client):
                  loss_fn: Callable,
                  local_epochs: int,
                  tau: int):
-        super().__init__(model, train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+        super().__init__(index, model, train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
         self.personalized_model.init()
         self.hyper_params.update({
             "tau": tau
@@ -105,9 +106,9 @@ class FLHalfClient(Client):
         self.channel.send(Message(deepcopy(self.model.D), "model", self), self.server)
 
     def validate(self):
-        if self.validation_set is not None:
+        if self.test_set is not None:
             n_classes = self.model.output_size
-            test_loader = self.validation_set.transform(lambda x: relative_projection(self.personalized_model.E, x.view(x.size(0), -1), self.anchors))
+            test_loader = self.test_set.transform(lambda x: relative_projection(self.personalized_model.E, x.view(x.size(0), -1), self.anchors))
             return ClassificationEval(self.loss_fn, n_classes).evaluate(self.model.D, test_loader)
 
 
@@ -174,8 +175,6 @@ class FLHalfServer(Server):
                 self.aggregate(eligible)
                 self.notify_end_round(round + 1, self.model, None, client_evals)
                 self.rounds += 1 
-                if self.checkpoint_path is not None:
-                    self.save(self.checkpoint_path)
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
         

@@ -58,8 +58,9 @@ class CentralizedFL():
         self.loss = get_loss(config.loss)
         self.clients = [
             self.get_client_class()(
+                index=i,
                 train_set=clients_tr_data[i],  
-                validation_set=clients_te_data[i],
+                test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg, 
                 loss_fn=self.loss, 
                 **config.exclude('optimizer', 'loss', 'batch_size')
@@ -74,7 +75,6 @@ class CentralizedFL():
         self.server.channel.attach(callbacks)
         
     def run(self, n_rounds: int, eligible_perc: float):
-        self.server.init()
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc)
     
     def __str__(self) -> str:
@@ -84,12 +84,6 @@ class CentralizedFL():
     
     def __repr__(self) -> str:
         return self.__str__()
-
-    def activate_checkpoint(self, path: str):
-        self.server.checkpoint_path = path
-    
-    def load_checkpoint(self, path: str):
-        self.server.load(path)
 
 
 class PersonalizedFL(CentralizedFL):
@@ -106,9 +100,10 @@ class PersonalizedFL(CentralizedFL):
         self.loss = get_loss(config.loss)
         self.clients = [
             self.get_client_class()(
+                index=i,
                 model=model,
                 train_set=clients_tr_data[i],  
-                validation_set=clients_te_data[i],
+                test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg, 
                 loss_fn=self.loss, 
                 **config.exclude('optimizer', 'loss', 'batch_size', 'model')

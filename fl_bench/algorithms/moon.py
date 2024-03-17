@@ -14,6 +14,7 @@ from fl_bench.utils import OptimizerConfigurator, clear_cache
 
 class MOONClient(Client):
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
@@ -21,7 +22,7 @@ class MOONClient(Client):
                  local_epochs: int,
                  mu: float,
                  tau: float):
-        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "mu": mu,
             "tau": tau

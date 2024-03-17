@@ -16,6 +16,7 @@ from fl_bench.algorithms import PersonalizedFL
 class SuPerFedClient(PFLClient):
 
     def __init__(self, 
+                 index: int,
                  model: Module, 
                  train_set: FastTensorDataLoader, 
                  validation_set: FastTensorDataLoader, 
@@ -28,7 +29,7 @@ class SuPerFedClient(PFLClient):
                  nu: float = 0.1):
         assert mode in ["mm", "lm"]
 
-        super().__init__(model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "mode": mode,
             "start_mix": start_mix,

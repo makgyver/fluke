@@ -18,6 +18,7 @@ from fl_bench.utils.model import merge_models
 class APFLClient(PFLClient):
 
     def __init__(self, 
+                 index: int,
                  model: torch.nn.Module,
                  train_set: FastTensorDataLoader, 
                  validation_set: FastTensorDataLoader, 
@@ -25,7 +26,7 @@ class APFLClient(PFLClient):
                  loss_fn: Callable[..., Any], 
                  local_epochs: int = 3,
                  lam: float = 0.25):
-        super().__init__(model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.internal_model = deepcopy(model)

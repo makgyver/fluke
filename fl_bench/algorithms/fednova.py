@@ -1,29 +1,27 @@
 from copy import deepcopy
 import sys; sys.path.append(".")
-from collections import OrderedDict
 from typing import Callable, Iterable
 
 import torch
-from torch.nn import Module
 
-from fl_bench import GlobalSettings, Message
+from fl_bench import Message
 from fl_bench.algorithms import CentralizedFL
 from fl_bench.client import Client
 from fl_bench.server import Server
 from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator, clear_cache
-from fl_bench.utils.model import diff_model, flatten_grads, flatten_weights, assign_flatten_grads
+from fl_bench.utils import OptimizerConfigurator
 
 
 class FedNovaClient(Client):
     
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int):
-        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.tau = 0
     
     def _get_momentum(self):

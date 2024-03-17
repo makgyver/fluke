@@ -11,13 +11,14 @@ from fl_bench.utils import OptimizerConfigurator, clear_cache
 
 class FedProxClient(Client):
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
                  mu: float):
-        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "mu": mu
         })

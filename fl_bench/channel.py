@@ -1,4 +1,5 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
 
 from typing import Any, Dict, List
 from collections import defaultdict
@@ -7,7 +8,14 @@ from fl_bench import Message, ObserverSubject
 
 
 class Channel(ObserverSubject):
-    """A bi-directional communication channel. It is used to send and receive messages between parties."""
+    """A bi-directional communication channel. It is used to send and receive messages between the 
+    parties.
+    
+    The channel is an observer subject. It notifies its observers when a message is received.
+
+    Attributes:
+        _buffer (Dict[Any, Message]): The buffer to store the messages.
+    """
 
     def __init__(self):
         super().__init__()
@@ -24,15 +32,28 @@ class Channel(ObserverSubject):
         """Send a message to a receiver.
 
         If the message is a request to take an action (i.e., `type = '__action__'`), the payload
-        should be a tuple with the method to be called and the keyword arguments to be passed to 
-        the method.
+        should be a tuple with the method to be called and the keyword arguments (as a dictionary) 
+        to be passed to the method.
 
-        Parameters
-        ----------
-        message : Message
-            The message to be sent.
-        mbox : Any
-            The receiver.
+        To any sent message should correspond a received message. The receiver should call the
+        `receive` method of the channel to get the message. However, if the message is a request to
+        take an action, the channel directly calls the method on the receiver with the given keyword 
+        arguments.
+
+        Args:
+            message (Message): The message to be sent.
+            mbox (Any): The receiver.
+        
+        Example:
+            Sending a string message from the server to a client:
+            >>> channel = Channel()
+            >>> channel.send(Message("Hello", "greeting", server), client)
+
+            If the server wants to request the clients to run the `train` method which has an 
+            argument `epochs`, it can send a message with the following payload:
+            >>> message = Message((client.train, {"epochs": 3}), "__action__", server)
+            >>> channel.send(message, client)
+            This will call the `train` method of the client with the argument `epochs=3`.
         """
         if message.msg_type == "__action__":
             method, kwargs = message.payload
@@ -43,27 +64,18 @@ class Channel(ObserverSubject):
     def receive(self, mbox: Any, sender:Any=None, msg_type: str=None) -> Message:
         """Receive a message from a sender.
 
-        Parameters
-        ----------
-        mbox : Any
-            The receiver.
-        sender : Any, optional
-            The sender, by default None.
-        msg_type : str, optional
-            The type of the message, by default None.
-
-        Returns
-        -------
-        Message
-            The message received from sender.
-
-        Raises
-        ------
-        ValueError
-            If no message is found from sender with the given type.
+        Args:
+            mbox (Any): The receiver.
+            sender (Any): The sender.
+            msg_type (str): The type of the message.
+        
+        Returns:
+            Message: The message received.
+        
+        Raises:
+            ValueError: If the message is not found in the message box of the receiver with the
+                given sender and message type.
         """
-
-
         if sender is None and msg_type is None:
             msg = self._buffer[mbox].pop()
             self.notify_message_received(msg)
@@ -81,16 +93,18 @@ class Channel(ObserverSubject):
     def broadcast(self, message: Message, to: List[Any]):
         """Send a message to a list of receivers.
 
-        Parameters
-        ----------
-        message : Message
-            The message to be sent.
-        to : List[Any]
-            The list of receivers.
+        Args:
+            message (Message): The message to be sent.
+            to (List[Any]): The list of receivers.
         """
         for client in to:
             self.send(message, client)
     
     def notify_message_received(self, message: Message):
+        """Notify the observers that a message has been received.
+
+        Args:
+            message (Message): The message received.
+        """
         for observer in self._observers:
             observer.message_received(message)

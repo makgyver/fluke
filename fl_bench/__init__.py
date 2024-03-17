@@ -3,7 +3,6 @@ import torch
 import random
 import pickle
 import numpy as np
-import multiprocessing as mp
 from rich.console import Group
 from rich.progress import Progress, Live
 from typing import Any, Optional, Union, Iterable
@@ -45,14 +44,13 @@ class ObserverSubject():
 class GlobalSettings(metaclass=Singleton):
     """Global settings for the library.""" 
     
-    _device = 'cpu'
-    _seed = 0
-    _workers = 1
+    _device: str = 'cpu'
+    _seed: int = 0
 
-    _progress_FL = None
-    _progress_clients = None
-    _progress_server = None
-    _live_renderer = None
+    _progress_FL: Progress = None
+    _progress_clients: Progress = None
+    _progress_server: Progress = None
+    _live_renderer: Live = None
 
     def __init__(self):
         super().__init__()
@@ -66,10 +64,8 @@ class GlobalSettings(metaclass=Singleton):
     def set_seed(self, seed: int) -> None:
         """Set seed for reproducibility.
 
-        Parameters
-        ----------
-        seed : int
-            Seed to set.
+        Args:
+            seed (int): The seed.
         """
         self._seed = seed
         torch.manual_seed(seed)
@@ -83,10 +79,8 @@ class GlobalSettings(metaclass=Singleton):
     def auto_device(self) -> torch.device:
         """Set device to cuda if available, otherwise cpu.
         
-        Returns
-        -------
-        torch.device
-            The device.
+        Returns:
+            torch.device: The device.
         """
         self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         return self._device
@@ -94,15 +88,11 @@ class GlobalSettings(metaclass=Singleton):
     def set_device(self, device: fl_bench.utils.DeviceEnum) -> torch.device:
         """Set the device.
         
-        Parameters
-        ----------
-        device_name: name of the device to set (possible values are, cuda, cpu, and auto). When device_name is auto the cuda is used if available, otherwise cpu.
-
+        Args:
+            device (fl_bench.utils.DeviceEnum): The device.
         
-        Returns
-        -------
-        torch.device
-            The device.
+        Returns:
+            torch.device: The device.
         """
 
         if device == fl_bench.utils.DeviceEnum.AUTO:
@@ -114,56 +104,27 @@ class GlobalSettings(metaclass=Singleton):
     def get_device(self):
         """Get the device.
 
-        Returns
-        -------
-        torch.device
-            The device.
+        Returns:
+            torch.device: The device.
         """
         return self._device
-
-    def set_workers(self, workers: int) -> None:
-        """Set the number of workers.
-        
-        Parameters
-        ----------
-        workers : int
-            The number of workers.
-        """
-        self._workers = max(1, min(workers, mp.cpu_count()))
-    
-    def auto_workers(self) -> int:
-        """Set the number of workers to the number of cpu cores.
-        
-        Returns
-        -------
-        int
-            The number of workers.
-        """
-        self._workers = mp.cpu_count()
-        return self._workers
-
-    def get_workers(self) -> int:
-        """Get the number of workers.
-        
-        Returns
-        -------
-        int
-            The number of workers.
-        """
-        return self._workers
     
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
+
+        The progress bar types are:
+        - FL: The progress bar for the federated learning process.
+        - clients: The progress bar for the clients.
+        - server: The progress bar for the server.
         
-        Parameters
-        ----------
-        type : str
-            The type of progress bar.
+        Args:
+            progress_type (str): The type of progress bar.
         
-        Returns
-        -------
-        Progress
-            The progress bar.
+        Returns:
+            Progress: The progress bar.
+        
+        Raises:
+            ValueError: If the progress bar type is invalid.
         """
         if progress_type == 'FL':
             return self._progress_FL
@@ -177,25 +138,30 @@ class GlobalSettings(metaclass=Singleton):
     def get_live_renderer(self) -> Live:
         """Get the live renderer.
         
-        Returns
-        -------
-        Live
-            The live renderer.
+        Returns:
+            Live: The live renderer.
         """
         return self._live_renderer
 
     def get_seed(self):
         """Get the seed.
         
-        Returns
-        -------
-        int
-            The seed.
+        Returns:
+            int: The seed.
         """
         return self._seed
 
 
 class Message:
+    """Message class.
+
+    This class represents a message that can be sent between clients and the server.
+
+    Attributes:
+        msg_type (str): The type of the message.
+        payload (Any): The payload of the message.
+        sender (Any): The sender of the message.
+    """
     def __init__(self,
                  payload: Any,
                  msg_type: str="model",
@@ -205,6 +171,13 @@ class Message:
         self.sender: Optional[Any] = sender
     
     def get_size(self) -> int:
+        """Get the size of the message.
+
+        The message size is the size of the payload in bytes estimated using the `pickle` module.
+
+        Returns:
+            int: The size of the message in bytes.
+        """
         if self.payload is None:
             return 1
         return sys.getsizeof(pickle.dumps(self.payload))

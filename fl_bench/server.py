@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import numpy as np
-# import multiprocessing as mp
-from typing import Iterable, Any
+from typing import Any, Sequence
 from collections import OrderedDict
 
 import torch
+from torch import device
 from torch.nn import Module
 
 from fl_bench.utils import DDict
@@ -21,57 +21,58 @@ if TYPE_CHECKING:
 class Server(ObserverSubject):
     """Standard Server for Federated Learning.
 
-    Parameters
-    ----------
-    model : torch.nn.Module
-        The model to be trained.
-    clients : Iterable[Client]
-        The clients participating in the federation.
-    elegibility_percentage : float, optional
-        The percentage of clients that will be selected for each round, by default 0.5.
-    weighted : bool, optional
-        Whether to weight the clients by their number of samples, by default False.
+    This class is the base class for all servers in `FL-bench`. It implements the basic
+    functionalities of a federated learning server.
+
+    Attributes:
+        hyper_params (DDict): The hyper-parameters of the server. The default hyper-parameters are:
+            - weighted: A boolean indicating if the clients should be weighted by the number of 
+                samples when aggregating the models.
+            When a new server class inherits from this class, it can add all its hyper-parameters
+            to this dictionary.
+        device (torch.device): The device where the server runs.
+        model (torch.nn.Module): The federated model to be trained.
+        clients (Sequence[Client]): The clients that will participate in the federated learning 
+            process.
+        channel (Channel): The channel to communicate with the clients.
+        rounds (int): The number of rounds that have been executed.
+        test_data (FastTensorDataLoader): The test data to evaluate the model. If None, the model
+            will not be evaluated server-side.
     """
     def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
-                 clients: Iterable[Client], 
+                 clients: Sequence[Client], 
                  weighted: bool=False):
         super().__init__()
         self.hyper_params = DDict({
             "weighted": weighted
         })
-        self.device = GlobalSettings().get_device()
-        self.model = model
-        self.clients = clients
-        self.channel = Channel()
-        self.n_clients = len(clients)
-        self.callbacks = []
-        self.rounds = 0
-        self.checkpoint_path = None
-        self.test_data = test_data
+        self.device: device = GlobalSettings().get_device()
+        self.model: Module = model
+        self.clients: Sequence[Client] = clients
+        self.channel: Channel = Channel()
+        self.n_clients: int = len(clients)
+        self.rounds: int = 0
+        self.test_data: FastTensorDataLoader = test_data
+
         for client in self.clients:
             client.set_server(self)
     
     def _local_train(self, client: Client) -> None:
         self.channel.send(Message((client.local_train, {}), "__action__", self), client)
     
-    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+    def _broadcast_model(self, eligible: Sequence[Client]) -> None:
         self.channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
         """Run the federated learning algorithm.
 
-        Parameters
-        ----------
-        n_rounds : int, optional
-            The number of rounds to run, by default 10.
-        eligible_perc : float, optional
-            The percentage of clients that will be selected for each round, by default 0.1.
+        Args:
+            n_rounds (int, optional): The number of rounds to run. Defaults to 10.
+            eligible_perc (float, optional): The percentage of clients that will be selected for 
+                each round. Defaults to 0.1.
         """
-        # if GlobalSettings().get_workers() > 1:
-        #     return self._fit_multiprocess(n_rounds)
-
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
@@ -96,8 +97,6 @@ class Server(ObserverSubject):
                 self.aggregate(eligible)
                 self.notify_end_round(round + 1, self.model, self.test_data, client_evals)
                 self.rounds += 1 
-                if self.checkpoint_path is not None:
-                    self.save(self.checkpoint_path)
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
         
@@ -114,92 +113,27 @@ class Server(ObserverSubject):
             client._receive_model()
         client_evals = [client.validate() for client in self.clients]
         self.notify_finalize(client_evals if client_evals[0] else None)
-    
-    #CHECKME
-    # def _fit_multiprocess(self, n_rounds: int=10, eligible_perc: float=0.1) -> None:
-    #     """Run the federated learning algorithm using multiprocessing.
 
-    #     Parameters
-    #     ----------
-    #     n_rounds : int, optional
-    #         The number of rounds to run, by default 10.
-    #     """
-    #     progress_fl = GlobalSettings().get_progress_bar("FL")
-    #     progress_client = GlobalSettings().get_progress_bar("clients")
-    #     def callback_progress(result):
-    #         progress_fl.update(task_id=task_rounds, advance=1)
-    #         progress_client.update(task_id=task_local, advance=1)
-
-    #     client_x_round = int(self.n_clients*eligible_perc)
-    #     task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
-    #     task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
-
-    #     total_rounds = self.rounds + n_rounds
-        
-    #     with GlobalSettings().get_live_renderer():
-    #         for round in range(self.rounds, total_rounds):
-    #             self.notify_start_round(round + 1, self.model)
-    #             client_evals = []
-    #             eligible = self.get_eligible_clients(eligible_perc)
-    #             self.notify_selected_clients(round + 1, eligible)
-    #             self._broadcast_model(eligible)
-    #             progress_client.update(task_id=task_local, completed=0)
-    #             with mp.Pool(processes=GlobalSettings().get_workers()) as pool:
-    #                 for client in eligible:
-    #                     pool.apply_async(self._local_train,
-    #                                      args=(client,), 
-    #                                      callback=callback_progress)
-    #                     client_eval = client.validate()
-    #                     if client_eval:
-    #                         client_evals.append(client_eval)
-    #                 pool.close()
-    #                 pool.join()
-    #             client_evals = [c.get() for c in client_evals]
-    #             self.aggregate(eligible)
-    #             self.notify_end_round(round + 1, self.model, self.test_data, client_evals if client_evals[0] is not None else None)
-    #             self.rounds += 1
-    #             if self.checkpoint_path is not None:
-    #                 self.save(self.checkpoint_path)
-    #     progress_fl.remove_task(task_rounds)
-    #     progress_client.remove_task(task_local)
-
-    def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
+    def get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
         """Get the clients that will participate in the current round.
 
-        Parameters
-        ----------
-        eligible_perc : float
-            The percentage of clients that will be selected for the current round.
+        Args:
+            eligible_perc (float): The percentage of clients that will be selected.
         
-        Returns
-        -------
-        Iterable[Client]
-            The clients that will participate in the current round.
+        Returns:
+            Sequence[Client]: The clients that will participate in the current round.
         """
         if eligible_perc == 1:
             return self.clients
         n = int(self.n_clients * eligible_perc)
         return np.random.choice(self.clients, n)
 
-
-    def init(self, path: str=None, **kwargs) -> None:
-        """Initialize the server model from a checkpoint.
-
-        Parameters
-        ----------
-        path : str, optional
-            The path to the checkpoint, by default None. 
-            If None, the model will be initialized randomly.
-        """
-        if path is not None:
-            self.load(path)
-
-    def _get_client_models(self, eligible: Iterable[Client], state_dict: bool=True):
+    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool=True):
         if state_dict:
             return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
-    def _get_client_weights(self, eligible: Iterable[Client]):
+    def _get_client_weights(self, eligible: Sequence[Client]):
         if "weighted" in self.hyper_params.keys() and self.hyper_params.weighted:
             num_ex = [client.n_examples for client in eligible]
             tot_ex = sum(num_ex)
@@ -207,16 +141,15 @@ class Server(ObserverSubject):
         else:
             return [1. / len(eligible)] * len(eligible)
         
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
 
         The aggregation is done by averaging the models of the clients. If the hyperparameter 
         `weighted` is True, the clients are weighted by their number of samples.
+        The method directly updates the model of the server.
 
-        Parameters
-        ----------
-        eligible : Iterable[Client]
-            The clients whose models will be aggregated.
+        Args:
+            eligible (Sequence[Client]): The clients that will participate in the aggregation.
         """
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
@@ -234,66 +167,76 @@ class Server(ObserverSubject):
             self.model.load_state_dict(avg_model_sd)
     
     def notify_start_round(self, round: int, global_model: Any) -> None:
+        """Notify the observers that a new round has started.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+        """
         for observer in self._observers:
             observer.start_round(round, global_model)
     
-    def notify_end_round(self, round: int, global_model: Any, data: FastTensorDataLoader, client_evals: Iterable[Any]) -> None:
+    def notify_end_round(self, 
+                         round: int, 
+                         global_model: Any, 
+                         data: FastTensorDataLoader, 
+                         client_evals: Sequence[Any]) -> None:
+        """Notify the observers that a round has ended.
+        
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+            data (FastTensorDataLoader): The test data.
+            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+        """
         for observer in self._observers:
             observer.end_round(round, global_model, data, client_evals)
     
-    def notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
+    def notify_selected_clients(self, round: int, clients: Sequence[Any]) -> None:
+        """Notify the observers that the clients have been selected for the current round.
+
+        Args:
+            round (int): The round number.
+            clients (Sequence[Any]): The clients selected for the current round.
+        """
         for observer in self._observers:
             observer.selected_clients(round, clients)
     
     def notify_error(self, error: str) -> None:
+        """Notify the observers that an error has occurred.
+
+        Args:
+            error (str): The error message.
+        """
         for observer in self._observers:
             observer.error(error)
     
     def notify_send(self, msg: Message) -> None:
+        """Notify the observers that a message has been sent.
+
+        Args:
+            msg (Message): The message sent.
+        """
         for observer in self._observers:
             observer.send(msg)
     
     def notify_receive(self, msg: Message) -> None:
+        """Notify the observers that a message has been received.
+
+        Args:
+            msg (Message): The message received.
+        """
         for observer in self._observers:
             observer.receive(msg)
     
-    def notify_finalize(self, client_evals: Iterable[Any]) -> None:
+    def notify_finalize(self, client_evals: Sequence[Any]) -> None:
+        """Notify the observers that the federated learning process has ended.
+
+        Args:
+            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+        """
         for observer in self._observers:
             observer.finished(client_evals)
-    
-    def save(self, path: str) -> None:
-        """Save the model to a checkpoint.
-
-        Parameters
-        ----------
-        path : str
-            The path to the checkpoint.
-        """
-
-        torch.save({
-            'round': self.rounds,
-            'state_dict': self.model.state_dict(),
-            'client_optimizers': {
-                i: client.checkpoint() for i, client in enumerate(self.clients)
-            }
-        }, path)
-    
-    def load(self, path: str) -> None:
-        """Load the model from a checkpoint.
-
-        Parameters
-        ----------
-        path : str
-            The path to the checkpoint.
-        """
-        try:
-            checkpoint = torch.load(path)
-            self.model.load_state_dict(checkpoint['state_dict'])
-            self.rounds = checkpoint['round']
-            for i, client in enumerate(self.clients):
-                client.restore(checkpoint['client_optimizers'][i])
-        except Exception as e:
-            self.notify_error(f"Unable to load the checkpoint:\n\t{e}.\nCheckpoint will be ignored.")
 
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h,v in self.hyper_params.items()])

@@ -1,9 +1,12 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+
 from abc import ABC, abstractmethod
+from typing import Callable, Literal, Union, Iterable
 
 import torch
+from torch.nn import Module
 from sklearn.base import ClassifierMixin
-from typing import Callable, Literal, Union, Iterable
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
@@ -12,28 +15,31 @@ from fl_bench.data import FastTensorDataLoader
 class Evaluator(ABC):
     """Base class for all evaluators.
 
-    Parameters
-    ----------
-    data_loader : FastTensorDataLoader
-        The data loader to use for evaluation.
-    loss_fn : Callable
-        The loss function to consider.
+    This class is the base class for all evaluators in the `FL-bench`.
+
+    Attributes:
+        loss_fn (Callable): The loss function.
     """
     def __init__(self, loss_fn: Callable):
-        self.loss_fn = loss_fn
+        self.loss_fn: Callable = loss_fn
     
     @abstractmethod
-    def evaluate(self, model, eval_data_loader):
+    def evaluate(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
         """Evaluate the model.
 
-        Parameters
-        ----------
-        model : torch.nn.Module
-            The model to evaluate.
+        Args:
+            model (Module): The model to evaluate.
+            eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
         """
         pass
 
-    def __call__(self, model, eval_data_loader):
+    def __call__(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
+        """Evaluate the model.
+
+        Args:
+            model (Module): The model to evaluate.
+            eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
+        """
         return self.evaluate(model, eval_data_loader)
 
 
@@ -43,21 +49,10 @@ class ClassificationEval(Evaluator):
     The metrics computed are accuracy, precision, recall, f1 and the loss according to the provided
     loss function `loss_fn`.
 
-    Parameters
-    ----------
-    loss_fn : Callable
-        The loss function to consider.
-    n_classes : int, optional
-        The number of classes.
-    average : Literal["micro","macro"], optional
-        The average to use for the metrics, by default "micro".
-    device : torch.device, optional
-        The device to use for evaluation, by default torch.device("cpu").
-    
-    Returns
-    -------
-    dict[str, float]
-        The dictionary containing the computed metrics.
+    Attributes:
+        average (Literal["micro","macro"]): The average to use for the metrics.
+        n_classes (int): The number of classes.
+        device (torch.device): The device where the evaluation is performed.
     """
     def __init__(self, 
                  loss_fn: Callable, 
@@ -65,25 +60,13 @@ class ClassificationEval(Evaluator):
                  average: Literal["micro","macro"]="micro",
                  device: torch.device=torch.device("cpu")):
         super().__init__(loss_fn)
-        self.average = average
-        self.n_classes = n_classes
-        self.device = device
+        self.average: str = average
+        self.n_classes: int = n_classes
+        self.device: torch.device = device
 
     def evaluate(self, 
                  model: torch.nn.Module, 
                  eval_data_loader: Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]) -> dict:
-        """Evaluate the model.
-
-        Parameters
-        ----------
-        eval_data_loader : FastTensorDataLoader or Iterable[FastTensorDataLoader]
-            The data loader(s) to use for evaluation.
-        
-        Returns
-        -------
-        dict[str, float]
-            The dictionary containing the computed metrics.
-        """
         model.eval()
         task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
@@ -134,21 +117,14 @@ class ClassificationSklearnEval(Evaluator):
 
     The metrics computed are accuracy, precision, recall, and f1.
 
-    Parameters
-    ----------
-    average : Literal["micro","macro"], optional
-        The average to use for the metrics, by default "macro".
-    
-    Returns
-    -------
-    dict[str, float]
-        The dictionary containing the computed metrics.
+    Attributes:
+        average (Literal["micro","macro"]): The average to use for the metrics.
     """
 
     def __init__(self, 
                  average: Literal["micro","macro"]="macro"):
         super().__init__(None)
-        self.average = average
+        self.average: str = average
 
     def evaluate(self, 
                  model: ClassifierMixin, 

@@ -19,13 +19,14 @@ from fl_bench.algorithms import PersonalizedFL
 class LGFedAVGClient(PFLClient):
 
     def __init__(self, 
+                 index: int,
                  model: Module, 
                  train_set: FastTensorDataLoader, 
                  validation_set: FastTensorDataLoader, 
                  optimizer_cfg: OptimizerConfigurator, 
                  loss_fn: Callable[..., Any], # This is ignored!
                  local_epochs: int = 3):
-        super().__init__(model, train_set, validation_set, optimizer_cfg, CrossEntropyLoss, local_epochs)
+        super().__init__(index, model, train_set, validation_set, optimizer_cfg, CrossEntropyLoss, local_epochs)
 
     def _send_model(self):
         self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)

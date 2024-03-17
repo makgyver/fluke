@@ -39,12 +39,13 @@ class ScaffoldOptimizer(Optimizer):
 
 class ScaffoldClient(Client):
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int=3):
-        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.control = None
         self.delta_c = None
         self.delta_y = None

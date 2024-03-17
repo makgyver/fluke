@@ -14,6 +14,7 @@ from fl_bench.utils import OptimizerConfigurator, clear_cache
 class DittoClient(PFLClient):
 
     def __init__(self, 
+                 index: int,
                  model: torch.nn.Module,
                  train_set: FastTensorDataLoader, 
                  validation_set: FastTensorDataLoader, 
@@ -22,7 +23,7 @@ class DittoClient(PFLClient):
                  local_epochs: int = 3,
                  tau: int = 3,
                  lam: float = 0.1):
-        super().__init__(model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.hyper_params.update({

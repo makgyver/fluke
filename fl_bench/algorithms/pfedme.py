@@ -35,6 +35,7 @@ class pFedMeOptimizer(Optimizer):
 
 class PFedMeClient(PFLClient):
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
@@ -43,7 +44,7 @@ class PFedMeClient(PFLClient):
                  lr: float,
                  k: int):
         
-        super().__init__(None, train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+        super().__init__(index, None, train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
         self.hyper_params.update({
             "lr": lr,
             "k": k

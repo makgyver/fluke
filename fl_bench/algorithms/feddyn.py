@@ -41,13 +41,14 @@ def load_all_params(device, model, params):
 class FedDynClient(Client):
     
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
                  alpha: float):
-        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
 
         self.hyper_params.update({
             "alpha": alpha

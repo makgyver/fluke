@@ -1,59 +1,85 @@
 from __future__ import annotations
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
 
 import torch
 from abc import ABC
 from copy import deepcopy
 from typing import Callable
 
-from fl_bench.server import Server
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler as Scheduler
+from torch.nn import Module
+from torch import device
+
 from fl_bench import GlobalSettings, Message
+from fl_bench.server import Server
+from fl_bench.channel import Channel
 from fl_bench.utils import DDict, OptimizerConfigurator, clear_cache
 from fl_bench.data import FastTensorDataLoader
 from fl_bench.evaluation import ClassificationEval
 
 
-class Client(ABC):
-    """Standard client of a federated learning system.
 
-    Parameters
-    ----------
-    train_set : FastTensorDataLoader
-        The local training set.
-    optimizer_cfg : OptimizerConfigurator
-        The optimizer configurator.
-    loss_fn : Callable
-        The loss function.
-    validation_set : FastTensorDataLoader, optional
-        The local validation/test set, by default None.
-    local_epochs : int, optional
-        The number of local epochs, by default 3.
+class Client(ABC):
+    """Base Client class.
+
+    This class is the base class for all clients in the `FL-bench`. The behavior of the client is 
+    based on the FedAvg algorithm.
+
+    Attributes:
+        hyper_params (DDict): The hyper-parameters of the client. The default hyper-parameters are:
+            - loss_fn: The loss function.
+            - local_epochs: The number of local epochs.
+            When a new client class inherits from this class, it can add all its hyper-parameters
+            to this dictionary.
+        index (int): The client identifier.
+        train_set (FastTensorDataLoader): The local training set.
+        test_set (FastTensorDataLoader): The local test set.
+        optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
+            the optimizer and the learning rate scheduler.
+        optimizer (torch.optim.Optimizer): The optimizer.
+        scheduler (torch.optim.LRScheduler): The learning rate scheduler.
+        device (torch.device): The device where the client trains the model.
+        server (Server): The server.
+        channel (Channel): The channel to communicate with the server.
     """
     def __init__(self,
+                 index: int,
                  train_set: FastTensorDataLoader,
-                 validation_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int=3,
                  **additional_hyper_params):
+        
         self.hyper_params = DDict({
             "loss_fn": loss_fn,
             "local_epochs": local_epochs
         })
-
         self.hyper_params.update(additional_hyper_params)
 
-        self.train_set = train_set
-        self.validation_set = validation_set
-        self.n_examples = train_set.size
-        self.model = None
-        self.optimizer_cfg = optimizer_cfg
-        self.optimizer = None
-        self.scheduler = None
-        self.device = GlobalSettings().get_device()
-        self.server = None
+        self.index: int = index
+        self.train_set: FastTensorDataLoader = train_set
+        self.test_set: FastTensorDataLoader = test_set
+        self.n_examples: int = train_set.size
+        self.model: Module = None
+        self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
+        self.optimizer: Optimizer = None
+        self.scheduler: Scheduler = None
+        self.device: device = GlobalSettings().get_device()
+        self.server: Server = None
+        self.channel: Channel = None
     
     def set_server(self, server: Server):
+        """Set the server.
+
+        Along with the server, the channel is also set and the client must use this channel to
+        communicate with the server.
+
+        Args:
+            server (Server): The server.
+        """
         self.server = server
         self.channel = server.channel
 
@@ -70,17 +96,23 @@ class Client(ABC):
     def local_train(self, override_local_epochs: int=0) -> None:
         """Client's local training.
 
-        Parameters
-        ----------
-        override_local_epochs : int, optional
-            Override the number of local epochs, by default 0. If 0, use `self.hyper_params.local_epochs`.
+        The training occurs for a number of :attr:`hyper_params.local_epochs` epochs using the local 
+        training set and as loss function the one defined in :attr:`hyper_params.loss_fn`.
+        After the training, the client sends the model to the server.
+
+        Args:
+            override_local_epochs (int, optional): Override the number of local epochs, 
+                by default 0 (use the default number of local epochs).
         """
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs 
+                       else self.hyper_params.local_epochs)
         self._receive_model()
         self.model.train()
         self.model.to(self.device)
+        
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+        
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -91,21 +123,23 @@ class Client(ABC):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
+        
         self.model.to("cpu")
         clear_cache()
         self._send_model()
     
     def validate(self):
-        """Validate/test the local model.
+        """Test the local model on the :attr:`test_set`.
 
-        The validation/test only occurs if the `validation_set` is not `None`.
+        If the test set is not set, the method returns an empty dictionary.
 
-        Returns
-        -------
-        dict
-            The evaluation results.
+        Warning:
+            To date, only classification tasks are supported.
+
+        Returns:
+            dict: The evaluation results. The keys are the metrics and the values are the results.
         """
-        if self.validation_set is not None:
+        if self.test_set is not None:
             if self.model is None:
                 # ask for the model and receive it
                 self.channel.send(Message(self.server.model, "model", self.server), self)
@@ -113,40 +147,13 @@ class Client(ABC):
             
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.model.output_size).evaluate(self.model, 
-                                                                       self.validation_set)
-    
-    def checkpoint(self):
-        """Checkpoint the optimizer and the scheduler.
-        
-        Returns
-        -------
-        dict
-            The checkpoint. 
-        """
-
-        return {
-            "optimizer": self.optimizer.state_dict() if self.optimizer is not None else None,
-            "scheduler": self.scheduler.state_dict() if self.scheduler is not None else None
-        }
-
-    def restore(self, checkpoint):
-        """Restore the optimizer and the scheduler from a checkpoint.
-
-        Parameters
-        ----------
-        checkpoint : dict
-            The checkpoint.
-        """
-        if self.optimizer is not None:
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
-        if self.scheduler is not None:
-            self.scheduler.load_state_dict(checkpoint["scheduler"])
-        
+                                                                       self.test_set)
+        return {}
 
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h,v in self.hyper_params.items()])
         hpstr = "," + hpstr if hpstr else ""
-        return f"{self.__class__.__name__}(optim={self.optimizer_cfg}, "+\
+        return f"{self.__class__.__name__}[{self.index}](optim={self.optimizer_cfg}, "+\
                f"batch_size={self.train_set.batch_size}{hpstr})"
 
     def __repr__(self) -> str:
@@ -156,43 +163,39 @@ class Client(ABC):
 class PFLClient(Client):
     """Personalized Federated Learning client.
 
-    Parameters
-    ----------
-    model : torch.nn.Module
-        The personalized model.
-    train_set : FastTensorDataLoader
-        The local training set.
-    optimizer_cfg : OptimizerConfigurator
-        The optimizer configurator.
-    loss_fn : Callable
-        The loss function.
-    validation_set : FastTensorDataLoader, optional
-        The local validation/test set, by default None.
-    local_epochs : int, optional
-        The number of local epochs, by default 3.
+    This class is a personalized version of the :class:`Client` class. It is used to implement
+    personalized federated learning algorithms. The main difference is that the client has a
+    personalized model (:attr:`personalized_model`).
+
+    The client evaluation is performed using the personalized model instead of the global model.
+
+    Attributes:
+        personalized_model (torch.nn.Module): The personalized model.
     """
     def __init__(self,
-                 model: torch.nn.Module,
+                 index: int,
+                 model: Module,
                  train_set: FastTensorDataLoader,
                  validation_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int=3):
-        super().__init__(train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
-        self.personalized_model = model
+        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        self.personalized_model: Module = model
     
-    def validate(self):
-        """Validate/test the local model.
+    def validate(self) -> dict:
+        """Test the personalized model on the :attr:`test_set`.
 
-        The validation/test only occurs if the `validation_set` is not `None`.
-        Differently from the `Client` class, the `personalized_model` is used instead of `model`.
+        If the test set is not set, the method returns an empty dictionary.
 
-        Returns
-        -------
-        dict
-            The evaluation results.
+        Warning:
+            To date, only classification tasks are supported.
+
+        Returns:
+            dict: The evaluation results. The keys are the metrics and the values are the results.
         """
-        if self.validation_set is not None:
+        if self.test_set is not None:
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.personalized_model.output_size).evaluate(self.personalized_model, 
-                                                                                    self.validation_set)
+                                                                                    self.test_set)
+        return {}
