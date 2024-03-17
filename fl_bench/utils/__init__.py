@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import psutil
 from enum import Enum
-from typing import Any, Iterable
+from typing import Any, Sequence
 
 import torch
 from torch.nn import Module
@@ -28,37 +28,46 @@ if TYPE_CHECKING:
     from fl_bench import Message
 
 class DeviceEnum(Enum):
-    CPU: str = "cpu"
-    CUDA: str = "cuda"
-    AUTO: str = "auto"
-    MPS: str = "mps"
+    """Device enumerator."""
+    CPU: str = "cpu"    #: CPU
+    CUDA: str = "cuda"  #: CUDA
+    AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
+    MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
 
 
 class OptimizerConfigurator:
     """Optimizer configurator.
 
-    Parameters
-    ----------
-    optimizer_class : type[Optimizer]
-        The optimizer class.
-    scheduler_kwargs : dict, optional
-        The scheduler keyword arguments, by default None. If None, the scheduler
-        is set to StepLR with step_size=1 and gamma=1.
-    **optimizer_kwargs
-        The optimizer keyword arguments.
+    This class is used to configure the optimizer and the learning rate scheduler.
+    To date, only the `StepLR` scheduler is supported.
+
+    Attributes:
+        optimizer (type[Optimizer]): The optimizer class.
+        scheduler_kwargs (dict): The scheduler keyword arguments.
+        optimizer_kwargs (dict): The optimizer keyword arguments.
+    
+    Todo: 
+        * Add support for more schedulers.
     """ 
     def __init__(self,
                  optimizer_class: type[Optimizer], 
                  scheduler_kwargs: dict=None,
                  **optimizer_kwargs):
-        self.optimizer = optimizer_class
-        if scheduler_kwargs is not None:
-            self.scheduler_kwargs = scheduler_kwargs
-        else:
-            self.scheduler_kwargs = {"step_size": 1, "gamma": 1}
-        self.optimizer_kwargs = optimizer_kwargs
+        self.optimizer: type[Optimizer] = optimizer_class
+        self.scheduler_kwargs: DDict = (DDict(scheduler_kwargs) if scheduler_kwargs is not None
+                                        else DDict({"step_size": 1, "gamma": 1}))
+        self.optimizer_kwargs: DDict = DDict(optimizer_kwargs)
     
     def __call__(self, model: Module, **override_kwargs):
+        """Creates the optimizer and the scheduler.
+
+        Args:
+            model (Module): The model whose parameters will be optimized.
+            override_kwargs (dict): The optimizer's keyword arguments to override the default ones.
+
+        Returns:
+            tuple[Optimizer, StepLR]: The optimizer and the scheduler.
+        """
         if override_kwargs:
             self.optimizer_kwargs.update(override_kwargs)
         optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
@@ -74,10 +83,24 @@ class OptimizerConfigurator:
 
 
 class LogEnum(Enum):
-    LOCAL = "local"
-    WANDB = "wandb"
+    """Log enumerator."""
+    LOCAL = "local" #: Local logging
+    WANDB = "wandb" #: Weights and Biases logging
 
-    def logger(self, classification_eval, eval_every, **wandb_config):
+    def logger(self, 
+               classification_eval: Evaluator, 
+               eval_every: int, 
+               **wandb_config):
+        """Returns a new logger according to the enumerator.
+
+        Args:
+            classification_eval (Evaluator): The evaluator that will be used to evaluate the model.
+            eval_every (int): The number of rounds between evaluations.
+            **wandb_config (dict): The configuration for Weights and Biases.
+        
+        Returns:
+            Log: The logger.
+        """
         if self == LogEnum.LOCAL:
             return Log(classification_eval, 
                        eval_every if eval_every else 1)
@@ -88,40 +111,74 @@ class LogEnum(Enum):
                 **wandb_config)
 
 class ServerObserver():
-    
+    """Server observer interface.
+
+    This interface is used to observe the server during the federated learning process.
+    For example, it can be used to log the performance of the global model and the communication 
+    costs, as it is done in the :class:`Log` class.
+    """
     def start_round(self, round: int, global_model: Any):
         pass
 
-    def end_round(self, round: int, global_model: Any, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+    def end_round(self, 
+                  round: int, 
+                  global_model: Any, 
+                  data: FastTensorDataLoader, 
+                  client_evals: Sequence[Any]):
         pass
 
-    def selected_clients(self, round: int, clients: Iterable):
+    def selected_clients(self, round: int, clients: Sequence):
         pass
 
     def error(self, error: str):
         pass
 
-    def finished(self,  client_evals: Iterable[Any]):
+    def finished(self,  client_evals: Sequence[Any]):
         pass
 
 
 class ChannelObserver():
+    """Channel observer interface.
+
+    This interface is used to observe the communication channel during the federated learning 
+    process.
+    """
     
     def message_received(self, message: Message):
         pass
 
 
 class Log(ServerObserver, ChannelObserver):
+    """Default logger.
+
+    This class is used to log the performance of the global model and the communication costs during
+    the federated learning process. The logging happens in the console.
+
+    Attributes:
+        evaluator (Evaluator): The evaluator that will be used to evaluate the model.
+        history (dict): The history of the global model's performance.
+        client_history (dict): The history of the clients' performance.
+        comm_costs (dict): The history of the communication costs.
+        current_round (int): The current round.
+        eval_every (int): The number of rounds between evaluations.
+    """
 
     def __init__(self, evaluator: Evaluator, eval_every: int=1):
-        self.evaluator = evaluator
-        self.history = {}
-        self.client_history = {}
-        self.comm_costs = {0: 0}
-        self.current_round = 0
-        self.eval_every = eval_every
+        self.evaluator: Evaluator = evaluator
+        self.history: dict = {}
+        self.client_history: dict= {}
+        self.comm_costs: dict = {0: 0}
+        self.current_round: int = 0
+        self.eval_every: int = eval_every
     
     def init(self, **kwargs):
+        """Initialize the logger.
+
+        The initialization is done by printing the configuration in the console.
+
+        Args:
+            **kwargs: The configuration.
+        """
         rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
     
     def start_round(self, round: int, global_model: Module):
@@ -131,7 +188,11 @@ class Log(ServerObserver, ChannelObserver):
         if round == 1 and self.comm_costs[0] > 0:
             rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
 
-    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+    def end_round(self, 
+                  round: int, 
+                  global_model: Module, 
+                  data: FastTensorDataLoader, 
+                  client_evals: Sequence[Any]):
         if round % self.eval_every == 0:
             self.history[round] = self.evaluator(global_model, data)
             stats = { 'global': self.history[round] }
@@ -151,20 +212,27 @@ class Log(ServerObserver, ChannelObserver):
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
     
-    def finished(self, client_evals: Iterable[Any]):
+    def finished(self, client_evals: Sequence[Any]):
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[self.current_round + 1] = client_mean
-            rich.print(Panel(Pretty(client_mean, expand_all=True), title=f"Overall local performance"))
+            rich.print(Panel(Pretty(client_mean, expand_all=True), 
+                             title=f"Overall local performance"))
         
         if self.history[self.current_round]:
-            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True), title=f"Overall global performance"))
+            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True), 
+                             title=f"Overall global performance"))
         
         rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True), 
                          title=f"Total communication cost"))
     
     def save(self, path: str):
+        """Save the logger's history to a JSON file.
+
+        Args:
+            path (str): The path to the JSON file.
+        """
         json_to_save = {
             "perf_global": self.history,
             "comm_costs": self.comm_costs,
@@ -174,6 +242,11 @@ class Log(ServerObserver, ChannelObserver):
             json.dump(json_to_save, f, indent=4)
         
     def error(self, error: str):
+        """Log an error.
+
+        Args:
+            error (str): The error message.
+        """
         rich.print(f"[bold red]Error: {error}[/bold red]")
 
 
@@ -192,7 +265,7 @@ class WandBLog(Log):
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Iterable[Any]):
+    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Sequence[Any]):
         super().end_round(round, global_model, data, client_evals)
         if round % self.eval_every == 0:
             self.run.log({ "global": self.history[round]}, step=round)
@@ -200,7 +273,7 @@ class WandBLog(Log):
             if client_evals:
                 self.run.log({ "local": self.client_history[round]}, step=round)
     
-    def finished(self, client_evals: Iterable[Any]):
+    def finished(self, client_evals: Sequence[Any]):
         super().finished(client_evals)
         if client_evals:
             self.run.log({"local" : self.client_history[self.current_round+1]}, step=self.current_round+1)
@@ -209,25 +282,90 @@ class WandBLog(Log):
         super().save(path)
         self.run.finish()
 
+def import_module_from_str(name: str) -> Any:
+    """Import a module from its name.
 
-def _get_class_from_str(module_name: str, class_name: str) -> Any:
+    Args:
+        name (str): The name of the module.
+    
+    Returns:
+        Any: The module.
+    """
+    components = name.split('.')
+    mod = importlib.import_module(".".join(components[:-1]))
+    mod = getattr(mod, components[-1])
+    return mod
+
+
+def get_class_from_str(module_name: str, class_name: str) -> Any:
+    """Get a class from its name.
+
+    This function is used to get a class from its name and the name of the module where it is 
+    defined. It is used to dynamically import classes.
+
+    Args:
+        module_name (str): The name of the module where the class is defined.
+        class_name (str): The name of the class.
+
+    Returns:
+        Any: The class.
+    """
     module = importlib.import_module(module_name)
     class_ = getattr(module, class_name)
     return class_
 
-def get_loss(lname: str) -> torch.nn.Module:
-    return _get_class_from_str("torch.nn", lname)()
+def get_loss(lname: str) -> Module:
+    """Get a loss function from its name.
 
-def get_model(mname:str, **kwargs) -> torch.nn.Module:
-    return _get_class_from_str("net", mname)(**kwargs)
+    The supported loss functions are the ones defined in the `torch.nn` module.
+
+    Args:
+        lname (str): The name of the loss function.
+    
+    Returns:
+        Module: The loss function.
+    """
+    return get_class_from_str("torch.nn", lname)()
+
+def get_model(mname:str, module_name: str="net", **kwargs) -> Module:
+    """Get a model from its name.
+
+    This function is used to get a model from its name and the name of the module where it is
+    defined. It is used to dynamically import models.
+
+    Args:
+        mname (str): The name of the model.
+        module_name (str, optional): The name of the module where the model is defined. 
+            Defaults to "net".
+        **kwargs: The keyword arguments to pass to the model's constructor.
+
+    Returns:
+        Module: The model.
+    """
+    return get_class_from_str(module_name, mname)(**kwargs)
 
 def get_scheduler(sname:str) -> torch.nn.Module:
-    return _get_class_from_str("torch.optim.lr_scheduler", sname)
+    """Get a learning rate scheduler from its name.
 
-def cli_option(default: Any, help: str) -> Any:
-    return typer.Option(default=None, show_default=default, help=help)
+    This function is used to get a learning rate scheduler from its name. It is used to dynamically
+    import learning rate schedulers. The supported schedulers are the ones defined in the
+    `torch.optim.lr_scheduler` module.
+
+    Args:
+        sname (str): The name of the scheduler.
+    
+    Returns:
+        torch.nn.Module: The learning rate scheduler.
+    """
+    return get_class_from_str("torch.optim.lr_scheduler", sname)
 
 def clear_cache(ipc: bool=False):
+    """Clear the CUDA cache.
+    
+    Args:
+        ipc (bool, optional): Whether to force collecting GPU memory after it has been released by 
+            CUDA IPC.
+    """
     torch.cuda.empty_cache()
     if ipc:
         torch.cuda.ipc_collect()
@@ -249,11 +387,22 @@ class DDict(dict):
                 self[k] = v
     
     def exclude(self, *keys: str):
+        """Create a new DDict excluding the specified keys.
+
+        Returns:
+            DDict: The new DDict.
+        """
         return DDict({k: v for k, v in self.items() if k not in keys})
 
                 
 class Configuration(DDict):
+    """FL-Bench configuration class.
 
+
+
+    Args:
+        DDict (_type_): _description_
+    """
     def __init__(self, config_exp_path: str, config_alg_path: str):
         with open(config_exp_path) as f:
             config_exp = json.load(f)
@@ -355,9 +504,5 @@ class Configuration(DDict):
 
 
 
-def import_module_from_str(name: str) -> Any:
-    components = name.split('.')
-    mod = importlib.import_module(".".join(components[:-1]))
-    mod = getattr(mod, components[-1])
-    return mod
+
 

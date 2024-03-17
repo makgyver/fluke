@@ -1,10 +1,8 @@
-from functools import partial
 import sys
+sys.path.append(".")
 
-import numpy as np; sys.path.append(".")
-
-
-
+import numpy as np
+from functools import partial
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -15,11 +13,38 @@ from torch.nn import Module
 
 
 def diff_model(model_dict1: dict, model_dict2: dict):
+    """Compute the difference between two models.
+
+    The difference is computed at the level of the parameters.
+
+    Args:
+        model_dict1 (dict): The state dictionary of the first model.
+        model_dict2 (dict): The state dictionary of the second model.
+
+    Returns:
+        OrderedDict: The state dictionary of the difference between the two models.
+    
+    Raises:
+        AssertionError: If the two models have different architectures.
+    """
     assert model_dict1.keys() == model_dict2.keys(), "Models have not the same architecture"
     return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
 
 
 def merge_models(model_1: Module, model_2: Module, lam: float):
+    """Merge two models using a linear interpolation.
+
+    The interpolation is done at the level of the parameters using the formula:
+    `merged_model = (1 - lam) * model_1 + lam * model_2`.
+
+    Args:
+        model_1 (Module): The first model.
+        model_2 (Module): The second model.
+        lam (float): The interpolation constant.
+    
+    Returns:
+        Module: The merged model.
+    """
     merged_model = deepcopy(model_1)
     for name, param in merged_model.named_parameters():
         param.data = (1 - lam) * model_1.get_parameter(name).data + lam  * model_2.get_parameter(name).data
