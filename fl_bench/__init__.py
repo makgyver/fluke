@@ -69,6 +69,8 @@ class GlobalSettings(metaclass=Singleton):
         """
         self._seed = seed
         torch.manual_seed(seed)
+        gen = torch.Generator()
+        gen.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
         np.random.seed(seed)
