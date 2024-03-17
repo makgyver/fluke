@@ -1,6 +1,7 @@
 .DS_Store
 *.pyc
-.vscode/launch.json
+.vscode/*
+.venv/*
 log
 wandb
 venv.nosync
@@ -13,3 +14,4 @@ checkpoints
 data/*
 exp_configs/*
 alg_configs/*
+docs/*
