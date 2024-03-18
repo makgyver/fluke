@@ -4,7 +4,7 @@ sys.path.append(".")
 from typing import Any, Dict, List
 from collections import defaultdict
 
-from fl_bench import Message, ObserverSubject
+from . import Message, ObserverSubject
 
 
 class Channel(ObserverSubject):

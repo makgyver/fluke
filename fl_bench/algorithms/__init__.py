@@ -1,14 +1,40 @@
+from __future__ import annotations
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from typing import Callable, Union, Any, Iterable
 
 import torch
 from enum import Enum
 
-from fl_bench.client import Client
-from fl_bench.server import Server
-from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator, get_loss, get_model
+from ..client import Client
+from ..server import Server
+from ..data import DataSplitter, FastTensorDataLoader
+from ..utils import DDict, OptimizerConfigurator, get_loss, get_model
 
-
+__all__ = [
+    'apfl',
+    'ditto',
+    'fedavg',
+    'fedavgm',
+    'fedbn',
+    'feddisel',
+    'feddyn',
+    'fedexp',
+    'fednova',
+    'fedopt',
+    'fedper',
+    'fedprox',
+    'fedrep',
+    'fedsgd',
+    'flhalf',
+    'lg_fedavg',
+    'moon',
+    'pfedme',
+    'scaffold',
+    'superfed'
+]
+    
 class CentralizedFL():
     """Generic Centralized Federated Learning algorithm.
 

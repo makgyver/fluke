@@ -1,4 +1,8 @@
 from __future__ import annotations
+import sys
+sys.path.append(".")
+sys.path.append("..")
+
 from enum import Enum
 
 from pyparsing import Optional
@@ -14,8 +18,12 @@ from scipy.stats.mstats import mquantiles
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from fl_bench.utils import DDict
+    from utils import DDict
 
+__all__ = [
+    'datasets',
+    'support'
+]
 
 class DataContainer:
     """Container for train and test (classification) data.
@@ -160,7 +168,7 @@ class DataSplitter:
     **kwargs : dict
         Additional parameters.
     """
-    from fl_bench.data.datasets import DatasetsEnum
+    from .datasets import DatasetsEnum
     
     @classmethod
     def from_config(cls, config: DDict) -> DataSplitter:
@@ -581,7 +589,7 @@ class DummyDataSplitter(DataSplitter):
         The number of classes of the dataset.
     """
 
-    from fl_bench.data.datasets import DatasetsEnum
+    from .datasets import DatasetsEnum
 
     def __init__(self, 
                  dataset: DatasetsEnum,

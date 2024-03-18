@@ -8,14 +8,14 @@ import torch
 from torch import device
 from torch.nn import Module
 
-from fl_bench.utils import DDict
-from fl_bench.channel import Channel
-from fl_bench.data import FastTensorDataLoader
-from fl_bench import GlobalSettings, Message, ObserverSubject
+from .utils import DDict
+from .channel import Channel
+from .data import FastTensorDataLoader
+from . import GlobalSettings, Message, ObserverSubject
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from fl_bench.client import Client
+    from .client import Client
 
 
 class Server(ObserverSubject):

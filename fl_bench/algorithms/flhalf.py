@@ -1,4 +1,6 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from copy import deepcopy
 import random
 from typing import Callable, Iterable
@@ -9,14 +11,14 @@ from torch.nn import Module
 import torch.nn.functional as F
 from rich.progress import Progress
 
-from fl_bench import GlobalSettings, Message
-from fl_bench.evaluation import ClassificationEval
-from fl_bench.client import Client
-from fl_bench.server import Server
-from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import DDict, OptimizerConfigurator
-from fl_bench.algorithms import CentralizedFL
-# from fl_bench.net import EDModule
+from .. import GlobalSettings, Message
+from ..evaluation import ClassificationEval
+from ..client import Client
+from ..server import Server
+from ..data import DataSplitter, FastTensorDataLoader
+from ..utils import DDict, OptimizerConfigurator
+from ..algorithms import CentralizedFL
+# from .net import EDModule
 
 def _set_seed(seed: int) -> None:
     random.seed(seed)

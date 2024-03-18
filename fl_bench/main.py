@@ -1,5 +1,6 @@
 import sys
-import torch; sys.path.append(".")
+sys.path.append(".")
+import torch
 
 import typer
 
@@ -8,11 +9,11 @@ from rich.progress import track
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-from fl_bench import GlobalSettings
-from fl_bench.data import DataSplitter, FastTensorDataLoader
-from fl_bench.utils import Configuration, OptimizerConfigurator, get_loss, get_model
-from fl_bench.evaluation import ClassificationEval
-from fl_bench.algorithms import FedAlgorithmsEnum
+from . import GlobalSettings
+from .data import DataSplitter, FastTensorDataLoader
+from .utils import Configuration, OptimizerConfigurator, get_loss, get_model
+from .evaluation import ClassificationEval
+from .algorithms import FedAlgorithmsEnum
 
 app = typer.Typer()
 
@@ -99,29 +100,6 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
 
     rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
     # GlobalSettings().set_workers(8)
-    fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
-
-
-@app.command()
-def run_boost(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
-
-    cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    GlobalSettings().set_seed(cfg.exp.seed) 
-    GlobalSettings().set_device(cfg.exp.device)
-    data_splitter = DataSplitter.from_config(cfg.data)
-    
-    log = cfg.log.logger.logger(ClassificationSklearnEval("macro"), 
-                                name=str(cfg),
-                                **cfg.log.wandb_params)
-    log.init(**cfg)
-
-    fl_algo_builder = FedAdaboostAlgorithmsEnum(cfg.method.name)
-    fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
-    fl_algo.set_callbacks(log)
-
-    rich.print(Panel(Pretty(fl_algo), title=f"FL algorithm"))
-
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
     # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 

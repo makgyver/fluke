@@ -1,4 +1,6 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 from copy import deepcopy
 from collections import OrderedDict
@@ -8,12 +10,12 @@ import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from fl_bench import Message
-from fl_bench.client import Client, PFLClient
-from fl_bench.server import Server
-from fl_bench.algorithms import CentralizedFL
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator
+from .. import Message
+from ..client import Client, PFLClient
+from ..server import Server
+from ..algorithms import CentralizedFL
+from ..data import FastTensorDataLoader
+from ..utils import OptimizerConfigurator
 
 
 class pFedMeOptimizer(Optimizer):

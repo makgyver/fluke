@@ -1,13 +1,15 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 import torch
 from copy import deepcopy
 from typing import Callable
-from algorithms import CentralizedFL
 
-from fl_bench.client import Client
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator, clear_cache
+from . import CentralizedFL
+from ..client import Client
+from ..data import FastTensorDataLoader
+from ..utils import OptimizerConfigurator, clear_cache
 
 class FedProxClient(Client):
     def __init__(self,

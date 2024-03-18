@@ -1,14 +1,16 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 import torch
 from copy import deepcopy
 from typing import Any, Iterable
 from collections import OrderedDict
 
-from fl_bench.client import Client
-from fl_bench.server import Server
-from fl_bench.utils.model import diff_model
-from fl_bench.algorithms import CentralizedFL
+from ..client import Client
+from ..server import Server
+from ..utils.model import diff_model
+from ..algorithms import CentralizedFL
 
 
 class FedExPServer(Server):

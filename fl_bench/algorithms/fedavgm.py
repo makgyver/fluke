@@ -1,17 +1,19 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Iterable
 from collections import OrderedDict
 
 import torch
 from torch.nn import Module
 
-from fl_bench.client import Client
-from fl_bench.server import Server
-from fl_bench.utils.model import diff_model
-from fl_bench.algorithms import CentralizedFL
-from fl_bench.data import FastTensorDataLoader
+from ..client import Client
+from ..server import Server
+from ..utils.model import diff_model
+from ..algorithms import CentralizedFL
+from ..data import FastTensorDataLoader
 
 
 class FedAVGMServer(Server):

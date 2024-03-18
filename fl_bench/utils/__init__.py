@@ -1,7 +1,9 @@
 from __future__ import annotations
+import sys
+sys.path.append(".")
+sys.path.append("..")
 import os
 import json
-import typer
 import wandb
 import importlib
 import numpy as np
@@ -19,21 +21,16 @@ import rich
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-from fl_bench.data import DistributionEnum, FastTensorDataLoader
-from fl_bench.evaluation import Evaluator
-from fl_bench.data.datasets import DatasetsEnum
+from .. import DeviceEnum
+from ..data import DistributionEnum, FastTensorDataLoader
+from ..evaluation import Evaluator
+from ..data.datasets import DatasetsEnum
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from fl_bench import Message
+    from .. import Message
 
-class DeviceEnum(Enum):
-    """Device enumerator."""
-    CPU: str = "cpu"    #: CPU
-    CUDA: str = "cuda"  #: CUDA
-    AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
-    MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
-
+__all__ = ['model']
 
 class OptimizerConfigurator:
     """Optimizer configurator.
@@ -327,7 +324,7 @@ def get_loss(lname: str) -> Module:
     """
     return get_class_from_str("torch.nn", lname)()
 
-def get_model(mname:str, module_name: str="net", **kwargs) -> Module:
+def get_model(mname:str, module_name: str="fl_bench.net", **kwargs) -> Module:
     """Get a model from its name.
 
     This function is used to get a model from its name and the name of the module where it is

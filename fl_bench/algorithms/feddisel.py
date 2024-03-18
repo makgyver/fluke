@@ -1,14 +1,17 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from typing import Iterable
 
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.server import Server
+
 from copy import deepcopy
 from torch.nn import Module
 
-from fl_bench import Message
-from fl_bench.client import Client, PFLClient
-from fl_bench.algorithms import PersonalizedFL
+from .. import Message
+from ..data import FastTensorDataLoader
+from ..server import Server
+from ..client import Client, PFLClient
+from ..algorithms import PersonalizedFL
 
 # FEDerated DISEntanglment Learning
 class FedDiselClient(PFLClient):

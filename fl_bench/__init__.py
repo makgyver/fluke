@@ -1,3 +1,4 @@
+from enum import Enum
 import sys
 import torch
 import random
@@ -7,7 +8,29 @@ from rich.console import Group
 from rich.progress import Progress, Live
 from typing import Any, Optional, Union, Iterable
 
-import fl_bench.utils
+# from fl_bench import algorithms
+# from fl_bench import channel
+# from fl_bench import data
+# from fl_bench import evaluation
+# from fl_bench import net
+# from fl_bench import client
+# from fl_bench import server
+# from fl_bench import utils
+
+# from utils import DeviceEnum
+
+__all__ = [
+    'channel',
+    'algorithms',
+    'data',
+    'evaluation',
+    'net',
+    'client',
+    'server',
+    'utils',
+    'main'
+]
+
 
 class Singleton(type):
     """Singleton metaclass."""
@@ -40,6 +63,12 @@ class ObserverSubject():
         except ValueError:
             pass
 
+class DeviceEnum(Enum):
+    """Device enumerator."""
+    CPU: str = "cpu"    #: CPU
+    CUDA: str = "cuda"  #: CUDA
+    AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
+    MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
 
 class GlobalSettings(metaclass=Singleton):
     """Global settings for the library.""" 
@@ -87,7 +116,7 @@ class GlobalSettings(metaclass=Singleton):
         self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         return self._device
     
-    def set_device(self, device: fl_bench.utils.DeviceEnum) -> torch.device:
+    def set_device(self, device: DeviceEnum) -> torch.device:
         """Set the device.
         
         Args:
@@ -96,8 +125,7 @@ class GlobalSettings(metaclass=Singleton):
         Returns:
             torch.device: The device.
         """
-
-        if device == fl_bench.utils.DeviceEnum.AUTO:
+        if device == DeviceEnum.AUTO:
             return GlobalSettings().auto_device()
 
         self._device = torch.device(device.value)

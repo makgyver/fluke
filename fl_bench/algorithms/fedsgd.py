@@ -1,7 +1,9 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
-from fl_bench.data import DataSplitter
-from fl_bench.algorithms import CentralizedFL
+from ..data import DataSplitter
+from ..algorithms import CentralizedFL
 
 
 class FedSGD(CentralizedFL):

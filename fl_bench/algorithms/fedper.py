@@ -1,12 +1,12 @@
-import sys; sys.path.append(".")
-
-from fl_bench.algorithms import PersonalizedFL
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 from copy import deepcopy
 
-from fl_bench import Message
-from fl_bench.client import PFLClient
-
+from .. import Message
+from ..client import PFLClient
+from ..algorithms import PersonalizedFL
 
 # https://arxiv.org/abs/1912.00818
 class FedPerClient(PFLClient):

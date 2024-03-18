@@ -14,7 +14,7 @@ from datasets import load_dataset
 from torchvision import datasets
 from torchvision.transforms import ToTensor, Lambda
 
-from fl_bench.data import DataContainer, FastTensorDataLoader, support
+from . import DataContainer, FastTensorDataLoader, support
 
 
 class Datasets:

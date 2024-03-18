@@ -1,4 +1,6 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 from copy import deepcopy
 from collections import OrderedDict
@@ -7,13 +9,13 @@ from typing import Callable, Iterable
 import torch
 import numpy as np
 from torch.nn import Module
-from algorithms import CentralizedFL
-from fl_bench import Message
-from server import Server
 
-from fl_bench.utils import OptimizerConfigurator, clear_cache
-from fl_bench.client import Client
-from fl_bench.data import FastTensorDataLoader
+from . import CentralizedFL
+from .. import Message
+from ..server import Server
+from ..utils import OptimizerConfigurator, clear_cache
+from ..client import Client
+from ..data import FastTensorDataLoader
 
 
 def get_all_params_of(model, copy=True) -> torch.Tensor:

@@ -1,4 +1,6 @@
-import sys;  sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from copy import deepcopy
 
 import numpy as np
@@ -6,11 +8,11 @@ from typing import Any, Callable
 
 from torch.nn.modules import Module
 
-from fl_bench.client import PFLClient
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils.model import get_global_model_dict, get_local_model_dict, mix_networks, set_lambda_model
-from fl_bench.utils import OptimizerConfigurator, clear_cache
-from fl_bench.algorithms import PersonalizedFL
+from ..client import PFLClient
+from ..data import FastTensorDataLoader
+from ..utils.model import get_global_model_dict, get_local_model_dict, mix_networks, set_lambda_model
+from ..utils import OptimizerConfigurator, clear_cache
+from ..algorithms import PersonalizedFL
 
 
 class SuPerFedClient(PFLClient):

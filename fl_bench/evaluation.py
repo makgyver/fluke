@@ -8,7 +8,7 @@ import torch
 from torch.nn import Module
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 
-from fl_bench.data import FastTensorDataLoader
+from .data import FastTensorDataLoader
 
 class Evaluator(ABC):
     """Base class for all evaluators.

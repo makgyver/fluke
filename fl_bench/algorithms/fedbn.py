@@ -1,11 +1,13 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 import torch
 from copy import deepcopy
 
-from fl_bench import Message
-from fl_bench.client import Client
-from fl_bench.algorithms import CentralizedFL
+from .. import Message
+from ..client import Client
+from ..algorithms import CentralizedFL
 
 
 class FedBNClient(Client):

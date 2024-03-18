@@ -1,5 +1,6 @@
-import sys; sys.path.append(".")
-
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from enum import Enum
 from copy import deepcopy
 from typing import Iterable
@@ -8,10 +9,10 @@ from collections import OrderedDict
 import torch
 from torch.nn import Module
 
-from fl_bench.server import Server
-from fl_bench.client import Client
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.algorithms import CentralizedFL
+from ..server import Server
+from ..client import Client
+from ..data import FastTensorDataLoader
+from ..algorithms import CentralizedFL
 
 
 class FedOptMode(Enum):

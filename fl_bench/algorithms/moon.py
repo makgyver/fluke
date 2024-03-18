@@ -1,4 +1,6 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
 from copy import deepcopy
 from typing import Callable
@@ -6,10 +8,10 @@ from typing import Callable
 import torch
 from torch.nn import CosineSimilarity
 
-from fl_bench.client import Client
-from fl_bench.algorithms import CentralizedFL
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator, clear_cache
+from ..client import Client
+from ..algorithms import CentralizedFL
+from ..data import FastTensorDataLoader
+from ..utils import OptimizerConfigurator, clear_cache
 
 
 class MOONClient(Client):

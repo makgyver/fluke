@@ -2,7 +2,6 @@ from __future__ import annotations
 import sys
 sys.path.append(".")
 
-import torch
 from abc import ABC
 from copy import deepcopy
 from typing import Callable
@@ -12,12 +11,12 @@ from torch.optim.lr_scheduler import _LRScheduler as Scheduler
 from torch.nn import Module
 from torch import device
 
-from fl_bench import GlobalSettings, Message
-from fl_bench.server import Server
-from fl_bench.channel import Channel
-from fl_bench.utils import DDict, OptimizerConfigurator, clear_cache
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.evaluation import ClassificationEval
+from . import GlobalSettings, Message
+from .server import Server
+from .channel import Channel
+from .utils import DDict, OptimizerConfigurator, clear_cache
+from .data import FastTensorDataLoader
+from .evaluation import ClassificationEval
 
 
 

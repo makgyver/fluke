@@ -1,16 +1,17 @@
-import sys;  sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from typing import Any, Callable
 
 from torch.nn.modules import Module
 from torch.nn import CrossEntropyLoss
-
-from fl_bench.client import PFLClient
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator
 from copy import deepcopy
 
-from fl_bench import Message
-from fl_bench.algorithms import PersonalizedFL
+from .. import Message
+from ..algorithms import PersonalizedFL
+from ..client import PFLClient
+from ..data import FastTensorDataLoader
+from ..utils import OptimizerConfigurator
 
 
 # The implementation is almost identical to FedPerClient

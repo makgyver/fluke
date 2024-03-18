@@ -1,14 +1,16 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 from typing import Any, Callable
 
 import torch
 from copy import deepcopy
 
-from fl_bench import Message
-from fl_bench.client import PFLClient
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator, clear_cache
-from fl_bench.algorithms import PersonalizedFL
+from .. import Message
+from ..data import FastTensorDataLoader
+from ..client import PFLClient
+from ..utils import OptimizerConfigurator, clear_cache
+from ..algorithms import PersonalizedFL
 
 # https://arxiv.org/abs/1912.00818
 
