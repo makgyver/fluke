@@ -28,8 +28,8 @@ class Server(ObserverSubject):
         hyper_params (DDict): The hyper-parameters of the server. The default hyper-parameters are:
             - weighted: A boolean indicating if the clients should be weighted by the number of 
                 samples when aggregating the models.
-            When a new server class inherits from this class, it can add all its hyper-parameters
-            to this dictionary.
+          When a new server class inherits from this class, it can add all its hyper-parameters 
+          to this dictionary.
         device (torch.device): The device where the server runs.
         model (torch.nn.Module): The federated model to be trained.
         clients (Sequence[Client]): The clients that will participate in the federated learning 

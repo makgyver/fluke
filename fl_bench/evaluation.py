@@ -6,9 +6,7 @@ from typing import Callable, Literal, Union, Iterable
 
 import torch
 from torch.nn import Module
-from sklearn.base import ClassifierMixin
 from torchmetrics import Accuracy, Precision, Recall, F1Score
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 from fl_bench.data import FastTensorDataLoader
 
