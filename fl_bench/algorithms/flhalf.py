@@ -148,8 +148,8 @@ class FLHalfServer(Server):
 
 class FLHalf(PersonalizedFL):
     
-    def get_optimizer_class(self) -> torch.optim.Optimizer:
-        return torch.optim.Adam
+    # def get_optimizer_class(self) -> torch.optim.Optimizer:
+    #     return torch.optim.Adam
     
     def get_client_class(self) -> Client:
         return FLHalfClient

@@ -28,7 +28,7 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_container = cfg.data.dataset.klass()(**cfg.data.dataset.exclude('name'))
+    data_container = cfg.data.dataset.name.klass()(**cfg.data.dataset.exclude('name'))
 
     device = GlobalSettings().get_device()
 
@@ -46,7 +46,7 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
 
-    evaluator = ClassificationEval(criterion, data_container.num_classes(), cfg.exp.average, device=device)
+    evaluator = ClassificationEval(criterion, data_container.num_classes, cfg.exp.average, device=device)
 
     # log = cfg.log.logger.logger(evaluator,
     #                             eval_every=cfg.log.eval_every,
