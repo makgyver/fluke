@@ -1,9 +1,9 @@
 import sys
 sys.path.append(".")
 import torch
-
+import numpy as np
+import pandas as pd
 import typer
-
 import rich
 from rich.progress import track
 from rich.panel import Panel
@@ -104,11 +104,50 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
 
 
 @app.command()
-def validate(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+def run_clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    cfg._validate()
-    rich.print(Panel(Pretty(cfg, expand_all=True), title=f"Configuration"))
+    GlobalSettings().set_seed(cfg.exp.seed)
+    GlobalSettings().set_device(cfg.exp.device)
+    data_splitter = DataSplitter.from_config(cfg.data)
+
+    device = GlobalSettings().get_device()
     
+    (clients_tr_data, clients_te_data), server_data = \
+            data_splitter.assign(cfg.protocol.n_clients, cfg.method.hyperparameters.client.batch_size)
+
+    criterion = get_loss(cfg.method.hyperparameters.client.loss)
+    client_evals = []
+    for i, (train_loader, test_loader) in track(enumerate(zip(clients_tr_data, clients_te_data)), total=len(clients_tr_data)):
+        rich.print(f"Client [{i}]")
+        model = get_model(mname=cfg.method.hyperparameters.model)#, **cfg.method.hyperparameters.net_args)
+        optimizer_cfg = OptimizerConfigurator(torch.optim.SGD, 
+                                                **cfg.method.hyperparameters.client.optimizer,
+                                                scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
+        optimizer, scheduler = optimizer_cfg(model)
+        evaluator = ClassificationEval(criterion, data_splitter.data_container.num_classes, cfg.exp.average, device=device)
+        model.to(device)
+        for e in range(50):
+            model.train()
+            loss = None
+            for _, (X, y) in enumerate(train_loader):
+                X, y = X.to(device), y.to(device)
+                optimizer.zero_grad()
+                y_hat = model(X)
+                loss = criterion(y_hat, y)
+                loss.backward()
+                optimizer.step()
+                scheduler.step()
+            
+        client_eval = evaluator.evaluate(model, test_loader)
+        rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"CLient [{i}] Performance"))
+        client_evals.append(client_eval)
+        model.to("cpu")
+
+    client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
+    client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+    rich.print(Panel(Pretty(client_mean, expand_all=True), 
+                             title=f"Overall local performance"))    
 
 
 
