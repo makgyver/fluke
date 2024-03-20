@@ -41,8 +41,8 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
 
     model = get_model(mname=cfg.method.hyperparameters.model)#, **cfg.method.hyperparameters.net_args)
     optimizer_cfg = OptimizerConfigurator(torch.optim.SGD, 
-                                              **cfg.method.hyperparameters.client.optimizer.exclude('scheduler_kwargs'),
-                                              scheduler_kwargs=cfg.method.hyperparameters.client.optimizer.scheduler_kwargs)
+                                              **cfg.method.hyperparameters.client.optimizer,
+                                              scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
 

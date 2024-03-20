@@ -43,7 +43,7 @@ class CentralizedFL():
     Args:
         n_clients (int): Number of clients.
         data_splitter (DataSplitter): Data splitter object.
-        hyperparameters (DDict): Hyperparameters for the algorithm.
+        hyperparameters (DDict): Hyperparameters of the algorithm.
     """
     def __init__(self, 
                  n_clients: int,
@@ -51,11 +51,11 @@ class CentralizedFL():
                  hyperparameters: DDict):
         self.hyperparameters = hyperparameters
         self.n_clients = n_clients
-        (clients_tr_data, clients_te_data), server_data = data_splitter.assign(n_clients, 
-                                                                               hyperparameters.client.batch_size)
+        (clients_tr_data, clients_te_data), server_data = \
+            data_splitter.assign(n_clients, hyperparameters.client.batch_size)
         # Federated model
-        model = self.init_model(
-                model_name=hyperparameters.model,
+        model = get_model(
+                mname=hyperparameters.model,
                 **hyperparameters.net_args if 'net_args' in hyperparameters else {}
             )
 
@@ -63,24 +63,52 @@ class CentralizedFL():
         self.init_server(model, server_data, hyperparameters.server)
 
     def get_optimizer_class(self) -> torch.optim.Optimizer:
+        """Get the optimizer class.
+
+        Returns:
+            torch.optim.Optimizer: Optimizer class.
+        """
         return torch.optim.SGD
 
     def get_client_class(self) -> Client:
+        """Get the client class.
+
+        This method should be overriden by the subclasses when a different client class is defined.
+        This allows to reuse all the logic of the algorithm and only change the client class.
+
+        Returns:
+            Client: Client class.
+        """
         return Client
 
     def get_server_class(self) -> Server:
-        return Server
+        """Get the server class.
 
-    def init_model(self, model_name, **args):
-        return get_model(mname=model_name, **args)
+        This method should be overriden by the subclasses when a different server class is defined.
+        This allows to reuse all the logic of the algorithm and only change the server class.
+
+        Returns:
+            Server: Server class.
+        """
+        return Server
         
     def init_clients(self, 
                      clients_tr_data: list[FastTensorDataLoader], 
                      clients_te_data: list[FastTensorDataLoader], 
                      config: DDict) -> None:
+        """Initialize the clients.
+
+        Args:
+            clients_tr_data (list[FastTensorDataLoader]): List of training data loaders, one for 
+               each client.
+            clients_te_data (list[FastTensorDataLoader]): List of test data loaders, one for 
+               each client.
+            config (DDict): Configuration of the clients.
+        """
+
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              **config.optimizer.exclude('scheduler_kwargs'),
-                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+                                              **config.optimizer,
+                                              scheduler_kwargs=config.scheduler)
         self.loss = get_loss(config.loss)
         self.clients = [
             self.get_client_class()(
@@ -89,7 +117,7 @@ class CentralizedFL():
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg, 
                 loss_fn=self.loss, 
-                **config.exclude('optimizer', 'loss', 'batch_size')
+                **config.exclude('optimizer', 'loss', 'batch_size', 'scheduler')
             ) 
             for i in range(self.n_clients)]
 
@@ -106,7 +134,8 @@ class CentralizedFL():
     def __str__(self) -> str:
         algo_hp = ",\n\t".join([f"{h}={str(v)}" for h,v in self.hyperparameters.items() if h not in ['client', 'server']])
         algo_hp = f"\n\t{algo_hp}," if algo_hp else ""
-        return f"{self.__class__.__name__}({algo_hp}\n\t{self.clients[0]},\n\t{self.server}\n)"
+        client_str = str(self.clients[0]).replace("[0]", f"[0-{self.n_clients-1}]")
+        return f"{self.__class__.__name__}({algo_hp}\n\t{client_str},\n\t{self.server}\n)"
     
     def __repr__(self) -> str:
         return self.__str__()
@@ -121,8 +150,8 @@ class PersonalizedFL(CentralizedFL):
 
         model = get_model(mname=config.model)
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(), 
-                                              **config.optimizer.exclude('scheduler_kwargs'),
-                                              scheduler_kwargs=config.optimizer.scheduler_kwargs)
+                                              **config.optimizer,
+                                              scheduler_kwargs=config.scheduler)
         self.loss = get_loss(config.loss)
         self.clients = [
             self.get_client_class()(
@@ -132,7 +161,7 @@ class PersonalizedFL(CentralizedFL):
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg, 
                 loss_fn=self.loss, 
-                **config.exclude('optimizer', 'loss', 'batch_size', 'model')
+                **config.exclude('optimizer', 'loss', 'batch_size', 'model', 'scheduler')
             ) 
             for i in range(self.n_clients)]
 

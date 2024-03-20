@@ -25,6 +25,7 @@ class FedDiselClient(PFLClient):
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.model.fed_E.load_state_dict(msg.payload.state_dict())
 
+
 class FedDiselServer(Server):
 
     def __init__(self,
@@ -33,6 +34,7 @@ class FedDiselServer(Server):
                  clients: Iterable[Client], 
                  weighted: bool=False):
         super().__init__(model, None, clients, weighted)
+
 
 class FedDisel(PersonalizedFL):
     

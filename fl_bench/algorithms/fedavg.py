@@ -1,6 +1,8 @@
-import sys; sys.path.append(".")
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
-from fl_bench.algorithms import CentralizedFL
+from . import CentralizedFL
 
 class FedAVG(CentralizedFL):
     """Federated Averaging algorithm.
