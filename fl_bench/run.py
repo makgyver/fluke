@@ -22,7 +22,7 @@ CONFIG_FNAME = "configs/exp_settings.json"
 
 
 @app.command()
-def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                     epochs: int = typer.Option(0, help='Number of epochs to run')):
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
@@ -71,7 +71,7 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
     model.to("cpu")
 
 @app.command()
-def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed) 
@@ -104,7 +104,7 @@ def run(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm t
 
 
 @app.command()
-def run_clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -152,7 +152,7 @@ def run_clients_only(alg_cfg: str = typer.Argument(..., help='Config file for th
 
 
 @app.callback()
-def main(config: str=typer.Option(CONFIG_FNAME, help="Configuration file")):
+def run(config: str=typer.Option(CONFIG_FNAME, help="Configuration file")):
     global CONFIG_FNAME
     CONFIG_FNAME = config
 
