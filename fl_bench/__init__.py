@@ -70,6 +70,7 @@ class DeviceEnum(Enum):
     AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
     MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
 
+
 class GlobalSettings(metaclass=Singleton):
     """Global settings for the library.""" 
     

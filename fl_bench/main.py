@@ -45,19 +45,14 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
                                               scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
-
     evaluator = ClassificationEval(criterion, data_container.num_classes, cfg.exp.average, device=device)
-
-    # log = cfg.log.logger.logger(evaluator,
-    #                             eval_every=cfg.log.eval_every,
-    #                             name=str(cfg),
-    #                             **cfg.log.wandb_params)
+    history = []
     
     model.to(device)
     epochs = epochs if epochs > 0 else int(max(1, cfg.protocol.n_rounds * cfg.protocol.eligible_perc))
     for e in range(epochs):
         model.train()
-        print(f"Epoch {e+1}")
+        rich.print(f"Epoch {e+1}")
         loss = None
         for _, (X, y) in track(enumerate(train_loader), total=train_loader.n_batches):
             X, y = X.to(device), y.to(device)
@@ -67,8 +62,12 @@ def run_centralized(alg_cfg: str = typer.Argument(..., help='Config file for the
             loss.backward()
             optimizer.step()
             scheduler.step()
-        print(evaluator.evaluate(model, test_loader))
-        print()
+        
+        epoch_eval = evaluator.evaluate(model, test_loader)
+        history.append(epoch_eval)
+        rich.print(Panel(Pretty(epoch_eval, expand_all=True), 
+                             title=f"Performance"))
+        rich.print()
     model.to("cpu")
 
 @app.command()
