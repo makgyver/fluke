@@ -127,7 +127,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(criterion, data_splitter.data_container.num_classes, cfg.exp.average, device=device)
         model.to(device)
-        for e in range(50):
+        for e in range(200):
             model.train()
             loss = None
             for _, (X, y) in enumerate(train_loader):

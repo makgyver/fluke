@@ -186,6 +186,7 @@ from .fedrep import FedRep
 from .ditto import Ditto
 from .apfl import APFL
 from .superfed import SuPerFed
+from .lg_fedavg import LGFedAVG
 
 
 class FedAlgorithmsEnum(Enum):
@@ -208,6 +209,7 @@ class FedAlgorithmsEnum(Enum):
     DITTO = 'ditto'
     APFL = 'apfl'
     SUPERFED = 'superfed'
+    LGFEDAVG = 'lg_fedavg'
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -236,7 +238,8 @@ class FedAlgorithmsEnum(Enum):
             'fedrep': FedRep,
             'ditto': Ditto,
             'apfl': APFL,
-            'superfed': SuPerFed
+            'superfed': SuPerFed,
+            'lg_fedavg': LGFedAVG
         }
 
         return algos[self.value]

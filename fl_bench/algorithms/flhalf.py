@@ -1,6 +1,4 @@
 import sys
-
-from fl_bench.net import MNIST_2NN_ED
 sys.path.append(".")
 sys.path.append("..")
 from copy import deepcopy
@@ -19,6 +17,7 @@ from ..server import Server
 from ..data import FastTensorDataLoader
 from ..utils import OptimizerConfigurator
 from ..algorithms import PersonalizedFL
+from ..net import GlobalLocalNet
     
 def relative_projection(encoder: nn.Module, 
                         x: torch.Tensor, 
@@ -35,13 +34,14 @@ def relative_projection(encoder: nn.Module,
 class FLHalfClient(PFLClient):
     def __init__(self,
                  index: int,
-                 model: nn.Module,
+                 model: GlobalLocalNet,
                  train_set: FastTensorDataLoader,
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 tau: int):
+                 tau: int,
+                 relative: bool=True):
         super().__init__(index, 
                          model, 
                          train_set, 
@@ -51,7 +51,8 @@ class FLHalfClient(PFLClient):
                          local_epochs)
         # self.personalized_model.init()
         self.hyper_params.update({
-            "tau": tau
+            "tau": tau,
+            "relative": relative
         })
         self.anchors = None
 
@@ -66,10 +67,6 @@ class FLHalfClient(PFLClient):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.private_optimizer.zero_grad()
-                # rel_x = relative_projection(self.personalized_model.E, 
-                #                             X.view(X.size(0), -1), 
-                #                             self.anchors)
-                # y_hat = self.personalized_model.D(rel_x)
                 y_hat = self.personalized_model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
@@ -94,9 +91,10 @@ class FLHalfClient(PFLClient):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                rel_x = relative_projection(self.personalized_model.E, 
-                                            X.view(X.size(0), -1), 
-                                            self.anchors)
+                rel_x = (self.personalized_model.forward_local(X) if not self.hyper_params.relative 
+                         else relative_projection(self.personalized_model.get_local(), 
+                                                  X.view(X.size(0), -1), 
+                                                  self.anchors))
                 y_hat = self.model(rel_x)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
@@ -107,11 +105,14 @@ class FLHalfClient(PFLClient):
     def validate(self):
         if self.test_set is not None:
             n_classes = self.model.output_size
-            test_loader = self.test_set.transform(
-                lambda x: relative_projection(self.personalized_model.E, 
-                                              x.view(x.size(0), -1), 
-                                              self.anchors)
-            )
+            if self.hyper_params.relative:
+                test_loader = self.test_set.transform(
+                    lambda x: relative_projection(self.personalized_model.forward_local, 
+                                                  x.view(x.size(0), -1), 
+                                                  self.anchors)
+                )
+            else:
+                test_loader = self.test_set.transform(lambda x: self.personalized_model.forward_local(x))
             return ClassificationEval(self.hyper_params.loss_fn, n_classes).evaluate(self.model, test_loader)
 
 
