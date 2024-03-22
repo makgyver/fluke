@@ -9,6 +9,7 @@ from pyparsing import Optional
 from sklearn.model_selection import train_test_split
 import torch
 import rich
+from rich.progress import track
 from typing import List, Union
 import numpy as np
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
@@ -433,7 +434,8 @@ class DataSplitter:
                              X: torch.Tensor,
                              y: torch.Tensor,
                              n: int,
-                             beta: float=.1) -> List[torch.Tensor]:
+                             beta: float=.1,
+                             min_ex_class: int=2) -> List[torch.Tensor]:
         """
         The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances of
         class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
@@ -464,8 +466,9 @@ class DataSplitter:
             ids = np.where(y == c)[0]
             shuffle(ids)
             shuffle(pk[c])
-            assignment[ids[n:]] = choice(n, size=len(ids)-n, p=pk[c])
-            assignment[ids[:n]] = list(range(n))
+            fixed = n * min_ex_class
+            assignment[ids[fixed:]] = choice(n, size=len(ids)-fixed, p=pk[c])
+            assignment[ids[:fixed]] = list(range(n)) * min_ex_class
 
         return [np.where(assignment == i)[0] for i in range(n)]
 
@@ -540,7 +543,8 @@ class DataSplitter:
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
 
         ids_mode = [[] for _ in range(modes)]
-        for lbl in set(torch.unique(torch.LongTensor(y)).numpy()):
+        for lbl in track(set(torch.unique(torch.LongTensor(y)).numpy()), 
+                         "Simulating Covariate Shift..."):
             ids = np.where(y == lbl)[0]
             X_pca = PCA(n_components=2).fit_transform(X.view(X.size()[0], -1)[ids])
             quantiles = mquantiles(X_pca[:, 0], prob=np.linspace(0, 1, num=modes+1)[1:-1])
