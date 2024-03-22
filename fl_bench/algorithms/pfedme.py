@@ -39,14 +39,14 @@ class PFedMeClient(PFLClient):
     def __init__(self,
                  index: int,
                  train_set: FastTensorDataLoader,
-                 validation_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
                  lr: float,
                  k: int):
         
-        super().__init__(index, None, train_set, optimizer_cfg, loss_fn, validation_set, local_epochs)
+        super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "lr": lr,
             "k": k
@@ -54,18 +54,18 @@ class PFedMeClient(PFLClient):
 
     def _receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
-        if self.private_model is None:
-            self.private_model = deepcopy(model)
-            self.model = deepcopy(self.private_model)
+        if self.personalized_model is None:
+            self.personalized_model = deepcopy(model)
+            self.model = deepcopy(self.personalized_model)
         else:
-            self.private_model.load_state_dict(model.state_dict())
+            self.personalized_model.load_state_dict(model.state_dict())
 
     def local_train(self, override_local_epochs: int=0) -> dict:
-        epochs = override_local_epochs if override_local_epochs else self.local_epochs
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
-        self.private_model.train()
+        self.personalized_model.train()
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.private_model)
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
 
         lamda = self.optimizer.defaults["lamda"]
         for _ in range(epochs):
@@ -74,16 +74,16 @@ class PFedMeClient(PFLClient):
                 X, y = X.to(self.device), y.to(self.device)
                 for _ in range(self.k):
                     self.optimizer.zero_grad()
-                    y_hat = self.private_model(X)
-                    loss = self.loss_fn(y_hat, y)
+                    y_hat = self.personalized_model(X)
+                    loss = self.hyper_params.loss_fn(y_hat, y)
                     loss.backward()
                     self.optimizer.step(self.model.parameters())
                 
-                for param_p, param_l in zip(self.private_model.parameters(), self.model.parameters()):
+                for param_p, param_l in zip(self.personalized_model.parameters(), self.model.parameters()):
                     param_l.data = param_l.data - lamda * self.lr * (param_l.data - param_p.data)
             
             self.scheduler.step()     
-        self.private_model.load_state_dict(self.model.state_dict())
+        self.personalized_model.load_state_dict(self.model.state_dict())
         self._send_model()
     
     def _send_model(self):

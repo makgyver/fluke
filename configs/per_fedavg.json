@@ -1,0 +1,22 @@
+{
+    "name": "per_fedavg",
+    "hyperparameters": {
+        "server": {
+        },
+        "client": {
+            "batch_size": 40,
+            "local_epochs": 400,
+            "loss": "CrossEntropyLoss",
+            "mode": "FO",
+            "beta": 0.001,
+            "optimizer": {		
+                "lr": 0.01
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
+            }
+        },
+        "model": "MNIST_2NN"
+    }
+}
