@@ -2,24 +2,23 @@
     "name": "pfedme",
     "hyperparameters": {
         "server": {
+            "beta": 1
         },
         "client": {
-            "batch_size": 10,
-            "local_epochs": 10,
+            "batch_size": 20,
+            "local_epochs": 20,
             "loss": "CrossEntropyLoss",
-            "beta": 2,
             "k": 5,
-            "mu": 0.01,
             "optimizer": {		
                 "lr": 0.01,
-                "lamda": 30,
-                "mu": 0.001,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "lamda": 15,
+                "mu": 0.001
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
-        "model": "VGG9"
+        "model": "MNIST_2NN"
     }
 }

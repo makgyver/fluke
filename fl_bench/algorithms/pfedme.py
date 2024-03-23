@@ -43,12 +43,10 @@ class PFedMeClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 lr: float,
                  k: int):
         
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
-            "lr": lr,
             "k": k
         })
 
@@ -72,15 +70,16 @@ class PFedMeClient(PFLClient):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                for _ in range(self.k):
+                for _ in range(self.hyper_params.k):
                     self.optimizer.zero_grad()
                     y_hat = self.personalized_model(X)
                     loss = self.hyper_params.loss_fn(y_hat, y)
                     loss.backward()
                     self.optimizer.step(self.model.parameters())
                 
+                lr = self.optimizer.param_groups[0]["lr"]
                 for param_p, param_l in zip(self.personalized_model.parameters(), self.model.parameters()):
-                    param_l.data = param_l.data - lamda * self.lr * (param_l.data - param_p.data)
+                    param_l.data = param_l.data - lamda * lr * (param_l.data - param_p.data)
             
             self.scheduler.step()     
         self.personalized_model.load_state_dict(self.model.state_dict())
