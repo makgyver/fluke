@@ -1,0 +1,21 @@
+{
+    "name": "fedavg",
+    "hyperparameters": {
+        "server": {
+            "weighted": true
+        },
+        "client": {
+            "batch_size": 50,
+            "local_epochs": 1,
+            "loss": "CrossEntropyLoss",
+            "optimizer": {		
+                "lr": 10
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
+            }
+        },
+        "model": "MNIST_2NN"
+    }
+}

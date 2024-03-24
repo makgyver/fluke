@@ -66,6 +66,7 @@ class ClassificationEval(Evaluator):
                  model: torch.nn.Module, 
                  eval_data_loader: Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]) -> dict:
         model.eval()
+        model.to(self.device)
         task = "multiclass" #if self.n_classes >= 2 else "binary"
         accs, precs, recs, f1s = [], [], [], []
         loss, cnt = 0, 0
@@ -100,6 +101,8 @@ class ClassificationEval(Evaluator):
             precs.append(precision.compute().item())
             recs.append(recall.compute().item())
             f1s.append(f1.compute().item())
+        
+        model.to("cpu")
 
         return {
             "accuracy":  round(sum(accs) / len(accs), 5),
