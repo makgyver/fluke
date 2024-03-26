@@ -8,16 +8,6 @@ from rich.console import Group
 from rich.progress import Progress, Live
 from typing import Any, Optional, Union, Iterable
 
-# from fl_bench import algorithms
-# from fl_bench import channel
-# from fl_bench import data
-# from fl_bench import evaluation
-# from fl_bench import net
-# from fl_bench import client
-# from fl_bench import server
-# from fl_bench import utils
-
-# from utils import DeviceEnum
 
 __all__ = [
     'channel',
@@ -62,6 +52,7 @@ class ObserverSubject():
             self._observers.remove(observer)
         except ValueError:
             pass
+
 
 class DeviceEnum(Enum):
     """Device enumerator."""

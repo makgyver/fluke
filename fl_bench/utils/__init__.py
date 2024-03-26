@@ -495,8 +495,9 @@ class Configuration(DDict):
         
         if 'logger' in self and self.logger.name == "wandb":
             for k in WANDB_REQUIRED_KEYS:
-                rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
-                error = True
+                if k not in WANDB_REQUIRED_KEYS:
+                    rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
+                    error = True
         
         if not error:
             self.data.distribution.name = DistributionEnum(self.data.distribution.name)
@@ -506,6 +507,16 @@ class Configuration(DDict):
 
         if error:
             raise ValueError("Configuration validation failed.")
+    
+
+    def __str__(self) -> str:
+        return f"{self.method.name}_data({self.data.dataset.name.value},{self.data.distribution.name.value}" + \
+               f"{',std' if self.data.standardize else ''})" + \
+               f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
+               f"_seed({self.exp.seed})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 
