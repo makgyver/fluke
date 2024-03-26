@@ -18,7 +18,6 @@ __all__ = [
     'fedavg',
     'fedavgm',
     'fedbn',
-    'feddisel',
     'feddyn',
     'fedexp',
     'fednova',
@@ -180,7 +179,6 @@ from .moon import MOON
 from .fednova import FedNova
 from .fedexp import FedExP
 from .pfedme import PFedMe
-from .feddisel import FedDisel
 from .feddyn import FedDyn
 from .fedper import FedPer
 from .fedrep import FedRep
@@ -204,7 +202,6 @@ class FedAlgorithmsEnum(Enum):
     FEDEXP = 'fedexp'
     PEFEDME = 'pfedme'
     FEDDYN = 'feddyn'
-    FEDDISEL = 'feddisel'
     FEDPER = 'fedper'
     FEDREP = 'fedrep'
     DITTO = 'ditto'
@@ -235,7 +232,6 @@ class FedAlgorithmsEnum(Enum):
             'fedexp': FedExP,
             'pfedme': PFedMe,
             'feddyn': FedDyn,
-            'feddisel': FedDisel,
             'fedper': FedPer,
             'fedrep': FedRep,
             'ditto': Ditto,
