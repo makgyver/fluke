@@ -2,12 +2,13 @@ import sys
 sys.path.append(".")
 
 from abc import ABC, abstractmethod
-from typing import Callable, Literal, Union, Iterable
+from typing import Callable, Literal, Optional, Union, Iterable
 
 import torch
 from torch.nn import Module
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 
+from . import GlobalSettings
 from .data import FastTensorDataLoader
 
 class Evaluator(ABC):
@@ -56,15 +57,16 @@ class ClassificationEval(Evaluator):
                  loss_fn: Callable, 
                  n_classes: int, 
                  average: Literal["micro","macro"]="micro",
-                 device: torch.device=torch.device("cpu")):
+                 device: Optional[torch.device]=None):
         super().__init__(loss_fn)
         self.average: str = average
         self.n_classes: int = n_classes
-        self.device: torch.device = device
+        self.device: torch.device = device if device is not None else GlobalSettings().get_device()
 
     def evaluate(self, 
                  model: torch.nn.Module, 
-                 eval_data_loader: Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]) -> dict:
+                 eval_data_loader: Union[FastTensorDataLoader, 
+                                         Iterable[FastTensorDataLoader]]) -> dict:
         model.eval()
         model.to(self.device)
         task = "multiclass" #if self.n_classes >= 2 else "binary"
@@ -111,4 +113,12 @@ class ClassificationEval(Evaluator):
             "f1":        round(sum(f1s) / len(f1s), 5),
             "loss":      round(loss / cnt, 5) if self.loss_fn is not None else None
         }
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(n_classes={self.n_classes},average={self.average}," + \
+               f"device={self.device})[accuracy,precision,recall,f1,{self.loss_fn.__class__.__name__}]"
+
+    def __repr__(self) -> str:
+        return str(self)
+    
     

@@ -176,7 +176,8 @@ class Log(ServerObserver, ChannelObserver):
         Args:
             **kwargs: The configuration.
         """
-        rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
+        if kwargs:
+            rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
     
     def start_round(self, round: int, global_model: Module):
         self.comm_costs[round] = 0
@@ -324,7 +325,7 @@ def get_loss(lname: str) -> Module:
     """
     return get_class_from_str("torch.nn", lname)()
 
-def get_model(mname:str, module_name: str="fl_bench.net", **kwargs) -> Module:
+def get_model(mname:str, **kwargs) -> Module:
     """Get a model from its name.
 
     This function is used to get a model from its name and the name of the module where it is
@@ -332,14 +333,21 @@ def get_model(mname:str, module_name: str="fl_bench.net", **kwargs) -> Module:
 
     Args:
         mname (str): The name of the model.
-        module_name (str, optional): The name of the module where the model is defined. 
-            Defaults to "net".
         **kwargs: The keyword arguments to pass to the model's constructor.
 
     Returns:
         Module: The model.
     """
+    if "." in mname:
+        module_name = ".".join(mname.split(".")[:-1])
+        mname = mname.split(".")[-1]
+    else:
+        module_name: str = "fl_bench.net"
     return get_class_from_str(module_name, mname)(**kwargs)
+
+
+def get_full_classname(classtype: type) -> str:
+    return f"{classtype.__module__}.{classtype.__name__}"
 
 def get_scheduler(sname:str) -> torch.nn.Module:
     """Get a learning rate scheduler from its name.

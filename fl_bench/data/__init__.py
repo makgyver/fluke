@@ -1,5 +1,6 @@
 from __future__ import annotations
 import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -199,7 +200,7 @@ class DataSplitter:
             return train_test_split(X, y, test_size=test_size)
 
     def __init__(self, 
-                 dataset: DatasetsEnum,
+                 dataset: Union[DatasetsEnum, DataContainer],
                  standardize: bool=False,
                  distribution: DistributionEnum=DistributionEnum.IID,
                  client_split: float=0.0,
@@ -209,7 +210,7 @@ class DataSplitter:
         assert 0 <= client_split <= 1, "validation_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
-        self.data_container = dataset.klass()(**builder_args)
+        self.data_container = dataset if isinstance(dataset, DataContainer) else dataset.klass()(**builder_args)
         self.standardize = standardize
         if standardize:
             self.data_container.standardize()
