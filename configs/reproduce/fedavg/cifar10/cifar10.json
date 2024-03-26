@@ -1,0 +1,26 @@
+{
+    "protocol": {
+		"n_clients": 100,
+    	"n_rounds": 1000,
+    	"eligible_perc": 0.1
+	},
+	"data": {
+		"dataset": {
+			"name": "cifar10"
+		},
+		"standardize": false,
+    	"distribution": {
+			"name": "iid"
+		},
+    	"client_split": 0.0,
+    	"sampling_perc": 1
+	},
+	"exp": {
+		"seed": 0,
+		"average": "micro",
+    	"device": "cpu"
+	},
+	"log": {
+		"logger": "local"
+	}
+}

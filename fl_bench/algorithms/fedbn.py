@@ -12,9 +12,7 @@ from ..algorithms import CentralizedFL
 
 class FedBNClient(Client):
 
-    def receive(self, 
-                message: Message) -> None:
-        
+    def receive(self, message: Message) -> None:
         if message.msg_type == "model":
             global_model = message.payload
             if self.model is None:

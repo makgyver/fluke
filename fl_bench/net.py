@@ -1,3 +1,7 @@
+"""
+This module contains the definition of several neural networks used in state-of-the-art 
+federated learning papers.
+"""
 from abc import abstractmethod
 import torch
 import string
@@ -10,9 +14,26 @@ from torchvision.models import resnet50, resnet18, resnet34
 # pFedMe: https://arxiv.org/pdf/2006.08848.pdf - hidden_size=[100,100], w/ softmax
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w - hidden_size=[200,100], w/o softmax
 class MNIST_2NN(nn.Module):
+    """Multi-layer Perceptron for MNIST.
+
+    2-layer neural network for MNIST classification first introduced in the paper 
+    "Communication-Efficient Learning of Deep Networks from Decentralized Data" by
+    H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y Arcas, where
+    the hidden layers have 200 neurons each and the output layer with sigmoid activation.
+
+    Similar architectures are also used in other papers:
+    - SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf - `hidden_size=(200, 200)`
+    - pFedMe: https://arxiv.org/pdf/2006.08848.pdf - `hidden_size=(100, 100)` with softmax layer
+    - FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w - `hidden_size=(200, 100)`
+
+    Args:
+        hidden_size (tuple[int, int], optional): Size of the hidden layers. Defaults to (200, 200).
+        softmax (bool, optional): If True, the output is passed through a softmax layer. 
+          Defaults to True.
+    """
     def __init__(self, 
                  hidden_size: tuple[int, int]=(200, 200),
-                 softmax: bool=True):
+                 softmax: bool=False):
         super(MNIST_2NN, self).__init__()
         self.input_size = 28*28
         self.output_size = 10
@@ -29,7 +50,7 @@ class MNIST_2NN(nn.Module):
         if self.use_softmax:
             return F.softmax(self.fc3(x), dim=1)
         else:
-            return self.fc3(x)
+            return torch.sigmoid(self.fc3(x))
 
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf
@@ -93,12 +114,13 @@ class FedBN_CNN(nn.Module):
 class MNIST_LR(nn.Module):
     def __init__(self, num_classes: int=10):
         super(MNIST_LR, self).__init__()
-        self.num_classes = num_classes
+        self.output_size = num_classes
         self.fc = nn.Linear(784, num_classes)
     
     def forward(self, x):
         x = x.view(-1, 784)
         return F.softmax(self.fc(x), dim=1)
+
 
 class ResidualBlock(nn.Module):
 
@@ -227,14 +249,30 @@ class VGG9_E(nn.Module):
         return self.encoder(x)
 
 
-# SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (FEMNIST)
-class VGG9(nn.Module):
-    
+class VGG9_D(nn.Module):
+
     @classmethod
     def _linear_layer(cls, in_features, out_features, bias=False, seed=0):
         fc = nn.Linear(in_features, out_features, bias=bias)
         torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
         return fc
+    
+    def __init__(self, input_size: int=512, output_size: int=62, seed: int=98765):
+        super(VGG9_D, self).__init__()
+        self.output_size = output_size
+        self.downstream = nn.Sequential(
+            nn.Flatten(),
+            VGG9_D._linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
+            nn.ReLU(True),
+            VGG9_D._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
+        )
+
+    def forward(self, x):
+        return self.downstream(x)
+        
+
+# SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (FEMNIST)
+class VGG9(nn.Module):
 
     def __init__(self, input_size: int=784, output_size: int=62, seed: int=98765):
         super(VGG9, self).__init__()
@@ -243,12 +281,7 @@ class VGG9(nn.Module):
         self.output_size = output_size
 
         self.encoder = VGG9_E(input_size, output_size, seed)
-        self.downstream = nn.Sequential(
-            nn.Flatten(),
-            VGG9._linear_layer(in_features=512, out_features=256, bias=False, seed=seed),
-            nn.ReLU(True),
-            VGG9._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
-        )
+        self.downstream = VGG9_D(input_size=512, output_size=output_size, seed=seed)
 
     def forward(self, x):
         x = self.encoder(x)
@@ -258,38 +291,38 @@ class VGG9(nn.Module):
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
 class FedavgCNN(nn.Module):
-    def __init__(self, input_size=(28,28), output_size=10):
+    def __init__(self, input_size=(32,32), output_size=10):
         super().__init__()
         self.input_size = input_size
         self.output_size = output_size
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.norm1 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
+        # self.norm1 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
 
         self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding=2)
-        self.norm2 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
+        # self.norm2 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.local3 = nn.Linear(4096, 384)
         self.local4 = nn.Linear(384, 192)
-        self.softmax_linear = nn.Linear(192, output_size)
+        self.linear = nn.Linear(192, output_size)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = self.pool1(x)
-        x = self.norm1(x)
+        # x = self.norm1(x)
 
         x = F.relu(self.conv2(x))
-        x = self.norm2(x)
+        # x = self.norm2(x)
         x = self.pool2(x)
 
         x = x.view(x.size(0), -1)
         x = F.relu(self.local3(x))
         x = F.relu(self.local4(x))
-        x = self.softmax_linear(x)
+        x = self.linear(x)
 
-        return x
+        return F.softmax(x, dim=1)
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
 class ResNet18(nn.Module):
@@ -324,7 +357,6 @@ class ResNet50(nn.Module):
 
 # FedRep: https://arxiv.org/pdf/2102.07078.pdf (CIFAR-100 and CIFAR-10)
 # LG-FedAvg: https://arxiv.org/pdf/2001.01523.pdf
-# FIXME: LG-FedAvg non è nella lista degli algoritmi implementati
 class LeNet5(nn.Module):
     def __init__(self, output_size=100):
         super(LeNet5, self).__init__()
@@ -382,10 +414,11 @@ class Shakespeare_LSTM(nn.Module):
         x = self.fc3(x)
         return x
 
-# MOONS: https://arxiv.org/pdf/2103.16257.pdf (CIFAR10)
-class MoonsCNN(nn.Module):
+
+# MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR10)
+class MoonCNN(nn.Module):
     def __init__(self):
-        super(MoonsCNN, self).__init__()
+        super(MoonCNN, self).__init__()
         self.output_size = 10
 
         self.conv1 = nn.Conv2d(3, 6, kernel_size=5)
@@ -452,7 +485,22 @@ class FedPer_VGG9(GlobalLocalNet, VGG9):
 
     def forward_global(self, x):
         return self.encoder(x)
-    
+
+
+class LG_FedAvg_VGG9(GlobalLocalNet, VGG9):
+
+    def get_local(self):
+        return self.encoder
+
+    def get_global(self):
+        return self.downstream
+
+    def forward_local(self, x):
+        return self.encoder(x)
+
+    def forward_global(self, z):
+        return self.downstream(z)
+
 
 # https://github.com/Xtra-Computing/NIID-Bench
 class SimpleCNN(nn.Module):
@@ -477,3 +525,55 @@ class SimpleCNN(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+
+class MNIST_2NN_E(nn.Module):
+    def __init__(self, 
+                 hidden_size: tuple[int,int]=(200, 200)):
+        super(MNIST_2NN_E, self).__init__()
+        self.input_size = 28*28
+        self.output_size = 10
+
+        self.fc1 = nn.Linear(28*28, hidden_size[0])
+        self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.view(-1, 784)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return x
+
+
+class MNIST_2NN_D(nn.Module):
+    def __init__(self, 
+                 hidden_size: int = 200):
+        super(MNIST_2NN_D, self).__init__()
+        self.output_size = 10
+        self.fc3 = nn.Linear(hidden_size, 10)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.sigmoid(self.fc3(x))
+
+
+class MNIST_2NN_ED(GlobalLocalNet):
+    def __init__(self, 
+                 hidden_size: tuple[int, int]=(200, 200)):
+        super(MNIST_2NN_ED, self).__init__()
+        self.output_size = 10
+        self.E = MNIST_2NN_E(hidden_size)
+        self.D = MNIST_2NN_D(hidden_size[1])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.D(self.E(x))
+
+    def get_local(self):
+        return self.E
+
+    def get_global(self):
+        return self.D
+
+    def forward_local(self, x):
+        return self.E(x)
+
+    def forward_global(self, z):
+        return self.D(z)

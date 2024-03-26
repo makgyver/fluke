@@ -10,7 +10,6 @@ from typing import Callable, List, Tuple, Union
 import torch
 from torch.optim import Optimizer
 
-from .. import Message
 from ..client import Client
 from ..algorithms import CentralizedFL
 from ..data import FastTensorDataLoader
