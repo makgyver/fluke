@@ -21,7 +21,7 @@ class SuPerFedClient(PFLClient):
                  index: int,
                  model: Module, 
                  train_set: FastTensorDataLoader, 
-                 validation_set: FastTensorDataLoader, 
+                 test_set: FastTensorDataLoader, 
                  optimizer_cfg: OptimizerConfigurator, 
                  loss_fn: Callable[..., Any], # This is ignored!
                  local_epochs: int = 3,
@@ -31,7 +31,7 @@ class SuPerFedClient(PFLClient):
                  nu: float = 0.1):
         assert mode in ["mm", "lm"]
 
-        super().__init__(index, model, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "mode": mode,
             "start_mix": start_mix,

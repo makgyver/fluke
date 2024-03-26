@@ -175,11 +175,11 @@ class PFLClient(Client):
                  index: int,
                  model: Module,
                  train_set: FastTensorDataLoader,
-                 validation_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int=3):
-        super().__init__(index, train_set, validation_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
     
     def validate(self) -> dict:
