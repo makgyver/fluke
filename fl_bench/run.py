@@ -23,7 +23,7 @@ CONFIG_FNAME = "configs/exp_settings.json"
 
 @app.command()
 def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
-                    epochs: int = typer.Option(0, help='Number of epochs to run')):
+                epochs: int = typer.Option(0, help='Number of epochs to run')):
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -33,16 +33,16 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     device = GlobalSettings().get_device()
 
     train_loader = FastTensorDataLoader(*data_container.train, 
-                                             batch_size=cfg.method.hyperparameters.client.batch_size, 
-                                             shuffle=True)
+                                        batch_size=cfg.method.hyperparameters.client.batch_size, 
+                                        shuffle=True)
     test_loader = FastTensorDataLoader(*data_container.test,
-                                            batch_size=1,#cfg.method.hyperparameters.client.batch_size, 
-                                            shuffle=False)
+                                       batch_size=1,#cfg.method.hyperparameters.client.batch_size, 
+                                       shuffle=False)
 
     model = get_model(mname=cfg.method.hyperparameters.model)#, **cfg.method.hyperparameters.net_args)
     optimizer_cfg = OptimizerConfigurator(torch.optim.SGD, 
-                                              **cfg.method.hyperparameters.client.optimizer,
-                                              scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
+                                          **cfg.method.hyperparameters.client.optimizer,
+                                          scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
     evaluator = ClassificationEval(criterion, data_container.num_classes, cfg.exp.average, device=device)
@@ -65,8 +65,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
         
         epoch_eval = evaluator.evaluate(model, test_loader)
         history.append(epoch_eval)
-        rich.print(Panel(Pretty(epoch_eval, expand_all=True), 
-                             title=f"Performance"))
+        rich.print(Panel(Pretty(epoch_eval, expand_all=True), title=f"Performance"))
         rich.print()
     model.to("cpu")
 
@@ -87,7 +86,6 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
         module_name = ".".join(cfg.method.name.split(".")[:-1])
         class_name = cfg.method.name.split(".")[-1]
         fl_algo_class = get_class_from_str(module_name, class_name)
-        print(fl_algo_class)
         fl_algo = fl_algo_class(cfg.protocol.n_clients, 
                                 data_splitter, 
                                 cfg.method.hyperparameters)
@@ -125,7 +123,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     device = GlobalSettings().get_device()
     
-    (clients_tr_data, clients_te_data), server_data = \
+    (clients_tr_data, clients_te_data), _ = \
             data_splitter.assign(cfg.protocol.n_clients, cfg.method.hyperparameters.client.batch_size)
 
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
@@ -134,12 +132,15 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
         rich.print(f"Client [{i}]")
         model = get_model(mname=cfg.method.hyperparameters.model)#, **cfg.method.hyperparameters.net_args)
         optimizer_cfg = OptimizerConfigurator(torch.optim.SGD, 
-                                                **cfg.method.hyperparameters.client.optimizer,
-                                                scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
+                                              **cfg.method.hyperparameters.client.optimizer,
+                                              scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
         optimizer, scheduler = optimizer_cfg(model)
-        evaluator = ClassificationEval(criterion, data_splitter.data_container.num_classes, cfg.exp.average, device=device)
+        evaluator = ClassificationEval(criterion, 
+                                       data_splitter.data_container.num_classes, 
+                                       cfg.exp.average, 
+                                       device=device)
         model.to(device)
-        for e in range(200):
+        for _ in range(200):
             model.train()
             loss = None
             for _, (X, y) in enumerate(train_loader):
@@ -160,7 +161,6 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
     rich.print(Panel(Pretty(client_mean, expand_all=True), 
                              title=f"Overall local performance"))    
-
 
 
 @app.callback()
