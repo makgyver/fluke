@@ -100,7 +100,7 @@ class FLHalfClient(PFLClient):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self._send_model()
 
     def validate(self):
         if self.test_set is not None:
