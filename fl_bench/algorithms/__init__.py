@@ -32,7 +32,8 @@ __all__ = [
     'moon',
     'pfedme',
     'scaffold',
-    'superfed'
+    'superfed',
+    'per_fedavg'
 ]
     
 class CentralizedFL():

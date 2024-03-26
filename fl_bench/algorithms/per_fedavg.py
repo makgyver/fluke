@@ -38,6 +38,7 @@ class PerFedAvgOptimizer(Optimizer):
                     p.data.sub_(beta * grads[0] - beta * group['lr'] * grads [1])
         return loss
 
+
 class PerFedAvgClient(Client):
     def __init__(self,
                  index: int,
