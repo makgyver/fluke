@@ -30,22 +30,18 @@ __all__ = [
 class DataContainer:
     """Container for train and test (classification) data.
 
-    Parameters
-    ----------
-    X_train : torch.Tensor or np.array
-        Training data.
-    y_train : torch.Tensor or np.array
-        Training labels.
-    X_test : torch.Tensor or np.array
-        Test data.
-    y_test : torch.Tensor or np.array
-        Test labels.
+    Args:
+        X_train (torch.Tensor): The training data.
+        y_train (torch.Tensor): The training labels.
+        X_test (torch.Tensor): The test data.
+        y_test (torch.Tensor): The test labels.
+        num_classes (int): The number of classes.
     """ 
     def __init__(self, 
-                 X_train: Union[torch.Tensor, np.array], 
-                 y_train: Union[torch.Tensor, np.array], 
-                 X_test: Union[torch.Tensor, np.array], 
-                 y_test: Union[torch.Tensor, np.array],
+                 X_train: torch.Tensor, 
+                 y_train: torch.Tensor, 
+                 X_test: torch.Tensor, 
+                 y_test: torch.Tensor,
                  num_classes: int):
         self.train = (torch.FloatTensor(X_train), torch.LongTensor(y_train))
         self.test = (torch.FloatTensor(X_test), torch.LongTensor(y_test))
@@ -53,6 +49,11 @@ class DataContainer:
         self.num_classes = num_classes
     
     def standardize(self):
+        """Standardize the data.
+
+        The data is standardized using the `StandardScaler` from `sklearn`. The method modifies the
+        `train` and `test` attributes.
+        """
         data_train, data_test = self.train[0], self.test[0]
         if isinstance(data_train, torch.Tensor):
             data_train = data_train.numpy()
@@ -68,23 +69,20 @@ class FastTensorDataLoader:
     the dataset and calls cat (slow).
     Source: https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
 
-    Parameters
-    ----------
-    *tensors : torch.Tensor
-        Tensors to store. Must have the same length @ dim 0.
-    batch_size : int
-        Batch size to load.
-    shuffle : bool
-        If True, shuffle the data *in-place* whenever an iterator is created
-        out of this object.
-    percentage : float
-        Percentage of data to use. Useful for debugging.
+    Args:
+        *tensors (Tensor): tensors to be loaded
+        batch_size (int): batch size
+        shuffle (bool): whether the data should be shuffled
+        percentage (float): the percentage of the data to be used
     """
 
-    def __init__(self, *tensors, batch_size=32, shuffle=False, percentage=1.0):
+    def __init__(self, 
+                 *tensors: torch.Tensor, 
+                 batch_size: int=32, 
+                 shuffle: bool=False, 
+                 percentage: float=1.0):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
-
         self.size = int(self.tensors[0].shape[0] * percentage)
         self.batch_size = batch_size if batch_size else self.size
         self.shuffle = shuffle
@@ -118,17 +116,12 @@ class FastTensorDataLoader:
     def transform(self, f: callable, axis=(0,)) -> FastTensorDataLoader:
         """Transform the data according to the function `f`.
 
-        Parameters
-        ----------
-        f : callable
-            The transformation function.
-        axis : tuple, optional
-            The axis along which to apply the transformation, by default (0,).
-
-        Returns
-        -------
-        FastTensorDataLoader
-            The transformed data.
+        Args:
+            f (callable): the transformation function.
+            axis (tuple): the axis along which to apply the transformation.
+        
+        Returns:
+            FastTensorDataLoader: the transformed data loader.
         """
         tensors = [f(t) if i in axis else t for i, t in enumerate(self.tensors)]
         return FastTensorDataLoader(*tensors, batch_size=self.batch_size, shuffle=self.shuffle, percentage=1.0)
@@ -137,13 +130,13 @@ class FastTensorDataLoader:
 
 class DistributionEnum(Enum):
     """Enum for data distribution across clients."""
-    IID = "iid"
-    QUANTITY_SKEWED = "qnt"
-    CLASSWISE_QUANTITY_SKEWED = "classqnt"
-    LABEL_QUANTITY_SKEWED = "lblqnt"
-    LABEL_DIRICHLET_SKEWED = "dir"
-    LABEL_PATHOLOGICAL_SKEWED = "path"
-    COVARIATE_SHIFT = "covshift"
+    IID = "iid" #: Independent and Identically Distributed data.
+    QUANTITY_SKEWED = "qnt" #: Quantity skewed data.
+    CLASSWISE_QUANTITY_SKEWED = "classqnt" #: Class-wise quantity skewed data.
+    LABEL_QUANTITY_SKEWED = "lblqnt" #: Label quantity skewed data.
+    LABEL_DIRICHLET_SKEWED = "dir" #: Label skewed data according to the Dirichlet distribution.
+    LABEL_PATHOLOGICAL_SKEWED = "path" #: Pathological skewed data (i.e., each client has data from a small subset of the classes).
+    COVARIATE_SHIFT = "covshift" #: Covariate shift skewed data.
 
     def __hash__(self) -> int:
         return self.value.__hash__()
@@ -155,20 +148,15 @@ class DistributionEnum(Enum):
 class DataSplitter:
     """Utility class for splitting the data across clients.
 
-    Parameters
-    ----------
-    dataset : DatasetsEnum
-        The dataset.
-    standardize : bool, optional
-        Whether to standardize the data, by default False.
-    distribution : DistributionEnum, optional
-        The distribution of the data across clients, by default DistributionEnum.IID.
-    validation_split : float, optional
-        The percentage of the training data to use for validation/test client-side, by default 0.0.
-    sampling_perc : float, optional
-        The percentage of the data to be sampled, by default 1.0.
-    **kwargs : dict
-        Additional parameters.
+    Args:
+        dataset (DatasetsEnum or DataContainer): The dataset.
+        standardize (bool, optional): Whether to standardize the data. Defaults to False.
+        distribution (DistributionEnum, optional): The distribution of the data across clients. 
+            Defaults to DistributionEnum.IID.
+        client_split (float, optional): The percentage of data to be used for validation. Defaults to 0.0.
+        sampling_perc (float, optional): The percentage of data to be used. Defaults to 1.0.
+        builder_args (DDict, optional): The arguments for the dataset builder. Defaults to {}.
+        **kwargs: Additional arguments.
     """
     from .datasets import DatasetsEnum
     
@@ -176,15 +164,11 @@ class DataSplitter:
     def from_config(cls, config: DDict) -> DataSplitter:
         """Create a DataSplitter from a configuration dictionary.
 
-        Parameters
-        ----------
-        config : dict
-            The configuration dictionary.
-
-        Returns
-        -------
-        DataSplitter
-            The DataSplitter instance.
+        Args:
+            config (DDict): The configuration dictionary.
+        
+        Returns:
+            DataSplitter: The `DataSplitter` object.
         """
         return config.dataset.name.splitter()(dataset=config.dataset.name, 
                                               builder_args=config.dataset.exclude('name'),
@@ -224,6 +208,11 @@ class DataSplitter:
     #     return self.data_container.num_features
 
     def num_classes(self) -> int:
+        """Return the number of classes of the dataset.
+
+        Returns:
+            int: The number of classes.
+        """
         return self.data_container.num_classes
 
     def assign(self, 
@@ -233,17 +222,13 @@ class DataSplitter:
                                                         FastTensorDataLoader]:
         """Assign the data to the clients according to the distribution.
 
-        Parameters
-        ----------
-        n_clients : int
-            The number of clients.
-        batch_size : int, optional
-            The batch size, by default None.
-
-        Returns
-        -------
-        tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]], FastTensorDataLoader]
-            The clients' training and validation/test assignments, and the server's test assignment.
+        Args:
+            n_clients (int): The number of clients.
+            batch_size (Optional[int], optional): The batch size. Defaults to None.
+        
+        Returns:
+            tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]], FastTensorDataLoader]: 
+                The clients' training and validation data loaders and the server's data loader.
         """
         Xtr, Ytr = self.data_container.train
         self.assignments = self._iidness_functions[self.distribution](self, Xtr, Ytr, n_clients, **self.kwargs)
@@ -286,19 +271,13 @@ class DataSplitter:
                 n: int) -> List[torch.Tensor]:
         """Distribute the examples uniformly across the users.
 
-        Parameters
-        ----------
-        X: torch.Tensor
-            The examples.
-        y: torch.Tensor
-            The labels. Not used.
-        n: int
-            The number of clients upon which the examples are distributed.
-
-        Returns
-        -------
-        List[torch.Tensor]
-            The examples' ids assignment.
+        Args:
+            X (torch.Tensor): The examples.
+            y (torch.Tensor): The labels.
+            n (int): The number of clients upon which the examples are distributed.
+        
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
         """
         assert X.shape[0] >= n, "# of instances must be > than #clients"
 
@@ -327,23 +306,15 @@ class DataSplitter:
         - alpha -> \infty => all users but one have `min_quantity` examples, and the remaining user all the rest.
         Each client is guaranteed to have at least `min_quantity` examples.
 
-        Parameters
-        ----------
-        X: torch.Tensor
-            The examples.
-        y: torch.Tensor
-            The labels. Not used.
-        n: int
-            The number of clients upon which the examples are distributed.
-        min_quantity: int, default 2
-            The minimum quantity of examples to assign to each user.
-        alpha: float, default 4.
-            Hyper-parameter of the power law density function  $P(x; a) = a x^{a-1}$, with a > 0.
-
-        Returns
-        -------
-        List[torch.Tensor]
-            The examples' ids assignment.
+        Args:
+            X (torch.Tensor): The examples.
+            y (torch.Tensor): The labels. Not used.
+            n (int): The number of clients upon which the examples are distributed.
+            min_quantity (int, optional): The minimum number of examples per client. Defaults to 2.
+            alpha (float, optional): The skewness parameter. Defaults to 4.
+        
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
         """
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
@@ -360,6 +331,26 @@ class DataSplitter:
                                  n: int,
                                  min_quantity: int=2,
                                  alpha: float=4.) -> List[torch.Tensor]:
+        """Class-wise quantity skewed data distribution.
+
+        Distribute the examples of each class across the users according to the following 
+        probability density function:
+        $P(x; a) = a x^{a-1}$
+        where x is the id of a client (x in [0, n-1]), and a = `alpha` > 0 with
+        - alpha = 1  => examples are equidistributed across clients;
+        - alpha = 2  => the examples are "linearly" distributed across users;
+        - alpha >= 3 => the examples are power law distributed;
+
+        Args:
+            X (torch.Tensor): The examples.
+            y (torch.Tensor): The labels.
+            n (int): The number of clients upon which the examples are distributed.
+            min_quantity (int, optional): The minimum number of examples per client. Defaults to 2.
+            alpha (float, optional): The skewness parameter. Defaults to 4.
+        
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
+        """
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
 
@@ -397,21 +388,14 @@ class DataSplitter:
         the samples of different parties.
         See: https://arxiv.org/pdf/2102.02079.pdf
 
-        Parameters
-        ----------
-        X: torch.Tensor
-            The examples. Not used.
-        y: torch.Tensor
-            The lables.
-        n: int
-            The number of clients upon which the examples are distributed.
-        class_per_client: int, default 2
-            The number of different labels in each client.
-
-        Returns
-        -------
-        List[torch.Tensor]
-            The examples' ids assignment.
+        Args:
+            X (torch.Tensor): The examples. Not used.
+            y (torch.Tensor): The lables.
+            n (int): The number of clients upon which the examples are distributed.
+            class_per_client (int, optional): The number of classes per client. Defaults to 2.
+        
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
         """
         labels = set(torch.unique(torch.LongTensor(y)).numpy())
         assert 0 < class_per_client <= len(labels), "class_per_client must be > 0 and <= #classes"
@@ -443,21 +427,15 @@ class DataSplitter:
         concentration parameter (beta > 0).
         See: https://arxiv.org/pdf/2102.02079.pdf
 
-        Parameters
-        ----------
-        X: torch.Tensor
-            The examples. Not used.
-        y: torch.Tensor
-            The lables.
-        n: int
-            The number of clients upon which the examples are distributed.
-        beta: float, default .5
-            The beta parameter of the Dirichlet distribution, i.e., Dir(beta).
-
-        Returns
-        -------
-        List[torch.Tensor]
-            The examples' ids assignment.
+        Args:
+            X (torch.Tensor): The examples. Not used - Allows for a common interface with other methods.
+            y (torch.Tensor): The lables.
+            n (int): The number of clients upon which the examples are distributed.
+            beta (float, optional): The concentration parameter. Defaults to 0.1.
+            min_ex_class (int, optional): The minimum number of examples per class. Defaults to 2.
+        
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
         """
         assert beta > 0, "beta must be > 0"
         labels = set(torch.unique(torch.LongTensor(y)).numpy())
@@ -485,21 +463,14 @@ class DataSplitter:
         of the data, as most clients will only have examples of a limited number of classes.
         See: http://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
 
-        Parameters
-        ----------
-        X: torch.Tensor
-            The examples. Not used.
-        y: torch.Tensor
-            The lables.
-        n: int
-            The number of clients upon which the examples are distributed.
-        shards_per_client: int, default 2
-            Number of shards per client.
-
-        Returns
-        -------
-        List[torch.Tensor]
-            The examples' ids assignment.
+        Args:
+            X (torch.Tensor): The examples. Not used.
+            y (torch.Tensor): The lables.
+            n (int): The number of clients upon which the examples are distributed.
+            shards_per_client (int, optional): The number of shards per client. Defaults to 2.
+        
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
         """
         sorted_ids = np.argsort(y)
         n_shards = int(shards_per_client * n)
@@ -525,21 +496,14 @@ class DataSplitter:
         The function first extracts the first principal component (through PCA) and then divides it in
         `modes` percentiles. To each user, only examples from a single mode are selected (uniformly).
         
-        Parameters
-        ----------
-        X: torch.Tensor
-            The examples.
-        y: torch.Tensor
-            The lables.
-        n: int
-            The number of clients upon which the examples are distributed.
-        modes: int, default 2
-            Number of different modes to consider in the input data first principal component.
+        Args:
+            X (torch.Tensor): The examples.
+            y (torch.Tensor): The lables.
+            n (int): The number of clients upon which the examples are distributed.
+            modes (int, optional): The number of modes. Defaults to 2.
         
-        Returns
-        -------
-        List[torch.Tensor]
-            The examples' ids assignment.
+        Returns:
+            List[torch.Tensor]: The examples' ids assignment.
         """
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
 
@@ -582,17 +546,7 @@ class DataSplitter:
 
 
 class DummyDataSplitter(DataSplitter):
-    """This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST).
-
-    Parameters
-    ----------
-    dataset : DatasetsEnum
-        The dataset
-    num_features : int
-        The number of features of the dataset.
-    num_classes : int
-        The number of classes of the dataset.
-    """
+    """This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST)."""
 
     from .datasets import DatasetsEnum
 
