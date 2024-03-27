@@ -1,3 +1,4 @@
+"""This module contains utility functions and classes used throughout the package."""
 from __future__ import annotations
 import sys
 sys.path.append(".")
@@ -40,8 +41,8 @@ class OptimizerConfigurator:
 
     Attributes:
         optimizer (type[Optimizer]): The optimizer class.
-        scheduler_kwargs (dict): The scheduler keyword arguments.
-        optimizer_kwargs (dict): The optimizer keyword arguments.
+        scheduler_kwargs (DDict): The scheduler keyword arguments.
+        optimizer_kwargs (DDict): The optimizer keyword arguments.
     
     Todo: 
         * Add support for more schedulers.
@@ -88,7 +89,7 @@ class LogEnum(Enum):
                classification_eval: Evaluator, 
                eval_every: int, 
                **wandb_config):
-        """Returns a new logger according to the enumerator.
+        """Returns a new logger according to the value of the enumerator.
 
         Args:
             classification_eval (Evaluator): The evaluator that will be used to evaluate the model.
@@ -112,7 +113,7 @@ class ServerObserver():
 
     This interface is used to observe the server during the federated learning process.
     For example, it can be used to log the performance of the global model and the communication 
-    costs, as it is done in the :class:`Log` class.
+    costs, as it is done in the `Log` class.
     """
     def start_round(self, round: int, global_model: Any):
         pass
@@ -139,6 +140,10 @@ class ChannelObserver():
 
     This interface is used to observe the communication channel during the federated learning 
     process.
+
+    See Also:
+        `ServerObserver`, `ObserverSubject`
+
     """
     
     def message_received(self, message: Message):
@@ -146,7 +151,7 @@ class ChannelObserver():
 
 
 class Log(ServerObserver, ChannelObserver):
-    """Default logger.
+    """Basic logger.
 
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process. The logging happens in the console.
@@ -249,6 +254,20 @@ class Log(ServerObserver, ChannelObserver):
 
 
 class WandBLog(Log):
+    """Weights and Biases logger.
+
+    This class is used to log the performance of the global model and the communication costs during
+    the federated learning process on Weights and Biases.
+
+    See Also:
+        For more information on Weights and Biases, see the `Weights and Biases documentation
+        <https://docs.wandb.ai/>`_.
+
+    Args:
+        evaluator (Evaluator): The evaluator that will be used to evaluate the model.
+        eval_every (int): The number of rounds between evaluations.
+        **config: The configuration for Weights and Biases.
+    """
     def __init__(self, evaluator: Evaluator, eval_every: int, **config):
         super().__init__(evaluator, eval_every)
         self.config = config
@@ -279,6 +298,7 @@ class WandBLog(Log):
     def save(self, path: str):
         super().save(path)
         self.run.finish()
+
 
 def import_module_from_str(name: str) -> Any:
     """Import a module from its name.
@@ -362,6 +382,14 @@ def get_model(mname:str, **kwargs) -> Module:
 
 
 def get_full_classname(classtype: type) -> str:
+    """Get the fully qualified name of a class.
+
+    Args:
+        classtype (type): The class.
+    
+    Returns:
+        str: The fully qualified name of the class.
+    """
     return f"{classtype.__module__}.{classtype.__name__}"
 
 def get_scheduler(sname:str) -> torch.nn.Module:
@@ -418,10 +446,15 @@ class DDict(dict):
 class Configuration(DDict):
     """FL-Bench configuration class.
 
-
+    This class is used to store the configuration of an experiment. The configuration must adhere to
+    a specific structure. The configuration is validated when the class is instantiated.
 
     Args:
-        DDict (_type_): _description_
+        config_exp_path (str): The path to the experiment configuration file.
+        config_alg_path (str): The path to the algorithm configuration file.
+    
+    Raises:
+        ValueError: If the configuration is not valid.
     """
     def __init__(self, config_exp_path: str, config_alg_path: str):
         with open(config_exp_path) as f:

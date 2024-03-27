@@ -1,3 +1,4 @@
+"""This submodule provides utilities for pytorch model manipulation."""
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -14,7 +15,7 @@ from torch.nn import Module
 
 
 def diff_model(model_dict1: dict, model_dict2: dict):
-    """Compute the difference between two models.
+    """Compute the difference between two model state dictionaries.
 
     The difference is computed at the level of the parameters.
 
@@ -53,19 +54,41 @@ def merge_models(model_1: Module, model_2: Module, lam: float):
 
 
 class MMMixin:
+    """Mixin class for model interpolation.
     
+    This class provides the necessary methods to interpolate between two models. This mixin class
+    must be used as a parent class for the pytorch modules that need to be interpolated.
+
+    Attributes:
+        lam (float): The interpolation constant.
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.lam = None
 
-    def set_lambda(self, lam):
+    def set_lambda(self, lam) -> None:
+        """Set the interpolation constant.
+
+        Args:
+            lam (float): The interpolation constant.
+        """
         self.lam = lam
     
-    def get_lambda(self):
+    def get_lambda(self) -> float:
+        """Get the interpolation constant.
+
+        Returns:
+            float: The interpolation constant.
+        """
         return self.lam
 
     # @abstractmethod
-    def get_weight(self):
+    def get_weight(self) -> torch.Tensor:
+        """Get the interpolated weights.
+
+        Returns:
+            torch.Tensor: The interpolated weights.
+        """
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
         return w
 
