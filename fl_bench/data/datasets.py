@@ -1,16 +1,16 @@
 from __future__ import annotations
+import sys
+sys.path.append(".")
+sys.path.append("..")
+
 import os
 import json
 import torch
 import string
 from enum import Enum
-
 from numpy.random import permutation
-
 from rich.progress import track
-
 from datasets import load_dataset
-
 from torchvision import datasets
 from torchvision.transforms import ToTensor, Lambda
 

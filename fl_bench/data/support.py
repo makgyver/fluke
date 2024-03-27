@@ -1,6 +1,9 @@
 import os
-import warnings
+import sys
+sys.path.append(".")
+sys.path.append("..")
 
+import warnings
 import torch
 from PIL import Image
 from torchvision.datasets import VisionDataset
