@@ -12,9 +12,9 @@ from . import GlobalSettings
 from .data import FastTensorDataLoader
 
 class Evaluator(ABC):
-    """Base class for all evaluators.
+    """This class is the base class for all evaluators in the `FL-bench`.
 
-    This class is the base class for all evaluators in the `FL-bench`.
+    An evaluator object should be used to perform the evaluation of a model.
 
     Attributes:
         loss_fn (Callable): The loss function.
@@ -35,6 +35,8 @@ class Evaluator(ABC):
     def __call__(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
         """Evaluate the model.
 
+        This method is equivalent to `evaluate`.
+
         Args:
             model (Module): The model to evaluate.
             eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
@@ -45,13 +47,14 @@ class Evaluator(ABC):
 class ClassificationEval(Evaluator):
     """Evaluate a classification pytorch model.
 
-    The metrics computed are accuracy, precision, recall, f1 and the loss according to the provided
-    loss function `loss_fn`.
+    The metrics computed are `accuracy`, `precision`, `recall`, `f1` and the loss according 
+    to the provided loss function `loss_fn`.
 
     Attributes:
         average (Literal["micro","macro"]): The average to use for the metrics.
         n_classes (int): The number of classes.
-        device (torch.device): The device where the evaluation is performed.
+        device (Optional[torch.device]): The device where the evaluation is performed. If `None`,
+            the device is the one set in the `GlobalSettings`.
     """
     def __init__(self, 
                  loss_fn: Callable, 

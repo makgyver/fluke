@@ -123,17 +123,19 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     device = GlobalSettings().get_device()
     
+    hp = cfg.method.hyperparameters
     (clients_tr_data, clients_te_data), _ = \
-            data_splitter.assign(cfg.protocol.n_clients, cfg.method.hyperparameters.client.batch_size)
+            data_splitter.assign(cfg.protocol.n_clients, hp.client.batch_size)
 
-    criterion = get_loss(cfg.method.hyperparameters.client.loss)
+    criterion = get_loss(hp.client.loss)
     client_evals = []
-    for i, (train_loader, test_loader) in track(enumerate(zip(clients_tr_data, clients_te_data)), total=len(clients_tr_data)):
+    progress = track(enumerate(zip(clients_tr_data, clients_te_data)), total=len(clients_tr_data))
+    for i, (train_loader, test_loader) in progress:
         rich.print(f"Client [{i}]")
-        model = get_model(mname=cfg.method.hyperparameters.model)#, **cfg.method.hyperparameters.net_args)
+        model = get_model(mname=hp.model)#, **hp.net_args)
         optimizer_cfg = OptimizerConfigurator(torch.optim.SGD, 
-                                              **cfg.method.hyperparameters.client.optimizer,
-                                              scheduler_kwargs=cfg.method.hyperparameters.client.scheduler)
+                                              **hp.client.optimizer,
+                                              scheduler_kwargs=hp.client.scheduler)
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(criterion, 
                                        data_splitter.data_container.num_classes, 

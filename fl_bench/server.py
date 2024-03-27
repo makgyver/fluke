@@ -22,7 +22,11 @@ class Server(ObserverSubject):
     """Standard Server for Federated Learning.
 
     This class is the base class for all servers in `FL-bench`. It implements the basic
-    functionalities of a federated learning server.
+    functionalities of a federated learning server. The default behaviour of this server is based
+    on the Federated Averaging algorithm. The server is responsible for coordinating the learning
+    process, selecting the clients for each round, sending the global model to the clients, and
+    aggregating the models of the clients. The server also evaluates the model server-side (if the
+    test data is provided) and sends the final model to the clients.
 
     Attributes:
         hyper_params (DDict): The hyper-parameters of the server. The default hyper-parameters are:

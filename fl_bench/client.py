@@ -4,7 +4,7 @@ sys.path.append(".")
 
 from abc import ABC
 from copy import deepcopy
-from typing import Callable
+from typing import Callable, Dict
 
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler as Scheduler
@@ -24,7 +24,11 @@ class Client(ABC):
     """Base Client class.
 
     This class is the base class for all clients in the `FL-bench`. The behavior of the client is 
-    based on the FedAvg algorithm.
+    based on the Federated Averaging algorithm. The default behavior of a client includes:
+    - Receiving the global model from the server;
+    - Training the model locally for a number of epochs using the local training set;
+    - Sending the updated local model back to the server;
+    - (Optional) Evaluating the model on the local test set.
 
     Attributes:
         hyper_params (DDict): The hyper-parameters of the client. The default hyper-parameters are:
@@ -52,7 +56,7 @@ class Client(ABC):
                  local_epochs: int=3,
                  **additional_hyper_params):
         
-        self.hyper_params = DDict({
+        self.hyper_params: DDict = DDict({
             "loss_fn": loss_fn,
             "local_epochs": local_epochs
         })
@@ -70,7 +74,7 @@ class Client(ABC):
         self.server: Server = None
         self.channel: Channel = None
     
-    def set_server(self, server: Server):
+    def set_server(self, server: Server) -> None:
         """Set the server.
 
         Along with the server, the channel is also set and the client must use this channel to
@@ -95,12 +99,12 @@ class Client(ABC):
     def local_train(self, override_local_epochs: int=0) -> None:
         """Client's local training.
 
-        The training occurs for a number of :attr:`hyper_params.local_epochs` epochs using the local 
-        training set and as loss function the one defined in :attr:`hyper_params.loss_fn`.
+        The training occurs for a number of `hyper_params.local_epochs` epochs using the local 
+        training set and as loss function the one defined in `hyper_params.loss_fn`.
         After the training, the client sends the model to the server.
 
         Args:
-            override_local_epochs (int, optional): Override the number of local epochs, 
+            override_local_epochs (int, optional): Overrides the number of local epochs, 
                 by default 0 (use the default number of local epochs).
         """
         epochs: int = (override_local_epochs if override_local_epochs 
@@ -127,8 +131,8 @@ class Client(ABC):
         clear_cache()
         self._send_model()
     
-    def validate(self):
-        """Test the local model on the :attr:`test_set`.
+    def validate(self) -> Dict[str, float]:
+        """Test the local model on the `test_set`.
 
         If the test set is not set, the method returns an empty dictionary.
 
@@ -136,7 +140,8 @@ class Client(ABC):
             To date, only classification tasks are supported.
 
         Returns:
-            dict: The evaluation results. The keys are the metrics and the values are the results.
+            Dict[str, float]: The evaluation results. The keys are the metrics and the values are 
+                the results.
         """
         if self.test_set is not None:
             if self.model is None:
@@ -162,9 +167,9 @@ class Client(ABC):
 class PFLClient(Client):
     """Personalized Federated Learning client.
 
-    This class is a personalized version of the :class:`Client` class. It is used to implement
+    This class is a personalized version of the `Client` class. It is used to implement
     personalized federated learning algorithms. The main difference is that the client has a
-    personalized model (:attr:`personalized_model`).
+    personalized model (`personalized_model`).
 
     The client evaluation is performed using the personalized model instead of the global model.
 
@@ -182,8 +187,8 @@ class PFLClient(Client):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
     
-    def validate(self) -> dict:
-        """Test the personalized model on the :attr:`test_set`.
+    def validate(self) -> Dict[str, float]:
+        """Test the personalized model on the :`test_set`.
 
         If the test set is not set, the method returns an empty dictionary.
 
@@ -191,7 +196,8 @@ class PFLClient(Client):
             To date, only classification tasks are supported.
 
         Returns:
-            dict: The evaluation results. The keys are the metrics and the values are the results.
+            Dict[str, float]: The evaluation results. The keys are the metrics and the values are 
+                the results.
         """
         if self.test_set is not None:
             return ClassificationEval(self.hyper_params.loss_fn,

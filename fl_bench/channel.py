@@ -11,15 +11,17 @@ class Channel(ObserverSubject):
     """A bi-directional communication channel. It is used to send and receive messages between the 
     parties.
     
-    The channel is an observer subject. It notifies its observers when a message is received.
+    The Channel class implements the Observer pattern. It notifies the observers when a message is
+    received. Clients and server are supposed to use a channel to communicate with each other. 
 
     Attributes:
-        _buffer (Dict[Any, Message]): The buffer to store the messages.
+        _buffer (Dict[Any, List[Message]]): The buffer to store the unread messages. The key is the
+            recipient and the value is a list of messages.
     """
 
     def __init__(self):
         super().__init__()
-        self._buffer: Dict[Any, Message] = defaultdict(list)
+        self._buffer: Dict[Any, List[Message]] = defaultdict(list)
 
     def _send_action(self, method, kwargs, mbox):
         if callable(method):
@@ -45,11 +47,11 @@ class Channel(ObserverSubject):
             mbox (Any): The receiver.
         
         Example:
-            Sending a string message from the server to a client:
+            Sending a string message from the `server` to a `client`:
             >>> channel = Channel()
             >>> channel.send(Message("Hello", "greeting", server), client)
 
-            If the server wants to request the clients to run the `train` method which has an 
+            If the `server` wants to request the clients to run the `train` method which has an 
             argument `epochs`, it can send a message with the following payload:
             >>> message = Message((client.train, {"epochs": 3}), "__action__", server)
             >>> channel.send(message, client)
@@ -61,8 +63,8 @@ class Channel(ObserverSubject):
         else:  
             self._buffer[mbox].append(message)
 
-    def receive(self, mbox: Any, sender:Any=None, msg_type: str=None) -> Message:
-        """Receive a message from a sender.
+    def receive(self, mbox: Any, sender: Any=None, msg_type: str=None) -> Message:
+        """Receive (read) a message from a sender.
 
         Args:
             mbox (Any): The receiver.
@@ -70,10 +72,10 @@ class Channel(ObserverSubject):
             msg_type (str): The type of the message.
         
         Returns:
-            Message: The message received.
+            Message: The received message.
         
         Raises:
-            ValueError: If the message is not found in the message box of the receiver with the
+            ValueError: message not found in the message box of the receiver with the
                 given sender and message type.
         """
         if sender is None and msg_type is None:

@@ -18,7 +18,7 @@ __all__ = [
     'client',
     'server',
     'utils',
-    'main'
+    'run'
 ]
 
 
@@ -63,7 +63,14 @@ class DeviceEnum(Enum):
 
 
 class GlobalSettings(metaclass=Singleton):
-    """Global settings for the library.""" 
+    """Global settings for FL-bench.
+    
+    This class is a singleton that holds the global settings for FL-bench. The settings include:
+    - The device (CPU, CUDA, AUTO, MPS);
+    - The seed for reproducibility;
+    - The progress bars for the federated learning process, clients and server;
+    - The live renderer, which is used to render the progress bars.
+    """ 
     
     _device: str = 'cpu'
     _seed: int = 0
@@ -177,7 +184,7 @@ class GlobalSettings(metaclass=Singleton):
 class Message:
     """Message class.
 
-    This class represents a message that can be sent between clients and the server.
+    This class represents a message that can be exchanged between clients and the server.
 
     Attributes:
         msg_type (str): The type of the message.
@@ -196,6 +203,7 @@ class Message:
         """Get the size of the message.
 
         The message size is the size of the payload in bytes estimated using the `pickle` module.
+        A message containing an ACK (i.e., with no payload) has a size of 1 byte.
 
         Returns:
             int: The size of the message in bytes.
