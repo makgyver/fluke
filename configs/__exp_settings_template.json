@@ -15,7 +15,7 @@
 		},
 		"standardize": false,
     	"client_split": 0,
-    	"sampling": 1
+    	"sampling_perc": 1
 	},
 	"exp": {
 		"seed": 42,

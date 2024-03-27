@@ -16,10 +16,10 @@ from ..data import FastTensorDataLoader
 from ..utils import OptimizerConfigurator
 
 
-class PerFedAvgOptimizer(Optimizer):
+class PerFedAVGOptimizer(Optimizer):
     def __init__(self, params, lr):
         defaults = dict(lr=lr)
-        super(PerFedAvgOptimizer, self).__init__(params, defaults)
+        super(PerFedAVGOptimizer, self).__init__(params, defaults)
 
     def step(self, closure=None, beta=0, grads=None):
         loss = None
@@ -38,7 +38,7 @@ class PerFedAvgOptimizer(Optimizer):
         return loss
 
 
-class PerFedAvgClient(Client):
+class PerFedAVGClient(Client):
     def __init__(self,
                  index: int,
                  train_set: FastTensorDataLoader,
@@ -149,7 +149,7 @@ class PerFedAvgClient(Client):
 class PerFedAVG(CentralizedFL):
     
     def get_client_class(self) -> Client:
-        return PerFedAvgClient
+        return PerFedAVGClient
 
     def get_optimizer_class(self) -> Optimizer:
-        return PerFedAvgOptimizer
+        return PerFedAVGOptimizer

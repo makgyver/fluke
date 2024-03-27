@@ -1,12 +1,12 @@
 {
     "protocol": {
-		"n_clients": 730,
-    	"n_rounds": 100,
-    	"eligible_perc": 0.007
+		"n_clients": 100,
+    	"n_rounds": 200,
+    	"eligible_perc": 0.05
 	},
 	"data": {
 		"dataset": {
-			"name": "femnist"
+			"name": "mnist"
 		},
 		"standardize": false,
     	"distribution": {
@@ -20,7 +20,7 @@
 		"average": "micro",
     	"device": "cpu"
 	},
-	"log": {
-		"logger": "local"
+	"logger": {
+		"name": "local"
 	}
 }

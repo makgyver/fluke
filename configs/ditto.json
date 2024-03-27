@@ -1,5 +1,5 @@
 {
-    "name": "ditto",
+    "name": "fl_bench.algorithms.ditto.Ditto",
     "hyperparameters": {
         "server": {
             "weighted": true
@@ -8,19 +8,19 @@
             "batch_size": 10,
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
-            "model": "VGG9",
+            "model": "MNIST_2NN",
             "tau": 5,
             "lam": 1,
             "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,
-                "momentum": 0.9,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "momentum": 0.9
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
-        "model": "VGG9"
+        "model": "MNIST_2NN"
     }
 }

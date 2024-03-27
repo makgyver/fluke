@@ -1,5 +1,5 @@
 {
-    "name": "fedopt",
+    "name": "fl_bench.algorithms.fedopt.FedOpt",
     "hyperparameters": {
         "server": {
             "mode": "yogi",
@@ -13,13 +13,13 @@
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
             "optimizer": {		
-                "lr": 0.01,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "lr": 0.01
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
-        "model": "VGG9"
+        "model": "MNIST_2NN"
     }
 }

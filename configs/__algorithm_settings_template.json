@@ -1,7 +1,7 @@
 {
     "name": "fedavg",
-    "model": "Shakespeare_LSTM",
     "hyperparameters": {
+        "model": "Shakespeare_LSTM",
         "server": {
             "weighted": true
         },

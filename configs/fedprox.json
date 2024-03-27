@@ -1,5 +1,5 @@
 {
-    "name": "fedprox",
+    "name": "fl_bench.algorithms.fedprox.FedProx",
     "hyperparameters": {
         "server": {
             "weighted": true
@@ -12,11 +12,11 @@
             "optimizer": {
                 "lr": 0.01,
                 "weight_decay": 0.0001,
-                "momentum": 0.9,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "momentum": 0.9
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
         "model": "MNIST_2NN"

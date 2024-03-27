@@ -1,0 +1,29 @@
+{
+    "protocol": {
+		"n_clients": 730,
+    	"n_rounds": 100,
+    	"eligible_perc": 0.007
+	},
+	"data": {
+		"dataset": {
+			"name": "femnist"
+		},
+		"standardize": false,
+    	"distribution": {
+			"name": "iid"
+		},
+    	"client_split": 0.2,
+    	"sampling_perc": 1
+	},
+	"exp": {
+		"seed": 42,
+		"average": "micro",
+    	"device": "cpu"
+	},
+	"logger": {
+		"name": "wandb",
+		"project": "fl-bench",
+        "entity": "mlgroup",
+        "tags": ["FEMNIST"]
+	}
+}

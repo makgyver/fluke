@@ -17,10 +17,10 @@ from ..data import FastTensorDataLoader
 from ..utils import OptimizerConfigurator, clear_cache
 
 
-class ScaffoldOptimizer(Optimizer):
+class SCAFFOLDOptimizer(Optimizer):
     def __init__(self, params, lr: float=0.001, weight_decay: float=0.01):
         defaults = dict(lr=lr, weight_decay=weight_decay)
-        super(ScaffoldOptimizer, self).__init__(params, defaults)
+        super(SCAFFOLDOptimizer, self).__init__(params, defaults)
 
     #TODO: add types
     def step(self, server_controls, client_controls, closure=None):
@@ -39,7 +39,7 @@ class ScaffoldOptimizer(Optimizer):
         return loss
 
 
-class ScaffoldClient(Client):
+class SCAFFOLDClient(Client):
     def __init__(self,
                  index: int,
                  train_set: FastTensorDataLoader,
@@ -104,7 +104,7 @@ class ScaffoldClient(Client):
         self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 
-class ScaffoldServer(Server):
+class SCAFFOLDServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
@@ -163,11 +163,11 @@ class SCAFFOLD(CentralizedFL):
     """
     
     def get_optimizer_class(self) -> torch.optim.Optimizer:
-        return ScaffoldOptimizer
+        return SCAFFOLDOptimizer
     
     def get_client_class(self) -> Client:
-        return ScaffoldClient
+        return SCAFFOLDClient
 
     def get_server_class(self) -> Server:
-        return ScaffoldServer
+        return SCAFFOLDServer
 

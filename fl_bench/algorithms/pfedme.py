@@ -18,10 +18,10 @@ from ..data import FastTensorDataLoader
 from ..utils import OptimizerConfigurator
 
 
-class pFedMeOptimizer(Optimizer):
+class PFedMeOptimizer(Optimizer):
     def __init__(self, params, lr=0.01, lamda=0.1, mu=0.001):
         defaults = dict(lr=lr, lamda=lamda, mu=mu)
-        super(pFedMeOptimizer, self).__init__(params, defaults)
+        super(PFedMeOptimizer, self).__init__(params, defaults)
 
     @torch.no_grad()
     def step(self, local_parameters: List[torch.nn.Parameter]):
@@ -124,7 +124,7 @@ class PFedMeServer(Server):
 
 class PFedMe(CentralizedFL):
     def get_optimizer_class(self) -> torch.optim.Optimizer:
-        return pFedMeOptimizer
+        return PFedMeOptimizer
     
     def get_client_class(self) -> Client:
         return PFedMeClient

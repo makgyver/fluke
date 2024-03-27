@@ -1,5 +1,5 @@
 {
-    "name": "pfedme",
+    "name": "fl_bench.algorithms.pfedme.PFedMe",
     "hyperparameters": {
         "server": {
             "beta": 1

@@ -1,24 +1,23 @@
 {
-    "name": "fednova",
+    "name": "fl_bench.algorithms.fednova.FedNova",
     "hyperparameters": {
         "server": {
-            "global_step": 1,
-            "tau_eff": 0
+            "weighted": true
         },
         "client": {
-            "batch_size": 32,
+            "batch_size": 64,
             "local_epochs": 5,
             "loss": "CrossEntropyLoss",
-            "pattern": "constant",
-            "max_epochs": 3,
             "optimizer": {		
                 "lr": 0.01,
-                "scheduler_kwargs": {
-                    "step_size": 1, 
-                    "gamma": 1
-                }
+                "momentum": 0.9,
+                "weight_decay": 0.0001
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
-        "model": "MLP"
+        "model": "MNIST_2NN"
     }
 }

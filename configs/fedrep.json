@@ -1,5 +1,5 @@
 {
-    "name": "fedrep",
+    "name": "fl_bench.algorithms.fedrep.FedRep",
     "hyperparameters": {
         "server": {
             "weighted": false
@@ -8,18 +8,18 @@
             "batch_size": 10,
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
-            "model": "VGG9",
+            "model": "MNIST_2NN_ED",
             "tau": 5,
             "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,
-                "momentum": 0.9,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "momentum": 0.9
+            },
+            "scheduler_kwargs": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
-        "model": "VGG9_E"
+        "model": "MNIST_2NN_E"
     }
 }

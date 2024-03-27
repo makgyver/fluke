@@ -1,5 +1,5 @@
 {
-    "name": "fedavg",
+    "name": "fl_bench.algorithms.fedavg.FedAVG",
     "hyperparameters": {
         "server": {
             "weighted": true
@@ -9,11 +9,13 @@
             "local_epochs": 5,
             "loss": "CrossEntropyLoss",
             "optimizer": {		
-                "lr": 0.8
+                "lr": 0.01,
+                "momentum": 0.9,
+                "weight_decay": 0.0001
             },
             "scheduler": {
-                "step_size": 10, 
-                "gamma": 0.995
+                "step_size": 1, 
+                "gamma": 1
             }
         },
         "model": "MNIST_2NN"

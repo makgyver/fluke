@@ -1,5 +1,5 @@
 {
-    "name": "fedper",
+    "name": "fl_bench.algorithms.fedper.FedPer",
     "hyperparameters": {
         "server": {
             "weighted": true
@@ -8,17 +8,17 @@
             "batch_size": 10,
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
-            "model": "VGG9",
+            "model": "MNIST_2NN_ED",
             "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,
-                "momentum": 0.9,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "momentum": 0.9
+            },
+            "scheduler": {
+                "step_size": 10, 
+                "gamma": 0.995
             }
         },
-        "model": "VGG9_E"
+        "model": "MNIST_2NN_E"
     }
 }

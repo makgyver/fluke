@@ -1,23 +1,23 @@
 {
-    "name": "feddyn",
+    "name": "fl_bench.algorithms.feddyn.FedDyn",
     "hyperparameters": {
         "server": {
-            
+            "weighted": false
         },
         "client": {
             "batch_size": 10,
-            "local_epochs": 10,
+            "local_epochs": 20,
             "loss": "CrossEntropyLoss",
             "alpha": 0.01,
-            "weight_decay": 0.0001,
             "optimizer": {		
-                "lr": 0.01,
-                "scheduler_kwargs": {
-                    "step_size": 10, 
-                    "gamma": 0.995
-                }
+                "lr": 0.1,
+                "weight_decay": 0.0001
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
             }
         },
-        "model": "VGG9"
+        "model": "MNIST_2NN"
     }
 }

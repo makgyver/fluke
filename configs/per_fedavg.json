@@ -1,5 +1,5 @@
 {
-    "name": "per_fedavg",
+    "name": "fl_bench.algorithms.per_fedavg.PerFedAVG",
     "hyperparameters": {
         "server": {
         },
