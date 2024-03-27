@@ -11,9 +11,9 @@ from rich.pretty import Pretty
 
 from . import GlobalSettings
 from .data import DataSplitter, FastTensorDataLoader
-from .utils import Configuration, OptimizerConfigurator, get_loss, get_model, get_class_from_str
+from .utils import Configuration, OptimizerConfigurator, get_class_from_qualified_name, get_loss, get_model, get_class_from_str
 from .evaluation import ClassificationEval
-from .algorithms import FedAlgorithmsEnum
+# from .algorithms import FedAlgorithmsEnum
 
 app = typer.Typer()
 
@@ -77,18 +77,10 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     GlobalSettings().set_device(cfg.exp.device)
     data_splitter = DataSplitter.from_config(cfg.data)
 
-    if FedAlgorithmsEnum.contains(cfg.method.name):
-        fl_algo_builder = FedAlgorithmsEnum(cfg.method.name)
-        fl_algo = fl_algo_builder.algorithm()(cfg.protocol.n_clients, 
-                                              data_splitter, 
-                                              cfg.method.hyperparameters)
-    else:
-        module_name = ".".join(cfg.method.name.split(".")[:-1])
-        class_name = cfg.method.name.split(".")[-1]
-        fl_algo_class = get_class_from_str(module_name, class_name)
-        fl_algo = fl_algo_class(cfg.protocol.n_clients, 
-                                data_splitter, 
-                                cfg.method.hyperparameters)
+    fl_algo_class = get_class_from_qualified_name(cfg.method.name)
+    fl_algo = fl_algo_class(cfg.protocol.n_clients, 
+                            data_splitter, 
+                            cfg.method.hyperparameters)
 
 
     log = cfg.logger.name.logger(ClassificationEval(fl_algo.loss, 

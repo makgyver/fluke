@@ -312,6 +312,21 @@ def get_class_from_str(module_name: str, class_name: str) -> Any:
     class_ = getattr(module, class_name)
     return class_
 
+def get_class_from_qualified_name(qualname: str) -> Any:
+    """Get a class from its fully qualified name.
+
+    Args:
+        qualname (str): The fully qualified name of the class.
+
+    Returns:
+        Any: The class.
+    """
+    module_name = ".".join(qualname.split(".")[:-1])
+    class_name = qualname.split(".")[-1]
+    module = importlib.import_module(module_name)
+    class_ = getattr(module, class_name)
+    return class_
+
 def get_loss(lname: str) -> Module:
     """Get a loss function from its name.
 
