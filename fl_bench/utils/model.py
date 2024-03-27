@@ -314,7 +314,25 @@ def _recursive_set_layer(module: Module, layers: dict):
             setattr(module, n, l)
 
 
-def mix_networks(global_model: Module, local_model: Module, lamda: float):
+def mix_networks(global_model: Module, local_model: Module, lamda: float) -> Module:
+    """Mix two networks using a linear interpolation.
+
+    This method takes two models and a lambda value and returns a new model that is a linear 
+    interpolation of the two input models. It transparenly handles the interpolation of the
+    different layers of the models. The returned model implements the `MMMixin` class and has all
+    the layers swapped with the corresponding interpolated layers.
+
+    See Also:
+        `MMMixin`, `LinesLinear`, `LinesConv`, `LinesBN`, `LinesEmbedding`, `LinesLSTM`.
+
+    Args:
+        global_model (Module): The global model.
+        local_model (Module): The local model.
+        lamda (float): The interpolation constant.
+
+    Returns:
+        Module: The merged/interpolated model that implements the `MMMixin` class.
+    """
     merged_net = deepcopy(global_model)
     layers = _recursive_mix_networks(merged_net, global_model, local_model)
     _recursive_set_layer(merged_net, layers)
@@ -327,7 +345,8 @@ def _set_lambda(module: Module, lam: float, layerwise: bool=False):
     
     Args:
         module (torch.nn.Module): module
-        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 means a retrieval of a local model)
+        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 
+            means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
     if (
@@ -342,13 +361,41 @@ def _set_lambda(module: Module, lam: float, layerwise: bool=False):
         setattr(module, 'lam', lam)
 
 
-def set_lambda_model(model: Module, lam: float, layerwise: bool=False):
+def set_lambda_model(model: Module, lam: float, layerwise: bool=False) -> None:
+    """Set model interpolation constant.
+
+    Warning:
+        This function performs an inplace operation on the model, and
+        it assumes that the model has been built using the `MMMixin` classes.
+    
+    Args:
+        model (torch.nn.Module): model
+        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 
+            means a retrieval of a local model)
+        layerwise (bool): set different lambda layerwise or not
+    """
     model.apply(partial(_set_lambda, lam=lam, layerwise=layerwise))
 
 
-def get_local_model_dict(model):
-    return {k.replace("_local", ""): v for k, v in model.state_dict().items() if "_local" in k}
+def get_local_model_dict(model) -> OrderedDict:
+    """Get the local model state dictionary.
+
+    Args:
+        model (torch.nn.Module): the model.
+    
+    Returns:
+        OrderedDict: the local model state dictionary.
+    """
+    return OrderedDict({k.replace("_local", ""): v for k, v in model.state_dict().items() if "_local" in k})
 
 
-def get_global_model_dict(model):
-    return {k: v for k, v in model.state_dict().items() if "_local" not in k}
+def get_global_model_dict(model) -> OrderedDict:
+    """Get the global model state dictionary.
+
+    Args:
+        model (torch.nn.Module): the model.
+
+    Returns:
+        OrderedDict: the global model state dictionary.
+    """
+    return OrderedDict({k: v for k, v in model.state_dict().items() if "_local" not in k})
