@@ -48,5 +48,8 @@ Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach, Da
 <a id="16">[SuPerFed]</a>
 Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for Personalized Federated Learning. KDD 2022. URL: https://arxiv.org/pdf/2109.07628v3.pdf
 
-<a id="17">[Adaboost.F, PreWeak.F, Distboost.F 2022]</a>
-Mirko Polato, Roberto Esposito, and Marco Aldinucci. Boosting the Federation: Cross-Silo Federated Learning without Gradient Descent. IJCNN 2022. URL: https://ieeexplore.ieee.org/document/9892284
+<a id="17">[FedAMP]</a>
+Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. AAAI 2021. URL: https://arxiv.org/pdf/2007.03797.pdf
+
+<a id="18">[FedProto]</a>
+Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. AAAI 2022. URL: https://arxiv.org/pdf/2105.00243.pdf

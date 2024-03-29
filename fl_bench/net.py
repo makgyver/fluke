@@ -471,6 +471,34 @@ class GlobalLocalNet(nn.Module):
         return self.forward(x)
 
 
+class EncoderHeadNet(nn.Module):
+    """Encoder+Head Network (Abstract Class)
+
+    A network that has two subnetworks, one is meant to be the encoder that learns a latent 
+    representation of the input and the other is meant to be the head that learns to classify.
+    The forward method should work as expected, but the `forward_encoder` and
+    `forward_head` methods should be used to get the output of the econer and head subnetworks, 
+    respectively. If this is not possible, they fallback to the forward method (default behavior).
+    """
+
+    @abstractmethod
+    def get_encoder(self):
+        """Return the encoder subnetwork"""
+        pass
+
+    @abstractmethod
+    def get_head(self):
+        """Return the global subnetwork"""
+        pass
+
+    def forward_encoder(self, x):
+        return self.forward(x)
+
+    def forward_head(self, x):
+        return self.forward(x)
+
+
+
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (FEMNIST - meant to be used by FedPer)
 class FedPer_VGG9(GlobalLocalNet, VGG9):
 
@@ -576,4 +604,28 @@ class MNIST_2NN_ED(GlobalLocalNet):
         return self.E(x)
 
     def forward_global(self, z):
+        return self.D(z)
+
+
+class MNIST_2NN_Proto(EncoderHeadNet):
+    def __init__(self, 
+                 hidden_size: tuple[int, int]=(200, 200)):
+        super(MNIST_2NN_Proto, self).__init__()
+        self.output_size = 10
+        self.E = MNIST_2NN_E(hidden_size)
+        self.D = MNIST_2NN_D(hidden_size[1])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.D(self.E(x))
+
+    def get_encoder(self):
+        return self.E
+
+    def get_head(self):
+        return self.D
+
+    def forward_encoder(self, x):
+        return self.E(x)
+
+    def forward_head(self, z):
         return self.D(z)

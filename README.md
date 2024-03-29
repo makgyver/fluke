@@ -128,10 +128,9 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 ## TODO and Work in progress
 - [ ] Check the correctness of pFedMe -- **Work in progress**
 - [ ] Check the correctness of FedDyn -- **Work in progress**
-- [x] Check the correctness of FedNova -- **Work in progress**
-- [x] Check the correctness of LG-FedAvg -- **Work in progress**
+- [ ] Check the correctness of FedAMP -- **Work in progress**
+- [ ] Check the correctness of FedProto -- **Work in progress**
 - [ ] Add documentation + check typing -- **Work in progress**
-- [x] Implement configuration file validator
 
 ## Desiderata
 - [ ] Add support to validation
