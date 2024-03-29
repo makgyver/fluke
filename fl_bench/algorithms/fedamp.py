@@ -1,0 +1,132 @@
+import sys
+sys.path.append(".")
+sys.path.append("..")
+
+from copy import deepcopy
+from typing import Callable, Sequence
+import torch
+from torch.nn import Module
+
+from .. import Message
+from . import PersonalizedFL
+from ..client import PFLClient, Client
+from ..server import Server
+from ..data import FastTensorDataLoader
+from ..utils import OptimizerConfigurator, clear_cache
+
+class FedAMPClient(PFLClient):
+    def __init__(self,
+                 index: int,
+                 model: Module,
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable,
+                 local_epochs: int,
+                 lam: float):
+        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        self.hyper_params.update({
+            "lam": lam
+        })
+        self.model = deepcopy(self.personalized_model)
+        #self.personalized_model = u_model
+
+    def _alpha(self):
+        return self.optimizer.param_groups[0]["lr"]
+    
+    def _proximal_loss(self, local_model, u_model):
+        proximal_term = 0.0
+        for w, w_t in zip(local_model.parameters(), u_model.parameters()):
+            proximal_term += torch.norm(w - w_t)**2
+        return (self.hyper_params.lam / (2 * self._alpha())) * proximal_term
+
+    def _receive_model(self) -> None:
+        msg = self.channel.receive(self, self.server, msg_type="model")
+        self.personalized_model.load_state_dict(msg.payload.state_dict())
+
+    def local_train(self, override_local_epochs: int=0):
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        try:
+            self._receive_model()
+        except:
+            pass
+        self.model.to(self.device)
+        self.personalized_model.to(self.device)
+        self.model.train()
+        if self.optimizer is None:
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+        for _ in range(epochs):
+            loss = None
+            for _, (X, y) in enumerate(self.train_set):
+                X, y = X.to(self.device), y.to(self.device)
+                self.optimizer.zero_grad()
+                y_hat = self.model(X)
+                loss = self.hyper_params.loss_fn(y_hat, y) + self._proximal_loss(self.model, self.personalized_model)
+                loss.backward()
+                self.optimizer.step()          
+            self.scheduler.step()
+
+        self.model.to("cpu")
+        self.personalized_model.to("cpu")
+        clear_cache()
+        self._send_model()
+
+
+class FedAMPServer(Server):
+
+    def __init__(self, 
+                 model: Module,
+                 test_data: FastTensorDataLoader,
+                 clients: Sequence[Client],
+                 sigma: float,
+                 alpha: float):
+        super().__init__(model, None, clients, False)
+        self.hyper_params.update({
+            "sigma": sigma,
+            "alpha": alpha
+        })
+    
+    def _e(self, x: float):
+        return torch.exp(-x / self.hyper_params.sigma) / self.hyper_params.sigma
+    
+    def _empty_model(self):
+        empty_model = deepcopy(self.model)
+        for param in empty_model.parameters():
+            param.data.zero_()
+        return empty_model
+    
+    def aggregate(self, eligible: Sequence[Client]) -> None:
+        clients_model = self._get_client_models(eligible, state_dict=False)
+
+        with torch.no_grad():
+            for i, client in enumerate(eligible):
+                ci_model = clients_model[i]
+                ui_model = self._empty_model()
+
+                coef = torch.zeros(len(eligible))
+                for j, cj_model in enumerate(clients_model):
+                    if i != j:
+                        weights_i = torch.cat([p.data.view(-1) for p in ci_model.parameters()], dim=0)
+                        weights_j = torch.cat([p.data.view(-1) for p in cj_model.parameters()], dim=0)
+                        sub = (weights_i - weights_j).view(-1)
+                        sub = torch.dot(sub, sub)
+                        coef[j] = self.hyper_params.alpha * self._e(sub)
+                coef[i] = 1 - torch.sum(coef)
+
+                for j, cj_model in enumerate(clients_model):
+                    for param_i, param_j in zip(ui_model.parameters(), cj_model.parameters()):
+                        param_i.data += coef[j] * param_j
+
+                self.channel.send(Message(ui_model, "model", self), client)
+    
+    def _broadcast_model(self, eligible: Sequence[Client]) -> None:
+        # Models have already been sent to clients in aggregate
+        pass
+
+class FedAMP(PersonalizedFL):
+    
+    def get_client_class(self) -> Client:
+        return FedAMPClient
+    
+    def get_server_class(self) -> Server:
+        return FedAMPServer

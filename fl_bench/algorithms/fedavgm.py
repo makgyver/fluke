@@ -21,8 +21,8 @@ class FedAVGMServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 momentum: float=0.9,
-                 weighted: bool=True):
+                 weighted: bool=True,
+                 momentum: float=0.9):
         super().__init__(model, test_data, clients, weighted)
         self.hyper_params.update({
             "momentum": momentum

@@ -1,0 +1,24 @@
+{
+    "name": "fl_bench.algorithms.fedamp.FedAMP",
+    "hyperparameters": {
+        "server": {
+            "sigma": 1,
+            "alpha": 0.1
+        },
+        "client": {
+            "batch_size": 10,
+            "local_epochs": 5,
+            "loss": "CrossEntropyLoss",
+            "lam": 0.1,
+            "model": "MNIST_2NN",
+            "optimizer": {		
+                "lr": 0.1
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
+            }
+        },
+        "model": "MNIST_2NN"
+    }
+}
