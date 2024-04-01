@@ -15,7 +15,8 @@ To run an algorithm in FL-Bench you need to create two configuration files:
 
 Some examples of these files can be found in the `configs` folder.
 
-The `EXP_CONFIG` is a json file contains the following fields:
+The `EXP_CONFIG` is a json file containing the configurations for the experiment. It contains the 
+following fields:
 - `protocol`: must contains a dictionary with the overall federated protocol settings, namely:
     - `n_clients`: the number of clients in the federated learning system
     - `n_rounds`: the number of communication rounds
@@ -60,7 +61,8 @@ The `EXP_CONFIG` is a json file contains the following fields:
       - `tags`: the tags used for logging on wandb
 
 
-The `ALG_CONFIG` is a json file containing the following fields:
+The `ALG_CONFIG` is a json file containing the hyper-parameters of the federated algorithm. It 
+contains the following fields:
 - `name`: the name of the algorithm
 - `hyperparameters`: contains the dictinaries for the hyperparameters for clients and server:
     - `model`: the model to train. It must be a valid PyTorch model defined in the `net.py` file
@@ -137,6 +139,7 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 
 ## Desiderata
 - [ ] Add support to validation
-- [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a subset (the only batch!) of the data
+- [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a 
+  subset (the only batch!) of the data
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package
