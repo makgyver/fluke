@@ -70,6 +70,18 @@ class ClassificationEval(Evaluator):
                  model: torch.nn.Module, 
                  eval_data_loader: Union[FastTensorDataLoader, 
                                          Iterable[FastTensorDataLoader]]) -> dict:
+        """Evaluate the model.
+
+        Args:
+            model (torch.nn.Module): The model to evaluate. If `None`, the method returns an 
+                empty dictionary.
+            eval_data_loader (Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]): 
+                The data loader(s) to use for evaluation. If `None`, the method returns an empty
+                dictionary.
+        
+        Returns:
+            dict: A dictionary containing the computed metrics.
+        """
         if (model is None) or (eval_data_loader is None):
             return {}
         

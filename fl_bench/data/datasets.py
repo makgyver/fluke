@@ -20,14 +20,26 @@ from . import DataContainer, FastTensorDataLoader, support
 class Datasets:
     """Static class for loading datasets.
 
-    Each dataset is loaded as a DataContainer object.
+    Each dataset is loaded as a `DataContainer` object.
     """
 
     @classmethod
     def MNIST(cls, 
               path: str="../data", 
               transforms: callable=ToTensor) -> DataContainer:
-        
+        """Load the MNIST dataset.
+
+        The dataset is split into training and testing sets according to the default split of the
+        `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
+        An example of the dataset is a 28x28 image, i.e., a tensor of shape (28, 28).
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to "../data".
+            transforms (callable, optional): The transformations to apply to the data. Defaults to `ToTensor`.
+
+        Returns:
+            DataContainer: The MNIST dataset.
+        """
         train_data = datasets.MNIST(
             root = path,
             train = True,                         
@@ -55,7 +67,19 @@ class Datasets:
     def MNIST4D(cls,
                 path: str="../data", 
                 transforms: callable=ToTensor) -> DataContainer:
-        
+        """Load the MNIST dataset.
+
+        The dataset is split into training and testing sets according to the default split of the
+        `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
+        A 4D example of the dataset is a 1x28x28 image, i.e., a tensor of shape (1, 28, 28).
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to "../data".
+            transforms (callable, optional): The transformations to apply to the data. Defaults to `ToTensor`.
+
+        Returns:
+            DataContainer: The MNIST dataset.
+        """
         mnist_dc = Datasets.MNIST(path, transforms)
         return DataContainer(mnist_dc.train[0][:, None, :, :], 
                              mnist_dc.train[1],
@@ -67,7 +91,6 @@ class Datasets:
     def MNISTM(cls,
                path: str="../data", 
                transforms: callable=ToTensor) -> DataContainer:
-        
         train_data = support.MNISTM(
             root = path,
             train = True,                         

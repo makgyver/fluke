@@ -134,10 +134,31 @@ class Server(ObserverSubject):
 
     def _get_client_models(self, eligible: Sequence[Client], state_dict: bool=True):
         if state_dict:
-            return [self.channel.receive(self, client, "model").payload.state_dict() for client in eligible]
-        return [self.channel.receive(self, client, "model").payload for client in eligible]
+            return [self.channel.receive(self, client, "model").payload.state_dict() 
+                    for client in eligible]
+        return [self.channel.receive(self, client, "model").payload 
+                for client in eligible]
 
     def _get_client_weights(self, eligible: Sequence[Client]):
+        """Get the weights of the clients for the aggregation.
+
+        The weights are calculated based on the number of samples of each client. 
+        If the hyperparameter `weighted` is True, the clients are weighted by their number of samples.
+        Otherwise, all clients have the same weight.
+
+        Note:
+            The computation of the weights do not adhere to the "best-practices" of FL-bench 
+            because the server should not have access to the number of samples of the clients.
+            Thus, the computation of the weights should be done communicating with the clients 
+            through the channel, but for simplicity, we are not following this practice here.
+            However, the communication cost is minimal and does not affect the logged performance.
+
+        Args:
+            eligible (Sequence[Client]): The clients that will participate in the aggregation.
+
+        Returns:
+            List[float]: The weights of the clients.
+        """
         if "weighted" in self.hyper_params.keys() and self.hyper_params.weighted:
             num_ex = [client.n_examples for client in eligible]
             tot_ex = sum(num_ex)

@@ -103,7 +103,7 @@ class FedProtoClient(PFLClient):
                     for i, yy in enumerate(y):
                         y_c = yy.item()
                         proto_new[i, :] = self.global_protos[y_c].data
-                    loss += mse_loss(proto_new, Z) * self.hyper_params.lam
+                    loss += self.hyper_params.lam * mse_loss(proto_new, Z)
 
                 for i, yy in enumerate(y):
                     y_c = yy.item()

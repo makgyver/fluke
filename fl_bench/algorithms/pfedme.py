@@ -52,7 +52,7 @@ class PFedMeClient(PFLClient):
 
     def _receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
-        if self.personalized_model is None:
+        if self.model is None:
             self.personalized_model = deepcopy(model)
             self.model = deepcopy(self.personalized_model)
         else:
