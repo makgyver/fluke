@@ -123,10 +123,10 @@ To date, the following federated algorithms are implemented:
 - FedSGD
 - LG-FedAvg
 - MOON
-- PerFedAVG
+- PerFedAVG (PerFedAVG-FO, PerFedAVG-HF)
 - pFedMe [**To be tested**]
 - SCAFFOLD
-- SuPerFed
+- SuPerFed (SuPerFed-MM, SuPerFed-LM)
 
 
 Inside the `net.py` file, you can find the definition of some neural networks. 
