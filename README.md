@@ -85,51 +85,54 @@ The `ALG_CONFIG` is a json file containing the following fields:
       - `mu`: the mu used for the FedProx algorithm
       - `lambda`: the lambda used for the FedProx algorithm
 
-To run an algorithm, you need to run the following command:
+To run a **federated** algorithm, you need to run the following command:
 ```bash
-python fl_bench/main.py --config=EXP_CONFIG run ALG_CONFIG
+python -m fl_bench.run --config=EXP_CONFIG federate ALG_CONFIG
 ```
 
-This is an example of command:
+To run a **centralized (baseline) algorithm**, you need to run the following command:
 ```bash
-python fl_bench/main.py --config=configs/exp_settings.json run configs/fedavg.json
+python -m fl_bench.run --config=EXP_CONFIG centralized ALG_CONFIG
 ```
+
+Finally, to run the learning process only on clients, you need to run the following command:
+```bash
+python -m fl_bench.run --config=EXP_CONFIG clients-only ALG_CONFIG
+```
+
 the command run the `fedavg` algorithm on the `mnist` dataset (see `exp_settings.json`) with the 
 all the parameters specified in the `exp_settings.json` file and the `fedavg.json` file.
 
-To date, the following (nn-based) federated algorithms are implemented:
-- FedAvg (`fedavg`)
-- FedSGD (`fedsgd`)
-- FedBN (`fedbn`)
-- SCAFFOLD (`scaffold`)
-- FedProx (`fedprox`)
-- FedOpt (`fedopt`)
-- MOON (`moon`)
-- FedExP(`fedexp`)
-- Ditto (`ditto`)
-- APFL (`apfl`)
-- FedRep (`fedrep`)
-- FedPer (`fedper`)
-- SuPerFed (`superfed`)
-- LG-FedAvg (`lgfedavg`) [**To be tested**]
-- FedNova (`fednova`) [**To be tested**]
-- pFedMe (`pfedme`) [**To be tested**]
-- FedDyn (`feddyn`) [**To be tested**]
+To date, the following federated algorithms are implemented:
+- APFL
+- Ditto
+- FedAMP
+- FedAvg
+- FedAvgM
+- FedBN
+- FedDyn [**To be tested**]
+- FedExP
+- FedNova [**To be tested**]
+- FedOpt (FedAdam, FedAdagrad, FedYogi)
+- FedPer
+- FedProto
+- FedProx
+- FedRep
+- FedSGD
+- LG-FedAvg
+- MOON
+- PerFedAVG
+- pFedMe [**To be tested**]
+- SCAFFOLD
+- SuPerFed
 
-FL-bench also offers the following (non nn-based) federated algorithms:
-- Adaboost.F (`adaboostf`)
-- Adaboost.F2 (`adaboostf2`)
-- Preweak.F (`preweakf`)
-- Preweak.F2 (`preweakf2`)
-- Distboost.F (`distboostf`)
 
 Inside the `net.py` file, you can find the definition of some neural networks. 
 
 ## TODO and Work in progress
 - [ ] Check the correctness of pFedMe -- **Work in progress**
 - [ ] Check the correctness of FedDyn -- **Work in progress**
-- [ ] Check the correctness of FedAMP -- **Work in progress**
-- [ ] Check the correctness of FedProto -- **Work in progress**
+- [ ] Check the correctness of FedNova -- **Work in progress**
 - [ ] Add documentation + check typing -- **Work in progress**
 
 ## Desiderata
