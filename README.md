@@ -25,9 +25,9 @@ following fields:
 - `data`: must contains a dictionary with all settings regarding the data loading process, namely:
     - `dataset`: the dataset used for training the model. This is a dictionary with a single 
       mandatory filed, i.e., `name` which is the name of the dataset. To date the following datasets 
-      are supported: `mnist`, `mnistm`, `emnist`, `femnist`, `cifar10`, `cifar100`, `svhn`, 
-      `tiny_imagenet`, `shakespeare` and `femnist`. All other fields are treated as parameters for 
-      the specific dataset. Please see `fl_bench.data.datasets` for more details.
+      are supported: `mnist`, `mnistm`, `emnist`, `femnist`, `fashion_mnist`, `cifar10`, `cifar100`, 
+      `svhn`, `tiny_imagenet`, `shakespeare` and `femnist`. All other fields are treated as 
+      parameters for the specific dataset. Please see `fl_bench.data.datasets` for more details.
     - `client_split`: the percentage of the local datasets used as test set
     - `standardize`: boolean value that indicates whether the features have to be standardized or not
     - `distribution`: the data distribution used for the experiment. It is a dictionary with a single

@@ -43,8 +43,8 @@ class DataContainer:
                  X_test: torch.Tensor, 
                  y_test: torch.Tensor,
                  num_classes: int):
-        self.train = (torch.FloatTensor(X_train), torch.LongTensor(y_train))
-        self.test = (torch.FloatTensor(X_test), torch.LongTensor(y_test))
+        self.train = (X_train, y_train)
+        self.test = (X_test, y_test)
         self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
         self.num_classes = num_classes
     

@@ -12,7 +12,7 @@ from numpy.random import permutation
 from rich.progress import track
 from datasets import load_dataset
 from torchvision import datasets
-from torchvision.transforms import ToTensor, Lambda
+from torchvision.transforms import ToTensor, Lambda, Compose, Normalize
 
 from . import DataContainer, FastTensorDataLoader, support
 
@@ -26,7 +26,7 @@ class Datasets:
     @classmethod
     def MNIST(cls, 
               path: str="../data", 
-              transforms: callable=ToTensor) -> DataContainer:
+              transforms: callable=ToTensor()) -> DataContainer:
         """Load the MNIST dataset.
 
         The dataset is split into training and testing sets according to the default split of the
@@ -43,14 +43,14 @@ class Datasets:
         train_data = datasets.MNIST(
             root = path,
             train = True,                         
-            transform = transforms(), 
+            transform = transforms, 
             download = True,            
         )
 
         test_data = datasets.MNIST(
             root = path, 
             train = False, 
-            transform = transforms(),
+            transform = transforms,
             download = True
         )
 
@@ -66,7 +66,7 @@ class Datasets:
     @classmethod
     def MNIST4D(cls,
                 path: str="../data", 
-                transforms: callable=ToTensor) -> DataContainer:
+                transforms: callable=ToTensor()) -> DataContainer:
         """Load the MNIST dataset.
 
         The dataset is split into training and testing sets according to the default split of the
@@ -90,18 +90,18 @@ class Datasets:
     @classmethod
     def MNISTM(cls,
                path: str="../data", 
-               transforms: callable=ToTensor) -> DataContainer:
+               transforms: callable=ToTensor()) -> DataContainer:
         train_data = support.MNISTM(
             root = path,
             train = True,                         
-            transform = transforms(), 
+            transform = transforms, 
             download = True,            
         )
 
         test_data = support.MNISTM(
             root = path, 
             train = False, 
-            transform = transforms(),
+            transform = transforms,
             download = True
         )
 
@@ -120,13 +120,13 @@ class Datasets:
     @classmethod
     def EMNIST(cls,
                path: str="../data", 
-               transforms: callable=ToTensor) -> DataContainer:
+               transforms: callable=ToTensor()) -> DataContainer:
         
         train_data = datasets.EMNIST(
             root=path,
             split="balanced",
             train=True, 
-            transform=transforms(),
+            transform = transforms,
             download = True
         )
 
@@ -134,7 +134,7 @@ class Datasets:
             root=path,
             split="balanced", 
             train=False,
-            transform=transforms(),
+            transform = transforms,
             download = True
         )
 
@@ -147,19 +147,19 @@ class Datasets:
     @classmethod
     def SVHN(cls,
              path: str="../data", 
-             transforms: callable=ToTensor) -> DataContainer:
+             transforms: callable=ToTensor()) -> DataContainer:
         
         train_data = datasets.SVHN(
             root = path,
             split = "train",
-            transform=transforms(),
+            transform = transforms,
             download = True
         )
 
         test_data = datasets.SVHN(
             root = path,
             split = "test",
-            transform=transforms(),
+            transform = transforms,
             download = True
         )
 
@@ -172,20 +172,20 @@ class Datasets:
     @classmethod
     def CIFAR10(cls,
                 path: str="../data", 
-                transforms: callable=ToTensor) -> DataContainer:
+                transforms: callable=ToTensor()) -> DataContainer:
         
         train_data = datasets.CIFAR10(
             root = path,
             train = True,
             download = True, 
-            transform = transforms()
+            transform = transforms
         )
 
         test_data = datasets.CIFAR10(
             root = path,
             train = False,
             download = True, 
-            transform = transforms()
+            transform = transforms
         )
         
         train_data.data = torch.Tensor(train_data.data / 255.)
@@ -203,20 +203,20 @@ class Datasets:
     @classmethod
     def CIFAR100(cls,
                  path: str="../data", 
-                 transforms: callable=ToTensor) -> DataContainer:
+                 transforms: callable=ToTensor()) -> DataContainer:
     
         train_data = datasets.CIFAR100(
             root = path,
             train = True,
             download = True, 
-            transform = transforms()
+            transform = transforms
         )
 
         test_data = datasets.CIFAR100(
             root = path,
             train = False,
             download = True, 
-            transform = transforms()
+            transform = transforms
         )
         
         train_data.data = torch.Tensor(train_data.data / 255.)
@@ -231,6 +231,32 @@ class Datasets:
                              torch.LongTensor(test_data.targets), 
                              100)
 
+    @classmethod
+    def FASHION_MNIST(cls,
+                     path: str="../data", 
+                     transforms: callable=Compose([ToTensor(), 
+                                                   Normalize([0.5], [0.5])])) -> DataContainer:
+
+
+        train_data = datasets.FashionMNIST(
+            root = path,
+            train = True,
+            download = True, 
+            transform = transforms
+        )
+
+        test_data = datasets.FashionMNIST(
+            root = path,
+            train = False,
+            download = True, 
+            transform = transforms
+        )
+
+        return DataContainer(train_data.data, 
+                             torch.LongTensor(train_data.targets), 
+                             test_data.data, 
+                             torch.LongTensor(test_data.targets), 
+                             10)
 
     @classmethod
     def TINY_IMAGENET(cls, 
@@ -465,6 +491,7 @@ class DatasetsEnum(Enum):
     CIFAR100 = "cifar100"
     TINY_IMAGENET = "tiny_imagenet"
     SHAKESPEARE = "shakespeare"
+    FASHION_MNIST = "fashion_mnist"
     
 
     @classmethod
@@ -485,7 +512,8 @@ class DatasetsEnum(Enum):
             "cifar10": Datasets.CIFAR10,
             "cifar100": Datasets.CIFAR100,
             "tiny_imagenet": Datasets.TINY_IMAGENET,
-            "shakespeare": Datasets.SHAKESPEARE
+            "shakespeare": Datasets.SHAKESPEARE,
+            "fashion_mnist": Datasets.FASHION_MNIST
         } 
         return DATASET_MAP[self.value]
 
