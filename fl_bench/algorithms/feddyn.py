@@ -11,7 +11,7 @@ import numpy as np
 from torch.nn import Module
 
 from . import CentralizedFL
-from .. import Message
+from ..comm import Message
 from ..server import Server
 from ..utils import OptimizerConfigurator, clear_cache
 from ..client import Client

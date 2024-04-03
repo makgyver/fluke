@@ -9,7 +9,7 @@ from typing import Dict, Sequence, Callable
 from torch.nn import Module
 import torch
 
-from .. import Message
+from ..comm import Message
 from . import PersonalizedFL
 from ..net import EncoderHeadNet
 from ..server import Server

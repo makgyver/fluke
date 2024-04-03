@@ -7,7 +7,7 @@ from typing import Any, Callable, Sequence
 from copy import deepcopy
 from rich.progress import Progress
 
-from .. import Message
+from ..comm import Message
 from ..server import Server
 from ..algorithms import PersonalizedFL
 from ..client import PFLClient

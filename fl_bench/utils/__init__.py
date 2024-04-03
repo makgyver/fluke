@@ -29,7 +29,7 @@ from ..data.datasets import DatasetsEnum
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .. import Message
+    from ..comm import Message
 
 __all__ = ['model']
 

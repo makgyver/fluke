@@ -7,7 +7,7 @@ from torch.nn.modules import Module
 from torch.nn import CrossEntropyLoss
 from copy import deepcopy
 
-from .. import Message
+from ..comm import Message
 from ..server import Server
 from ..algorithms import PersonalizedFL
 from ..client import PFLClient

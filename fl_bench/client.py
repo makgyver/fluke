@@ -11,9 +11,9 @@ from torch.optim.lr_scheduler import _LRScheduler as Scheduler
 from torch.nn import Module
 from torch import device
 
-from . import GlobalSettings, Message
+from . import GlobalSettings
 from .server import Server
-from .channel import Channel
+from .comm import Channel, Message
 from .utils import DDict, OptimizerConfigurator, clear_cache
 from .data import FastTensorDataLoader
 from .evaluation import ClassificationEval

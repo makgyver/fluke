@@ -7,7 +7,7 @@ import torch
 from torch.nn import Module
 from copy import deepcopy
 
-from .. import Message
+from ..comm import Message
 from ..server import Server
 from ..client import Client, PFLClient
 from ..algorithms import PersonalizedFL

@@ -10,7 +10,7 @@ import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from .. import Message
+from ..comm import Message
 from ..client import Client, PFLClient
 from ..server import Server
 from ..algorithms import CentralizedFL

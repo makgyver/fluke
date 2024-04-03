@@ -7,7 +7,7 @@ from typing import Callable, Sequence
 import torch
 from torch.nn import Module
 
-from .. import Message
+from ..comm import Message
 from . import PersonalizedFL
 from ..client import PFLClient, Client
 from ..server import Server

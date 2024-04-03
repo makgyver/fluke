@@ -10,7 +10,8 @@ from torch.nn import Module
 import torch.nn.functional as F
 from rich.progress import Progress
 
-from .. import GlobalSettings, Message
+from .. import GlobalSettings
+from ..comm import Message
 from ..evaluation import ClassificationEval
 from ..client import Client, PFLClient
 from ..server import Server

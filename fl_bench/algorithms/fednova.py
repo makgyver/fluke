@@ -7,7 +7,7 @@ from typing import Callable, Iterable
 
 import torch
 
-from .. import Message
+from ..comm import Message
 from ..algorithms import CentralizedFL
 from ..client import Client
 from ..server import Server

@@ -1,10 +1,43 @@
 import sys
 sys.path.append(".")
 
-from typing import Any, Dict, List
+import pickle
+from typing import Any, Dict, List, Optional
 from collections import defaultdict
 
-from . import Message, ObserverSubject
+from . import ObserverSubject
+
+
+class Message:
+    """Message class.
+
+    This class represents a message that can be exchanged between clients and the server.
+
+    Attributes:
+        msg_type (str): The type of the message.
+        payload (Any): The payload of the message.
+        sender (Any): The sender of the message.
+    """
+    def __init__(self,
+                 payload: Any,
+                 msg_type: str="model",
+                 sender: Optional[Any]=None):
+        self.msg_type: str = msg_type
+        self.payload: Any = payload
+        self.sender: Optional[Any] = sender
+    
+    def get_size(self) -> int:
+        """Get the size of the message.
+
+        The message size is the size of the payload in bytes estimated using the `pickle` module.
+        A message containing an ACK (i.e., with no payload) has a size of 1 byte.
+
+        Returns:
+            int: The size of the message in bytes.
+        """
+        if self.payload is None:
+            return 1
+        return sys.getsizeof(pickle.dumps(self.payload))
 
 
 class Channel(ObserverSubject):

@@ -9,9 +9,9 @@ from torch import device
 from torch.nn import Module
 
 from .utils import DDict
-from .channel import Channel
+from .comm import Channel, Message
 from .data import FastTensorDataLoader
-from . import GlobalSettings, Message, ObserverSubject
+from . import GlobalSettings, ObserverSubject
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -32,6 +32,7 @@ class Server(ObserverSubject):
         hyper_params (DDict): The hyper-parameters of the server. The default hyper-parameters are:
             - weighted: A boolean indicating if the clients should be weighted by the number of 
                 samples when aggregating the models.
+        
           When a new server class inherits from this class, it can add all its hyper-parameters 
           to this dictionary.
         device (torch.device): The device where the server runs.

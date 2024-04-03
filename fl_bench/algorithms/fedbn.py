@@ -5,7 +5,7 @@ sys.path.append("..")
 import torch
 from copy import deepcopy
 
-from .. import Message
+from ..comm import Message
 from ..client import Client
 from ..algorithms import CentralizedFL
 

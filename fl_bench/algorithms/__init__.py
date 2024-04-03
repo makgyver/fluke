@@ -5,7 +5,6 @@ sys.path.append("..")
 from typing import Callable, Union, Any, Iterable
 
 import torch
-from enum import Enum
 
 from ..client import Client
 from ..server import Server
@@ -32,7 +31,10 @@ __all__ = [
     'pfedme',
     'scaffold',
     'superfed',
-    'per_fedavg'
+    'per_fedavg',
+    'fedamp',
+    'fedproto',
+    'fedbabu'
 ]
     
 class CentralizedFL():

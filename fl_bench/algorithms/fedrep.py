@@ -6,7 +6,7 @@ from typing import Any, Callable
 import torch
 from copy import deepcopy
 
-from .. import Message
+from ..comm import Message
 from ..data import FastTensorDataLoader
 from ..client import PFLClient
 from ..utils import OptimizerConfigurator, clear_cache

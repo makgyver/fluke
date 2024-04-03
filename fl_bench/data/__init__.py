@@ -24,7 +24,12 @@ if TYPE_CHECKING:
 
 __all__ = [
     'datasets',
-    'support'
+    'support',
+    'DataContainer',
+    'FastTensorDataLoader',
+    'DistributionEnum',
+    'DataSplitter',
+    'DummyDataSplitter'
 ]
 
 class DataContainer:

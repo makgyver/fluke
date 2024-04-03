@@ -4,7 +4,7 @@ sys.path.append("..")
 
 from copy import deepcopy
 
-from .. import Message
+from ..comm import Message
 from ..client import PFLClient
 from ..algorithms import PersonalizedFL
 
