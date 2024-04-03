@@ -20,7 +20,7 @@ from scipy.stats.mstats import mquantiles
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from utils import DDict
+    from ..utils import DDict
 
 __all__ = [
     'datasets',

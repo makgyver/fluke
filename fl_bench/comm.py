@@ -7,6 +7,10 @@ from collections import defaultdict
 
 from . import ObserverSubject
 
+__all__ = [
+    'Message',
+    'Channel'
+]
 
 class Message:
     """Message class.

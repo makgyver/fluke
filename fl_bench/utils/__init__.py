@@ -31,7 +31,24 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..comm import Message
 
-__all__ = ['model']
+__all__ = [
+    'model',
+    'OptimizerConfigurator',
+    'LogEnum',
+    'Log',
+    'WandBLog',
+    'ServerObserver',
+    'ChannelObserver',
+    'DDict',
+    'Configuration',
+    'import_module_from_str',
+    'get_class_from_str',
+    'get_loss',
+    'get_model',
+    'get_scheduler',
+    'clear_cache',
+    'get_full_classname'
+]
 
 class OptimizerConfigurator:
     """Optimizer configurator.
@@ -43,9 +60,6 @@ class OptimizerConfigurator:
         optimizer (type[Optimizer]): The optimizer class.
         scheduler_kwargs (DDict): The scheduler keyword arguments.
         optimizer_kwargs (DDict): The optimizer keyword arguments.
-    
-    Todo: 
-        * Add support for more schedulers.
     """ 
     def __init__(self,
                  optimizer_class: type[Optimizer], 

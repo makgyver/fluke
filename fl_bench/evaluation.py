@@ -12,7 +12,7 @@ from . import GlobalSettings
 from .data import FastTensorDataLoader
 
 class Evaluator(ABC):
-    """This class is the base class for all evaluators in the `FL-bench`.
+    """This class is the base class for all evaluators in `FL-bench`.
 
     An evaluator object should be used to perform the evaluation of a model.
 

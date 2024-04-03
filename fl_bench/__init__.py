@@ -6,11 +6,11 @@ import pickle
 import numpy as np
 from rich.console import Group
 from rich.progress import Progress, Live
-from typing import Any, Optional, Union, Iterable
+from typing import Any, Union, Iterable
 
 
 __all__ = [
-    'channel',
+    'comm',
     'algorithms',
     'data',
     'evaluation',
@@ -21,7 +21,8 @@ __all__ = [
     'run',
     'Singleton',
     'ObserverSubject',
-    'GlobalSettings'
+    'GlobalSettings',
+    'DeviceEnum'
 ]
 
 
