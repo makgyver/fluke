@@ -86,7 +86,7 @@ class FedAMPServer(Server):
             "alpha": alpha
         })
     
-    def _e(self, x: float):
+    def __e(self, x: float):
         return torch.exp(-x / self.hyper_params.sigma) / self.hyper_params.sigma
     
     def _empty_model(self):
@@ -110,7 +110,7 @@ class FedAMPServer(Server):
                         weights_j = torch.cat([p.data.view(-1) for p in cj_model.parameters()], dim=0)
                         sub = (weights_i - weights_j).view(-1)
                         sub = torch.dot(sub, sub)
-                        coef[j] = self.hyper_params.alpha * self._e(sub)
+                        coef[j] = self.hyper_params.alpha * self.__e(sub)
                 coef[i] = 1 - torch.sum(coef)
 
                 for j, cj_model in enumerate(clients_model):
