@@ -53,3 +53,6 @@ Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yo
 
 <a id="18">[FedProto]</a>
 Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. AAAI 2022. URL: https://arxiv.org/pdf/2105.00243.pdf
+
+<a id="19">[FedLC]</a>
+Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. Federated Learning with Label Distribution Skew via Logits Calibration. ICML 2022. URL: https://arxiv.org/pdf/2209.00189.pdf
