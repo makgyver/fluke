@@ -46,16 +46,16 @@ Durmus Alp Emre Acar, Yue Zhao, Ramon Matas, Matthew Mattina, Paul Whatmough, an
 Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach, David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally: Federated Learning with Local and Global Representations. URL: https://arxiv.org/abs/2001.01523
 
 <a id="16">[SuPerFed]</a>
-Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for Personalized Federated Learning. KDD 2022. URL: https://arxiv.org/pdf/2109.07628v3.pdf
+Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for Personalized Federated Learning. KDD 2022. URL: https://arxiv.org/abs/2109.07628v3
 
 <a id="17">[FedAMP]</a>
-Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. AAAI 2021. URL: https://arxiv.org/pdf/2007.03797.pdf
+Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. AAAI 2021. URL: https://arxiv.org/abs/2007.03797
 
 <a id="18">[FedProto]</a>
-Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. AAAI 2022. URL: https://arxiv.org/pdf/2105.00243.pdf
+Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. AAAI 2022. URL: https://arxiv.org/abs/2105.00243
 
 <a id="19">[FedLC]</a>
-Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. Federated Learning with Label Distribution Skew via Logits Calibration. ICML 2022. URL: https://arxiv.org/pdf/2209.00189.pdf
+Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. Federated Learning with Label Distribution Skew via Logits Calibration. ICML 2022. URL: https://arxiv.org/abs/2209.00189
 
 <a id="20">[FedAVGM]</a>
 Tzu-Ming Harry Hsu, Hang Qi, Matthew Brown. Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification. arXiv 2019. URL: https://arxiv.org/abs/1909.06335
