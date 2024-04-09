@@ -57,7 +57,7 @@ class FLHalfClient(PFLClient):
         })
         self.anchors = None
 
-    def _private_train(self):
+    def private_fit(self):
         if self.anchors is None:
             self.anchors = self.channel.receive(self, self.server, msg_type="anchors").payload
 
@@ -80,7 +80,7 @@ class FLHalfClient(PFLClient):
             self.model = deepcopy(msg.payload)
         self.model.load_state_dict(msg.payload.state_dict())
 
-    def local_train(self, override_local_epochs: int=0) -> dict:
+    def fit(self, override_local_epochs: int=0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         self.model.train()
@@ -103,7 +103,7 @@ class FLHalfClient(PFLClient):
             self.scheduler.step()
         self._send_model()
 
-    def validate(self):
+    def evaluate(self):
         if self.test_set is not None:
             n_classes = self.model.output_size
             if self.hyper_params.relative:
@@ -141,7 +141,8 @@ class FLHalfServer(Server):
         with Progress() as progress:
             task = progress.add_task("[cyan]Client's Private Training", total=len(self.clients))
             for client in self.clients:
-                self.channel.send(Message((client._private_train, {}), "__action__", self), client)
+                # self.channel.send(Message((client._private_train, {}), "__action__", self), client)
+                client.private_fit()
                 progress.update(task, advance=1)
         
         # Training step

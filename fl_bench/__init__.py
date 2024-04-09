@@ -1,8 +1,6 @@
 from enum import Enum
-import sys
 import torch
 import random
-import pickle
 import numpy as np
 from rich.console import Group
 from rich.progress import Progress, Live
@@ -22,7 +20,7 @@ __all__ = [
     'Singleton',
     'ObserverSubject',
     'GlobalSettings',
-    'DeviceEnum'
+    # 'DeviceEnum'
 ]
 
 
@@ -41,6 +39,11 @@ class ObserverSubject():
         self._observers = []
 
     def attach(self, observer: Union[Any, Iterable[Any]]):
+        """Attach an observer.
+
+        Args:
+            observer (Union[Any, Iterable[Any]]): The observer or a list of observers.
+        """
         if observer is None:
             return
         
@@ -52,18 +55,23 @@ class ObserverSubject():
                 self._observers.append(observer)
 
     def detach(self, observer: Any):
+        """Detach an observer.
+
+        Args:
+            observer (Any): The observer to be detached.
+        """
         try:
             self._observers.remove(observer)
         except ValueError:
             pass
 
 
-class DeviceEnum(Enum):
-    """Device enumerator."""
-    CPU: str = "cpu"    #: CPU
-    CUDA: str = "cuda"  #: CUDA
-    AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
-    MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
+# class DeviceEnum(Enum):
+#     """Device enumerator."""
+#     CPU: str = "cpu"    #: CPU
+#     CUDA: str = "cuda"  #: CUDA
+#     AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
+#     MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
 
 
 class GlobalSettings(metaclass=Singleton):
@@ -119,19 +127,20 @@ class GlobalSettings(metaclass=Singleton):
         self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         return self._device
     
-    def set_device(self, device: DeviceEnum) -> torch.device:
+    def set_device(self, device: str) -> torch.device:
         """Set the device.
         
         Args:
-            device (fl_bench.utils.DeviceEnum): The device.
+            device (str): The device as string.
         
         Returns:
-            torch.device: The device.
+            torch.device: The device as torch.device.
         """
-        if device == DeviceEnum.AUTO:
+        assert device in ['cpu', 'cuda', 'auto', 'mps'], f"Invalid device {device}."
+        if device == "auto":
             return GlobalSettings().auto_device()
 
-        self._device = torch.device(device.value)
+        self._device = torch.device(device)
         return self._device
     
     def get_device(self):

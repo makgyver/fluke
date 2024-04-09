@@ -43,7 +43,7 @@ class SuPerFedClient(PFLClient):
         self.mixed = False
     
 
-    def local_train(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
 

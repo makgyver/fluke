@@ -58,7 +58,7 @@ class FedOptServer(Server):
                 # This guarantees that the second moment is >= 0 and <= tau^2
                 self.v[key] = torch.rand_like(self.model.state_dict()[key]) * self.hyper_params.tau ** 2
     
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         with torch.no_grad():

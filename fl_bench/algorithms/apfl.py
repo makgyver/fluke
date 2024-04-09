@@ -37,7 +37,7 @@ class APFLClient(PFLClient):
         })
 
     
-    def local_train(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
 
@@ -82,10 +82,10 @@ class APFLClient(PFLClient):
 
         self.personalized_model = merge_models(self.model, self.internal_model, self.hyper_params.lam)
 
-        # self._send_model()
+        self._send_model()
     
-    def get_model(self):
-        return self._send_model()
+    # def get_model(self):
+    #     return self._send_model()
 
 
 class APFLServer(Server):
@@ -101,11 +101,15 @@ class APFLServer(Server):
             "tau": tau
         })
     
-    def aggregate(self, eligible: Iterable[Client]) -> None:
-        if self.rounds % self.hyper_params.tau == 0:
-            for client in eligible:
-                self.channel.send(Message((client.get_model, {}), "__action__", self), client)
-            super().aggregate(eligible)
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
+        if self.rounds % self.hyper_params.tau != 0:
+            # Ignore the sent models and clear the channel's cache
+            self.channel.clear(self)
+            # for client in eligible:
+                # self.channel.send(Message((client.get_model, {}), "__action__", self), client)
+                # self.channel.pull(self, client, "model", client.model)
+        else:
+            super()._aggregate(eligible)
 
 
 class APFL(PersonalizedFL):

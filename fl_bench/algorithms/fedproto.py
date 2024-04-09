@@ -77,7 +77,7 @@ class FedProtoClient(PFLClient):
         for label, prts in protos.items():
             self.prototypes[label] = torch.sum(torch.stack(prts), dim=0) / len(prts)
 
-    def local_train(self, override_local_epochs: int=0) -> None:
+    def fit(self, override_local_epochs: int=0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs 
                        else self.hyper_params.local_epochs)
         self._receive_model()
@@ -118,7 +118,7 @@ class FedProtoClient(PFLClient):
         self._update_protos(protos)
         self._send_model()
     
-    def validate(self) -> Dict[str, float]:
+    def evaluate(self) -> Dict[str, float]:
         if self.test_set is not None:
             if self.prototypes[0] is None:
                 # ask for the prototypes and receive them
@@ -153,7 +153,7 @@ class FedProtoServer(Server):
     def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool=False):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
-    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_protos = self._get_client_models(eligible)
 

@@ -117,19 +117,19 @@ class Channel(ObserverSubject):
         """
         if sender is None and msg_type is None:
             msg = self._buffer[mbox].pop()
-            self.notify_message_received(msg)
+            self._notify_message_received(msg)
             return msg
         
         for i, msg in enumerate(self._buffer[mbox]):
             if sender is None or msg.sender == sender:  # match sender
                 if msg_type is None or msg.msg_type == msg_type: # match msg_type
                     msg = self._buffer[mbox].pop(i)
-                    self.notify_message_received(msg)
+                    self._notify_message_received(msg)
                     return msg
     
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
     
-    def broadcast(self, message: Message, to: List[Any]):
+    def broadcast(self, message: Message, to: List[Any]) -> None:
         """Send a message to a list of receivers.
 
         Args:
@@ -139,7 +139,37 @@ class Channel(ObserverSubject):
         for client in to:
             self.send(message, client)
     
-    def notify_message_received(self, message: Message):
+    # def pull(self, mbox: Any, sender: Any, msg_type: str, payload: Any) -> Message:
+    #     """Pull a message from the sender.
+
+    #     This method sends a message from the `sender` to the `mbox`. This simulate
+    #     a `pull` operation where the receiver requests a message from the sender.
+
+    #     Args:
+    #         mbox (Any): The receiver.
+    #         sender (Any): The sender.
+    #         msg_type (str): The type of the message.
+    #         payload (Any): The payload of the message.
+        
+    #     Returns:
+    #         Message: The pulled message.
+    #     """
+    #     self.send(Message(payload, msg_type, sender), mbox)
+    #     return self.receive(mbox, sender, msg_type)  
+    
+    def clear(self, mbox: Any) -> None:
+        """Clear the message box of the given receiver.
+
+        Note:
+            Any unread message will be lost after calling this method.
+            Lost messages are not considered in the communication protocol.
+
+        Args:
+            mbox (Any): The receiver.
+        """
+        self._buffer[mbox].clear()
+    
+    def _notify_message_received(self, message: Message) -> None:
         """Notify the observers that a message has been received.
 
         Args:

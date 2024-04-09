@@ -62,10 +62,9 @@ class Client(ABC):
         })
         self.hyper_params.update(additional_hyper_params)
 
-        self.index: int = index
+        self._index: int = index
         self.train_set: FastTensorDataLoader = train_set
         self.test_set: FastTensorDataLoader = test_set
-        self.n_examples: int = train_set.size
         self.model: Module = None
         self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
         self.optimizer: Optimizer = None
@@ -73,6 +72,14 @@ class Client(ABC):
         self.device: device = GlobalSettings().get_device()
         self.server: Server = None
         self.channel: Channel = None
+    
+    @property
+    def n_examples(self) -> int:
+        return self.train_set.size
+    
+    @property
+    def index(self) -> int:
+        return self._index
     
     def set_server(self, server: Server) -> None:
         """Set the server.
@@ -96,7 +103,7 @@ class Client(ABC):
     def _send_model(self):
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
-    def local_train(self, override_local_epochs: int=0) -> None:
+    def fit(self, override_local_epochs: int=0) -> None:
         """Client's local training.
 
         The training occurs for a number of `hyper_params.local_epochs` epochs using the local 
@@ -131,8 +138,8 @@ class Client(ABC):
         clear_cache()
         self._send_model()
     
-    def validate(self) -> Dict[str, float]:
-        """Test the local model on the `test_set`.
+    def evaluate(self) -> Dict[str, float]:
+        """Evaluate the local model on the `test_set`.
 
         If the test set is not set, the method returns an empty dictionary.
 
@@ -157,7 +164,7 @@ class Client(ABC):
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h,v in self.hyper_params.items()])
         hpstr = "," + hpstr if hpstr else ""
-        return f"{self.__class__.__name__}[{self.index}](optim={self.optimizer_cfg}, "+\
+        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, "+\
                f"batch_size={self.train_set.batch_size}{hpstr})"
 
     def __repr__(self) -> str:
@@ -187,8 +194,8 @@ class PFLClient(Client):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
     
-    def validate(self) -> Dict[str, float]:
-        """Test the personalized model on the :`test_set`.
+    def evaluate(self) -> Dict[str, float]:
+        """Evaluate the personalized model on the :`test_set`.
 
         If the test set is not set, the method returns an empty dictionary.
 

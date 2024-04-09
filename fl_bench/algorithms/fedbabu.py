@@ -47,7 +47,7 @@ class FedBABUClient(PFLClient):
         for param in self.personalized_model.get_head().parameters():
             param.requires_grad = False
     
-    def _fine_tune(self):
+    def fine_tune(self):
         if self.hyper_params.mode == "full":
             for param in self.personalized_model.parameters():
                 param.requires_grad = True
@@ -90,16 +90,17 @@ class FedBABUServer(Server):
                  weighted: bool = False):
         super().__init__(model, None, clients, weighted)
 
-    def finalize(self) -> None:
+    def _finalize(self) -> None:
 
         with Progress() as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
-                self.channel.send(Message((client._fine_tune, {}), "__action__", self), client)
+                # self.channel.send(Message((client._fine_tune, {}), "__action__", self), client)
+                client.fine_tune()
                 progress.update(task, advance=1)
 
-        client_evals = [client.validate() for client in self.clients]
-        self.notify_finalize(client_evals if client_evals[0] else None)
+        client_evals = [client.evaluate() for client in self.clients]
+        self._notify_finalize(client_evals if client_evals[0] else None)
 
 
 class FedBABU(PersonalizedFL):

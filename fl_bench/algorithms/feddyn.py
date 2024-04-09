@@ -73,7 +73,7 @@ class FedDynClient(Client):
     def _send_weight(self) -> None:
         self.channel.send(Message(self.train_set.tensors[0].shape[0], "weight", self), self.server)
         
-    def local_train(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         self.model.train()
@@ -151,7 +151,7 @@ class FedDynServer(Server):
         return super().fit(n_rounds, eligible_perc)
 
 
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible, state_dict=False)
         weights = self._get_client_weights(eligible)

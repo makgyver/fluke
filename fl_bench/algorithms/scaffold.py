@@ -64,7 +64,7 @@ class SCAFFOLDClient(Client):
             self.model.load_state_dict(model.state_dict())
         self.server_control = server_control
     
-    def local_train(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         server_model = deepcopy(self.model)
@@ -119,7 +119,7 @@ class SCAFFOLDServer(Server):
     def _broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         with torch.no_grad():
             delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
             delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]

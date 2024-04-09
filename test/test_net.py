@@ -56,7 +56,7 @@ class MyFedProxClient(Client):
             proximal_term += torch.norm(w - w_t)**2
         return proximal_term
 
-    def local_train(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         W = deepcopy(self.model)

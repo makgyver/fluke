@@ -42,7 +42,7 @@ class MOONClient(Client):
             self.model.load_state_dict(model.state_dict())
         self.server_model = model
 
-    def local_train(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         cos = CosineSimilarity(dim=-1).to(self.device)

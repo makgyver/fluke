@@ -79,18 +79,21 @@ class FastTensorDataLoader:
         batch_size (int): batch size
         shuffle (bool): whether the data should be shuffled
         percentage (float): the percentage of the data to be used
+        skip_singleton (bool): whether to skip batches with a single element
     """
 
     def __init__(self, 
                  *tensors: torch.Tensor, 
                  batch_size: int=32, 
                  shuffle: bool=False, 
-                 percentage: float=1.0):
+                 percentage: float=1.0,
+                 skip_singleton: bool=True):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
         self.size = int(self.tensors[0].shape[0] * percentage)
         self.batch_size = batch_size if batch_size else self.size
         self.shuffle = shuffle
+        self.skip_singleton = skip_singleton
 
         # Calculate # batches
         n_batches, remainder = divmod(self.size, self.batch_size)
@@ -109,9 +112,9 @@ class FastTensorDataLoader:
         if self.i >= self.size:
             raise StopIteration
         batch = tuple(t[self.i: self.i+self.batch_size] for t in self.tensors)
-        # FIXME: Useful in case of batch norm layers
-        # if batch[0].shape[0] == 1:
-        #     raise StopIteration
+        # Useful in case of batch norm layers
+        if self.skip_singleton and batch[0].shape[0] == 1:
+            raise StopIteration
         self.i += self.batch_size
         return batch
 

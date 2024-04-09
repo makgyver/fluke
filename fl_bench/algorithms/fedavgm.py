@@ -32,7 +32,7 @@ class FedAVGMServer(Server):
                                          momentum=self.hyper_params.momentum, 
                                          nesterov=True)
     
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]

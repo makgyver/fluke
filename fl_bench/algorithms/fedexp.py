@@ -15,7 +15,7 @@ from ..algorithms import CentralizedFL
 
 class FedExPServer(Server):
     
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         clients_sd = self._get_client_models(eligible)
         clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]
         eta, mu_diff = self._compute_eta(clients_diff)

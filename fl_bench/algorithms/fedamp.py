@@ -44,7 +44,7 @@ class FedAMPClient(PFLClient):
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.personalized_model.load_state_dict(msg.payload.state_dict())
 
-    def local_train(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int=0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         try:
             self._receive_model()
@@ -95,7 +95,7 @@ class FedAMPServer(Server):
             param.data.zero_()
         return empty_model
     
-    def aggregate(self, eligible: Sequence[Client]) -> None:
+    def _aggregate(self, eligible: Sequence[Client]) -> None:
         clients_model = self._get_client_models(eligible, state_dict=False)
 
         with torch.no_grad():

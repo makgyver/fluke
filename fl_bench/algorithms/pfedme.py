@@ -58,7 +58,7 @@ class PFedMeClient(PFLClient):
         else:
             self.personalized_model.load_state_dict(model.state_dict())
 
-    def local_train(self, override_local_epochs: int=0) -> dict:
+    def fit(self, override_local_epochs: int=0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         self.personalized_model.train()
@@ -101,7 +101,7 @@ class PFedMeServer(Server):
             "beta": beta
         })
     
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)

@@ -36,8 +36,8 @@ class FedNovaClient(Client):
         else:
             return self.optimizer.param_groups[0]["momentum"]
 
-    def local_train(self, override_local_epochs: int=0) -> None:
-        super().local_train(override_local_epochs)
+    def fit(self, override_local_epochs: int=0) -> None:
+        super().fit(override_local_epochs)
         self.tau += self.hyper_params.local_epochs * self.train_set.n_batches
         rho = self._get_momentum()
         self.a = (self.tau - rho * (1.0 - pow(rho, self.tau)) / (1.0 - rho)) / (1.0 - rho)
@@ -46,7 +46,7 @@ class FedNovaClient(Client):
 
 class FedNovaServer(Server):
     
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Iterable[Client]) -> None:
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         a_i = [

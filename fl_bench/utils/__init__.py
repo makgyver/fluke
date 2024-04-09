@@ -22,7 +22,6 @@ import rich
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-from .. import DeviceEnum
 from ..data import DistributionEnum, FastTensorDataLoader
 from ..evaluation import Evaluator
 from ..data.datasets import DatasetsEnum
@@ -564,7 +563,7 @@ class Configuration(DDict):
         if not error:
             self.data.distribution.name = DistributionEnum(self.data.distribution.name)
             self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
-            self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
+            # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
             self.logger.name = LogEnum(self.logger.name)
 
         if error:
