@@ -1,5 +1,5 @@
 {
-    "name": "fl_bench.algorithms.fedexp.FedExp",
+    "name": "fl_bench.algorithms.fedexp.FedExP",
     "hyperparameters": {
         "server": {
 

@@ -138,9 +138,10 @@ class FedProtoServer(Server):
                  model: Module, 
                  test_data: FastTensorDataLoader, 
                  clients: Sequence[PFLClient], 
-                 weighted: bool,
-                 n_protos: int):
-        super().__init__(None, None, clients, weighted)
+                 eval_every: int=1,
+                 weighted: bool=True,
+                 n_protos: int=10):
+        super().__init__(None, None, clients, eval_every, weighted)
         self.hyper_params.update({
             "n_protos": n_protos
         })

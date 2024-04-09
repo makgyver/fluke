@@ -8,7 +8,7 @@
             "batch_size": 10,
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
-            "model": "MNIST_2NN_ED",
+            "model": "MNIST_2NN_ED_inv",
             "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,

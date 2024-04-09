@@ -20,6 +20,6 @@
                 "gamma": 1
             }
         },
-        "model": "MNIST_2NN"
+        "model": "MNIST_2NN_Proto"
     }
 }

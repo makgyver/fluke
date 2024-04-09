@@ -87,8 +87,9 @@ class FedBABUServer(Server):
                  model: Module, 
                  test_data: FastTensorDataLoader, 
                  clients: Sequence[PFLClient], 
+                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, weighted)
+        super().__init__(model, None, clients, eval_every, weighted)
 
     def _finalize(self) -> None:
 

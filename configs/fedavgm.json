@@ -1,5 +1,5 @@
 {
-    "name": "l_bench.algorithms.fedavgm.FedAVGM",
+    "name": "fl_bench.algorithms.fedavgm.FedAVGM",
     "hyperparameters": {
         "server": {
             "momentum": 0.9

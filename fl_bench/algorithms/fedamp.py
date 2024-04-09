@@ -78,9 +78,10 @@ class FedAMPServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Sequence[Client],
-                 sigma: float,
-                 alpha: float):
-        super().__init__(model, None, clients, False)
+                 eval_every: int=1,
+                 sigma: float=0.1,
+                 alpha: float=0.1):
+        super().__init__(model, None, clients, eval_every, False)
         self.hyper_params.update({
             "sigma": sigma,
             "alpha": alpha

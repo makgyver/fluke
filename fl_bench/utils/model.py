@@ -13,6 +13,20 @@ from torch import nn
 from torch.nn import functional as F
 from torch.nn import Module
 
+__all__ = [
+    "diff_model",
+    "merge_models",
+    "MMMixin",
+    "LinesLinear",
+    "LinesConv",
+    "LinesLSTM",
+    "LinesEmbedding",
+    "LinesBN",
+    "set_lambda_model",
+    "get_local_model_dict",
+    "get_global_model_dict",
+    "mix_networks",
+]
 
 def diff_model(model_dict1: dict, model_dict2: dict):
     """Compute the difference between two model state dictionaries.
@@ -346,7 +360,7 @@ def _set_lambda(module: Module, lam: float, layerwise: bool=False):
     Args:
         module (torch.nn.Module): module
         lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 
-            means a retrieval of a local model)
+          means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
     if (
@@ -371,7 +385,7 @@ def set_lambda_model(model: Module, lam: float, layerwise: bool=False) -> None:
     Args:
         model (torch.nn.Module): model
         lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 
-            means a retrieval of a local model)
+          means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
     model.apply(partial(_set_lambda, lam=lam, layerwise=layerwise))

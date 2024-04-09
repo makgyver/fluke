@@ -109,8 +109,9 @@ class SCAFFOLDServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
+                 eval_every: int=1,
                  global_step: float=1.):
-        super().__init__(model, test_data, clients, False)
+        super().__init__(model, test_data, clients, eval_every, False)
         self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update({
             "global_step": global_step

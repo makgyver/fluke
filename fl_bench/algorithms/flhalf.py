@@ -123,10 +123,11 @@ class FLHalfServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
+                 eval_every: int=1,
                  n_anchors: int=100,
                  seed_anchors: int=98765,
                  weighted: bool=True):
-        super().__init__(model, None, clients, weighted)
+        super().__init__(model, None, clients, eval_every, weighted)
         self.n_anchors = n_anchors
         self.seed_anchors = seed_anchors
 

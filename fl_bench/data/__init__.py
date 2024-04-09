@@ -75,11 +75,11 @@ class FastTensorDataLoader:
     Source: https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
 
     Args:
-        *tensors (Tensor): tensors to be loaded
-        batch_size (int): batch size
-        shuffle (bool): whether the data should be shuffled
-        percentage (float): the percentage of the data to be used
-        skip_singleton (bool): whether to skip batches with a single element
+        *tensors (Tensor): tensors to be loaded.
+        batch_size (int): batch size.
+        shuffle (bool): whether the data should be shuffled.
+        percentage (float): the percentage of the data to be used.
+        skip_singleton (bool): whether to skip batches with a single element.
     """
 
     def __init__(self, 

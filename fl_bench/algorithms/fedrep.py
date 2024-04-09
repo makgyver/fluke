@@ -1,7 +1,7 @@
 import sys
 sys.path.append(".")
 sys.path.append("..")
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 import torch
 from copy import deepcopy
@@ -9,10 +9,11 @@ from copy import deepcopy
 from ..comm import Message
 from ..data import FastTensorDataLoader
 from ..client import PFLClient
+from ..server import Server
 from ..utils import OptimizerConfigurator, clear_cache
 from ..algorithms import PersonalizedFL
 
-# https://arxiv.org/abs/1912.00818
+# https://arxiv.org/abs/2102.07078
 
 class FedRepClient(PFLClient):
 
@@ -38,12 +39,14 @@ class FedRepClient(PFLClient):
         self.model.train()
         self.model.to(self.device)
 
-        # update downstream layers
-        for name, parameter in self.model.named_parameters():
-            parameter.requires_grad = ('downstream' in name)
+        # update head layers
+        for parameter in self.model.get_local().parameters():
+            parameter.requires_grad = True
+        for parameter in self.model.get_global().parameters():
+            parameter.requires_grad = True
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.downstream)
+            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.get_local())
         
         for _ in range(epochs):
             loss = None
@@ -56,12 +59,14 @@ class FedRepClient(PFLClient):
                 self.pers_optimizer.step()
             self.pers_scheduler.step()
         
-        # update downstream layers
-        for name, parameter in self.model.named_parameters():
-            parameter.requires_grad = ('downstream' not in name)
+        # update encoder layers
+        for parameter in self.model.get_local().parameters():
+            parameter.requires_grad = False
+        for parameter in self.model.get_global().parameters():
+            parameter.requires_grad = True
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model.fed_E)
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model.get_global())
         
         for _ in range(self.hyper_params.tau):
             loss = None
@@ -79,16 +84,30 @@ class FedRepClient(PFLClient):
         self._send_model()
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model.fed_E), "model", self), self.server)
+        self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
 
     def _receive_model(self) -> None:
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.model.fed_E.load_state_dict(msg.payload.state_dict())
+        self.model.get_global().load_state_dict(msg.payload.state_dict())
     
+
+class FedRepServer(Server):
+
+    def __init__(self,
+                 model: torch.nn.Module,
+                 test_data: FastTensorDataLoader,
+                 clients: Sequence[PFLClient], 
+                 eval_every: int=1,
+                 weighted: bool=False):
+        super().__init__(model, None, clients, eval_every, weighted)
+
 
 class FedRep(PersonalizedFL):
 
     def get_client_class(self) -> PFLClient:
         return FedRepClient
+    
+    def get_server_class(self) -> Server:
+        return FedRepServer

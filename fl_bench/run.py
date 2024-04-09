@@ -83,13 +83,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
                             cfg.method.hyperparameters)
 
 
-    log = cfg.logger.name.logger(ClassificationEval(fl_algo.loss, 
-                                                   data_splitter.num_classes(),
-                                                   cfg.exp.average,
-                                                   GlobalSettings().get_device()), 
-                                eval_every=cfg.logger.eval_every,
-                                name=str(cfg),
-                                **cfg.logger.exclude('name', 'eval_every'))
+    log = cfg.logger.name.logger(name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     
@@ -147,7 +141,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                 scheduler.step()
             
         client_eval = evaluator.evaluate(model, test_loader)
-        rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"CLient [{i}] Performance"))
+        rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))
         client_evals.append(client_eval)
         model.to("cpu")
 

@@ -607,6 +607,29 @@ class MNIST_2NN_ED(GlobalLocalNet):
         return self.D(z)
 
 
+class MNIST_2NN_ED_inv(GlobalLocalNet):
+    def __init__(self, 
+                 hidden_size: tuple[int, int]=(200, 200)):
+        super(MNIST_2NN_ED_inv, self).__init__()
+        self.output_size = 10
+        self.E = MNIST_2NN_E(hidden_size)
+        self.D = MNIST_2NN_D(hidden_size[1])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.D(self.E(x))
+
+    def get_local(self):
+        return self.D
+
+    def get_global(self):
+        return self.E
+
+    def forward_local(self, x):
+        return self.D(x)
+
+    def forward_global(self, z):
+        return self.E(z)
+
 class MNIST_2NN_Proto(EncoderHeadNet):
     def __init__(self, 
                  hidden_size: tuple[int, int]=(200, 200)):

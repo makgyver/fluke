@@ -10,7 +10,7 @@
         },
         "client": {
             "batch_size": 10,
-            "n_epochs": 10,
+            "local_epochs": 10,
             "loss": "CrossEntropyLoss",
             "optimizer": {		
                 "lr": 0.01

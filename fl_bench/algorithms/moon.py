@@ -59,11 +59,11 @@ class MOONClient(Client):
                 self.optimizer.zero_grad()
                 #FIXME
                 y_hat = self.model(X)
-                z_local = self.model.fed_E(X)#, -1)
+                z_local = self.model.forward_encoder(X)#, -1)
                 loss_sup = self.hyper_params.loss_fn(y_hat, y)
 
-                z_prev = self.prev_model.fed_E(X)#, -1)
-                z_global = self.server_model.fed_E(X)#, -1)
+                z_prev = self.prev_model.forward_encoder(X)#, -1)
+                z_global = self.server_model.forward_encoder(X)#, -1)
 
                 sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
                 sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau

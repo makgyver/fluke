@@ -32,7 +32,7 @@ class PerFedAVGOptimizer(Optimizer):
                     continue
                 d_p = p.grad.data
                 if grads is None:
-                    p.data.sub_(beta if(beta != 0) else group['lr'], d_p)
+                    p.data.sub_(d_p, alpha=beta if(beta != 0) else group['lr'])
                 else:
                     p.data.sub_(beta * grads[0] - beta * group['lr'] * grads [1])
         return loss

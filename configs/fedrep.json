@@ -8,14 +8,14 @@
             "batch_size": 10,
             "local_epochs": 10,
             "loss": "CrossEntropyLoss",
-            "model": "MNIST_2NN_ED",
+            "model": "MNIST_2NN_ED_inv",
             "tau": 5,
             "optimizer": {		
                 "lr": 0.01,
                 "weight_decay": 0.0001,
                 "momentum": 0.9
             },
-            "scheduler_kwargs": {
+            "scheduler": {
                 "step_size": 1, 
                 "gamma": 1
             }

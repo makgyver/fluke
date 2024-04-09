@@ -124,9 +124,10 @@ class FedDynServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 weighted: bool,
+                 eval_every: int=1,
+                 weighted: bool=True,
                  alpha: float=0.01):
-        super().__init__(model, test_data, clients, weighted)
+        super().__init__(model, test_data, clients, eval_every, weighted)
         self.alpha = alpha
         self.cld_mdl = deepcopy(self.model)
 

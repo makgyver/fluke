@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import psutil
 from enum import Enum
-from typing import Any, Sequence
+from typing import Any, Dict, Sequence
 
 import torch
 from torch.nn import Module
@@ -99,27 +99,19 @@ class LogEnum(Enum):
     WANDB = "wandb" #: Weights and Biases logging
 
     def logger(self, 
-               classification_eval: Evaluator, 
-               eval_every: int, 
                **wandb_config):
         """Returns a new logger according to the value of the enumerator.
 
         Args:
-            classification_eval (Evaluator): The evaluator that will be used to evaluate the model.
-            eval_every (int): The number of rounds between evaluations.
             **wandb_config (dict): The configuration for Weights and Biases.
         
         Returns:
             Log: The logger.
         """
         if self == LogEnum.LOCAL:
-            return Log(classification_eval, 
-                       eval_every if eval_every else 1)
+            return Log()
         else:
-            return WandBLog(
-                classification_eval,
-                eval_every if eval_every else 1,
-                **wandb_config)
+            return WandBLog(**wandb_config)
 
 class ServerObserver():
     """Server observer interface.
@@ -170,21 +162,17 @@ class Log(ServerObserver, ChannelObserver):
     the federated learning process. The logging happens in the console.
 
     Attributes:
-        evaluator (Evaluator): The evaluator that will be used to evaluate the model.
         history (dict): The history of the global model's performance.
         client_history (dict): The history of the clients' performance.
         comm_costs (dict): The history of the communication costs.
         current_round (int): The current round.
-        eval_every (int): The number of rounds between evaluations.
     """
 
-    def __init__(self, evaluator: Evaluator, eval_every: int=1):
-        self.evaluator: Evaluator = evaluator
+    def __init__(self):
         self.history: dict = {}
         self.client_history: dict= {}
         self.comm_costs: dict = {0: 0}
         self.current_round: int = 0
-        self.eval_every: int = eval_every
     
     def init(self, **kwargs):
         """Initialize the logger.
@@ -206,23 +194,20 @@ class Log(ServerObserver, ChannelObserver):
 
     def end_round(self, 
                   round: int, 
-                  global_model: Module, 
-                  data: FastTensorDataLoader, 
+                  global_eval: Dict[str, float], 
                   client_evals: Sequence[Any]):
-        if round % self.eval_every == 0:
-            self.history[round] = self.evaluator(global_model, data)
-            stats = { 'global': self.history[round] }
+        self.history[round] = global_eval
+        stats = { 'global': self.history[round] }
 
-            if client_evals:
-                client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-                client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-                self.client_history[round] = client_mean
-                stats['local'] = client_mean
-            
-            stats['comm_cost'] = self.comm_costs[round]
+        if client_evals:
+            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
+            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+            self.client_history[round] = client_mean
+            stats['local'] = client_mean
+        
+        stats['comm_cost'] = self.comm_costs[round]
 
-            rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-
+        rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
         rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
     
     def message_received(self, message: Message):
@@ -281,8 +266,8 @@ class WandBLog(Log):
         eval_every (int): The number of rounds between evaluations.
         **config: The configuration for Weights and Biases.
     """
-    def __init__(self, evaluator: Evaluator, eval_every: int, **config):
-        super().__init__(evaluator, eval_every)
+    def __init__(self, **config):
+        super().__init__()
         self.config = config
         
     def init(self, **kwargs):
@@ -295,13 +280,12 @@ class WandBLog(Log):
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_model: Module, data: FastTensorDataLoader, client_evals: Sequence[Any]):
-        super().end_round(round, global_model, data, client_evals)
-        if round % self.eval_every == 0:
-            self.run.log({ "global": self.history[round]}, step=round)
-            self.run.log({ "comm_cost": self.comm_costs[round]}, step=round)
-            if client_evals:
-                self.run.log({ "local": self.client_history[round]}, step=round)
+    def end_round(self, round: int, global_eval: Dict[str, float], client_evals: Sequence[Any]):
+        super().end_round(round, global_eval, client_evals)
+        self.run.log({ "global": self.history[round]}, step=round)
+        self.run.log({ "comm_cost": self.comm_costs[round]}, step=round)
+        if client_evals:
+            self.run.log({ "local": self.client_history[round]}, step=round)
     
     def finished(self, client_evals: Sequence[Any]):
         super().finished(client_evals)

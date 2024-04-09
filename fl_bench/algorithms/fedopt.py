@@ -29,13 +29,14 @@ class FedOptServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client], 
+                 eval_every: int=1,
                  mode: str="fedadam",
                  lr: float=0.001,
                  beta1: float=0.9,
                  beta2: float=0.999,
                  tau: float=0.0001,
                  weighted: bool=True):
-        super().__init__(model, test_data, clients, weighted)
+        super().__init__(model, test_data, clients, eval_every, weighted)
         # assert mode in FedOptMode, "mode must be one of FedOptMode"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"

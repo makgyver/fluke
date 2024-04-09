@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import numpy as np
-from typing import Any, Sequence
+from typing import Any, Dict, Sequence
 from collections import OrderedDict
 
 import torch
 from torch import device
 from torch.nn import Module
+
+from fl_bench.evaluation import ClassificationEval
 
 from .utils import DDict
 from .comm import Channel, Message
@@ -49,7 +51,8 @@ class Server(ObserverSubject):
     def __init__(self,
                  model: torch.nn.Module,
                  test_data: FastTensorDataLoader,
-                 clients: Sequence[Client], 
+                 clients: Sequence[Client],
+                 eval_every: int=1,
                  weighted: bool=False):
         super().__init__()
         self.hyper_params = DDict({
@@ -62,6 +65,7 @@ class Server(ObserverSubject):
         self.n_clients: int = len(clients)
         self.rounds: int = 0
         self.test_data: FastTensorDataLoader = test_data
+        self._eval_every: int = eval_every
 
         for client in self.clients:
             client.set_server(self)
@@ -93,21 +97,46 @@ class Server(ObserverSubject):
                 eligible = self._get_eligible_clients(eligible_perc)
                 self._notify_selected_clients(round + 1, eligible)
                 self._broadcast_model(eligible)
-                client_evals = []
                 for c, client in enumerate(eligible):
                     client.fit()
-                    client_eval = client.evaluate()
-                    if client_eval:
-                        client_evals.append(client_eval)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
                 self._aggregate(eligible)
-                self._notify_end_round(round + 1, self.model, self.test_data, client_evals)
+
+                client_evals = []
+                if (round + 1) % self._eval_every == 0:
+                    for client in eligible:
+                        client_eval = client.evaluate()
+                        if client_eval:
+                            client_evals.append(client_eval)
+                    evals = self.evaluate()
+                
+                self._notify_end_round(round + 1, evals, client_evals)
                 self.rounds += 1 
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
         
         self._finalize()
+    
+    def evaluate(self) -> Dict[str, float]:
+        """Evaluate the global federated model on the :`test_set`.
+
+        If the test set is not set, the method returns an empty dictionary.
+
+        Warning:
+            To date, only classification tasks are supported.
+
+        Returns:
+            Dict[str, float]: The evaluation results. The keys are the metrics and the values are 
+                the results.
+        """
+        if self.test_data is not None:
+            return ClassificationEval(self.clients[0].hyper_params.loss_fn,
+                                      self.model.output_size,
+                                      device=GlobalSettings().get_device()).evaluate(self.model,
+                                                                                     self.test_data)
+        return {}
+
     
     def _finalize(self) -> None:
         """Finalize the federated learning process.
@@ -218,8 +247,7 @@ class Server(ObserverSubject):
     
     def _notify_end_round(self, 
                          round: int, 
-                         global_model: Any, 
-                         data: FastTensorDataLoader, 
+                         evals: Dict[str, float],
                          client_evals: Sequence[Any]) -> None:
         """Notify the observers that a round has ended.
         
@@ -230,7 +258,7 @@ class Server(ObserverSubject):
             client_evals (Sequence[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
-            observer.end_round(round, global_model, data, client_evals)
+            observer.end_round(round, evals, client_evals)
     
     def _notify_selected_clients(self, round: int, clients: Sequence[Any]) -> None:
         """Notify the observers that the clients have been selected for the current round.
