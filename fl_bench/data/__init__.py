@@ -83,13 +83,15 @@ class FastTensorDataLoader:
     """
 
     def __init__(self, 
-                 *tensors: torch.Tensor, 
+                 *tensors: torch.Tensor,
+                 num_labels: int, 
                  batch_size: int=32, 
                  shuffle: bool=False, 
                  percentage: float=1.0,
                  skip_singleton: bool=True):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
+        self.num_labels = num_labels
         self.size = int(self.tensors[0].shape[0] * percentage)
         self.batch_size = batch_size if batch_size else self.size
         self.shuffle = shuffle
@@ -132,7 +134,11 @@ class FastTensorDataLoader:
             FastTensorDataLoader: the transformed data loader.
         """
         tensors = [f(t) if i in axis else t for i, t in enumerate(self.tensors)]
-        return FastTensorDataLoader(*tensors, batch_size=self.batch_size, shuffle=self.shuffle, percentage=1.0)
+        return FastTensorDataLoader(*tensors, 
+                                    num_labels=self.num_labels,
+                                    batch_size=self.batch_size, 
+                                    shuffle=self.shuffle, 
+                                    percentage=1.0)
 
 
 
@@ -215,6 +221,7 @@ class DataSplitter:
     # def num_features(self) -> int:
     #     return self.data_container.num_features
 
+    @property
     def num_classes(self) -> int:
         """Return the number of classes of the dataset.
 
@@ -251,23 +258,27 @@ class DataSplitter:
                                                                                              test_size=self.validation_split)
                 client_tr_assignments.append(FastTensorDataLoader(Xtr_client, 
                                                                   Ytr_client, 
+                                                                  num_labels=self.num_classes,
                                                                   batch_size=batch_size, 
                                                                   shuffle=True, 
                                                                   percentage=self.sampling_perc))
                 client_te_assignments.append(FastTensorDataLoader(Xte_client, 
                                                                   Yte_client, 
+                                                                  num_labels=self.num_classes,
                                                                   batch_size=batch_size, 
                                                                   shuffle=True, 
                                                                   percentage=self.sampling_perc))
             else:
                 client_tr_assignments.append(FastTensorDataLoader(client_X, 
-                                                                  client_y, 
+                                                                  client_y,
+                                                                  num_labels=self.num_classes,
                                                                   batch_size=batch_size, 
                                                                   shuffle=True, 
                                                                   percentage=self.sampling_perc))
                 client_te_assignments.append(None)
 
         server_te = FastTensorDataLoader(*self.data_container.test,
+                                         num_labels=self.num_classes,
                                          batch_size=128,
                                          shuffle=False)
         

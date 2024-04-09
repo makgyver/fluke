@@ -371,6 +371,7 @@ class Datasets:
                 FastTensorDataLoader(
                     Xtr_client, 
                     ytr_client, 
+                    num_labels=62,
                     batch_size=batch_size, 
                     shuffle=True, 
                     percentage=1.0
@@ -387,6 +388,7 @@ class Datasets:
                 FastTensorDataLoader(
                     Xte_client, 
                     yte_client, 
+                    num_labels=62,
                     batch_size=64, 
                     shuffle=True, 
                     percentage=1.0
@@ -446,6 +448,7 @@ class Datasets:
                 FastTensorDataLoader(
                     Xtr_client, 
                     ytr_client, 
+                    num_labels=100,
                     batch_size=batch_size, 
                     shuffle=True, 
                     percentage=1.0
@@ -468,6 +471,7 @@ class Datasets:
                 FastTensorDataLoader(
                     Xte_client, 
                     yte_client, 
+                    num_labels=100,
                     batch_size=batch_size, 
                     shuffle=True, 
                     percentage=1.0

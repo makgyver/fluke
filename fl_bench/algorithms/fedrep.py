@@ -43,7 +43,7 @@ class FedRepClient(PFLClient):
         for parameter in self.model.get_local().parameters():
             parameter.requires_grad = True
         for parameter in self.model.get_global().parameters():
-            parameter.requires_grad = True
+            parameter.requires_grad = False
 
         if self.pers_optimizer is None:
             self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.get_local())
