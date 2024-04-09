@@ -56,3 +56,12 @@ Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi Zhan
 
 <a id="19">[FedLC]</a>
 Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. Federated Learning with Label Distribution Skew via Logits Calibration. ICML 2022. URL: https://arxiv.org/pdf/2209.00189.pdf
+
+<a id="20">[FedAVGM]</a>
+Tzu-Ming Harry Hsu, Hang Qi, Matthew Brown. Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification. arXiv 2019. URL: https://arxiv.org/abs/1909.06335
+
+<a id="21">[FedBABU]</a>
+Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation for Federated Image Classification. ICLR 2022. 
+
+<a id="22">[Per-FedAVG]</a>
+Alireza Fallah, Aryan Mokhtari, Asuman Ozdaglar. Personalized Federated Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach. NeurIPS 2020. URL: https://arxiv.org/abs/2002.07948
