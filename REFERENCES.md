@@ -61,7 +61,10 @@ Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. Feder
 Tzu-Ming Harry Hsu, Hang Qi, Matthew Brown. Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification. arXiv 2019. URL: https://arxiv.org/abs/1909.06335
 
 <a id="21">[FedBABU]</a>
-Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation for Federated Image Classification. ICLR 2022. 
+Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation for Federated Image Classification. ICLR 2022. URL: https://arxiv.org/abs/2106.06042
 
 <a id="22">[Per-FedAVG]</a>
 Alireza Fallah, Aryan Mokhtari, Asuman Ozdaglar. Personalized Federated Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach. NeurIPS 2020. URL: https://arxiv.org/abs/2002.07948
+
+<a id="23">[CCVR]</a>
+Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. NeurIPS 2021. URL: https://arxiv.org/abs/2106.05001

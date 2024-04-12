@@ -1,0 +1,26 @@
+{
+    "name": "fl_bench.algorithms.ccvr.CCVR",
+    "hyperparameters": {
+        "server": {
+            "weighted": true,
+            "lr": 0.01,
+            "batch_size": 10,
+            "sample_per_class": 1000
+        },
+        "client": {
+            "batch_size": 10,
+            "local_epochs": 5,
+            "loss": "CrossEntropyLoss",
+            "optimizer": {		
+                "lr": 0.01,
+                "momentum": 0.9,
+                "weight_decay": 0.0001
+            },
+            "scheduler": {
+                "step_size": 1, 
+                "gamma": 1
+            }
+        },
+        "model": "MNIST_2NN_Proto"
+    }
+}
