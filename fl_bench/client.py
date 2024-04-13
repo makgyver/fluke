@@ -1,29 +1,25 @@
 from __future__ import annotations
+from .evaluation import ClassificationEval
+from .data import FastTensorDataLoader
+from .utils import DDict, OptimizerConfigurator, clear_cache
+from .comm import Channel, Message
+from .server import Server
+from . import GlobalSettings
+from torch import device
+from torch.nn import Module
+from torch.optim.lr_scheduler import _LRScheduler as Scheduler
+from torch.optim import Optimizer
+from typing import Callable, Dict
+from copy import deepcopy
+from abc import ABC
 import sys
 sys.path.append(".")
-
-from abc import ABC
-from copy import deepcopy
-from typing import Callable, Dict
-
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler as Scheduler
-from torch.nn import Module
-from torch import device
-
-from . import GlobalSettings
-from .server import Server
-from .comm import Channel, Message
-from .utils import DDict, OptimizerConfigurator, clear_cache
-from .data import FastTensorDataLoader
-from .evaluation import ClassificationEval
-
 
 
 class Client(ABC):
     """Base Client class.
 
-    This class is the base class for all clients in the `FL-bench`. The behavior of the client is 
+    This class is the base class for all clients in the `FL-bench`. The behavior of the client is
     based on the Federated Averaging algorithm. The default behavior of a client includes:
     - Receiving the global model from the server;
     - Training the model locally for a number of epochs using the local training set;
@@ -47,15 +43,16 @@ class Client(ABC):
         server (Server): The server.
         channel (Channel): The channel to communicate with the server.
     """
+
     def __init__(self,
                  index: int,
                  train_set: FastTensorDataLoader,
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int=3,
+                 local_epochs: int = 3,
                  **additional_hyper_params):
-        
+
         self.hyper_params: DDict = DDict({
             "loss_fn": loss_fn,
             "local_epochs": local_epochs
@@ -72,15 +69,15 @@ class Client(ABC):
         self.device: device = GlobalSettings().get_device()
         self.server: Server = None
         self.channel: Channel = None
-    
+
     @property
     def n_examples(self) -> int:
         return self.train_set.size
-    
+
     @property
     def index(self) -> int:
         return self._index
-    
+
     def set_server(self, server: Server) -> None:
         """Set the server.
 
@@ -99,30 +96,30 @@ class Client(ABC):
             self.model = deepcopy(msg.payload)
         else:
             self.model.load_state_dict(msg.payload.state_dict())
-    
+
     def _send_model(self):
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
-    def fit(self, override_local_epochs: int=0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> None:
         """Client's local training.
 
-        The training occurs for a number of `hyper_params.local_epochs` epochs using the local 
+        The training occurs for a number of `hyper_params.local_epochs` epochs using the local
         training set and as loss function the one defined in `hyper_params.loss_fn`.
         After the training, the client sends the model to the server.
 
         Args:
-            override_local_epochs (int, optional): Overrides the number of local epochs, 
+            override_local_epochs (int, optional): Overrides the number of local epochs,
                 by default 0 (use the default number of local epochs).
         """
-        epochs: int = (override_local_epochs if override_local_epochs 
+        epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
         self._receive_model()
         self.model.train()
         self.model.to(self.device)
-        
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        
+
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -133,11 +130,11 @@ class Client(ABC):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        
+
         self.model.to("cpu")
         clear_cache()
         self._send_model()
-    
+
     def evaluate(self) -> Dict[str, float]:
         """Evaluate the local model on the `test_set`.
 
@@ -147,7 +144,7 @@ class Client(ABC):
             To date, only classification tasks are supported.
 
         Returns:
-            Dict[str, float]: The evaluation results. The keys are the metrics and the values are 
+            Dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
         if self.test_set is not None:
@@ -155,16 +152,16 @@ class Client(ABC):
                 # ask for the model and receive it
                 self.channel.send(Message(self.server.model, "model", self.server), self)
                 self._receive_model()
-            
+
             return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.model.output_size).evaluate(self.model, 
+                                      self.model.output_size).evaluate(self.model,
                                                                        self.test_set)
         return {}
 
     def __str__(self) -> str:
-        hpstr = ",".join([f"{h}={str(v)}" for h,v in self.hyper_params.items()])
+        hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = "," + hpstr if hpstr else ""
-        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, "+\
+        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, " +\
                f"batch_size={self.train_set.batch_size}{hpstr})"
 
     def __repr__(self) -> str:
@@ -183,6 +180,7 @@ class PFLClient(Client):
     Attributes:
         personalized_model (torch.nn.Module): The personalized model.
     """
+
     def __init__(self,
                  index: int,
                  model: Module,
@@ -190,10 +188,10 @@ class PFLClient(Client):
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int=3):
+                 local_epochs: int = 3):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
-    
+
     def evaluate(self) -> Dict[str, float]:
         """Evaluate the personalized model on the :`test_set`.
 
@@ -203,11 +201,12 @@ class PFLClient(Client):
             To date, only classification tasks are supported.
 
         Returns:
-            Dict[str, float]: The evaluation results. The keys are the metrics and the values are 
+            Dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
         if self.test_set is not None:
-            return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.personalized_model.output_size).evaluate(self.personalized_model, 
-                                                                                    self.test_set)
+            evaluator = ClassificationEval(self.hyper_params.loss_fn,
+                                           self.personalized_model.output_size)
+            return evaluator.evaluate(self.personalized_model, self.test_set)
+
         return {}

@@ -1,21 +1,18 @@
+from ..utils import OptimizerConfigurator
+from ..data import FastTensorDataLoader
+from ..algorithms import CentralizedFL
+from ..server import Server
+from ..client import Client, PFLClient
+from ..comm import Message
+from torch.optim import Optimizer
+from torch.nn import Module
+import torch
+from typing import Callable, Iterable, List
+from collections import OrderedDict
+from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
-
-from copy import deepcopy
-from collections import OrderedDict
-from typing import Callable, Iterable, List
-
-import torch
-from torch.nn import Module
-from torch.optim import Optimizer
-
-from ..comm import Message
-from ..client import Client, PFLClient
-from ..server import Server
-from ..algorithms import CentralizedFL
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator
 
 
 class PFedMeOptimizer(Optimizer):
@@ -44,7 +41,7 @@ class PFedMeClient(PFLClient):
                  loss_fn: Callable,
                  local_epochs: int,
                  k: int):
-        
+
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "k": k
@@ -58,7 +55,7 @@ class PFedMeClient(PFLClient):
         else:
             self.personalized_model.load_state_dict(model.state_dict())
 
-    def fit(self, override_local_epochs: int=0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         self.personalized_model.train()
@@ -76,32 +73,33 @@ class PFedMeClient(PFLClient):
                     loss = self.hyper_params.loss_fn(y_hat, y)
                     loss.backward()
                     self.optimizer.step(self.model.parameters())
-                
+
                 lr = self.optimizer.param_groups[0]["lr"]
-                for param_p, param_l in zip(self.personalized_model.parameters(), self.model.parameters()):
+                params = zip(self.personalized_model.parameters(), self.model.parameters())
+                for param_p, param_l in params:
                     param_l.data = param_l.data - lamda * lr * (param_l.data - param_p.data)
-            
-            self.scheduler.step()     
+
+            self.scheduler.step()
         self.personalized_model.load_state_dict(self.model.state_dict())
         self._send_model()
-    
+
     def _send_model(self):
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
-    
+
 
 class PFedMeServer(Server):
-    def __init__(self, 
+    def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int=1,
-                 weighted: bool=False,
-                 beta: float=0.5):
+                 eval_every: int = 1,
+                 weighted: bool = False,
+                 beta: float = 0.5):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update({
             "beta": beta
         })
-    
+
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
@@ -120,13 +118,13 @@ class PFedMeServer(Server):
 
         for key, param in self.model.named_parameters():
             param.data = (1 - self.hyper_params.beta) * param.data
-            param.data += self.hyper_params.beta * avg_model_sd[key] 
+            param.data += self.hyper_params.beta * avg_model_sd[key]
 
 
 class PFedMe(CentralizedFL):
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return PFedMeOptimizer
-    
+
     def get_client_class(self) -> Client:
         return PFedMeClient
 

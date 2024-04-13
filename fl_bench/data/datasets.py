@@ -1,20 +1,18 @@
 from __future__ import annotations
+from . import DataContainer, FastTensorDataLoader, support
+from torchvision.transforms import ToTensor, Lambda, Compose, Normalize
+from torchvision import datasets
+from datasets import load_dataset
+from rich.progress import track
+from numpy.random import permutation
+from enum import Enum
+import string
+import torch
+import json
+import os
 import sys
 sys.path.append(".")
 sys.path.append("..")
-
-import os
-import json
-import torch
-import string
-from enum import Enum
-from numpy.random import permutation
-from rich.progress import track
-from datasets import load_dataset
-from torchvision import datasets
-from torchvision.transforms import ToTensor, Lambda, Compose, Normalize
-
-from . import DataContainer, FastTensorDataLoader, support
 
 
 class Datasets:
@@ -24,9 +22,9 @@ class Datasets:
     """
 
     @classmethod
-    def MNIST(cls, 
-              path: str="../data", 
-              transforms: callable=ToTensor()) -> DataContainer:
+    def MNIST(cls,
+              path: str = "../data",
+              transforms: callable = ToTensor()) -> DataContainer:
         """Load the MNIST dataset.
 
         The dataset is split into training and testing sets according to the default split of the
@@ -35,38 +33,39 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to "../data".
-            transforms (callable, optional): The transformations to apply to the data. Defaults to `ToTensor`.
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
+              `ToTensor`.
 
         Returns:
             DataContainer: The MNIST dataset.
         """
         train_data = datasets.MNIST(
-            root = path,
-            train = True,                         
-            transform = transforms, 
-            download = True,            
+            root=path,
+            train=True,
+            transform=transforms,
+            download=True,
         )
 
         test_data = datasets.MNIST(
-            root = path, 
-            train = False, 
-            transform = transforms,
-            download = True
+            root=path,
+            train=False,
+            transform=transforms,
+            download=True
         )
 
         train_data.data = torch.Tensor(train_data.data / 255.)
         test_data.data = torch.Tensor(test_data.data / 255.)
 
-        return DataContainer(train_data.data, 
+        return DataContainer(train_data.data,
                              train_data.targets,
-                             test_data.data, 
-                             test_data.targets, 
+                             test_data.data,
+                             test_data.targets,
                              10)
-    
+
     @classmethod
     def MNIST4D(cls,
-                path: str="../data", 
-                transforms: callable=ToTensor()) -> DataContainer:
+                path: str = "../data",
+                transforms: callable = ToTensor()) -> DataContainer:
         """Load the MNIST dataset.
 
         The dataset is split into training and testing sets according to the default split of the
@@ -75,34 +74,35 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to "../data".
-            transforms (callable, optional): The transformations to apply to the data. Defaults to `ToTensor`.
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
+              `ToTensor`.
 
         Returns:
             DataContainer: The MNIST dataset.
         """
         mnist_dc = Datasets.MNIST(path, transforms)
-        return DataContainer(mnist_dc.train[0][:, None, :, :], 
+        return DataContainer(mnist_dc.train[0][:, None, :, :],
                              mnist_dc.train[1],
-                             mnist_dc.test[0][:, None, :, :], 
-                             mnist_dc.test[1], 
+                             mnist_dc.test[0][:, None, :, :],
+                             mnist_dc.test[1],
                              10)
-    
+
     @classmethod
     def MNISTM(cls,
-               path: str="../data", 
-               transforms: callable=ToTensor()) -> DataContainer:
+               path: str = "../data",
+               transforms: callable = ToTensor()) -> DataContainer:
         train_data = support.MNISTM(
-            root = path,
-            train = True,                         
-            transform = transforms, 
-            download = True,            
+            root=path,
+            train=True,
+            transform=transforms,
+            download=True,
         )
 
         test_data = support.MNISTM(
-            root = path, 
-            train = False, 
-            transform = transforms,
-            download = True
+            root=path,
+            train=False,
+            transform=transforms,
+            download=True
         )
 
         train_data.data = torch.Tensor(train_data.data / 255.)
@@ -111,164 +111,188 @@ class Datasets:
         train_data.data = torch.movedim(train_data.data, 3, 1)
         test_data.data = torch.movedim(test_data.data, 3, 1)
 
-        return DataContainer(train_data.data, 
+        return DataContainer(train_data.data,
                              train_data.targets,
-                             test_data.data, 
-                             test_data.targets, 
+                             test_data.data,
+                             test_data.targets,
                              10)
 
     @classmethod
     def EMNIST(cls,
-               path: str="../data", 
-               transforms: callable=ToTensor()) -> DataContainer:
-        
+               path: str = "../data",
+               transforms: callable = ToTensor()) -> DataContainer:
+
         train_data = datasets.EMNIST(
             root=path,
             split="balanced",
-            train=True, 
-            transform = transforms,
-            download = True
+            train=True,
+            transform=transforms,
+            download=True
         )
 
         test_data = datasets.EMNIST(
             root=path,
-            split="balanced", 
+            split="balanced",
             train=False,
-            transform = transforms,
-            download = True
+            transform=transforms,
+            download=True
         )
 
         return DataContainer(train_data.data / 255.,
-                             train_data.targets, 
-                             test_data.data / 255., 
-                             test_data.targets, 
+                             train_data.targets,
+                             test_data.data / 255.,
+                             test_data.targets,
                              47)
-    
+
     @classmethod
     def SVHN(cls,
-             path: str="../data", 
-             transforms: callable=ToTensor()) -> DataContainer:
-        
+             path: str = "../data",
+             transforms: callable = ToTensor()) -> DataContainer:
+
         train_data = datasets.SVHN(
-            root = path,
-            split = "train",
-            transform = transforms,
-            download = True
+            root=path,
+            split="train",
+            transform=transforms,
+            download=True
         )
 
         test_data = datasets.SVHN(
-            root = path,
-            split = "test",
-            transform = transforms,
-            download = True
+            root=path,
+            split="test",
+            transform=transforms,
+            download=True
         )
 
-        return DataContainer(train_data.data / 255., 
-                             train_data.labels, 
+        return DataContainer(train_data.data / 255.,
+                             train_data.labels,
                              test_data.data / 255.,
-                             test_data.labels, 
+                             test_data.labels,
                              10)
 
     @classmethod
     def CIFAR10(cls,
-                path: str="../data", 
-                transforms: callable=ToTensor()) -> DataContainer:
-        
+                path: str = "../data",
+                transforms: callable = ToTensor()) -> DataContainer:
+
         train_data = datasets.CIFAR10(
-            root = path,
-            train = True,
-            download = True, 
-            transform = transforms
+            root=path,
+            train=True,
+            download=True,
+            transform=transforms
         )
 
         test_data = datasets.CIFAR10(
-            root = path,
-            train = False,
-            download = True, 
-            transform = transforms
+            root=path,
+            train=False,
+            download=True,
+            transform=transforms
         )
-        
+
         train_data.data = torch.Tensor(train_data.data / 255.)
         test_data.data = torch.Tensor(test_data.data / 255.)
 
         train_data.data = torch.movedim(train_data.data, 3, 1)
         test_data.data = torch.movedim(test_data.data, 3, 1)
 
-        return DataContainer(train_data.data, 
-                             torch.LongTensor(train_data.targets), 
-                             test_data.data, 
-                             torch.LongTensor(test_data.targets), 
+        return DataContainer(train_data.data,
+                             torch.LongTensor(train_data.targets),
+                             test_data.data,
+                             torch.LongTensor(test_data.targets),
+                             10)
+
+    @classmethod
+    def CINIC10(cls,
+                path: str = "../data",
+                transforms: callable = None) -> DataContainer:
+
+        train_data = support.CINIC10(
+            root=path,
+            partition="train",
+            download=True,
+            transform=transforms
+        )
+
+        test_data = support.CINIC10(
+            root=path,
+            partition="test",
+            download=True,
+            transform=transforms
+        )
+
+        return DataContainer(train_data.data,
+                             train_data.targets,
+                             test_data.data,
+                             test_data.targets,
                              10)
 
     @classmethod
     def CIFAR100(cls,
-                 path: str="../data", 
-                 transforms: callable=ToTensor()) -> DataContainer:
-    
+                 path: str = "../data",
+                 transforms: callable = ToTensor()) -> DataContainer:
+
         train_data = datasets.CIFAR100(
-            root = path,
-            train = True,
-            download = True, 
-            transform = transforms
+            root=path,
+            train=True,
+            download=True,
+            transform=transforms
         )
 
         test_data = datasets.CIFAR100(
-            root = path,
-            train = False,
-            download = True, 
-            transform = transforms
+            root=path,
+            train=False,
+            download=True,
+            transform=transforms
         )
-        
+
         train_data.data = torch.Tensor(train_data.data / 255.)
         test_data.data = torch.Tensor(test_data.data / 255.)
 
         train_data.data = torch.movedim(train_data.data, 3, 1)
         test_data.data = torch.movedim(test_data.data, 3, 1)
 
-        return DataContainer(train_data.data, 
-                             torch.LongTensor(train_data.targets), 
-                             test_data.data, 
-                             torch.LongTensor(test_data.targets), 
+        return DataContainer(train_data.data,
+                             torch.LongTensor(train_data.targets),
+                             test_data.data,
+                             torch.LongTensor(test_data.targets),
                              100)
 
     @classmethod
     def FASHION_MNIST(cls,
-                     path: str="../data", 
-                     transforms: callable=Compose([ToTensor(), 
-                                                   Normalize([0.5], [0.5])])) -> DataContainer:
-
+                      path: str = "../data",
+                      transforms: callable = Compose([ToTensor(),
+                                                     Normalize([0.5], [0.5])])) -> DataContainer:
 
         train_data = datasets.FashionMNIST(
-            root = path,
-            train = True,
-            download = True, 
-            transform = transforms
+            root=path,
+            train=True,
+            download=True,
+            transform=transforms
         )
 
         test_data = datasets.FashionMNIST(
-            root = path,
-            train = False,
-            download = True, 
-            transform = transforms
+            root=path,
+            train=False,
+            download=True,
+            transform=transforms
         )
 
-        return DataContainer(train_data.data, 
-                             torch.LongTensor(train_data.targets), 
-                             test_data.data, 
-                             torch.LongTensor(test_data.targets), 
+        return DataContainer(train_data.data,
+                             torch.LongTensor(train_data.targets),
+                             test_data.data,
+                             torch.LongTensor(test_data.targets),
                              10)
 
     @classmethod
-    def TINY_IMAGENET(cls, 
-                      path: str="../data", 
-                      transforms: callable=None) -> DataContainer:
-        
-        tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet', 
-                                           split='train', 
+    def TINY_IMAGENET(cls,
+                      path: str = "../data",
+                      transforms: callable = None) -> DataContainer:
+
+        tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet',
+                                           split='train',
                                            cache_dir=path)
 
-        tiny_imagenet_test = load_dataset('Maysee/tiny-imagenet', 
-                                          split='valid', 
+        tiny_imagenet_test = load_dataset('Maysee/tiny-imagenet',
+                                          split='valid',
                                           cache_dir=path)
 
         X_train, y_train = [], []
@@ -306,18 +330,17 @@ class Datasets:
         y_train = torch.LongTensor(y_train)[idxperm]
         y_test = torch.LongTensor(y_test)
 
-        return DataContainer(train_data, 
-                             y_train, 
-                             test_data, 
-                             y_test, 
+        return DataContainer(train_data,
+                             y_train,
+                             test_data,
+                             y_test,
                              200)
 
-
     @classmethod
-    def FEMNIST(cls, 
-                path: str="./data",
-                batch_size: int=10,
-                filter: str="all"):
+    def FEMNIST(cls,
+                path: str = "./data",
+                batch_size: int = 10,
+                filter: str = "all"):
 
         def _filter_femnist(udata, filter):
             # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
@@ -336,7 +359,7 @@ class Datasets:
             else:
                 raise ValueError(f"Invalid filter: {filter}")
             return udata
-        
+
         femnist_path = os.path.join(path, "FEMNIST")
         train_dir = os.path.join(femnist_path, 'train')
         test_dir = os.path.join(femnist_path, 'test')
@@ -350,7 +373,7 @@ class Datasets:
         dict_train = {}
         for file in track(files, "Loading FEMNIST train data..."):
             with open(os.path.join(train_dir, file)) as f:
-                data = json.load(f)  
+                data = json.load(f)
             dict_train.update(data["user_data"])
 
         # TEST
@@ -360,7 +383,7 @@ class Datasets:
             with open(os.path.join(test_dir, file)) as f:
                 data = json.load(f)
             dict_test.update(data["user_data"])
-            
+
         client_tr_assignments = []
         for k in track(sorted(dict_train), "Creating training data loader..."):
             udata = dict_train[k]
@@ -369,15 +392,15 @@ class Datasets:
             ytr_client = torch.LongTensor(udata["y"])
             client_tr_assignments.append(
                 FastTensorDataLoader(
-                    Xtr_client, 
-                    ytr_client, 
+                    Xtr_client,
+                    ytr_client,
                     num_labels=62,
-                    batch_size=batch_size, 
-                    shuffle=True, 
+                    batch_size=batch_size,
+                    shuffle=True,
                     percentage=1.0
                 )
             )
-        
+
         client_te_assignments = []
         for k in track(sorted(dict_train), "Creating testing data loader..."):
             udata = dict_test[k]
@@ -386,25 +409,24 @@ class Datasets:
             yte_client = torch.LongTensor(udata["y"])
             client_te_assignments.append(
                 FastTensorDataLoader(
-                    Xte_client, 
-                    yte_client, 
+                    Xte_client,
+                    yte_client,
                     num_labels=62,
-                    batch_size=64, 
-                    shuffle=True, 
+                    batch_size=64,
+                    shuffle=True,
                     percentage=1.0
                 )
             )
-            
+
         perm = permutation(len(client_tr_assignments))
         client_tr_assignments = [client_tr_assignments[i] for i in perm]
         client_te_assignments = [client_te_assignments[i] for i in perm]
         return client_tr_assignments, client_te_assignments, None
 
-
     @classmethod
-    def SHAKESPEARE(cls, 
-                    path: str="./data",
-                    batch_size: int=10):
+    def SHAKESPEARE(cls,
+                    path: str = "./data",
+                    batch_size: int = 10):
 
         shake_path = os.path.join(path, "shakespeare")
         train_dir = os.path.join(shake_path, 'train')
@@ -422,9 +444,9 @@ class Datasets:
         dict_train = {}
         for file in track(files, "Loading Shakespeare train data..."):
             with open(os.path.join(train_dir, file)) as f:
-                data = json.load(f)  
+                data = json.load(f)
             dict_train.update(data["user_data"])
-        
+
         # TEST
         files = os.listdir(test_dir)
         dict_test = {}
@@ -441,20 +463,19 @@ class Datasets:
                 inputs[idx] = [chr_map[char] for char in inputs[idx]]
             for idx in range(len(targets)):
                 targets[idx] = chr_map[targets[idx]]
-            
+
             Xtr_client = torch.LongTensor(inputs)
             ytr_client = torch.LongTensor(targets)
             client_tr_assignments.append(
                 FastTensorDataLoader(
-                    Xtr_client, 
-                    ytr_client, 
+                    Xtr_client,
+                    ytr_client,
                     num_labels=100,
-                    batch_size=batch_size, 
-                    shuffle=True, 
+                    batch_size=batch_size,
+                    shuffle=True,
                     percentage=1.0
                 )
             )
-        
 
         client_te_assignments = []
         for k in track(sorted(dict_train), "Creating test data loader..."):
@@ -464,25 +485,25 @@ class Datasets:
                 inputs[idx] = [chr_map[char] for char in inputs[idx]]
             for idx in range(len(targets)):
                 targets[idx] = chr_map[targets[idx]]
-                
+
             Xte_client = torch.LongTensor(inputs)
             yte_client = torch.LongTensor(targets)
             client_te_assignments.append(
                 FastTensorDataLoader(
-                    Xte_client, 
-                    yte_client, 
+                    Xte_client,
+                    yte_client,
                     num_labels=100,
-                    batch_size=batch_size, 
-                    shuffle=True, 
+                    batch_size=batch_size,
+                    shuffle=True,
                     percentage=1.0
                 )
             )
-        
+
         perm = permutation(len(client_tr_assignments))
         client_tr_assignments = [client_tr_assignments[i] for i in perm]
         client_te_assignments = [client_te_assignments[i] for i in perm]
         return client_tr_assignments, client_te_assignments, None
-    
+
 
 class DatasetsEnum(Enum):
     MNIST = "mnist"
@@ -496,7 +517,6 @@ class DatasetsEnum(Enum):
     TINY_IMAGENET = "tiny_imagenet"
     SHAKESPEARE = "shakespeare"
     FASHION_MNIST = "fashion_mnist"
-    
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -518,7 +538,7 @@ class DatasetsEnum(Enum):
             "tiny_imagenet": Datasets.TINY_IMAGENET,
             "shakespeare": Datasets.SHAKESPEARE,
             "fashion_mnist": Datasets.FASHION_MNIST
-        } 
+        }
         return DATASET_MAP[self.value]
 
     def splitter(self):
@@ -529,4 +549,3 @@ class DatasetsEnum(Enum):
             return DummyDataSplitter
         else:
             return DataSplitter
-

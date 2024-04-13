@@ -1,32 +1,29 @@
 """This module contains utility functions and classes used throughout the package."""
 from __future__ import annotations
+from typing import TYPE_CHECKING
+from ..data.datasets import DatasetsEnum
+from ..data import DistributionEnum, FastTensorDataLoader
+from rich.pretty import Pretty
+from rich.panel import Panel
+import rich
+from torch.optim.lr_scheduler import StepLR
+from torch.optim import Optimizer
+from torch.nn import Module
+import torch
+from typing import Any, Dict, Sequence
+from enum import Enum
+import psutil
+import pandas as pd
+import numpy as np
+import importlib
+import wandb
+import json
+import os
 import sys
 sys.path.append(".")
 sys.path.append("..")
-import os
-import json
-import wandb
-import importlib
-import numpy as np
-import pandas as pd
-import psutil
-from enum import Enum
-from typing import Any, Dict, Sequence
 
-import torch
-from torch.nn import Module
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import StepLR
 
-import rich
-from rich.panel import Panel
-from rich.pretty import Pretty
-
-from ..data import DistributionEnum, FastTensorDataLoader
-from ..evaluation import Evaluator
-from ..data.datasets import DatasetsEnum
-
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..comm import Message
 
@@ -49,6 +46,7 @@ __all__ = [
     'get_full_classname'
 ]
 
+
 class OptimizerConfigurator:
     """Optimizer configurator.
 
@@ -59,16 +57,17 @@ class OptimizerConfigurator:
         optimizer (type[Optimizer]): The optimizer class.
         scheduler_kwargs (DDict): The scheduler keyword arguments.
         optimizer_kwargs (DDict): The optimizer keyword arguments.
-    """ 
+    """
+
     def __init__(self,
-                 optimizer_class: type[Optimizer], 
-                 scheduler_kwargs: dict=None,
+                 optimizer_class: type[Optimizer],
+                 scheduler_kwargs: dict = None,
                  **optimizer_kwargs):
         self.optimizer: type[Optimizer] = optimizer_class
         self.scheduler_kwargs: DDict = (DDict(scheduler_kwargs) if scheduler_kwargs is not None
                                         else DDict({"step_size": 1, "gamma": 1}))
         self.optimizer_kwargs: DDict = DDict(optimizer_kwargs)
-    
+
     def __call__(self, model: Module, **override_kwargs):
         """Creates the optimizer and the scheduler.
 
@@ -84,7 +83,7 @@ class OptimizerConfigurator:
         optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
         scheduler = StepLR(optimizer, **self.scheduler_kwargs)
         return optimizer, scheduler
-    
+
     def __str__(self) -> str:
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
@@ -95,16 +94,16 @@ class OptimizerConfigurator:
 
 class LogEnum(Enum):
     """Log enumerator."""
-    LOCAL = "local" #: Local logging
-    WANDB = "wandb" #: Weights and Biases logging
+    LOCAL = "local"  # : Local logging
+    WANDB = "wandb"  # : Weights and Biases logging
 
-    def logger(self, 
+    def logger(self,
                **wandb_config):
         """Returns a new logger according to the value of the enumerator.
 
         Args:
             **wandb_config (dict): The configuration for Weights and Biases.
-        
+
         Returns:
             Log: The logger.
         """
@@ -113,20 +112,22 @@ class LogEnum(Enum):
         else:
             return WandBLog(**wandb_config)
 
+
 class ServerObserver():
     """Server observer interface.
 
     This interface is used to observe the server during the federated learning process.
-    For example, it can be used to log the performance of the global model and the communication 
+    For example, it can be used to log the performance of the global model and the communication
     costs, as it is done in the `Log` class.
     """
+
     def start_round(self, round: int, global_model: Any):
         pass
 
-    def end_round(self, 
-                  round: int, 
-                  global_model: Any, 
-                  data: FastTensorDataLoader, 
+    def end_round(self,
+                  round: int,
+                  global_model: Any,
+                  data: FastTensorDataLoader,
                   client_evals: Sequence[Any]):
         pass
 
@@ -143,14 +144,14 @@ class ServerObserver():
 class ChannelObserver():
     """Channel observer interface.
 
-    This interface is used to observe the communication channel during the federated learning 
+    This interface is used to observe the communication channel during the federated learning
     process.
 
     See Also:
         `ServerObserver`, `ObserverSubject`
 
     """
-    
+
     def message_received(self, message: Message):
         pass
 
@@ -170,10 +171,10 @@ class Log(ServerObserver, ChannelObserver):
 
     def __init__(self):
         self.history: dict = {}
-        self.client_history: dict= {}
+        self.client_history: dict = {}
         self.comm_costs: dict = {0: 0}
         self.current_round: int = 0
-    
+
     def init(self, **kwargs):
         """Initialize the logger.
 
@@ -183,8 +184,8 @@ class Log(ServerObserver, ChannelObserver):
             **kwargs: The configuration.
         """
         if kwargs:
-            rich.print(Panel(Pretty(kwargs, expand_all=True), title=f"Configuration"))
-    
+            rich.print(Panel(Pretty(kwargs, expand_all=True), title="Configuration"))
+
     def start_round(self, round: int, global_model: Module):
         self.comm_costs[round] = 0
         self.current_round = round
@@ -192,42 +193,42 @@ class Log(ServerObserver, ChannelObserver):
         if round == 1 and self.comm_costs[0] > 0:
             rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
 
-    def end_round(self, 
-                  round: int, 
-                  global_eval: Dict[str, float], 
+    def end_round(self,
+                  round: int,
+                  global_eval: Dict[str, float],
                   client_evals: Sequence[Any]):
         self.history[round] = global_eval
-        stats = { 'global': self.history[round] }
+        stats = {'global': self.history[round]}
 
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
             stats['local'] = client_mean
-        
+
         stats['comm_cost'] = self.comm_costs[round]
 
         rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
         rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
-    
+
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
-    
+
     def finished(self, client_evals: Sequence[Any]):
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
             client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
             self.client_history[self.current_round + 1] = client_mean
-            rich.print(Panel(Pretty(client_mean, expand_all=True), 
-                             title=f"Overall local performance"))
-        
+            rich.print(Panel(Pretty(client_mean, expand_all=True),
+                             title="Overall local performance"))
+
         if self.history[self.current_round]:
-            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True), 
-                             title=f"Overall global performance"))
-        
-        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True), 
-                         title=f"Total communication cost"))
-    
+            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True),
+                             title="Overall global performance"))
+
+        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
+                         title="Total communication cost"))
+
     def save(self, path: str):
         """Save the logger's history to a JSON file.
 
@@ -241,7 +242,7 @@ class Log(ServerObserver, ChannelObserver):
         }
         with open(path, 'w') as f:
             json.dump(json_to_save, f, indent=4)
-        
+
     def error(self, error: str):
         """Log an error.
 
@@ -266,15 +267,16 @@ class WandBLog(Log):
         eval_every (int): The number of rounds between evaluations.
         **config: The configuration for Weights and Biases.
     """
+
     def __init__(self, **config):
         super().__init__()
         self.config = config
-        
+
     def init(self, **kwargs):
         super().init(**kwargs)
         self.config["config"] = kwargs
         self.run = wandb.init(**self.config)
-    
+
     def start_round(self, round: int, global_model: Module):
         super().start_round(round, global_model)
         if round == 1 and self.comm_costs[0] > 0:
@@ -282,16 +284,17 @@ class WandBLog(Log):
 
     def end_round(self, round: int, global_eval: Dict[str, float], client_evals: Sequence[Any]):
         super().end_round(round, global_eval, client_evals)
-        self.run.log({ "global": self.history[round]}, step=round)
-        self.run.log({ "comm_cost": self.comm_costs[round]}, step=round)
+        self.run.log({"global": self.history[round]}, step=round)
+        self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
         if client_evals:
-            self.run.log({ "local": self.client_history[round]}, step=round)
-    
+            self.run.log({"local": self.client_history[round]}, step=round)
+
     def finished(self, client_evals: Sequence[Any]):
         super().finished(client_evals)
         if client_evals:
-            self.run.log({"local" : self.client_history[self.current_round+1]}, step=self.current_round+1)
-    
+            self.run.log(
+                {"local": self.client_history[self.current_round+1]}, step=self.current_round+1)
+
     def save(self, path: str):
         super().save(path)
         self.run.finish()
@@ -302,7 +305,7 @@ def import_module_from_str(name: str) -> Any:
 
     Args:
         name (str): The name of the module.
-    
+
     Returns:
         Any: The module.
     """
@@ -315,7 +318,7 @@ def import_module_from_str(name: str) -> Any:
 def get_class_from_str(module_name: str, class_name: str) -> Any:
     """Get a class from its name.
 
-    This function is used to get a class from its name and the name of the module where it is 
+    This function is used to get a class from its name and the name of the module where it is
     defined. It is used to dynamically import classes.
 
     Args:
@@ -328,6 +331,7 @@ def get_class_from_str(module_name: str, class_name: str) -> Any:
     module = importlib.import_module(module_name)
     class_ = getattr(module, class_name)
     return class_
+
 
 def get_class_from_qualified_name(qualname: str) -> Any:
     """Get a class from its fully qualified name.
@@ -344,6 +348,7 @@ def get_class_from_qualified_name(qualname: str) -> Any:
     class_ = getattr(module, class_name)
     return class_
 
+
 def get_loss(lname: str) -> Module:
     """Get a loss function from its name.
 
@@ -351,13 +356,14 @@ def get_loss(lname: str) -> Module:
 
     Args:
         lname (str): The name of the loss function.
-    
+
     Returns:
         Module: The loss function.
     """
     return get_class_from_str("torch.nn", lname)()
 
-def get_model(mname:str, **kwargs) -> Module:
+
+def get_model(mname: str, **kwargs) -> Module:
     """Get a model from its name.
 
     This function is used to get a model from its name and the name of the module where it is
@@ -383,13 +389,14 @@ def get_full_classname(classtype: type) -> str:
 
     Args:
         classtype (type): The class.
-    
+
     Returns:
         str: The fully qualified name of the class.
     """
     return f"{classtype.__module__}.{classtype.__name__}"
 
-def get_scheduler(sname:str) -> torch.nn.Module:
+
+def get_scheduler(sname: str) -> torch.nn.Module:
     """Get a learning rate scheduler from its name.
 
     This function is used to get a learning rate scheduler from its name. It is used to dynamically
@@ -398,17 +405,18 @@ def get_scheduler(sname:str) -> torch.nn.Module:
 
     Args:
         sname (str): The name of the scheduler.
-    
+
     Returns:
         torch.nn.Module: The learning rate scheduler.
     """
     return get_class_from_str("torch.optim.lr_scheduler", sname)
 
-def clear_cache(ipc: bool=False):
+
+def clear_cache(ipc: bool = False):
     """Clear the CUDA cache.
-    
+
     Args:
-        ipc (bool, optional): Whether to force collecting GPU memory after it has been released by 
+        ipc (bool, optional): Whether to force collecting GPU memory after it has been released by
             CUDA IPC.
     """
     torch.cuda.empty_cache()
@@ -423,14 +431,14 @@ class DDict(dict):
 
     def __init__(self, d: dict):
         self.update(d)
-    
+
     def update(self, d: dict):
         for k, v in d.items():
             if isinstance(v, dict):
                 self[k] = DDict(v)
             else:
                 self[k] = v
-    
+
     def exclude(self, *keys: str):
         """Create a new DDict excluding the specified keys.
 
@@ -439,7 +447,7 @@ class DDict(dict):
         """
         return DDict({k: v for k, v in self.items() if k not in keys})
 
-                
+
 class Configuration(DDict):
     """FL-Bench configuration class.
 
@@ -449,10 +457,11 @@ class Configuration(DDict):
     Args:
         config_exp_path (str): The path to the experiment configuration file.
         config_alg_path (str): The path to the algorithm configuration file.
-    
+
     Raises:
         ValueError: If the configuration is not valid.
     """
+
     def __init__(self, config_exp_path: str, config_alg_path: str):
         with open(config_exp_path) as f:
             config_exp = json.load(f)
@@ -462,9 +471,9 @@ class Configuration(DDict):
         self.update(config_exp)
         self.update({"method": config_alg})
         self._validate()
-    
+
     def _validate(self) -> bool:
-        
+
         EXP_OPT_KEYS = {
             "average": "micro",
             "device": "cpu",
@@ -484,11 +493,11 @@ class Configuration(DDict):
         PROTO_REQUIRED_KEYS = ["n_clients", "eligible_perc", "n_rounds"]
         DATA_REQUIRED_KEYS = ["distribution", "dataset"]
         DATA_OPT_KEYS = {
-            "sampling_perc": 1.0, 
+            "sampling_perc": 1.0,
             "client_split": 0.0,
             "standardize": False
         }
-        
+
         ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]
         HP_REQUIRED_KEYS = ["model", "client", "server"]
         CLIENT_HP_REQUIRED_KEYS = ["loss", "batch_size", "local_epochs", "optimizer"]
@@ -500,21 +509,21 @@ class Configuration(DDict):
                 f = "experiment" if k != "method" else "algorithm"
                 rich.print(f"Error: {k} is required in the {f} configuration file")
                 error = True
-        
+
         for k, v in FIRST_LVL_OPT_KEYS.items():
             if k not in self:
                 self[k] = DDict(v)
-        
+
         for k in PROTO_REQUIRED_KEYS:
             if k not in self.protocol:
                 rich.print(f"Error: {k} is required for key 'protocol'.")
                 error = True
-        
+
         for k in DATA_REQUIRED_KEYS:
             if k not in self.data:
                 rich.print(f"Error: {k} is required for key 'data'.")
                 error = True
-        
+
         for k, v in DATA_OPT_KEYS.items():
             if k not in self.data:
                 self.data[k] = v
@@ -527,23 +536,23 @@ class Configuration(DDict):
             if k not in self.method:
                 rich.print(f"Error: {k} is required for key 'method'.")
                 error = True
-        
+
         for k in HP_REQUIRED_KEYS:
             if k not in self.method.hyperparameters:
                 rich.print(f"Error: {k} is required for key 'hyperparameters' in 'method'.")
                 error = True
-        
+
         for k in CLIENT_HP_REQUIRED_KEYS:
             if k not in self.method.hyperparameters.client:
                 rich.print(f"Error: {k} is required as hyperparameter of 'client'.")
                 error = True
-        
+
         if 'logger' in self and self.logger.name == "wandb":
             for k in WANDB_REQUIRED_KEYS:
                 if k not in WANDB_REQUIRED_KEYS:
                     rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
                     error = True
-        
+
         if not error:
             self.data.distribution.name = DistributionEnum(self.data.distribution.name)
             self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
@@ -552,18 +561,14 @@ class Configuration(DDict):
 
         if error:
             raise ValueError("Configuration validation failed.")
-    
 
     def __str__(self) -> str:
-        return f"{self.method.name}_data({self.data.dataset.name.value},{self.data.distribution.name.value}" + \
+        return f"{self.method.name}_data({self.data.dataset.name.value}, " + \
+               f"{self.data.distribution.name.value}" + \
                f"{',std' if self.data.standardize else ''})" + \
-               f"_proto(C{self.protocol.n_clients},R{self.protocol.n_rounds},E{self.protocol.eligible_perc})" + \
+               f"_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}," + \
+               f"E{self.protocol.eligible_perc})" + \
                f"_seed({self.exp.seed})"
 
     def __repr__(self) -> str:
         return self.__str__()
-
-
-
-
-

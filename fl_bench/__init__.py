@@ -1,4 +1,3 @@
-from enum import Enum
 import torch
 import random
 import numpy as np
@@ -27,6 +26,7 @@ __all__ = [
 class Singleton(type):
     """Singleton metaclass."""
     _instances = {}
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
@@ -35,6 +35,7 @@ class Singleton(type):
 
 class ObserverSubject():
     """Observer subject class."""
+
     def __init__(self):
         self._observers = []
 
@@ -46,12 +47,12 @@ class ObserverSubject():
         """
         if observer is None:
             return
-        
+
         if not isinstance(observer, Iterable):
             observer = [observer]
 
         for observer in observer:
-            if not observer in self._observers:
+            if observer not in self._observers:
                 self._observers.append(observer)
 
     def detach(self, observer: Any):
@@ -76,14 +77,14 @@ class ObserverSubject():
 
 class GlobalSettings(metaclass=Singleton):
     """Global settings for FL-bench.
-    
+
     This class is a singleton that holds the global settings for FL-bench. The settings include:
     - The device (CPU, CUDA, AUTO, MPS);
     - The seed for reproducibility;
     - The progress bars for the federated learning process, clients and server;
     - The live renderer, which is used to render the progress bars.
-    """ 
-    
+    """
+
     _device: str = 'cpu'
     _seed: int = 0
 
@@ -120,19 +121,19 @@ class GlobalSettings(metaclass=Singleton):
 
     def auto_device(self) -> torch.device:
         """Set device to cuda if available, otherwise cpu.
-        
+
         Returns:
             torch.device: The device.
         """
         self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         return self._device
-    
+
     def set_device(self, device: str) -> torch.device:
         """Set the device.
-        
+
         Args:
             device (str): The device as string.
-        
+
         Returns:
             torch.device: The device as torch.device.
         """
@@ -142,7 +143,7 @@ class GlobalSettings(metaclass=Singleton):
 
         self._device = torch.device(device)
         return self._device
-    
+
     def get_device(self):
         """Get the device.
 
@@ -150,7 +151,7 @@ class GlobalSettings(metaclass=Singleton):
             torch.device: The device.
         """
         return self._device
-    
+
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
 
@@ -158,13 +159,13 @@ class GlobalSettings(metaclass=Singleton):
         - FL: The progress bar for the federated learning process.
         - clients: The progress bar for the clients.
         - server: The progress bar for the server.
-        
+
         Args:
             progress_type (str): The type of progress bar.
-        
+
         Returns:
             Progress: The progress bar.
-        
+
         Raises:
             ValueError: If the progress bar type is invalid.
         """
@@ -176,10 +177,10 @@ class GlobalSettings(metaclass=Singleton):
             return self._progress_server
         else:
             raise ValueError(f'Invalid type of progress bar type {progress_type}.')
-    
+
     def get_live_renderer(self) -> Live:
         """Get the live renderer.
-        
+
         Returns:
             Live: The live renderer.
         """
@@ -187,9 +188,8 @@ class GlobalSettings(metaclass=Singleton):
 
     def get_seed(self):
         """Get the seed.
-        
+
         Returns:
             int: The seed.
         """
         return self._seed
-

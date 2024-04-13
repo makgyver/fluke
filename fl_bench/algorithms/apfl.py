@@ -1,31 +1,28 @@
+from ..utils.model import merge_models
+from ..utils import OptimizerConfigurator, clear_cache
+from ..data import FastTensorDataLoader
+from ..algorithms import PersonalizedFL
+from ..client import Client, PFLClient
+from ..server import Server
+from copy import deepcopy
+from torch.nn import Module
+import torch
+from typing import Any, Callable, Iterable
 import sys
 sys.path.append(".")
 sys.path.append("..")
-from typing import Any, Callable, Iterable
-
-import torch
-from torch.nn import Module
-from copy import deepcopy
-
-from ..comm import Message
-from ..server import Server
-from ..client import Client, PFLClient
-from ..algorithms import PersonalizedFL
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator, clear_cache
-from ..utils.model import merge_models
 
 
 # https://arxiv.org/pdf/2012.04221.pdf
 class APFLClient(PFLClient):
 
-    def __init__(self, 
+    def __init__(self,
                  index: int,
                  model: torch.nn.Module,
-                 train_set: FastTensorDataLoader, 
-                 test_set: FastTensorDataLoader, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 loss_fn: Callable[..., Any], 
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
                  lam: float = 0.25):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
@@ -36,20 +33,19 @@ class APFLClient(PFLClient):
             "lam": lam
         })
 
-    
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
 
         self.model.train()
         self.personalized_model.train()
-        
+
         self.model.to(self.device)
         self.personalized_model.to(self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        
+
         if self.pers_optimizer is None:
             self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.internal_model)
 
@@ -75,24 +71,25 @@ class APFLClient(PFLClient):
 
             self.scheduler.step()
             self.pers_scheduler.step()
-        
+
         self.model.to("cpu")
         self.internal_model.to("cpu")
         clear_cache()
 
-        self.personalized_model = merge_models(self.model, self.internal_model, self.hyper_params.lam)
+        self.personalized_model = merge_models(
+            self.model, self.internal_model, self.hyper_params.lam)
 
         self._send_model()
-    
+
     # def get_model(self):
     #     return self._send_model()
 
 
 class APFLServer(Server):
 
-    def __init__(self, 
-                 model: Module, 
-                 test_data: FastTensorDataLoader, 
+    def __init__(self,
+                 model: Module,
+                 test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
@@ -101,20 +98,20 @@ class APFLServer(Server):
         self.hyper_params.update({
             "tau": tau
         })
-    
+
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache
             self.channel.clear(self)
             # for client in eligible:
-                # self.channel.send(Message((client.get_model, {}), "__action__", self), client)
-                # self.channel.pull(self, client, "model", client.model)
+            # self.channel.send(Message((client.get_model, {}), "__action__", self), client)
+            # self.channel.pull(self, client, "model", client.model)
         else:
             super()._aggregate(eligible)
 
 
 class APFL(PersonalizedFL):
-    
+
     def get_client_class(self) -> PFLClient:
         return APFLClient
 

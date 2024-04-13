@@ -1,5 +1,5 @@
 """
-This module contains the definition of several neural networks used in state-of-the-art 
+This module contains the definition of several neural networks used in state-of-the-art
 federated learning papers.
 """
 from abc import abstractmethod
@@ -13,10 +13,12 @@ from torchvision.models import resnet50, resnet18, resnet34
 # SuPerFed - https://arxiv.org/pdf/2109.07628v3.pdf - hidden_size=[200,200], w/o softmax
 # pFedMe: https://arxiv.org/pdf/2006.08848.pdf - hidden_size=[100,100], w/ softmax
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w - hidden_size=[200,100], w/o softmax
+
+
 class MNIST_2NN(nn.Module):
     """Multi-layer Perceptron for MNIST.
 
-    2-layer neural network for MNIST classification first introduced in the paper 
+    2-layer neural network for MNIST classification first introduced in the paper
     "Communication-Efficient Learning of Deep Networks from Decentralized Data" by
     H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y Arcas, where
     the hidden layers have 200 neurons each and the output layer with sigmoid activation.
@@ -28,12 +30,13 @@ class MNIST_2NN(nn.Module):
 
     Args:
         hidden_size (tuple[int, int], optional): Size of the hidden layers. Defaults to (200, 200).
-        softmax (bool, optional): If True, the output is passed through a softmax layer. 
+        softmax (bool, optional): If True, the output is passed through a softmax layer.
           Defaults to True.
     """
-    def __init__(self, 
-                 hidden_size: tuple[int, int]=(200, 200),
-                 softmax: bool=False):
+
+    def __init__(self,
+                 hidden_size: tuple[int, int] = (200, 200),
+                 softmax: bool = False):
         super(MNIST_2NN, self).__init__()
         self.input_size = 28*28
         self.output_size = 10
@@ -76,8 +79,10 @@ class MNIST_CNN(nn.Module):
         return F.softmax(self.fc2(x), dim=1)
 
 # FedBN: https://openreview.net/pdf?id=6YEQUn0QICG
+
+
 class FedBN_CNN(nn.Module):
-    def __init__(self, channels: int=1):
+    def __init__(self, channels: int = 1):
         super(FedBN_CNN, self).__init__()
         self.output_size = 10
 
@@ -112,11 +117,11 @@ class FedBN_CNN(nn.Module):
 # FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N (MNIST and FEMNIST)
 # Logistic Regression
 class MNIST_LR(nn.Module):
-    def __init__(self, num_classes: int=10):
+    def __init__(self, num_classes: int = 10):
         super(MNIST_LR, self).__init__()
         self.output_size = num_classes
         self.fc = nn.Linear(784, num_classes)
-    
+
     def forward(self, x):
         x = x.view(-1, 784)
         return F.softmax(self.fc(x), dim=1)
@@ -126,18 +131,26 @@ class ResidualBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, padding, stride):
         super(ResidualBlock, self).__init__()
-        self.conv_res1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
-                                   padding=padding, stride=stride, bias=False)
+        self.conv_res1 = nn.Conv2d(in_channels=in_channels,
+                                   out_channels=out_channels,
+                                   kernel_size=kernel_size,
+                                   padding=padding,
+                                   stride=stride,
+                                   bias=False)
         self.conv_res1_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
-        self.conv_res2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size,
-                                   padding=padding, bias=False)
+        self.conv_res2 = nn.Conv2d(in_channels=out_channels,
+                                   out_channels=out_channels,
+                                   kernel_size=kernel_size,
+                                   padding=padding,
+                                   bias=False)
         self.conv_res2_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
 
         if stride != 1:
             # in case stride is not set to 1, we need to downsample the residual so that
             # the dimensions are the same when we add them together
             self.downsample = nn.Sequential(
-                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
+                          kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
             )
         else:
@@ -164,19 +177,23 @@ class ResNet9(nn.Module):
         super(ResNet9, self).__init__()
 
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3,
+                      stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=64, momentum=0.9),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels=64, out_channels=128,
+                      kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=128, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             ResidualBlock(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels=128, out_channels=256,
+                      kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(in_channels=256, out_channels=256,
+                      kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
@@ -193,11 +210,13 @@ class ResNet9(nn.Module):
         return out
 
 # DITTO: https://arxiv.org/pdf/2012.04221.pdf (FEMNIST)
+
+
 class FEMNIST_CNN(nn.Module):
     def __init__(self):
         super(FEMNIST_CNN, self).__init__()
         self.output_size = 62
-        
+
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5, padding=2)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=5, padding=2)
         self.fc1 = nn.Linear(7 * 7 * 64, 1024)
@@ -214,33 +233,51 @@ class FEMNIST_CNN(nn.Module):
         return x
 
 # FIXME: Quale algoritmo? Quale dataset?
+
+
 class VGG9_E(nn.Module):
 
-    def _conv_layer(self, in_channels, out_channels, kernel_size, stride=1, padding=0, groups=1, bias=False, seed=0):
-        conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding, groups=groups, stride=stride, bias=bias)
-        torch.manual_seed(seed); torch.nn.init.xavier_normal_(conv.weight)
+    def _conv_layer(self,
+                    in_channels,
+                    out_channels,
+                    kernel_size,
+                    stride=1,
+                    padding=0,
+                    groups=1,
+                    bias=False,
+                    seed=0):
+        conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,
+                         padding=padding, groups=groups, stride=stride, bias=bias)
+        torch.manual_seed(seed)
+        torch.nn.init.xavier_normal_(conv.weight)
         return conv
-    
-    def __init__(self, input_size: int=784, output_size: int=62, seed: int=98765):
+
+    def __init__(self, input_size: int = 784, output_size: int = 62, seed: int = 98765):
         super(VGG9_E, self).__init__()
         self._seed = seed
         self.input_size = input_size
         self.output_size = output_size
         self.encoder = nn.Sequential(
-            self._conv_layer(in_channels=1, out_channels=16, kernel_size=3, padding=1, bias=False, seed=seed), #FIXME
+            self._conv_layer(in_channels=1, out_channels=16, kernel_size=3,
+                             padding=1, bias=False, seed=seed),  # FIXME
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            self._conv_layer(in_channels=16, out_channels=32, kernel_size=3, padding=1, bias=False, seed=seed),
+            self._conv_layer(in_channels=16, out_channels=32, kernel_size=3,
+                             padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            self._conv_layer(in_channels=32, out_channels=64, kernel_size=3, padding=1, bias=False, seed=seed),
+            self._conv_layer(in_channels=32, out_channels=64, kernel_size=3,
+                             padding=1, bias=False, seed=seed),
             nn.ReLU(True),
-            self._conv_layer(in_channels=64, out_channels=128, kernel_size=3, padding=1, bias=False, seed=seed),
+            self._conv_layer(in_channels=64, out_channels=128, kernel_size=3,
+                             padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            self._conv_layer(in_channels=128, out_channels=256, kernel_size=3, padding=1, bias=False, seed=seed),
+            self._conv_layer(in_channels=128, out_channels=256,
+                             kernel_size=3, padding=1, bias=False, seed=seed),
             nn.ReLU(True),
-            self._conv_layer(in_channels=256, out_channels=512, kernel_size=3, padding=1, bias=False, seed=seed),
+            self._conv_layer(in_channels=256, out_channels=512,
+                             kernel_size=3, padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
@@ -254,10 +291,11 @@ class VGG9_D(nn.Module):
     @classmethod
     def _linear_layer(cls, in_features, out_features, bias=False, seed=0):
         fc = nn.Linear(in_features, out_features, bias=bias)
-        torch.manual_seed(seed); torch.nn.init.xavier_normal_(fc.weight)
+        torch.manual_seed(seed)
+        torch.nn.init.xavier_normal_(fc.weight)
         return fc
-    
-    def __init__(self, input_size: int=512, output_size: int=62, seed: int=98765):
+
+    def __init__(self, input_size: int = 512, output_size: int = 62, seed: int = 98765):
         super(VGG9_D, self).__init__()
         self.output_size = output_size
         self.downstream = nn.Sequential(
@@ -269,12 +307,12 @@ class VGG9_D(nn.Module):
 
     def forward(self, x):
         return self.downstream(x)
-        
+
 
 # SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (FEMNIST)
 class VGG9(nn.Module):
 
-    def __init__(self, input_size: int=784, output_size: int=62, seed: int=98765):
+    def __init__(self, input_size: int = 784, output_size: int = 62, seed: int = 98765):
         super(VGG9, self).__init__()
         self._seed = seed
         self.input_size = input_size
@@ -290,8 +328,10 @@ class VGG9(nn.Module):
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
+
+
 class FedavgCNN(nn.Module):
-    def __init__(self, input_size=(32,32), output_size=10):
+    def __init__(self, input_size=(32, 32), output_size=10):
         super().__init__()
         self.input_size = input_size
         self.output_size = output_size
@@ -325,32 +365,38 @@ class FedavgCNN(nn.Module):
         return F.softmax(x, dim=1)
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
+
+
 class ResNet18(nn.Module):
     def __init__(self, output_size=10):
         super(ResNet18, self).__init__()
         self.output_size = output_size
         self.resnet = resnet18(num_classes=output_size)
-    
+
     def forward(self, x):
         return self.resnet(x)
 
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (CIFAR-100)
+
+
 class ResNet34(nn.Module):
     def __init__(self, output_size=100):
         super(ResNet34, self).__init__()
         self.output_size = output_size
         self.resnet = resnet34(num_classes=output_size)
-    
+
     def forward(self, x):
         return self.resnet(x)
 
 # MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR-100)
+
+
 class ResNet50(nn.Module):
     def __init__(self, output_size=100):
         super(ResNet50, self).__init__()
         self.output_size = output_size
         self.resnet = resnet50(num_classes=output_size)
-    
+
     def forward(self, x):
         return self.resnet(x)
 
@@ -365,18 +411,18 @@ class LeNet5(nn.Module):
             nn.Conv2d(3, 6, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(6),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size = 2, stride = 2))
+            nn.MaxPool2d(kernel_size=2, stride=2))
         self.layer2 = nn.Sequential(
             nn.Conv2d(6, 16, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size = 2, stride = 2))
+            nn.MaxPool2d(kernel_size=2, stride=2))
         self.fc = nn.Linear(400, 120)
         self.relu = nn.ReLU()
         self.fc1 = nn.Linear(120, 84)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(84, output_size)
-        
+
     def forward(self, x):
         out = self.layer1(x)
         out = self.layer2(out)
@@ -389,6 +435,8 @@ class LeNet5(nn.Module):
         return out
 
 # SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (Shakespeare)
+
+
 class Shakespeare_LSTM(nn.Module):
 
     def __init__(self, seed=42):
@@ -438,9 +486,9 @@ class MoonCNN(nn.Module):
         x = F.relu(self.fc2(x))
         # The paper is not clear about the activation of
         # the projection head (PH). We go with ReLU since they
-        # cite https://arxiv.org/pdf/2002.05709.pdf where 
+        # cite https://arxiv.org/pdf/2002.05709.pdf where
         # it is shown that non-linear PHs works better.
-        x = F.relu(self.projection_head(x)) 
+        x = F.relu(self.projection_head(x))
         x = self.out(x)
         return x
 
@@ -450,7 +498,7 @@ class GlobalLocalNet(nn.Module):
 
     A network that has two subnetworks, one is meant to be shared (global) and one is meant to be
     personalized (local). The forward method should work as expected, but the forward_local and
-    forward_global methods should be used to get the output of the local and global subnetworks, 
+    forward_global methods should be used to get the output of the local and global subnetworks,
     respectively. If this is not possible, they fallback to the forward method (default behavior).
     """
 
@@ -474,10 +522,10 @@ class GlobalLocalNet(nn.Module):
 class EncoderHeadNet(nn.Module):
     """Encoder+Head Network (Abstract Class)
 
-    A network that has two subnetworks, one is meant to be the encoder that learns a latent 
+    A network that has two subnetworks, one is meant to be the encoder that learns a latent
     representation of the input and the other is meant to be the head that learns to classify.
     The forward method should work as expected, but the `forward_encoder` and
-    `forward_head` methods should be used to get the output of the econer and head subnetworks, 
+    `forward_head` methods should be used to get the output of the econer and head subnetworks,
     respectively. If this is not possible, they fallback to the forward method (default behavior).
     """
 
@@ -496,7 +544,6 @@ class EncoderHeadNet(nn.Module):
 
     def forward_head(self, x):
         return self.forward(x)
-
 
 
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (FEMNIST - meant to be used by FedPer)
@@ -532,7 +579,7 @@ class LG_FedAvg_VGG9(GlobalLocalNet, VGG9):
 
 # https://github.com/Xtra-Computing/NIID-Bench
 class SimpleCNN(nn.Module):
-    def __init__(self, hidden_dims=(100,100), output_dim=10):
+    def __init__(self, hidden_dims=(100, 100), output_dim=10):
         super(SimpleCNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
@@ -556,8 +603,8 @@ class SimpleCNN(nn.Module):
 
 
 class MNIST_2NN_E(nn.Module):
-    def __init__(self, 
-                 hidden_size: tuple[int,int]=(200, 200)):
+    def __init__(self,
+                 hidden_size: tuple[int, int] = (200, 200)):
         super(MNIST_2NN_E, self).__init__()
         self.input_size = 28*28
         self.output_size = 10
@@ -573,7 +620,7 @@ class MNIST_2NN_E(nn.Module):
 
 
 class MNIST_2NN_D(nn.Module):
-    def __init__(self, 
+    def __init__(self,
                  hidden_size: int = 200):
         super(MNIST_2NN_D, self).__init__()
         self.output_size = 10
@@ -584,8 +631,8 @@ class MNIST_2NN_D(nn.Module):
 
 
 class MNIST_2NN_ED(GlobalLocalNet):
-    def __init__(self, 
-                 hidden_size: tuple[int, int]=(200, 200)):
+    def __init__(self,
+                 hidden_size: tuple[int, int] = (200, 200)):
         super(MNIST_2NN_ED, self).__init__()
         self.output_size = 10
         self.E = MNIST_2NN_E(hidden_size)
@@ -608,8 +655,8 @@ class MNIST_2NN_ED(GlobalLocalNet):
 
 
 class MNIST_2NN_ED_inv(GlobalLocalNet):
-    def __init__(self, 
-                 hidden_size: tuple[int, int]=(200, 200)):
+    def __init__(self,
+                 hidden_size: tuple[int, int] = (200, 200)):
         super(MNIST_2NN_ED_inv, self).__init__()
         self.output_size = 10
         self.E = MNIST_2NN_E(hidden_size)
@@ -630,9 +677,10 @@ class MNIST_2NN_ED_inv(GlobalLocalNet):
     def forward_global(self, z):
         return self.E(z)
 
+
 class MNIST_2NN_Proto(EncoderHeadNet):
-    def __init__(self, 
-                 hidden_size: tuple[int, int]=(200, 200)):
+    def __init__(self,
+                 hidden_size: tuple[int, int] = (200, 200)):
         super(MNIST_2NN_Proto, self).__init__()
         self.output_size = 10
         self.E = MNIST_2NN_E(hidden_size)

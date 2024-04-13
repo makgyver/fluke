@@ -1,24 +1,23 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+from scipy.stats.mstats import mquantiles
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
+import numpy as np
+from typing import List, Union
+from rich.progress import track
+import rich
+import torch
+from sklearn.model_selection import train_test_split
+from pyparsing import Optional
+from enum import Enum
 import sys
 
 sys.path.append(".")
 sys.path.append("..")
 
-from enum import Enum
 
-from pyparsing import Optional
-from sklearn.model_selection import train_test_split
-import torch
-import rich
-from rich.progress import track
-from typing import List, Union
-import numpy as np
-from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from scipy.stats.mstats import mquantiles
-
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..utils import DDict
 
@@ -32,6 +31,7 @@ __all__ = [
     'DummyDataSplitter'
 ]
 
+
 class DataContainer:
     """Container for train and test (classification) data.
 
@@ -41,18 +41,19 @@ class DataContainer:
         X_test (torch.Tensor): The test data.
         y_test (torch.Tensor): The test labels.
         num_classes (int): The number of classes.
-    """ 
-    def __init__(self, 
-                 X_train: torch.Tensor, 
-                 y_train: torch.Tensor, 
-                 X_test: torch.Tensor, 
+    """
+
+    def __init__(self,
+                 X_train: torch.Tensor,
+                 y_train: torch.Tensor,
+                 X_test: torch.Tensor,
                  y_test: torch.Tensor,
                  num_classes: int):
         self.train = (X_train, y_train)
         self.test = (X_test, y_test)
         self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
         self.num_classes = num_classes
-    
+
     def standardize(self):
         """Standardize the data.
 
@@ -66,6 +67,7 @@ class DataContainer:
         scaler.fit(data_train)
         self.train = (torch.FloatTensor(scaler.transform(data_train)), self.train[1])
         self.test = (torch.FloatTensor(scaler.transform(data_test)), self.test[1])
+
 
 class FastTensorDataLoader:
     """
@@ -82,13 +84,13 @@ class FastTensorDataLoader:
         skip_singleton (bool): whether to skip batches with a single element.
     """
 
-    def __init__(self, 
+    def __init__(self,
                  *tensors: torch.Tensor,
-                 num_labels: int, 
-                 batch_size: int=32, 
-                 shuffle: bool=False, 
-                 percentage: float=1.0,
-                 skip_singleton: bool=True):
+                 num_labels: int,
+                 batch_size: int = 32,
+                 shuffle: bool = False,
+                 percentage: float = 1.0,
+                 skip_singleton: bool = True):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
         self.num_labels = num_labels
@@ -102,7 +104,7 @@ class FastTensorDataLoader:
         if remainder > 0:
             n_batches += 1
         self.n_batches = n_batches
-    
+
     def __iter__(self):
         if self.shuffle:
             r = torch.randperm(self.size)
@@ -122,39 +124,39 @@ class FastTensorDataLoader:
 
     def __len__(self) -> int:
         return self.n_batches
-    
+
     def transform(self, f: callable, axis=(0,)) -> FastTensorDataLoader:
         """Transform the data according to the function `f`.
 
         Args:
             f (callable): the transformation function.
             axis (tuple): the axis along which to apply the transformation.
-        
+
         Returns:
             FastTensorDataLoader: the transformed data loader.
         """
         tensors = [f(t) if i in axis else t for i, t in enumerate(self.tensors)]
-        return FastTensorDataLoader(*tensors, 
+        return FastTensorDataLoader(*tensors,
                                     num_labels=self.num_labels,
-                                    batch_size=self.batch_size, 
-                                    shuffle=self.shuffle, 
+                                    batch_size=self.batch_size,
+                                    shuffle=self.shuffle,
                                     percentage=1.0)
-
 
 
 class DistributionEnum(Enum):
     """Enum for data distribution across clients."""
-    IID = "iid" #: Independent and Identically Distributed data.
-    QUANTITY_SKEWED = "qnt" #: Quantity skewed data.
-    CLASSWISE_QUANTITY_SKEWED = "classqnt" #: Class-wise quantity skewed data.
-    LABEL_QUANTITY_SKEWED = "lblqnt" #: Label quantity skewed data.
-    LABEL_DIRICHLET_SKEWED = "dir" #: Label skewed data according to the Dirichlet distribution.
-    LABEL_PATHOLOGICAL_SKEWED = "path" #: Pathological skewed data (i.e., each client has data from a small subset of the classes).
-    COVARIATE_SHIFT = "covshift" #: Covariate shift skewed data.
+    IID = "iid"  # : Independent and Identically Distributed data.
+    QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
+    CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
+    LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
+    LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
+    # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
+    LABEL_PATHOLOGICAL_SKEWED = "path"
+    COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
 
     def __hash__(self) -> int:
         return self.value.__hash__()
-    
+
     def __eq__(self, other) -> bool:
         return self.value == other.value
 
@@ -165,26 +167,27 @@ class DataSplitter:
     Args:
         dataset (DatasetsEnum or DataContainer): The dataset.
         standardize (bool, optional): Whether to standardize the data. Defaults to False.
-        distribution (DistributionEnum, optional): The distribution of the data across clients. 
-            Defaults to DistributionEnum.IID.
-        client_split (float, optional): The percentage of data to be used for validation. Defaults to 0.0.
+        distribution (DistributionEnum, optional): The distribution of the data across clients.
+          Defaults to DistributionEnum.IID.
+        client_split (float, optional): The percentage of data to be used for validation.
+          Defaults to 0.0.
         sampling_perc (float, optional): The percentage of data to be used. Defaults to 1.0.
         builder_args (DDict, optional): The arguments for the dataset builder. Defaults to {}.
         **kwargs: Additional arguments.
     """
     from .datasets import DatasetsEnum
-    
+
     @classmethod
     def from_config(cls, config: DDict) -> DataSplitter:
         """Create a DataSplitter from a configuration dictionary.
 
         Args:
             config (DDict): The configuration dictionary.
-        
+
         Returns:
             DataSplitter: The `DataSplitter` object.
         """
-        return config.dataset.name.splitter()(dataset=config.dataset.name, 
+        return config.dataset.name.splitter()(dataset=config.dataset.name,
                                               builder_args=config.dataset.exclude('name'),
                                               distribution=config.distribution.name,
                                               **config.exclude('dataset', 'distribution'),
@@ -194,30 +197,34 @@ class DataSplitter:
         try:
             return train_test_split(X, y, test_size=test_size, stratify=y)
         except ValueError:
-            rich.print("[bold red]Warning: [/bold red] Stratified split failed. Falling back to random split.")
+            rich.print(
+                "[bold red]Warning: [/bold red] Stratified split failed." +
+                "Falling back to random split."
+            )
             return train_test_split(X, y, test_size=test_size)
 
-    def __init__(self, 
+    def __init__(self,
                  dataset: Union[DatasetsEnum, DataContainer],
-                 standardize: bool=False,
-                 distribution: DistributionEnum=DistributionEnum.IID,
-                 client_split: float=0.0,
-                 sampling_perc: float=1.0,
-                 builder_args: DDict={},
+                 standardize: bool = False,
+                 distribution: DistributionEnum = DistributionEnum.IID,
+                 client_split: float = 0.0,
+                 sampling_perc: float = 1.0,
+                 builder_args: DDict = {},
                  **kwargs):
-        assert 0 <= client_split <= 1, "validation_split must be between 0 and 1."
+        assert 0 <= client_split <= 1, "client_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
-        self.data_container = dataset if isinstance(dataset, DataContainer) else dataset.klass()(**builder_args)
+        self.data_container = dataset if isinstance(
+            dataset, DataContainer) else dataset.klass()(**builder_args)
         self.standardize = standardize
         if standardize:
             self.data_container.standardize()
 
         self.distribution = distribution
-        self.validation_split = client_split
+        self.client_split = client_split
         self.sampling_perc = sampling_perc
         self.kwargs = kwargs
-    
+
     # def num_features(self) -> int:
     #     return self.data_container.num_features
 
@@ -230,50 +237,53 @@ class DataSplitter:
         """
         return self.data_container.num_classes
 
-    def assign(self, 
-               n_clients: int, 
-               batch_size: Optional[int]=None) -> tuple[tuple[FastTensorDataLoader, 
-                                                              Optional[FastTensorDataLoader]], 
-                                                        FastTensorDataLoader]:
+    def assign(self,
+               n_clients: int,
+               batch_size: Optional[int] = None) -> tuple[tuple[FastTensorDataLoader,
+                                                                Optional[FastTensorDataLoader]],
+                                                          FastTensorDataLoader]:
         """Assign the data to the clients according to the distribution.
 
         Args:
             n_clients (int): The number of clients.
             batch_size (Optional[int], optional): The batch size. Defaults to None.
-        
+
         Returns:
-            tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]], FastTensorDataLoader]: 
-                The clients' training and validation data loaders and the server's data loader.
+            tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]],
+                  FastTensorDataLoader]:
+                The clients' training and testing assignments and the server's testing assignment.
         """
         Xtr, Ytr = self.data_container.train
-        self.assignments = self._iidness_functions[self.distribution](self, Xtr, Ytr, n_clients, **self.kwargs)
+        self.assignments = self._iidness_functions[self.distribution](
+            self, Xtr, Ytr, n_clients, **self.kwargs)
         client_tr_assignments = []
         client_te_assignments = []
         for c in range(n_clients):
             client_X = Xtr[self.assignments[c]]
             client_y = Ytr[self.assignments[c]]
-            if self.validation_split > 0.0:
-                Xtr_client, Xte_client, Ytr_client, Yte_client = self._safe_train_test_split(client_X, 
-                                                                                             client_y,
-                                                                                             test_size=self.validation_split)
-                client_tr_assignments.append(FastTensorDataLoader(Xtr_client, 
-                                                                  Ytr_client, 
+            if self.client_split > 0.0:
+                (Xtr_client, Xte_client,
+                 Ytr_client, Yte_client) = self._safe_train_test_split(client_X,
+                                                                       client_y,
+                                                                       test_size=self.client_split)
+                client_tr_assignments.append(FastTensorDataLoader(Xtr_client,
+                                                                  Ytr_client,
                                                                   num_labels=self.num_classes,
-                                                                  batch_size=batch_size, 
-                                                                  shuffle=True, 
+                                                                  batch_size=batch_size,
+                                                                  shuffle=True,
                                                                   percentage=self.sampling_perc))
-                client_te_assignments.append(FastTensorDataLoader(Xte_client, 
-                                                                  Yte_client, 
+                client_te_assignments.append(FastTensorDataLoader(Xte_client,
+                                                                  Yte_client,
                                                                   num_labels=self.num_classes,
-                                                                  batch_size=batch_size, 
-                                                                  shuffle=True, 
+                                                                  batch_size=batch_size,
+                                                                  shuffle=True,
                                                                   percentage=self.sampling_perc))
             else:
-                client_tr_assignments.append(FastTensorDataLoader(client_X, 
+                client_tr_assignments.append(FastTensorDataLoader(client_X,
                                                                   client_y,
                                                                   num_labels=self.num_classes,
-                                                                  batch_size=batch_size, 
-                                                                  shuffle=True, 
+                                                                  batch_size=batch_size,
+                                                                  shuffle=True,
                                                                   percentage=self.sampling_perc))
                 client_te_assignments.append(None)
 
@@ -281,7 +291,7 @@ class DataSplitter:
                                          num_labels=self.num_classes,
                                          batch_size=128,
                                          shuffle=False)
-        
+
         return (client_tr_assignments, client_te_assignments), server_te
 
     def uniform(self,
@@ -294,7 +304,7 @@ class DataSplitter:
             X (torch.Tensor): The examples.
             y (torch.Tensor): The labels.
             n (int): The number of clients upon which the examples are distributed.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
@@ -308,21 +318,22 @@ class DataSplitter:
             assignment[0] = np.concatenate((assignment[0], idx[ex_client*n:]))
         return assignment
 
-
     def quantity_skew(self,
                       X: torch.Tensor,
-                      y: torch.Tensor, #not used
+                      y: torch.Tensor,  # not used
                       n: int,
-                      min_quantity: int=2,
-                      alpha: float=4.) -> List[torch.Tensor]:
+                      min_quantity: int = 2,
+                      alpha: float = 4.) -> List[torch.Tensor]:
         """
-        Distribute the examples across the users according to the following probability density function:
+        Distribute the examples across the users according to the following probability density
+        function:
         $P(x; a) = a x^{a-1}$
         where x is the id of a client (x in [0, n-1]), and a = `alpha` > 0 with
         - alpha = 1  => examples are equidistributed across clients;
         - alpha = 2  => the examples are "linearly" distributed across users;
         - alpha >= 3 => the examples are power law distributed;
-        - alpha -> \infty => all users but one have `min_quantity` examples, and the remaining user all the rest.
+        - alpha -> infinity => all users but one have `min_quantity` examples, and the remaining
+          user all the rest.
         Each client is guaranteed to have at least `min_quantity` examples.
 
         Args:
@@ -331,7 +342,7 @@ class DataSplitter:
             n (int): The number of clients upon which the examples are distributed.
             min_quantity (int, optional): The minimum number of examples per client. Defaults to 2.
             alpha (float, optional): The skewness parameter. Defaults to 4.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
@@ -343,16 +354,15 @@ class DataSplitter:
         shuffle(assignment)
         return [np.where(assignment == i)[0] for i in range(n)]
 
-
     def classwise_quantity_skew(self,
-                                 X: torch.Tensor,
-                                 y: torch.Tensor,
-                                 n: int,
-                                 min_quantity: int=2,
-                                 alpha: float=4.) -> List[torch.Tensor]:
+                                X: torch.Tensor,
+                                y: torch.Tensor,
+                                n: int,
+                                min_quantity: int = 2,
+                                alpha: float = 4.) -> List[torch.Tensor]:
         """Class-wise quantity skewed data distribution.
 
-        Distribute the examples of each class across the users according to the following 
+        Distribute the examples of each class across the users according to the following
         probability density function:
         $P(x; a) = a x^{a-1}$
         where x is the id of a client (x in [0, n-1]), and a = `alpha` > 0 with
@@ -366,7 +376,7 @@ class DataSplitter:
             n (int): The number of clients upon which the examples are distributed.
             min_quantity (int, optional): The minimum number of examples per client. Defaults to 2.
             alpha (float, optional): The skewness parameter. Defaults to 4.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
@@ -374,7 +384,7 @@ class DataSplitter:
         assert min_quantity > 0, "min_quantity must be >= 1"
 
         labels = list(range(len(torch.unique(torch.LongTensor(y)).numpy())))
-        lens = [np.where(y == l)[0].shape[0] for l in labels]
+        lens = [np.where(y == lbl)[0].shape[0] for lbl in labels]
         min_lbl = min(lens)
         assert min_lbl >= n, "Under represented class!"
 
@@ -393,12 +403,11 @@ class DataSplitter:
 
         return [np.array(r, dtype=int) for r in res]
 
-
     def label_quantity_skew(self,
-                            X: torch.Tensor, #not used
+                            X: torch.Tensor,  # not used
                             y: torch.Tensor,
                             n: int,
-                            class_per_client: int=2) -> List[torch.Tensor]:
+                            class_per_client: int = 2) -> List[torch.Tensor]:
         """
         Suppose each party only has data samples of `class_per_client` (i.e., k) different labels.
         We first randomly assign k different label IDs to each party. Then, for the samples of each
@@ -412,47 +421,47 @@ class DataSplitter:
             y (torch.Tensor): The lables.
             n (int): The number of clients upon which the examples are distributed.
             class_per_client (int, optional): The number of classes per client. Defaults to 2.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
         labels = set(torch.unique(torch.LongTensor(y)).numpy())
         assert 0 < class_per_client <= len(labels), "class_per_client must be > 0 and <= #classes"
         assert class_per_client * n >= len(labels), "class_per_client * n must be >= #classes"
-        nlbl = [choice(len(labels), class_per_client, replace=False)  for u in range(n)]
+        nlbl = [choice(len(labels), class_per_client, replace=False) for u in range(n)]
         check = set().union(*[set(a) for a in nlbl])
         while len(check) < len(labels):
             missing = labels - check
             for m in missing:
                 nlbl[randint(0, n)][randint(0, class_per_client)] = m
             check = set().union(*[set(a) for a in nlbl])
-        class_map = {c:[u for u, lbl in enumerate(nlbl) if c in lbl] for c in labels}
+        class_map = {c: [u for u, lbl in enumerate(nlbl) if c in lbl] for c in labels}
         assignment = np.zeros(y.shape[0])
         for lbl, users in class_map.items():
             ids = np.where(y == lbl)[0]
             assignment[ids] = choice(users, len(ids))
         return [np.where(assignment == i)[0] for i in range(n)]
 
-
     def label_dirichlet_skew(self,
                              X: torch.Tensor,
                              y: torch.Tensor,
                              n: int,
-                             beta: float=.1,
-                             min_ex_class: int=2) -> List[torch.Tensor]:
+                             beta: float = .1,
+                             min_ex_class: int = 2) -> List[torch.Tensor]:
         """
-        The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances of
-        class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
+        The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances
+        of class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
         concentration parameter (beta > 0).
         See: https://arxiv.org/pdf/2102.02079.pdf
 
         Args:
-            X (torch.Tensor): The examples. Not used - Allows for a common interface with other methods.
+            X (torch.Tensor): The examples. Not used - Allows for a common interface with other
+              methods.
             y (torch.Tensor): The lables.
             n (int): The number of clients upon which the examples are distributed.
             beta (float, optional): The concentration parameter. Defaults to 0.1.
             min_ex_class (int, optional): The minimum number of examples per class. Defaults to 2.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
@@ -470,16 +479,16 @@ class DataSplitter:
 
         return [np.where(assignment == i)[0] for i in range(n)]
 
-
     def label_pathological_skew(self,
-                                X: torch.Tensor, #not used
+                                X: torch.Tensor,  # not used
                                 y: torch.Tensor,
                                 n: int,
-                                shards_per_client: int=2) -> List[torch.Tensor]:
+                                shards_per_client: int = 2) -> List[torch.Tensor]:
         """
-        The function first sort the data by label, divide it into `n * shards_per_client` shards, and
-        assign each of n clients `shards_per_client` shards. This is a pathological non-IID partition
-        of the data, as most clients will only have examples of a limited number of classes.
+        The function first sort the data by label, divide it into `n * shards_per_client` shards,
+        and assign each of n clients `shards_per_client` shards. This is a pathological non-IID
+        partition of the data, as most clients will only have examples of a limited number of
+        classes.
         See: http://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
 
         Args:
@@ -487,7 +496,7 @@ class DataSplitter:
             y (torch.Tensor): The lables.
             n (int): The number of clients upon which the examples are distributed.
             shards_per_client (int, optional): The number of shards per client. Defaults to 2.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
@@ -505,29 +514,29 @@ class DataSplitter:
                 j += 1
         return [np.where(assignments == i)[0] for i in range(n)]
 
-
     def covariate_shift(self,
                         X: torch.Tensor,
                         y: torch.Tensor,
                         n: int,
-                        modes: int=2) -> List[torch.Tensor]:
+                        modes: int = 2) -> List[torch.Tensor]:
         """
-        The function first extracts the first principal component (through PCA) and then divides it in
-        `modes` percentiles. To each user, only examples from a single mode are selected (uniformly).
-        
+        The function first extracts the first principal component (through PCA) and then divides it
+        in `modes` percentiles. To each user, only examples from a single mode are selected
+        (uniformly).
+
         Args:
             X (torch.Tensor): The examples.
             y (torch.Tensor): The lables.
             n (int): The number of clients upon which the examples are distributed.
             modes (int, optional): The number of modes. Defaults to 2.
-        
+
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
         """
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
 
         ids_mode = [[] for _ in range(modes)]
-        for lbl in track(set(torch.unique(torch.LongTensor(y)).numpy()), 
+        for lbl in track(set(torch.unique(torch.LongTensor(y)).numpy()),
                          "Simulating Covariate Shift..."):
             ids = np.where(y == lbl)[0]
             X_pca = PCA(n_components=2).fit_transform(X.view(X.size()[0], -1)[ids])
@@ -535,7 +544,8 @@ class DataSplitter:
 
             y_ = np.zeros(y[ids].shape)
             for i, q in enumerate(quantiles):
-                if i == 0: continue
+                if i == 0:
+                    continue
                 id_pos = np.where((quantiles[i-1] < X_pca[:, 0]) & (X_pca[:, 0] <= quantiles[i]))[0]
                 y_[id_pos] = i
             y_[np.where(X_pca[:, 0] > quantiles[-1])[0]] = modes-1
@@ -545,13 +555,12 @@ class DataSplitter:
 
         ass_mode = (list(range(modes)) * int(np.ceil(n/modes)))[:n]
         shuffle(ass_mode)
-        mode_map = {m:[u for u, mu in enumerate(ass_mode) if mu == m] for m in range(modes)}
+        mode_map = {m: [u for u, mu in enumerate(ass_mode) if mu == m] for m in range(modes)}
         assignment = np.zeros(y.shape[0])
         for mode, users in mode_map.items():
             ids = ids_mode[mode]
             assignment[ids] = choice(users, len(ids))
         return [np.where(assignment == i)[0] for i in range(n)]
-    
 
     _iidness_functions = {
         DistributionEnum.IID: uniform,
@@ -565,27 +574,31 @@ class DataSplitter:
 
 
 class DummyDataSplitter(DataSplitter):
-    """This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST)."""
+    """
+    This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST).
+    """
 
     from .datasets import DatasetsEnum
 
-    def __init__(self, 
+    def __init__(self,
                  dataset: DatasetsEnum,
-                #  num_features: int,
-                #  num_classes: int,
+                 #  num_features: int,
+                 #  num_classes: int,
                  builder_args: DDict,
                  **kwargs):
         self.data_container = None
         self.standardize = False
         self.distribution = DistributionEnum.IID
-        self.validation_split = 0.0
+        self.client_split = 0.0
         self.sampling_perc = 1.0
-        self.client_tr_assignments, self.client_te_assignments, self.server_te = dataset.klass()(**builder_args)
+        (self.client_tr_assignments,
+         self.client_te_assignments,
+         self.server_te) = dataset.klass()(**builder_args)
         # self._num_features = num_features
         self._num_classes = self._compute_num_classes()
-    
+
     def _compute_num_classes(self) -> int:
-        
+
         labels = set()
         for ftdl in self.client_tr_assignments:
             y = ftdl.tensors[1]
@@ -595,19 +608,18 @@ class DummyDataSplitter(DataSplitter):
             if ftdl:
                 y = ftdl.tensors[1]
                 labels.update(set(list(y.numpy().flatten())))
-        
+
         if self.server_te:
             y = self.server_te.tensors[1]
             labels.update(set(list(y.numpy().flatten())))
 
         return len(labels)
-    
+
     # def num_features(self) -> int:
     #     return self._num_features
 
     def num_classes(self) -> int:
         return self._num_classes
 
-    def assign(self, n_clients: int, batch_size: Optional[int]=None):
+    def assign(self, n_clients: int, batch_size: Optional[int] = None):
         return (self.client_tr_assignments, self.client_te_assignments), self.server_te
-        

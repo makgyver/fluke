@@ -1,42 +1,40 @@
+from ..data import FastTensorDataLoader
+from ..algorithms import CentralizedFL
+from ..utils.model import diff_model
+from ..server import Server
+from ..client import Client
+from torch.nn import Module
+import torch
+from collections import OrderedDict
+from typing import Iterable
+from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from copy import deepcopy
-from typing import Iterable
-from collections import OrderedDict
-
-import torch
-from torch.nn import Module
-
-from ..client import Client
-from ..server import Server
-from ..utils.model import diff_model
-from ..algorithms import CentralizedFL
-from ..data import FastTensorDataLoader
-
 
 class FedAVGMServer(Server):
-    def __init__(self, 
+    def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int=1,
-                 weighted: bool=True,
-                 momentum: float=0.9):
+                 eval_every: int = 1,
+                 weighted: bool = True,
+                 momentum: float = 0.9):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update({
             "momentum": momentum
         })
-        self.optimizer = torch.optim.SGD(self.model.parameters(), 
-                                         lr=1.0, 
-                                         momentum=self.hyper_params.momentum, 
+        self.optimizer = torch.optim.SGD(self.model.parameters(),
+                                         lr=1.0,
+                                         momentum=self.hyper_params.momentum,
                                          nesterov=True)
-    
+
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
-        clients_diff = [diff_model(self.model.state_dict(), client_model) for client_model in clients_sd]
+        clients_diff = [diff_model(self.model.state_dict(), client_model)
+                        for client_model in clients_sd]
         weights = self._get_client_weights(eligible)
 
         with torch.no_grad():
@@ -49,7 +47,7 @@ class FedAVGMServer(Server):
                         avg_model_sd[key] = weights[i] * client_diff[key]
                     else:
                         avg_model_sd[key] += weights[i] * client_diff[key]
-        
+
         self.optimizer.zero_grad()
         for key, param in self.model.named_parameters():
             param.grad = avg_model_sd[key].data
@@ -60,4 +58,3 @@ class FedAVGM(CentralizedFL):
 
     def get_server_class(self) -> Server:
         return FedAVGMServer
-    

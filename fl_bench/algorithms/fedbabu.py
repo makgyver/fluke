@@ -1,29 +1,27 @@
+from ..net import EncoderHeadNet
+from ..utils import OptimizerConfigurator, clear_cache
+from ..data import FastTensorDataLoader
+from ..client import PFLClient
+from ..algorithms import PersonalizedFL
+from ..server import Server
+from ..comm import Message
+from rich.progress import Progress
+from copy import deepcopy
+from typing import Any, Callable, Sequence
+from torch.nn import Module
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from torch.nn import Module
-from typing import Any, Callable, Sequence
-from copy import deepcopy
-from rich.progress import Progress
-
-from ..comm import Message
-from ..server import Server
-from ..algorithms import PersonalizedFL
-from ..client import PFLClient
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator, clear_cache
-from ..net  import EncoderHeadNet
-
 
 class FedBABUClient(PFLClient):
 
-    def __init__(self, 
+    def __init__(self,
                  index: int,
                  model: EncoderHeadNet,
-                 train_set: FastTensorDataLoader, 
-                 test_set: FastTensorDataLoader, 
-                 optimizer_cfg: OptimizerConfigurator, 
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int,
                  mode: str,
@@ -37,7 +35,8 @@ class FedBABUClient(PFLClient):
         self.model = self.personalized_model
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.personalized_model.get_encoder()), "model", self), self.server)
+        self.channel.send(Message(deepcopy(self.personalized_model.get_encoder()),
+                          "model", self), self.server)
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
@@ -46,7 +45,7 @@ class FedBABUClient(PFLClient):
         # Deactivate gradient
         for param in self.personalized_model.get_head().parameters():
             param.requires_grad = False
-    
+
     def fine_tune(self):
         if self.hyper_params.mode == "full":
             for param in self.personalized_model.parameters():
@@ -56,16 +55,16 @@ class FedBABUClient(PFLClient):
                 param.requires_grad = True
             for param in self.personalized_model.get_head().parameters():
                 param.requires_grad = False
-        else: # head
+        else:  # head
             for param in self.personalized_model.get_encoder().parameters():
                 param.requires_grad = False
             for param in self.personalized_model.get_head().parameters():
                 param.requires_grad = True
-        
+
         self.personalized_model.train()
         self.personalized_model.to(self.device)
         self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
-        
+
         for _ in range(self.hyper_params.fine_tune_epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -76,17 +75,17 @@ class FedBABUClient(PFLClient):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        
+
         self.personalized_model.to("cpu")
         clear_cache()
 
 
 class FedBABUServer(Server):
 
-    def __init__(self, 
-                 model: Module, 
-                 test_data: FastTensorDataLoader, 
-                 clients: Sequence[PFLClient], 
+    def __init__(self,
+                 model: Module,
+                 test_data: FastTensorDataLoader,
+                 clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)
@@ -105,7 +104,7 @@ class FedBABUServer(Server):
 
 
 class FedBABU(PersonalizedFL):
-    
+
     def get_client_class(self) -> PFLClient:
         return FedBABUClient
 

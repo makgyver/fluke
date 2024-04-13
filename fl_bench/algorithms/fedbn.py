@@ -1,13 +1,11 @@
+from ..algorithms import CentralizedFL
+from ..client import Client
+from ..comm import Message
+from copy import deepcopy
+import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
-
-import torch
-from copy import deepcopy
-
-from ..comm import Message
-from ..client import Client
-from ..algorithms import CentralizedFL
 
 
 class FedBNClient(Client):
@@ -28,14 +26,14 @@ class FedBN(CentralizedFL):
     """
 
     This class implements the FedBN algorithm from the paper:
-    Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN: Federated Learning 
-    on Non-IID Features via Local Batch Normalization. ICLR 2021. 
+    Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN: Federated Learning
+    on Non-IID Features via Local Batch Normalization. ICLR 2021.
     URL: https://openreview.net/pdf?id=6YEQUn0QICG
 
     Warning:
-        To use this algorithm, you need to use a network with batch normalization layers whose names 
+        To use this algorithm, you need to use a network with batch normalization layers whose names
         start with "bn".
     """
-    
+
     def get_client_class(self) -> Client:
         return FedBNClient

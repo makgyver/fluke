@@ -1,15 +1,14 @@
+from ..algorithms import CentralizedFL
+from ..data import DataSplitter
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from ..data import DataSplitter
-from ..algorithms import CentralizedFL
-
 
 class FedSGD(CentralizedFL):
-    def __init__(self, 
+    def __init__(self,
                  n_clients: int,
-                 data_splitter: DataSplitter, 
+                 data_splitter: DataSplitter,
                  hyperparameters: dict):
         # Force single epoch for each client
         hyperparameters.client.local_epochs = 1

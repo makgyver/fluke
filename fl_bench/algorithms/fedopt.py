@@ -1,18 +1,16 @@
+from ..algorithms import CentralizedFL
+from ..data import FastTensorDataLoader
+from ..client import Client
+from ..server import Server
+from torch.nn import Module
+import torch
+from collections import OrderedDict
+from typing import Iterable
+from copy import deepcopy
+from enum import Enum
 import sys
 sys.path.append(".")
 sys.path.append("..")
-from enum import Enum
-from copy import deepcopy
-from typing import Iterable
-from collections import OrderedDict
-
-import torch
-from torch.nn import Module
-
-from ..server import Server
-from ..client import Client
-from ..data import FastTensorDataLoader
-from ..algorithms import CentralizedFL
 
 
 class FedOptMode(Enum):
@@ -28,14 +26,14 @@ class FedOptServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
-                 clients: Iterable[Client], 
-                 eval_every: int=1,
-                 mode: str="fedadam",
-                 lr: float=0.001,
-                 beta1: float=0.9,
-                 beta2: float=0.999,
-                 tau: float=0.0001,
-                 weighted: bool=True):
+                 clients: Iterable[Client],
+                 eval_every: int = 1,
+                 mode: str = "fedadam",
+                 lr: float = 0.001,
+                 beta1: float = 0.9,
+                 beta2: float = 0.999,
+                 tau: float = 0.0001,
+                 weighted: bool = True):
         super().__init__(model, test_data, clients, eval_every, weighted)
         # assert mode in FedOptMode, "mode must be one of FedOptMode"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
@@ -54,11 +52,12 @@ class FedOptServer(Server):
         self.m = OrderedDict()
         self.v = OrderedDict()
         for key in self.model.state_dict().keys():
-            if not "num_batches_tracked" in key:
+            if "num_batches_tracked" not in key:
                 self.m[key] = torch.zeros_like(self.model.state_dict()[key])
                 # This guarantees that the second moment is >= 0 and <= tau^2
-                self.v[key] = torch.rand_like(self.model.state_dict()[key]) * self.hyper_params.tau ** 2
-    
+                self.v[key] = torch.rand_like(self.model.state_dict()[
+                                              key]) * self.hyper_params.tau ** 2
+
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
@@ -74,26 +73,27 @@ class FedOptServer(Server):
                     diff += weight * (client_sd[key] - self.model.state_dict()[key])
                     den += weight
                 diff /= den
-                self.m[key] = self.hyper_params.beta1 * self.m[key] + (1 - self.hyper_params.beta1) * diff
+                self.m[key] = self.hyper_params.beta1 * \
+                    self.m[key] + (1 - self.hyper_params.beta1) * diff
 
                 diff_2 = diff ** 2
                 if self.hyper_params.mode == FedOptMode.FedAdam:
-                    self.v[key] = self.hyper_params.beta2 * self.v[key] + (1 - self.hyper_params.beta2) * diff_2
+                    self.v[key] = self.hyper_params.beta2 * self.v[key] + \
+                        (1 - self.hyper_params.beta2) * diff_2
                 elif self.hyper_params.mode == FedOptMode.FedYogi:
-                    self.v[key] -= (1 - self.hyper_params.beta2) * diff_2 * torch.sign(self.v[key] - diff_2)
+                    self.v[key] -= (1 - self.hyper_params.beta2) * \
+                        diff_2 * torch.sign(self.v[key] - diff_2)
                 elif self.hyper_params.mode == FedOptMode.FedAdagrad:
                     self.v[key] += diff_2
-                    
-                update = self.m[key] + self.hyper_params.lr * self.m[key] / (torch.sqrt(self.v[key]) + self.hyper_params.tau)
+
+                update = self.m[key] + self.hyper_params.lr * self.m[key] / \
+                    (torch.sqrt(self.v[key]) + self.hyper_params.tau)
                 avg_model_sd[key] = self.model.state_dict()[key] + update
-            
+
             self.model.load_state_dict(avg_model_sd)
 
 
 class FedOpt(CentralizedFL):
-    
+
     def get_server_class(self) -> Server:
         return FedOptServer
-
-    
-

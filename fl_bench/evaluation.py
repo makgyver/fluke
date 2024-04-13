@@ -1,15 +1,13 @@
+from .data import FastTensorDataLoader
+from . import GlobalSettings
+from torchmetrics import Accuracy, Precision, Recall, F1Score
+from torch.nn import Module
+import torch
+from typing import Callable, Optional, Union, Iterable
+from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
 
-from abc import ABC, abstractmethod
-from typing import Callable, Literal, Optional, Union, Iterable
-
-import torch
-from torch.nn import Module
-from torchmetrics import Accuracy, Precision, Recall, F1Score
-
-from . import GlobalSettings
-from .data import FastTensorDataLoader
 
 class Evaluator(ABC):
     """This class is the base class for all evaluators in `FL-bench`.
@@ -19,9 +17,10 @@ class Evaluator(ABC):
     Attributes:
         loss_fn (Callable): The loss function.
     """
+
     def __init__(self, loss_fn: Callable):
         self.loss_fn: Callable = loss_fn
-    
+
     @abstractmethod
     def evaluate(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
         """Evaluate the model.
@@ -47,7 +46,7 @@ class Evaluator(ABC):
 class ClassificationEval(Evaluator):
     """Evaluate a classification pytorch model.
 
-    The metrics computed are `accuracy`, `precision`, `recall`, `f1` and the loss according 
+    The metrics computed are `accuracy`, `precision`, `recall`, `f1` and the loss according
     to the provided loss function `loss_fn`.
 
     Attributes:
@@ -56,50 +55,53 @@ class ClassificationEval(Evaluator):
         device (Optional[torch.device]): The device where the evaluation is performed. If `None`,
             the device is the one set in the `GlobalSettings`.
     """
-    def __init__(self, 
-                 loss_fn: Callable, 
-                 n_classes: int, 
-                 device: Optional[torch.device]=None):
+
+    def __init__(self,
+                 loss_fn: Callable,
+                 n_classes: int,
+                 device: Optional[torch.device] = None):
         super().__init__(loss_fn)
         self.n_classes: int = n_classes
         self.device: torch.device = device if device is not None else GlobalSettings().get_device()
 
-    def evaluate(self, 
-                 model: torch.nn.Module, 
-                 eval_data_loader: Union[FastTensorDataLoader, 
+    def evaluate(self,
+                 model: torch.nn.Module,
+                 eval_data_loader: Union[FastTensorDataLoader,
                                          Iterable[FastTensorDataLoader]]) -> dict:
         """Evaluate the model.
 
         Args:
-            model (torch.nn.Module): The model to evaluate. If `None`, the method returns an 
+            model (torch.nn.Module): The model to evaluate. If `None`, the method returns an
                 empty dictionary.
-            eval_data_loader (Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]): 
+            eval_data_loader (Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]):
                 The data loader(s) to use for evaluation. If `None`, the method returns an empty
                 dictionary.
-        
+
         Returns:
             dict: A dictionary containing the computed metrics.
         """
         if (model is None) or (eval_data_loader is None):
             return {}
-        
+
         model.eval()
         model.to(self.device)
-        task = "multiclass" #if self.n_classes >= 2 else "binary"
+        task = "multiclass"  # if self.n_classes >= 2 else "binary"
         accs = []
         micro_precs, micro_recs, micro_f1s = [], [], []
         macro_precs, macro_recs, macro_f1s = [], [], []
         loss, cnt = 0, 0
-        
+
         if not isinstance(eval_data_loader, list):
             eval_data_loader = [eval_data_loader]
 
         for data_loader in eval_data_loader:
             accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            micro_precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average="micro")
+            micro_precision = Precision(
+                task=task, num_classes=self.n_classes, top_k=1, average="micro")
             micro_recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="micro")
             micro_f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            macro_precision = Precision(task=task, num_classes=self.n_classes, top_k=1, average="macro")
+            macro_precision = Precision(
+                task=task, num_classes=self.n_classes, top_k=1, average="macro")
             macro_recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="macro")
             macro_f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="macro")
 
@@ -128,7 +130,7 @@ class ClassificationEval(Evaluator):
             macro_precs.append(macro_precision.compute().item())
             macro_recs.append(macro_recall.compute().item())
             macro_f1s.append(macro_f1.compute().item())
-        
+
         model.to("cpu")
 
         return {
@@ -144,9 +146,8 @@ class ClassificationEval(Evaluator):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(n_classes={self.n_classes},average={self.average}," + \
-               f"device={self.device})[accuracy,precision,recall,f1,{self.loss_fn.__class__.__name__}]"
+               f"device={self.device})[accuracy,precision,recall,f1," + \
+               f"{self.loss_fn.__class__.__name__}]"
 
     def __repr__(self) -> str:
         return str(self)
-    
-    

@@ -1,29 +1,29 @@
+from ..algorithms import PersonalizedFL
+from ..utils import OptimizerConfigurator, clear_cache
+from ..utils.model import (get_global_model_dict,
+                           get_local_model_dict,
+                           mix_networks,
+                           set_lambda_model)
+from ..data import FastTensorDataLoader
+from ..client import PFLClient
+from torch.nn.modules import Module
+from typing import Any, Callable
+import numpy as np
+from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
-from copy import deepcopy
-
-import numpy as np
-from typing import Any, Callable
-
-from torch.nn.modules import Module
-
-from ..client import PFLClient
-from ..data import FastTensorDataLoader
-from ..utils.model import get_global_model_dict, get_local_model_dict, mix_networks, set_lambda_model
-from ..utils import OptimizerConfigurator, clear_cache
-from ..algorithms import PersonalizedFL
 
 
 class SuPerFedClient(PFLClient):
 
-    def __init__(self, 
+    def __init__(self,
                  index: int,
-                 model: Module, 
-                 train_set: FastTensorDataLoader, 
-                 test_set: FastTensorDataLoader, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 loss_fn: Callable[..., Any], # This is ignored!
+                 model: Module,
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable[..., Any],  # This is ignored!
                  local_epochs: int = 3,
                  mode: str = "global",
                  start_mix: int = 10,
@@ -41,7 +41,6 @@ class SuPerFedClient(PFLClient):
 
         self.internal_model = None
         self.mixed = False
-    
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
@@ -49,18 +48,20 @@ class SuPerFedClient(PFLClient):
 
         if self.hyper_params.mu > 0:
             prev_global_model = deepcopy(self.model)
-            for param in prev_global_model.parameters(): 
+            for param in prev_global_model.parameters():
                 param.requires_grad = False
 
         if self.server.rounds >= self.hyper_params.start_mix:
             if not self.mixed:
-                self.internal_model = mix_networks(self.model, self.personalized_model, 0) # temporary lambda
+                self.internal_model = mix_networks(
+                    self.model, self.personalized_model, 0)  # temporary lambda
                 # Once the mixing starts, the optimizer and scheduler are re-initialized
                 # This is not what the original code does
                 self.optimizer, self.scheduler = self.optimizer_cfg(self.internal_model)
                 self.mixed = True
             else:
-                local_dict = {k + "_local": v for k, v in self.personalized_model.state_dict().items()}
+                local_dict = {k + "_local": v for k,
+                              v in self.personalized_model.state_dict().items()}
                 self.internal_model.load_state_dict({**self.model.state_dict(), **local_dict})
         else:
             self.internal_model = self.model
@@ -89,10 +90,11 @@ class SuPerFedClient(PFLClient):
 
                 if self.hyper_params.mu > 0:
                     prox_term = 0.0
-                    for name, param in self.internal_model.named_parameters(): 
-                        if '_local' not in name: 
+                    for name, param in self.internal_model.named_parameters():
+                        if '_local' not in name:
                             continue
-                        internal_param = self.internal_model.get_parameter(name.replace('_local', ''))
+                        internal_param = self.internal_model.get_parameter(
+                            name.replace('_local', ''))
                         prev_param = prev_global_model.get_parameter(name.replace('_local', ''))
                         prox_term += (internal_param - prev_param).norm(2)
                     loss += self.hyper_params.mu * prox_term
@@ -100,7 +102,7 @@ class SuPerFedClient(PFLClient):
                 if self.server.rounds >= self.hyper_params.start_mix:
                     numerator, norm_1, norm_2 = 0, 0, 0
                     for name, param_l in self.internal_model.named_parameters():
-                        if '_local' not in name: 
+                        if '_local' not in name:
                             continue
                         param_g = self.internal_model.get_parameter(name.replace('_local', ''))
                         numerator += (param_g * param_l).add(1e-6).sum()
@@ -113,7 +115,7 @@ class SuPerFedClient(PFLClient):
                 self.optimizer.step()
 
             self.scheduler.step()
-        
+
         self.internal_model.to("cpu")
         clear_cache()
 
@@ -128,6 +130,6 @@ class SuPerFedClient(PFLClient):
 
 
 class SuPerFed(PersonalizedFL):
-    
+
     def get_client_class(self) -> PFLClient:
         return SuPerFedClient

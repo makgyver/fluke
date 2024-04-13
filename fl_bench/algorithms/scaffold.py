@@ -1,28 +1,25 @@
+from ..utils import OptimizerConfigurator, clear_cache
+from ..data import FastTensorDataLoader
+from ..algorithms import CentralizedFL
+from ..server import Server
+from ..client import Client
+from ..comm import Message
+from torch.optim import Optimizer
+from torch.nn import Module
+import torch
+from typing import Callable, Iterable
+from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from copy import deepcopy
-from typing import Callable, Iterable
-
-import torch
-from torch.nn import Module
-from torch.optim import Optimizer
-
-from ..comm import Message
-from ..client import Client
-from ..server import Server
-from ..algorithms import CentralizedFL
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator, clear_cache
-
 
 class SCAFFOLDOptimizer(Optimizer):
-    def __init__(self, params, lr: float=0.001, weight_decay: float=0.01):
+    def __init__(self, params, lr: float = 0.001, weight_decay: float = 0.01):
         defaults = dict(lr=lr, weight_decay=weight_decay)
         super(SCAFFOLDOptimizer, self).__init__(params, defaults)
 
-    #TODO: add types
+    # TODO: add types
     def step(self, server_controls, client_controls, closure=None):
 
         loss = None
@@ -46,25 +43,28 @@ class SCAFFOLDClient(Client):
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int=3):
+                 local_epochs: int = 3):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.control = None
         self.delta_c = None
         self.delta_y = None
         self.server_control = None
-    
+
     def _receive_model(self) -> None:
         model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
             self.model = deepcopy(model)
-            self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-            self.delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-            self.delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+            self.control = [torch.zeros_like(p.data)
+                            for p in self.model.parameters() if p.requires_grad]
+            self.delta_y = [torch.zeros_like(p.data)
+                            for p in self.model.parameters() if p.requires_grad]
+            self.delta_c = [torch.zeros_like(p.data)
+                            for p in self.model.parameters() if p.requires_grad]
         else:
             self.model.load_state_dict(model.state_dict())
         self.server_control = server_control
-    
-    def fit(self, override_local_epochs: int=0):
+
+    def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         server_model = deepcopy(self.model)
@@ -82,24 +82,28 @@ class SCAFFOLDClient(Client):
                 loss.backward()
                 self.optimizer.step(self.server_control, self.control)
             self.scheduler.step()
-        
-        #TODO: get only the trainable parameters
-        for local_model, server_model, delta_y in zip(self.model.parameters(), server_model.parameters(), self.delta_y):
+
+        # TODO: get only the trainable parameters
+        params = zip(self.model.parameters(), server_model.parameters(), self.delta_y)
+        for local_model, server_model, delta_y in params:
             delta_y.data = local_model.data.detach() - server_model.data.detach()
-        
-        new_controls = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set) * self.scheduler.get_last_lr()[0])
-        for local_control, server_control, new_control, delta_y in zip(self.control, self.server_control, new_controls, self.delta_y):
+
+        new_controls = [torch.zeros_like(p.data)
+                        for p in self.model.parameters() if p.requires_grad]
+        coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set)
+                      * self.scheduler.get_last_lr()[0])
+        params = zip(self.control, self.server_control, new_controls, self.delta_y)
+        for local_control, server_control, new_control, delta_y in params:
             new_control.data = local_control.data - server_control.data - delta_y.data * coeff
 
         for local_control, new_control, delta_c in zip(self.control, new_controls, self.delta_c):
             delta_c.data = new_control.data - local_control.data
             local_control.data = new_control.data
-        
+
         self.model.to("cpu")
         clear_cache()
         self._send_model()
-    
+
     def _send_model(self):
         self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
@@ -109,14 +113,15 @@ class SCAFFOLDServer(Server):
                  model: Module,
                  test_data: FastTensorDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int=1,
-                 global_step: float=1.):
+                 eval_every: int = 1,
+                 global_step: float = 1.):
         super().__init__(model, test_data, clients, eval_every, False)
-        self.control = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        self.control = [torch.zeros_like(p.data)
+                        for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update({
             "global_step": global_step
         })
-    
+
     def _broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
@@ -127,15 +132,18 @@ class SCAFFOLDServer(Server):
 
             for client in eligible:
                 cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
-                for client_delta_c, client_delta_y, server_delta_c, server_delta_y in zip(cl_delta_c, cl_delta_y, delta_c, delta_y):
+                deltas = zip(cl_delta_c, cl_delta_y, delta_c, delta_y)
+                for client_delta_c, client_delta_y, server_delta_c, server_delta_y in deltas:
                     server_delta_y.data = server_delta_y.data + client_delta_y.data
                     server_delta_c.data = server_delta_c.data + client_delta_c.data
-                
+
             for server_delta_c, server_delta_y in zip(delta_c, delta_y):
-                server_delta_y.data = server_delta_y.data / len(eligible) #* (eligible[i].n_examples / tot_examples)
+                # * (eligible[i].n_examples / tot_examples)
+                server_delta_y.data = server_delta_y.data / len(eligible)
                 server_delta_c.data = server_delta_c.data / self.n_clients
 
-            for param, server_control, server_delta_y, server_delta_c in zip(self.model.parameters(), self.control, delta_y, delta_c):
+            params_deltas = zip(self.model.parameters(), self.control, delta_y, delta_c)
+            for param, server_control, server_delta_y, server_delta_c in params_deltas:
                 param.data = param.data + self.hyper_params.global_step * server_delta_y
                 server_control.data = server_control.data + server_delta_c.data
 
@@ -162,13 +170,12 @@ class SCAFFOLD(CentralizedFL):
     eligible_perc : float, optional
         Percentage of clients to be selected for each communication round, by default 0.5.
     """
-    
+
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return SCAFFOLDOptimizer
-    
+
     def get_client_class(self) -> Client:
         return SCAFFOLDClient
 
     def get_server_class(self) -> Server:
         return SCAFFOLDServer
-

@@ -1,19 +1,16 @@
+from ..utils import OptimizerConfigurator
+from ..data import FastTensorDataLoader
+from ..algorithms import CentralizedFL
+from ..client import Client
+from torch.optim import Optimizer
+import torch
+from typing import Callable, List, Tuple, Union
+from collections import OrderedDict
+from copy import deepcopy
 import sys
 
 sys.path.append(".")
 sys.path.append("..")
-
-from copy import deepcopy
-from collections import OrderedDict
-from typing import Callable, List, Tuple, Union
-
-import torch
-from torch.optim import Optimizer
-
-from ..client import Client
-from ..algorithms import CentralizedFL
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator
 
 
 class PerFedAVGOptimizer(Optimizer):
@@ -32,9 +29,9 @@ class PerFedAVGOptimizer(Optimizer):
                     continue
                 d_p = p.grad.data
                 if grads is None:
-                    p.data.sub_(d_p, alpha=beta if(beta != 0) else group['lr'])
+                    p.data.sub_(d_p, alpha=beta if (beta != 0) else group['lr'])
                 else:
-                    p.data.sub_(beta * grads[0] - beta * group['lr'] * grads [1])
+                    p.data.sub_(beta * grads[0] - beta * group['lr'] * grads[1])
         return loss
 
 
@@ -48,7 +45,7 @@ class PerFedAVGClient(Client):
                  local_epochs: int,
                  mode: str,
                  beta: float):
-        
+
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update({
             "mode": mode,
@@ -64,7 +61,6 @@ class PerFedAVGClient(Client):
             X, y = next(self.train_iterator)
 
         return X, y
-
 
     def _compute_grad(self,
                       model: torch.nn.Module,
@@ -98,8 +94,7 @@ class PerFedAVGClient(Client):
                 grads.append((g1 - g2) / (2 * delta))
         return grads
 
-        
-    def fit(self, override_local_epochs: int=0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         self.model.train()
@@ -108,7 +103,7 @@ class PerFedAVGClient(Client):
 
         for _ in range(epochs):
             loss = None
-            
+
             batch_1 = self._get_next_batch()
             batch_2 = self._get_next_batch()
 
@@ -131,12 +126,12 @@ class PerFedAVGClient(Client):
 
             elif self.hyper_params.mode == "HF":
                 batch_3 = self._get_next_batch()
-                
+
                 temp_model = deepcopy(self.model)
                 grads_1st = self._compute_grad(temp_model, batch_2)
                 grads_2nd = self._compute_grad(self.model, batch_3, v=grads_1st)
-                self.optimizer.step(self.model.parameters(), 
-                                    beta=self.hyper_params.beta, 
+                self.optimizer.step(self.model.parameters(),
+                                    beta=self.hyper_params.beta,
                                     grads=(grads_1st, grads_2nd))
 
             else:
@@ -145,9 +140,8 @@ class PerFedAVGClient(Client):
         self._send_model()
 
 
-
 class PerFedAVG(CentralizedFL):
-    
+
     def get_client_class(self) -> Client:
         return PerFedAVGClient
 

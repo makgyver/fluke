@@ -1,15 +1,14 @@
+from ..utils import OptimizerConfigurator, clear_cache
+from ..data import FastTensorDataLoader
+from ..client import Client
+from . import CentralizedFL
+from typing import Callable
+from copy import deepcopy
+import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import torch
-from copy import deepcopy
-from typing import Callable
-
-from . import CentralizedFL
-from ..client import Client
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator, clear_cache
 
 class FedProxClient(Client):
     def __init__(self,
@@ -25,14 +24,13 @@ class FedProxClient(Client):
             "mu": mu
         })
 
-    
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), global_model.parameters()):
             proximal_term += torch.norm(w - w_t)**2
         return proximal_term
 
-    def fit(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         W = deepcopy(self.model)
@@ -46,9 +44,10 @@ class FedProxClient(Client):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
-                loss = self.hyper_params.loss_fn(y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
+                loss = self.hyper_params.loss_fn(
+                    y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
                 loss.backward()
-                self.optimizer.step()          
+                self.optimizer.step()
             self.scheduler.step()
 
         self.model.to("cpu")
@@ -60,4 +59,3 @@ class FedProx(CentralizedFL):
 
     def get_client_class(self) -> Client:
         return FedProxClient
-    

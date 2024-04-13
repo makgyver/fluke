@@ -1,17 +1,16 @@
 """This submodule provides utilities for pytorch model manipulation."""
+from torch.nn import Module
+from torch.nn import functional as F
+from torch import nn
+import torch
+from copy import deepcopy
+from collections import OrderedDict
+from functools import partial
+import numpy as np
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import numpy as np
-from functools import partial
-from collections import OrderedDict
-from copy import deepcopy
-
-import torch
-from torch import nn
-from torch.nn import functional as F
-from torch.nn import Module
 
 __all__ = [
     "diff_model",
@@ -28,6 +27,7 @@ __all__ = [
     "mix_networks",
 ]
 
+
 def diff_model(model_dict1: dict, model_dict2: dict):
     """Compute the difference between two model state dictionaries.
 
@@ -39,7 +39,7 @@ def diff_model(model_dict1: dict, model_dict2: dict):
 
     Returns:
         OrderedDict: The state dictionary of the difference between the two models.
-    
+
     Raises:
         AssertionError: If the two models have different architectures.
     """
@@ -57,25 +57,27 @@ def merge_models(model_1: Module, model_2: Module, lam: float):
         model_1 (Module): The first model.
         model_2 (Module): The second model.
         lam (float): The interpolation constant.
-    
+
     Returns:
         Module: The merged model.
     """
     merged_model = deepcopy(model_1)
     for name, param in merged_model.named_parameters():
-        param.data = (1 - lam) * model_1.get_parameter(name).data + lam  * model_2.get_parameter(name).data
+        param.data = (1 - lam) * model_1.get_parameter(name).data + \
+            lam * model_2.get_parameter(name).data
     return merged_model
 
 
 class MMMixin:
     """Mixin class for model interpolation.
-    
+
     This class provides the necessary methods to interpolate between two models. This mixin class
     must be used as a parent class for the pytorch modules that need to be interpolated.
 
     Attributes:
         lam (float): The interpolation constant.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.lam = None
@@ -87,7 +89,7 @@ class MMMixin:
             lam (float): The interpolation constant.
         """
         self.lam = lam
-    
+
     def get_lambda(self) -> float:
         """Get the interpolation constant.
 
@@ -116,13 +118,15 @@ class SubspaceLinear(MMMixin, nn.Linear):
         x = F.linear(input=x, weight=w, bias=b)
         return x
 
+
 class TwoParamLinear(SubspaceLinear):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
             self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
-                                     
+
+
 class LinesLinear(TwoParamLinear):
     def get_weight(self):
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
@@ -139,14 +143,15 @@ class SubspaceConv(MMMixin, nn.Conv2d):
 
     def forward(self, x):
         w, b = self.get_weight()
-        x = F.conv2d(input=x, 
-                     weight=w, 
-                     bias=b, 
-                     stride=self.stride, 
-                     padding=self.padding, 
-                     dilation=self.dilation, 
+        x = F.conv2d(input=x,
+                     weight=w,
+                     bias=b,
+                     stride=self.stride,
+                     padding=self.padding,
+                     dilation=self.dilation,
                      groups=self.groups)
         return x
+
 
 class TwoParamConv(SubspaceConv):
     def __init__(self, *args, **kwargs):
@@ -154,6 +159,7 @@ class TwoParamConv(SubspaceConv):
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
             self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
+
 
 class LinesConv(TwoParamConv):
     def get_weight(self):
@@ -164,6 +170,7 @@ class LinesConv(TwoParamConv):
             b = None
         return w, b
 
+
 class SubspaceLSTM(MMMixin, nn.LSTM):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -171,12 +178,12 @@ class SubspaceLSTM(MMMixin, nn.LSTM):
     def forward(self, x):
         w = self.get_weight()
         h = (
-            torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device), 
+            torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device),
             torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device)
         )
         with torch.no_grad():
             torch._cudnn_rnn_flatten_weight(
-                weight_arr=w, 
+                weight_arr=w,
                 weight_stride0=(4 if self.bias else 2),
                 input_size=self.input_size,
                 mode=torch.backends.cudnn.rnn.get_cudnn_mode('LSTM'),
@@ -186,25 +193,36 @@ class SubspaceLSTM(MMMixin, nn.LSTM):
                 batch_first=True,
                 bidirectional=False
             )
-        result = torch._VF.lstm(x, h, w, self.bias, self.num_layers, 0.0, self.training, self.bidirectional, self.batch_first) 
+        result = torch._VF.lstm(x, h, w, self.bias, self.num_layers, 0.0,
+                                self.training, self.bidirectional, self.batch_first)
         return result[0], result[1:]
-    
+
+
 class TwoParamLSTM(SubspaceLSTM):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for l in range(self.num_layers):
-            setattr(self, f'weight_hh_l{l}_local', nn.Parameter(torch.zeros_like(getattr(self, f'weight_hh_l{l}'))))
-            setattr(self, f'weight_ih_l{l}_local', nn.Parameter(torch.zeros_like(getattr(self, f'weight_ih_l{l}'))))
+        for layer in range(self.num_layers):
+            setattr(self, f'weight_hh_l{layer}_local', nn.Parameter(
+                torch.zeros_like(getattr(self, f'weight_hh_l{layer}'))))
+            setattr(self, f'weight_ih_l{layer}_local', nn.Parameter(
+                torch.zeros_like(getattr(self, f'weight_ih_l{layer}'))))
             if self.bias:
-                setattr(self, f'bias_hh_l{l}_local', nn.Parameter(torch.zeros_like(getattr(self, f'bias_hh_l{l}'))))
-                setattr(self, f'bias_ih_l{l}_local', nn.Parameter(torch.zeros_like(getattr(self, f'bias_ih_l{l}'))))
-            
+                setattr(self, f'bias_hh_l{layer}_local', nn.Parameter(
+                    torch.zeros_like(getattr(self, f'bias_hh_l{layer}'))))
+                setattr(self, f'bias_ih_l{layer}_local', nn.Parameter(
+                    torch.zeros_like(getattr(self, f'bias_ih_l{layer}'))))
+
+
 class LinesLSTM(TwoParamLSTM):
     def get_weight(self):
         weight_list = []
-        for l in range(self.num_layers):
-            weight_list.append((1 - self.lam) * getattr(self, f'weight_ih_l{l}') + self.lam * getattr(self, f'weight_ih_l{l}_local'))
-            weight_list.append((1 - self.lam) * getattr(self, f'weight_hh_l{l}') + self.lam * getattr(self, f'weight_hh_l{l}_local'))
+        for layer in range(self.num_layers):
+            weight_list.append((1 - self.lam) * getattr(self,
+                               f'weight_ih_l{layer}') +
+                               self.lam * getattr(self, f'weight_ih_l{layer}_local'))
+            weight_list.append((1 - self.lam) * getattr(self,
+                               f'weight_hh_l{layer}') +
+                               self.lam * getattr(self, f'weight_hh_l{layer}_local'))
         return weight_list
 
 
@@ -217,13 +235,15 @@ class SubspaceEmbedding(MMMixin, nn.Embedding):
         x = F.embedding(input=x, weight=w)
         return x
 
+
 class TwoParamEmbedding(SubspaceEmbedding):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
-        
+
+
 class LinesEmbedding(TwoParamEmbedding):
-    pass    
+    pass
 
 
 class SubspaceBN(MMMixin, nn.BatchNorm2d):
@@ -248,7 +268,7 @@ class SubspaceBN(MMMixin, nn.BatchNorm2d):
                     exponential_average_factor = 1.0 / float(self.num_batches_tracked)
                 else:  # use exponential moving average
                     exponential_average_factor = self.momentum
-                    
+
         if self.training:
             bn_training = True
         else:
@@ -263,13 +283,15 @@ class SubspaceBN(MMMixin, nn.BatchNorm2d):
             exponential_average_factor,
             self.eps,
         )
-    
+
+
 class TwoParamBN(SubspaceBN):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.Tensor(self.num_features))
         self.bias_local = nn.Parameter(torch.Tensor(self.num_features))
-        
+
+
 class LinesBN(TwoParamBN):
     def get_weight(self):
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
@@ -278,7 +300,7 @@ class LinesBN(TwoParamBN):
         else:
             b = None
         return w, b
-    
+
 
 def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module):
     layers = {}
@@ -286,20 +308,20 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
         if isinstance(x, torch.nn.Linear):
             layer = LinesLinear(x.in_features, x.out_features, bias=x.bias is not None)
         elif isinstance(x, torch.nn.Conv2d):
-            layer = LinesConv(x.in_channels, 
-                              x.out_channels, 
-                              x.kernel_size, 
-                              x.stride, 
-                              x.padding, 
-                              x.dilation, 
-                              x.groups, 
+            layer = LinesConv(x.in_channels,
+                              x.out_channels,
+                              x.kernel_size,
+                              x.stride,
+                              x.padding,
+                              x.dilation,
+                              x.groups,
                               x.bias is not None)
         elif isinstance(x, torch.nn.BatchNorm2d):
             layer = LinesBN(x.num_features)
         elif isinstance(x, torch.nn.Embedding):
             layer = LinesEmbedding(x.num_embeddings, x.embedding_dim)
         elif isinstance(x, torch.nn.LSTM):
-            layer = LinesLSTM(x.input_size, 
+            layer = LinesLSTM(x.input_size,
                               x.hidden_size,
                               x.num_layers,
                               x.bias,
@@ -307,8 +329,8 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
                               x.dropout,
                               x.bidirectional)
         else:
-            layers[n] = _recursive_mix_networks(x, 
-                                                getattr(global_model, n), 
+            layers[n] = _recursive_mix_networks(x,
+                                                getattr(global_model, n),
                                                 getattr(local_model, n))
             continue
 
@@ -316,7 +338,7 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
             setattr(layer, namep, getattr(global_model, n).get_parameter(namep))
             setattr(layer, namep + "_local", getattr(local_model, n).get_parameter(namep))
         layers[n] = layer
-    
+
     return layers
 
 
@@ -331,7 +353,7 @@ def _recursive_set_layer(module: Module, layers: dict):
 def mix_networks(global_model: Module, local_model: Module, lamda: float) -> Module:
     """Mix two networks using a linear interpolation.
 
-    This method takes two models and a lambda value and returns a new model that is a linear 
+    This method takes two models and a lambda value and returns a new model that is a linear
     interpolation of the two input models. It transparenly handles the interpolation of the
     different layers of the models. The returned model implements the `MMMixin` class and has all
     the layers swapped with the corresponding interpolated layers.
@@ -354,17 +376,17 @@ def mix_networks(global_model: Module, local_model: Module, lamda: float) -> Mod
     return merged_net
 
 
-def _set_lambda(module: Module, lam: float, layerwise: bool=False):
+def _set_lambda(module: Module, lam: float, layerwise: bool = False):
     """Set model interpolation constant.
-    
+
     Args:
         module (torch.nn.Module): module
-        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 
+        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1
           means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
     if (
-        isinstance(module, torch.nn.Conv2d) 
+        isinstance(module, torch.nn.Conv2d)
         or isinstance(module, torch.nn.BatchNorm2d)
         or isinstance(module, torch.nn.Linear)
         or isinstance(module, torch.nn.LSTM)
@@ -375,16 +397,16 @@ def _set_lambda(module: Module, lam: float, layerwise: bool=False):
         setattr(module, 'lam', lam)
 
 
-def set_lambda_model(model: Module, lam: float, layerwise: bool=False) -> None:
+def set_lambda_model(model: Module, lam: float, layerwise: bool = False) -> None:
     """Set model interpolation constant.
 
     Warning:
         This function performs an inplace operation on the model, and
         it assumes that the model has been built using the `MMMixin` classes.
-    
+
     Args:
         model (torch.nn.Module): model
-        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1 
+        lam (float): constant used for interpolation (0 means a retrieval of a global model, 1
           means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
@@ -396,11 +418,12 @@ def get_local_model_dict(model) -> OrderedDict:
 
     Args:
         model (torch.nn.Module): the model.
-    
+
     Returns:
         OrderedDict: the local model state dictionary.
     """
-    return OrderedDict({k.replace("_local", ""): v for k, v in model.state_dict().items() if "_local" in k})
+    return OrderedDict({k.replace("_local", ""): v
+                        for k, v in model.state_dict().items() if "_local" in k})
 
 
 def get_global_model_dict(model) -> OrderedDict:

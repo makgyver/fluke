@@ -1,27 +1,25 @@
+from . import PersonalizedFL
+from ..utils import OptimizerConfigurator, clear_cache
+from ..data import FastTensorDataLoader
+from ..client import PFLClient
+from copy import deepcopy
+import torch
+from typing import Any, Callable
 import sys
 sys.path.append(".")
 sys.path.append("..")
-from typing import Any, Callable
-
-import torch
-from copy import deepcopy
-
-from ..client import PFLClient
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator, clear_cache
-from . import PersonalizedFL
 
 
 # https://arxiv.org/pdf/2012.04221.pdf
 class DittoClient(PFLClient):
 
-    def __init__(self, 
+    def __init__(self,
                  index: int,
                  model: torch.nn.Module,
-                 train_set: FastTensorDataLoader, 
-                 test_set: FastTensorDataLoader, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 loss_fn: Callable[..., Any], 
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
                  tau: int = 3,
                  lam: float = 0.1):
@@ -36,10 +34,11 @@ class DittoClient(PFLClient):
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for name, param in local_model.named_parameters():
-            if 'weight' not in name: continue
+            if 'weight' not in name:
+                continue
             proximal_term += (param - global_model.get_parameter(name)).norm(2)
         return proximal_term
-    
+
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
@@ -51,7 +50,7 @@ class DittoClient(PFLClient):
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        
+
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -62,7 +61,7 @@ class DittoClient(PFLClient):
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        
+
         self.model.to("cpu")
         clear_cache()
 
@@ -72,14 +71,15 @@ class DittoClient(PFLClient):
 
         if self.pers_optimizer is None:
             self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.personalized_model)
-        
+
         for _ in range(self.hyper_params.tau):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.pers_optimizer.zero_grad()
                 y_hat = self.personalized_model(X)
-                loss = self.hyper_params.loss_fn(y_hat, y) + self.hyper_params.lam * self._proximal_loss(self.personalized_model, w_prev)
+                loss = self.hyper_params.loss_fn(y_hat, y)
+                loss += self.hyper_params.lam * self._proximal_loss(self.personalized_model, w_prev)
                 loss.backward()
                 self.pers_optimizer.step()
             self.pers_scheduler.step()
@@ -91,6 +91,6 @@ class DittoClient(PFLClient):
 
 
 class Ditto(PersonalizedFL):
-    
+
     def get_client_class(self) -> PFLClient:
         return DittoClient

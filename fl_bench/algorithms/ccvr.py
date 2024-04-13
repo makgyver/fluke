@@ -1,3 +1,9 @@
+from ..server import Server
+from ..client import Client
+from ..comm import Message
+from . import CentralizedFL
+import torch
+import numpy as np
 import sys
 from typing import Sequence
 
@@ -7,16 +13,8 @@ from fl_bench.data import FastTensorDataLoader
 sys.path.append(".")
 sys.path.append("..")
 
-import numpy as np
-import torch
-from . import CentralizedFL
-from ..comm import Message
-from ..client import Client
-from ..server import Server
-
 
 class CCVRClient(Client):
-    
     @torch.no_grad()
     def compute_mean_cov(self):
         list_z, list_y = [], []
@@ -25,7 +23,7 @@ class CCVRClient(Client):
             Z = self.model.forward_encoder(X)
             list_z.append(Z)
             list_y.append(y)
-        
+
         Z = torch.cat(list_z, dim=0)
         Y = torch.cat(list_y, dim=0)
         n_feats = Z.shape[-1]
@@ -47,18 +45,18 @@ class CCVRClient(Client):
             classes_mean.append(mean_c)
             classes_cov.append(cov_c)
             ex_x_class.append(Z_c.size(0))
-        
+
         payload = (classes_mean, classes_cov, ex_x_class)
         self.channel.send(Message(payload, "mean_cov", self), self.server)
-            
+
 
 class CCVRServer(Server):
 
-    def __init__(self, 
+    def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader, 
-                 clients: Sequence[Client], 
-                 eval_every: int = 1, 
+                 test_data: FastTensorDataLoader,
+                 clients: Sequence[Client],
+                 eval_every: int = 1,
                  weighted: bool = False,
                  lr: float = 0.1,
                  batch_size: int = 64,
@@ -79,7 +77,7 @@ class CCVRServer(Server):
             means.append(mean)
             covs.append(cov)
             ns.append(n)
-        
+
         num_classes = len(means[0])
         classes_mean = [None for _ in range(num_classes)]
         ex_x_class = [sum(n) for n in zip(*ns)]
@@ -87,7 +85,8 @@ class CCVRServer(Server):
         # loop over classes
         for c, (mu, n) in enumerate(zip(zip(*means), zip(*ns))):
             if ex_x_class[c] > 0:
-                classes_mean[c] = torch.sum(torch.stack(mu) * torch.tensor(n).reshape(-1, 1), dim=0) / ex_x_class[c]
+                classes_mean[c] = torch.sum(torch.stack(
+                    mu) * torch.tensor(n).reshape(-1, 1), dim=0) / ex_x_class[c]
 
         classes_cov = [None for _ in range(num_classes)]
         for c in range(num_classes):
@@ -97,19 +96,18 @@ class CCVRServer(Server):
                         classes_cov[c] = torch.zeros_like(covs[k][c])
 
                     classes_cov[c] += ((ns[k][c] - 1) / (ex_x_class[c] - 1)
-                        ) * covs[k][c] + (ns[k][c] / (ex_x_class[c] - 1)) * (
+                                       ) * covs[k][c] + (ns[k][c] / (ex_x_class[c] - 1)) * (
                         torch.outer(means[k][c], means[k][c])
                     )
 
                 classes_cov[c] -= (ex_x_class[c] / (ex_x_class[c] - 1)) * (
                     torch.outer(classes_mean[c], classes_mean[c])
                 )
-        
+
         return classes_mean, classes_cov
 
-
-    def _generate_virtual_repr(self, 
-                               classes_mean: Sequence[torch.tensor], 
+    def _generate_virtual_repr(self,
+                               classes_mean: Sequence[torch.tensor],
                                classes_cov: Sequence[torch.tensor]):
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
@@ -134,12 +132,12 @@ class CCVRServer(Server):
     def _calibrate(self, Z_train: torch.FloatTensor, y_train: torch.LongTensor):
         self.model.train()
         self.model.to(self.device)
-        
+
         # FIXME: loss, optimizer and scheduler are fixed for now
         optimizer = torch.optim.SGD(self.model.get_head().parameters(), lr=self.hyper_params.lr)
         loss_fn = torch.nn.CrossEntropyLoss()
         train_set = FastTensorDataLoader(Z_train,
-                                         y_train, 
+                                         y_train,
                                          num_labels=len(set(y_train.cpu().numpy())),
                                          batch_size=self.hyper_params.batch_size,
                                          shuffle=True)
@@ -152,7 +150,6 @@ class CCVRServer(Server):
             loss.backward()
             optimizer.step()
         self.model.to("cpu")
-    
 
     def _finalize(self) -> None:
         self._broadcast_model(self.clients)
@@ -163,7 +160,7 @@ class CCVRServer(Server):
 
 
 class CCVR(CentralizedFL):
-    
+
     def get_client_class(self) -> Client:
         return CCVRClient
 

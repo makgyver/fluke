@@ -1,13 +1,15 @@
+from rich.progress import track
+from typing import Any, Callable, Optional, Tuple
+from torchvision.datasets.utils import download_and_extract_archive
+from torchvision.datasets import VisionDataset, ImageFolder
+from torchvision.transforms import ToTensor
+from PIL import Image
+import torch
+import warnings
 import os
 import sys
 sys.path.append(".")
 sys.path.append("..")
-
-import warnings
-import torch
-from PIL import Image
-from torchvision.datasets import VisionDataset
-from torchvision.datasets.utils import download_and_extract_archive
 
 
 class MNISTM(VisionDataset):
@@ -59,7 +61,6 @@ class MNISTM(VisionDataset):
             raise RuntimeError("Dataset not found." +
                                " You can use download=True to download it")
 
-        
         data_file = (self.training_file if self.train
                      else self.test_file)
         self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file))
@@ -125,3 +126,98 @@ class MNISTM(VisionDataset):
 
     def extra_repr(self):
         return "Split: {}".format("Train" if self.train is True else "Test")
+
+
+class CINIC10(VisionDataset):
+    """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
+
+    Args:
+        root (string): Root directory of dataset where directory ``cifar-10-batches-py`` exists
+            or will be saved to if download is set to True.
+        partition (str, optional): One of train,valid,test, creates selects which partition to
+            use.
+        transform (callable, optional): A function/transform that takes in an PIL image
+            and returns a transformed version. E.g, ``transforms.RandomCrop``
+        target_transform (callable, optional): A function/transform that takes in the
+            target and transforms it.
+        download (bool, optional): If true, downloads the dataset from the internet and puts it
+            in root directory. If dataset is already downloaded, it is not downloaded again.
+    """
+
+    base_folder = "CINIC10"
+    filename = "CINIC-10.tar.gz"
+    url = "https://datashare.is.ed.ac.uk/bitstream/handle/10283/3192/CINIC-10.tar.gz"
+    file_md5 = "6ee4d0c996905fe93221de577967a372"
+    # mean = [0.47889522, 0.47227842, 0.43047404]
+    # std = [0.24205776, 0.23828046, 0.25874835]
+
+    classes = ["airplane",
+               "automobile",
+               "bird",
+               "cat",
+               "deer",
+               "dog",
+               "frog",
+               "horse",
+               "ship",
+               "truck"]
+
+    def __init__(self,
+                 root: str = "../data",
+                 partition: str = "train",
+                 transform: Optional[Callable] = None,
+                 download: bool = True):
+
+        super().__init__(root, transform=transform)
+        self.partition = partition
+        self.root = os.path.join(root, "CINIC10")
+
+        if download:
+            self.download()
+
+        self._dataset = ImageFolder(os.path.join(self.root, partition))
+        self.data = self._images2tensor()
+        self.targets = torch.LongTensor(self._dataset.targets)
+
+    def _images2tensor(self):
+        img_tensors = []
+        for img, _ in track(self._dataset.imgs, f"Loading CINIC-10 {self.partition} set..."):
+            img_tensor = ToTensor()(Image.open(img))
+            if img_tensor.shape[0] == 1:
+                img_tensor = img_tensor.repeat(3, 1, 1)
+            img_tensors.append(img_tensor)
+
+        return torch.stack(img_tensors)
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        """
+        Args:
+            index (int): Index.
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index]
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def download(self) -> None:
+        os.makedirs(self.root, exist_ok=True)
+        if os.path.isdir(os.path.join(self.root, self.partition)):
+            return
+        else:
+            download_and_extract_archive(self.url,
+                                         download_root=self.root,
+                                         md5=CINIC10.file_md5)
+
+    def extra_repr(self) -> str:
+        return f"Split: {self.partition}"

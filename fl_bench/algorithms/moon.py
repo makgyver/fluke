@@ -1,17 +1,14 @@
+from ..utils import OptimizerConfigurator, clear_cache
+from ..data import FastTensorDataLoader
+from ..algorithms import CentralizedFL
+from ..client import Client
+from torch.nn import CosineSimilarity
+import torch
+from typing import Callable
+from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
-
-from copy import deepcopy
-from typing import Callable
-
-import torch
-from torch.nn import CosineSimilarity
-
-from ..client import Client
-from ..algorithms import CentralizedFL
-from ..data import FastTensorDataLoader
-from ..utils import OptimizerConfigurator, clear_cache
 
 
 class MOONClient(Client):
@@ -42,7 +39,7 @@ class MOONClient(Client):
             self.model.load_state_dict(model.state_dict())
         self.server_model = model
 
-    def fit(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         cos = CosineSimilarity(dim=-1).to(self.device)
@@ -57,31 +54,32 @@ class MOONClient(Client):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                #FIXME
+                # FIXME
                 y_hat = self.model(X)
-                z_local = self.model.forward_encoder(X)#, -1)
+                z_local = self.model.forward_encoder(X)  # , -1)
                 loss_sup = self.hyper_params.loss_fn(y_hat, y)
 
-                z_prev = self.prev_model.forward_encoder(X)#, -1)
-                z_global = self.server_model.forward_encoder(X)#, -1)
+                z_prev = self.prev_model.forward_encoder(X)  # , -1)
+                z_global = self.server_model.forward_encoder(X)  # , -1)
 
                 sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
                 sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau
-                loss_con = -torch.log(torch.exp(sim_lg) / (torch.exp(sim_lg) + torch.exp(sim_lp))).mean()
+                loss_con = -torch.log(torch.exp(sim_lg) /
+                                      (torch.exp(sim_lg) + torch.exp(sim_lp))).mean()
 
                 loss = loss_sup + self.hyper_params.mu * loss_con
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
-        
+
         self.prev_model.to("cpu")
         self.server_model.to("cpu")
         self.model.to("cpu")
         clear_cache()
         self._send_model()
-    
+
 
 class MOON(CentralizedFL):
-    
+
     def get_client_class(self) -> Client:
         return MOONClient

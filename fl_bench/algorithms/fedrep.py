@@ -1,29 +1,29 @@
+from ..algorithms import PersonalizedFL
+from ..utils import OptimizerConfigurator, clear_cache
+from ..server import Server
+from ..client import PFLClient
+from ..data import FastTensorDataLoader
+from ..comm import Message
+from copy import deepcopy
+import torch
+from typing import Any, Callable, Sequence
 import sys
 sys.path.append(".")
 sys.path.append("..")
-from typing import Any, Callable, Sequence
 
-import torch
-from copy import deepcopy
-
-from ..comm import Message
-from ..data import FastTensorDataLoader
-from ..client import PFLClient
-from ..server import Server
-from ..utils import OptimizerConfigurator, clear_cache
-from ..algorithms import PersonalizedFL
 
 # https://arxiv.org/abs/2102.07078
 
+
 class FedRepClient(PFLClient):
 
-    def __init__(self, 
+    def __init__(self,
                  index: int,
                  model: torch.nn.Module,
-                 train_set: FastTensorDataLoader, 
-                 test_set: FastTensorDataLoader, 
-                 optimizer_cfg: OptimizerConfigurator, 
-                 loss_fn: Callable[..., Any], 
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
                  tau: int = 3):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
@@ -32,7 +32,7 @@ class FedRepClient(PFLClient):
         self.hyper_params.update({
             "tau": tau
         })
-    
+
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
@@ -47,7 +47,7 @@ class FedRepClient(PFLClient):
 
         if self.pers_optimizer is None:
             self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.get_local())
-        
+
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -58,7 +58,7 @@ class FedRepClient(PFLClient):
                 loss.backward()
                 self.pers_optimizer.step()
             self.pers_scheduler.step()
-        
+
         # update encoder layers
         for parameter in self.model.get_local().parameters():
             parameter.requires_grad = False
@@ -67,7 +67,7 @@ class FedRepClient(PFLClient):
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model.get_global())
-        
+
         for _ in range(self.hyper_params.tau):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -91,16 +91,16 @@ class FedRepClient(PFLClient):
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.model.get_global().load_state_dict(msg.payload.state_dict())
-    
+
 
 class FedRepServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
                  test_data: FastTensorDataLoader,
-                 clients: Sequence[PFLClient], 
-                 eval_every: int=1,
-                 weighted: bool=False):
+                 clients: Sequence[PFLClient],
+                 eval_every: int = 1,
+                 weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)
 
 
@@ -108,6 +108,6 @@ class FedRep(PersonalizedFL):
 
     def get_client_class(self) -> PFLClient:
         return FedRepClient
-    
+
     def get_server_class(self) -> Server:
         return FedRepServer
