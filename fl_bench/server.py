@@ -37,7 +37,7 @@ class Server(ObserverSubject):
           - weighted: A boolean indicating if the clients should be weighted by the number of
             samples when aggregating the models.
 
-          When a new server class inherits from this class, it can add all its hyper-parameters
+          When a new server class inherits from this class, it must add all its hyper-parameters
           to this dictionary.
         device (torch.device): The device where the server runs.
         model (torch.nn.Module): The federated model to be trained.
@@ -47,6 +47,15 @@ class Server(ObserverSubject):
         rounds (int): The number of rounds that have been executed.
         test_data (FastTensorDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
+
+    Args:
+        model (torch.nn.Module): The federated model to be trained.
+        test_data (FastTensorDataLoader): The test data to evaluate the model.
+        clients (Sequence[Client]): The clients that will participate in the federated learning
+          process.
+        eval_every (int, optional): The number of rounds between evaluations. Defaults to 1.
+        weighted (bool, optional): A boolean indicating if the clients should be weighted by the
+          number of samples when aggregating the models. Defaults to False.
     """
 
     def __init__(self,
@@ -79,6 +88,13 @@ class Server(ObserverSubject):
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
         """Run the federated learning algorithm.
+
+        The default behaviour of this method is to run the Federated Averaging algorithm. The server
+        selects a percentage of the clients to participate in each round, sends the global model to
+        the clients, which compute the local updates and send them back to the server. The server
+        aggregates the models of the clients and repeats the process for a number of rounds.
+        During the process, the server evaluates the global model and the local model every
+        `eval_every` rounds.
 
         Args:
             n_rounds (int, optional): The number of rounds to run. Defaults to 10.
@@ -192,10 +208,11 @@ class Server(ObserverSubject):
 
         Note:
             The computation of the weights do not adhere to the "best-practices" of FL-bench
-            because the server should not have access to the number of samples of the clients.
-            Thus, the computation of the weights should be done communicating with the clients
-            through the channel, but for simplicity, we are not following this practice here.
-            However, the communication cost is minimal and does not affect the logged performance.
+            because the server should not have direct access to the number of samples of the
+            clients. Thus, the computation of the weights should be done communicating with the
+            clients through the channel, but for simplicity, we are not following this practice
+            here. However, the communication overhead is minimal and does not affect the logged
+            performance.
 
         Args:
             eligible (Sequence[Client]): The clients that will participate in the aggregation.

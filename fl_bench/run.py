@@ -14,8 +14,6 @@ import torch
 import sys
 sys.path.append(".")
 
-# from .algorithms import FedAlgorithmsEnum
-
 app = typer.Typer()
 
 # CONST
@@ -91,15 +89,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     log = cfg.logger.name.logger(name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
-
-    # if cfg.exp.checkpoint.load:
-    #     fl_algo.load_checkpoint(cfg.exp.checkpoint.path)
-
-    # if cfg.exp.checkpoint.save:
-    #     fl_algo.activate_checkpoint(cfg.exp.checkpoint.path)
-
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
-    # GlobalSettings().set_workers(8)
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
     # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 

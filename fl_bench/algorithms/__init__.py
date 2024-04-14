@@ -12,28 +12,30 @@ sys.path.append("..")
 
 __all__ = [
     'apfl',
+    'ccvr',
     'ditto',
+    'fedamp',
     'fedavg',
     'fedavgm',
+    'fedbabu',
     'fedbn',
     'feddyn',
     'fedexp',
+    'fedlc',
     'fednova',
     'fedopt',
     'fedper',
+    'fedproto',
     'fedprox',
     'fedrep',
     'fedsgd',
     'flhalf',
     'lg_fedavg',
     'moon',
+    'per_fedavg',
     'pfedme',
     'scaffold',
-    'superfed',
-    'per_fedavg',
-    'fedamp',
-    'fedproto',
-    'fedbabu'
+    'superfed'
 ]
 
 

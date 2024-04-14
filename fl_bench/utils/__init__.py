@@ -380,7 +380,7 @@ def get_model(mname: str, **kwargs) -> Module:
         module_name = ".".join(mname.split(".")[:-1])
         mname = mname.split(".")[-1]
     else:
-        module_name: str = "fl_bench.net"
+        module_name: str = "fl_bench.nets"
     return get_class_from_str(module_name, mname)(**kwargs)
 
 
