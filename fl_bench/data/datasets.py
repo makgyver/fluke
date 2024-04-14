@@ -517,6 +517,7 @@ class DatasetsEnum(Enum):
     TINY_IMAGENET = "tiny_imagenet"
     SHAKESPEARE = "shakespeare"
     FASHION_MNIST = "fashion_mnist"
+    CINIC10 = "cinic10"
 
     @classmethod
     def contains(cls, member: object) -> bool:
@@ -537,7 +538,8 @@ class DatasetsEnum(Enum):
             "cifar100": Datasets.CIFAR100,
             "tiny_imagenet": Datasets.TINY_IMAGENET,
             "shakespeare": Datasets.SHAKESPEARE,
-            "fashion_mnist": Datasets.FASHION_MNIST
+            "fashion_mnist": Datasets.FASHION_MNIST,
+            "cinic10": Datasets.CINIC10
         }
         return DATASET_MAP[self.value]
 
