@@ -151,37 +151,39 @@ class CINIC10(VisionDataset):
     # mean = [0.47889522, 0.47227842, 0.43047404]
     # std = [0.24205776, 0.23828046, 0.25874835]
 
-    classes = ["airplane",
-               "automobile",
-               "bird",
-               "cat",
-               "deer",
-               "dog",
-               "frog",
-               "horse",
-               "ship",
-               "truck"]
+    classes = [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck"
+    ]
 
     def __init__(self,
                  root: str = "../data",
-                 partition: str = "train",
+                 split: str = "train",
                  transform: Optional[Callable] = None,
                  download: bool = True):
 
         super().__init__(root, transform=transform)
-        self.partition = partition
+        self.split = split
         self.root = os.path.join(root, "CINIC10")
 
         if download:
             self.download()
 
-        self._dataset = ImageFolder(os.path.join(self.root, partition))
+        self._dataset = ImageFolder(os.path.join(self.root, split))
         self.data = self._images2tensor()
         self.targets = torch.LongTensor(self._dataset.targets)
 
     def _images2tensor(self):
         img_tensors = []
-        for img, _ in track(self._dataset.imgs, f"Loading CINIC-10 {self.partition} set..."):
+        for img, _ in track(self._dataset.imgs, f"Loading CINIC-10 {self.split} set..."):
             img_tensor = ToTensor()(Image.open(img))
             if img_tensor.shape[0] == 1:
                 img_tensor = img_tensor.repeat(3, 1, 1)
@@ -190,13 +192,6 @@ class CINIC10(VisionDataset):
         return torch.stack(img_tensors)
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        """
-        Args:
-            index (int): Index.
-
-        Returns:
-            tuple: (image, target) where target is index of the target class.
-        """
         img, target = self.data[index]
 
         if self.transform is not None:
@@ -212,7 +207,7 @@ class CINIC10(VisionDataset):
 
     def download(self) -> None:
         os.makedirs(self.root, exist_ok=True)
-        if os.path.isdir(os.path.join(self.root, self.partition)):
+        if os.path.isdir(os.path.join(self.root, self.split)):
             return
         else:
             download_and_extract_archive(self.url,
@@ -220,4 +215,4 @@ class CINIC10(VisionDataset):
                                          md5=CINIC10.file_md5)
 
     def extra_repr(self) -> str:
-        return f"Split: {self.partition}"
+        return f"Split: {self.split}"

@@ -24,7 +24,8 @@ class Datasets:
     @classmethod
     def MNIST(cls,
               path: str = "../data",
-              transforms: callable = ToTensor()) -> DataContainer:
+              transforms: callable = ToTensor(),
+              channel_dim: bool = False) -> DataContainer:
         """Load the MNIST dataset.
 
         The dataset is split into training and testing sets according to the default split of the
@@ -35,6 +36,8 @@ class Datasets:
             path (str, optional): The path where the dataset is stored. Defaults to "../data".
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               `ToTensor`.
+            channel_dim (bool, optional): Whether to add a channel dimension to the data.
+              Defaults to `False`.
 
         Returns:
             DataContainer: The MNIST dataset.
@@ -56,36 +59,36 @@ class Datasets:
         train_data.data = torch.Tensor(train_data.data / 255.)
         test_data.data = torch.Tensor(test_data.data / 255.)
 
-        return DataContainer(train_data.data,
+        return DataContainer(train_data.data if not channel_dim else train_data.data[:, None, :, :],
                              train_data.targets,
-                             test_data.data,
+                             test_data.data if not channel_dim else test_data.data[:, None, :, :],
                              test_data.targets,
                              10)
 
-    @classmethod
-    def MNIST4D(cls,
-                path: str = "../data",
-                transforms: callable = ToTensor()) -> DataContainer:
-        """Load the MNIST dataset.
+    # @classmethod
+    # def MNIST4D(cls,
+    #             path: str = "../data",
+    #             transforms: callable = ToTensor()) -> DataContainer:
+    #     """Load the MNIST dataset.
 
-        The dataset is split into training and testing sets according to the default split of the
-        `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
-        A 4D example of the dataset is a 1x28x28 image, i.e., a tensor of shape (1, 28, 28).
+    #     The dataset is split into training and testing sets according to the default split of the
+    #     `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
+    #     A 4D example of the dataset is a 1x28x28 image, i.e., a tensor of shape (1, 28, 28).
 
-        Args:
-            path (str, optional): The path where the dataset is stored. Defaults to "../data".
-            transforms (callable, optional): The transformations to apply to the data. Defaults to
-              `ToTensor`.
+    #     Args:
+    #         path (str, optional): The path where the dataset is stored. Defaults to "../data".
+    #         transforms (callable, optional): The transformations to apply to the data. Defaults to
+    #           `ToTensor`.
 
-        Returns:
-            DataContainer: The MNIST dataset.
-        """
-        mnist_dc = Datasets.MNIST(path, transforms)
-        return DataContainer(mnist_dc.train[0][:, None, :, :],
-                             mnist_dc.train[1],
-                             mnist_dc.test[0][:, None, :, :],
-                             mnist_dc.test[1],
-                             10)
+    #     Returns:
+    #         DataContainer: The MNIST dataset.
+    #     """
+    #     mnist_dc = Datasets.MNIST(path, transforms)
+    #     return DataContainer(mnist_dc.train[0][:, None, :, :],
+    #                          mnist_dc.train[1],
+    #                          mnist_dc.test[0][:, None, :, :],
+    #                          mnist_dc.test[1],
+    #                          10)
 
     @classmethod
     def MNISTM(cls,
@@ -207,14 +210,14 @@ class Datasets:
 
         train_data = support.CINIC10(
             root=path,
-            partition="train",
+            split="train",
             download=True,
             transform=transforms
         )
 
         test_data = support.CINIC10(
             root=path,
-            partition="test",
+            split="test",
             download=True,
             transform=transforms
         )
@@ -508,7 +511,7 @@ class Datasets:
 class DatasetsEnum(Enum):
     MNIST = "mnist"
     MNISTM = "mnistm"
-    MNIST4D = "mnist4d"
+    # MNIST4D = "mnist4d"
     SVHN = "svhn"
     FEMNIST = "femnist"
     EMNIST = "emnist"
@@ -529,7 +532,7 @@ class DatasetsEnum(Enum):
     def klass(self):
         DATASET_MAP = {
             "mnist": Datasets.MNIST,
-            "mnist4d": Datasets.MNIST4D,
+            # "mnist4d": Datasets.MNIST4D,
             "svhn": Datasets.SVHN,
             "mnistm": Datasets.MNISTM,
             "femnist": Datasets.FEMNIST,
