@@ -1,5 +1,4 @@
 from __future__ import annotations
-from . import DataContainer, FastTensorDataLoader, support
 from torchvision.transforms import ToTensor, Lambda, Compose, Normalize
 from torchvision import datasets
 from datasets import load_dataset
@@ -13,6 +12,8 @@ import os
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from . import DataContainer, FastTensorDataLoader, support  # NOQA
 
 
 class Datasets:
@@ -166,9 +167,14 @@ class Datasets:
             download=True
         )
 
-        return DataContainer(train_data.data / 255.,
+        train_data.data = torch.Tensor(train_data.data / 255.)
+        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data.labels = torch.LongTensor(train_data.labels)
+        test_data.labels = torch.LongTensor(test_data.labels)
+
+        return DataContainer(train_data.data,
                              train_data.labels,
-                             test_data.data / 255.,
+                             test_data.data,
                              test_data.labels,
                              10)
 

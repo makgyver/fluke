@@ -1,13 +1,14 @@
-from . import PersonalizedFL
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..client import PFLClient
 from copy import deepcopy
 import torch
 from typing import Any, Callable
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from . import PersonalizedFL  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import PFLClient  # NOQA
 
 
 # https://arxiv.org/pdf/2012.04221.pdf

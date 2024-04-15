@@ -1,8 +1,3 @@
-from ..data import FastTensorDataLoader
-from ..algorithms import CentralizedFL
-from ..utils.model import diff_model
-from ..server import Server
-from ..client import Client
 from torch.nn import Module
 import torch
 from collections import OrderedDict
@@ -11,6 +6,12 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..data import FastTensorDataLoader  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..utils.model import diff_model  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client  # NOQA
 
 
 class FedAVGMServer(Server):

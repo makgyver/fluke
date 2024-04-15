@@ -1,8 +1,3 @@
-from .evaluation import ClassificationEval
-from .utils import (Configuration, OptimizerConfigurator,
-                    get_class_from_qualified_name, get_loss, get_model)
-from .data import DataSplitter, FastTensorDataLoader
-from . import GlobalSettings
 from rich.pretty import Pretty
 from rich.panel import Panel
 from rich.progress import track
@@ -13,6 +8,12 @@ import numpy as np
 import torch
 import sys
 sys.path.append(".")
+
+from . import GlobalSettings  # NOQA
+from .utils import (Configuration, OptimizerConfigurator,  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model)  # NOQA
+from .data import DataSplitter, FastTensorDataLoader  # NOQA
+from .evaluation import ClassificationEval  # NOQA
 
 app = typer.Typer()
 

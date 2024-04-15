@@ -1,11 +1,3 @@
-from ..algorithms import PersonalizedFL
-from ..utils import OptimizerConfigurator, clear_cache
-from ..utils.model import (get_global_model_dict,
-                           get_local_model_dict,
-                           mix_networks,
-                           set_lambda_model)
-from ..data import FastTensorDataLoader
-from ..client import PFLClient
 from torch.nn.modules import Module
 from typing import Any, Callable
 import numpy as np
@@ -13,6 +5,15 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..algorithms import PersonalizedFL  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import (get_global_model_dict,  # NOQA
+                           get_local_model_dict,  # NOQA
+                           mix_networks,  # NOQA
+                           set_lambda_model)  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import PFLClient  # NOQA
 
 
 class SuPerFedClient(PFLClient):

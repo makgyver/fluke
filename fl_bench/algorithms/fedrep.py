@@ -1,9 +1,3 @@
-from ..algorithms import PersonalizedFL
-from ..utils import OptimizerConfigurator, clear_cache
-from ..server import Server
-from ..client import PFLClient
-from ..data import FastTensorDataLoader
-from ..comm import Message
 from copy import deepcopy
 import torch
 from typing import Any, Callable, Sequence
@@ -11,10 +5,15 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from ..algorithms import PersonalizedFL  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..server import Server  # NOQA
+from ..client import PFLClient  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..comm import Message  # NOQA
+
 
 # https://arxiv.org/abs/2102.07078
-
-
 class FedRepClient(PFLClient):
 
     def __init__(self,

@@ -1,7 +1,3 @@
-from ..server import Server
-from ..client import Client
-from ..comm import Message
-from . import CentralizedFL
 import torch
 import numpy as np
 import sys
@@ -9,9 +5,14 @@ from typing import Sequence
 
 from torch.nn.modules import Module
 
-from fl_bench.data import FastTensorDataLoader
 sys.path.append(".")
 sys.path.append("..")
+
+from ..server import Server  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from . import CentralizedFL  # NOQA
 
 
 class CCVRClient(Client):

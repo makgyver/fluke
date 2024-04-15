@@ -1,7 +1,3 @@
-from ..algorithms import CentralizedFL
-from ..utils.model import diff_model
-from ..server import Server
-from ..client import Client
 from collections import OrderedDict
 from typing import Iterable
 from copy import deepcopy
@@ -9,6 +5,11 @@ import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..algorithms import CentralizedFL  # NOQA
+from ..utils.model import diff_model  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client  # NOQA
 
 
 class FedExPServer(Server):

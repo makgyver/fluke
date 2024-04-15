@@ -8,12 +8,11 @@ import torch
 from torch import device
 from torch.nn import Module
 
-from fl_bench.evaluation import ClassificationEval
-
-from .utils import DDict
-from .comm import Channel, Message
-from .data import FastTensorDataLoader
-from . import GlobalSettings, ObserverSubject
+from .evaluation import ClassificationEval  # NOQA
+from .utils import DDict  # NOQA
+from .comm import Channel, Message  # NOQA
+from .data import FastTensorDataLoader  # NOQA
+from . import GlobalSettings, ObserverSubject  # NOQA
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:

@@ -1,11 +1,18 @@
+from fl_bench.utils import OptimizerConfigurator, clear_cache
+from fl_bench.data import FastTensorDataLoader
+from fl_bench.client import Client
+from fl_bench.algorithms import CentralizedFL
+from typing import Callable
+from copy import deepcopy
 from torch import nn
 import torch
 import torch.nn.functional as F
 
+
 class MNIST_2NN_TEST(nn.Module):
-    def __init__(self, 
-                 hidden_size: tuple[int, int]=(200, 200),
-                 softmax: bool=False):
+    def __init__(self,
+                 hidden_size: tuple[int, int] = (200, 200),
+                 softmax: bool = False):
         super(MNIST_2NN_TEST, self).__init__()
         self.input_size = 28*28
         self.output_size = 10
@@ -25,16 +32,6 @@ class MNIST_2NN_TEST(nn.Module):
             return torch.sigmoid(self.fc3(x))
 
 
-
-import torch
-from copy import deepcopy
-from typing import Callable
-
-from fl_bench.algorithms import CentralizedFL
-from fl_bench.client import Client
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.utils import OptimizerConfigurator, clear_cache
-
 class MyFedProxClient(Client):
     def __init__(self,
                  index: int,
@@ -49,14 +46,13 @@ class MyFedProxClient(Client):
             "mu": mu
         })
 
-    
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), global_model.parameters()):
             proximal_term += torch.norm(w - w_t)**2
         return proximal_term
 
-    def fit(self, override_local_epochs: int=0):
+    def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self._receive_model()
         W = deepcopy(self.model)
@@ -70,9 +66,10 @@ class MyFedProxClient(Client):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
-                loss = self.hyper_params.loss_fn(y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
+                loss = self.hyper_params.loss_fn(
+                    y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
                 loss.backward()
-                self.optimizer.step()          
+                self.optimizer.step()
             self.scheduler.step()
 
         self.model.to("cpu")

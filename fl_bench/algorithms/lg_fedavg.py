@@ -1,9 +1,3 @@
-from ..utils import OptimizerConfigurator
-from ..data import FastTensorDataLoader
-from ..client import PFLClient
-from ..algorithms import PersonalizedFL
-from ..server import Server
-from ..comm import Message
 from copy import deepcopy
 from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
@@ -11,6 +5,13 @@ from typing import Any, Callable, Sequence
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import PFLClient  # NOQA
+from ..algorithms import PersonalizedFL  # NOQA
+from ..server import Server  # NOQA
+from ..comm import Message  # NOQA
 
 
 # The implementation is almost identical to FedPerClient

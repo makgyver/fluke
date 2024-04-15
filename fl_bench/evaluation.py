@@ -1,5 +1,3 @@
-from .data import FastTensorDataLoader
-from . import GlobalSettings
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.nn import Module
 import torch
@@ -7,6 +5,9 @@ from typing import Callable, Optional, Union, Iterable
 from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
+
+from .data import FastTensorDataLoader  # NOQA
+from . import GlobalSettings  # NOQA
 
 
 class Evaluator(ABC):

@@ -1,11 +1,3 @@
-from ..evaluation import ClassificationEval
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..client import PFLClient
-from ..server import Server
-from ..net import EncoderHeadNet
-from . import PersonalizedFL
-from ..comm import Message
 import torch
 from torch.nn import Module
 from typing import Dict, Sequence, Callable
@@ -15,6 +7,15 @@ import sys
 
 sys.path.append(".")
 sys.path.append("..")
+
+from ..evaluation import ClassificationEval  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import PFLClient  # NOQA
+from ..server import Server  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
+from . import PersonalizedFL  # NOQA
+from ..comm import Message  # NOQA
 
 
 class FedProtoModel(Module):

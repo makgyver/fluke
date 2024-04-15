@@ -1,10 +1,3 @@
-from ..net import EncoderHeadNet
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..client import PFLClient
-from ..algorithms import PersonalizedFL
-from ..server import Server
-from ..comm import Message
 from rich.progress import Progress
 from copy import deepcopy
 from typing import Any, Callable, Sequence
@@ -12,6 +5,14 @@ from torch.nn import Module
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..nets import EncoderHeadNet  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import PFLClient  # NOQA
+from ..algorithms import PersonalizedFL  # NOQA
+from ..server import Server  # NOQA
+from ..comm import Message  # NOQA
 
 
 class FedBABUClient(PFLClient):

@@ -1,13 +1,14 @@
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..client import Client
-from . import CentralizedFL
 from typing import Callable
 from copy import deepcopy
 import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import Client  # NOQA
+from . import CentralizedFL  # NOQA
 
 
 class FedProxClient(Client):

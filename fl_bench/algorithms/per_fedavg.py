@@ -1,7 +1,3 @@
-from ..utils import OptimizerConfigurator
-from ..data import FastTensorDataLoader
-from ..algorithms import CentralizedFL
-from ..client import Client
 from torch.optim import Optimizer
 import torch
 from typing import Callable, List, Tuple, Union
@@ -11,6 +7,11 @@ import sys
 
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
 
 
 class PerFedAVGOptimizer(Optimizer):

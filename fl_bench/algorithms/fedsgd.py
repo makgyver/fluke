@@ -1,8 +1,9 @@
-from ..algorithms import CentralizedFL
-from ..data import DataSplitter
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..algorithms import CentralizedFL  # NOQA
+from ..data import DataSplitter  # NOQA
 
 
 class FedSGD(CentralizedFL):

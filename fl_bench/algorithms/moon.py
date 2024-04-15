@@ -1,7 +1,3 @@
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..algorithms import CentralizedFL
-from ..client import Client
 from torch.nn import CosineSimilarity
 import torch
 from typing import Callable
@@ -9,6 +5,11 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
 
 
 class MOONClient(Client):

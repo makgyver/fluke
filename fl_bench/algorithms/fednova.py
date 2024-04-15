@@ -1,15 +1,16 @@
-from ..utils import OptimizerConfigurator
-from ..data import FastTensorDataLoader
-from ..server import Server
-from ..client import Client
-from ..algorithms import CentralizedFL
-from ..comm import Message
 import torch
 from typing import Callable, Iterable
 from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..comm import Message  # NOQA
 
 
 class FedNovaClient(Client):

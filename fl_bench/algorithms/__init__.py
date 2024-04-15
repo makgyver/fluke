@@ -1,14 +1,14 @@
 from __future__ import annotations
-from ..utils import DDict, OptimizerConfigurator, get_loss, get_model
-from ..data import DataSplitter, FastTensorDataLoader
-from ..server import Server
-from ..client import Client
 import torch
 from typing import Callable, Union, Any, Iterable
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from ..utils import DDict, OptimizerConfigurator, get_loss, get_model  # NOQA
+from ..data import DataSplitter, FastTensorDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client  # NOQA
 
 __all__ = [
     'apfl',

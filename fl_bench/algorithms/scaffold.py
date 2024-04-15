@@ -1,9 +1,3 @@
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..algorithms import CentralizedFL
-from ..server import Server
-from ..client import Client
-from ..comm import Message
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
@@ -12,6 +6,13 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
 
 
 class SCAFFOLDOptimizer(Optimizer):

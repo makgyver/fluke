@@ -1,10 +1,4 @@
 from __future__ import annotations
-from .evaluation import ClassificationEval
-from .data import FastTensorDataLoader
-from .utils import DDict, OptimizerConfigurator, clear_cache
-from .comm import Channel, Message
-from .server import Server
-from . import GlobalSettings
 from torch import device
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler as Scheduler
@@ -14,6 +8,13 @@ from copy import deepcopy
 from abc import ABC
 import sys
 sys.path.append(".")
+
+from .evaluation import ClassificationEval  # NOQA
+from .data import FastTensorDataLoader  # NOQA
+from .utils import DDict, OptimizerConfigurator, clear_cache  # NOQA
+from .comm import Channel, Message  # NOQA
+from .server import Server  # NOQA
+from . import GlobalSettings  # NOQA
 
 
 class Client(ABC):

@@ -1,7 +1,8 @@
-from . import CentralizedFL
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from . import CentralizedFL  # NOQA
 
 
 class FedAVG(CentralizedFL):

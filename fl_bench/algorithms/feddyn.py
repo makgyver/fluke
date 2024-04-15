@@ -1,9 +1,3 @@
-from ..data import FastTensorDataLoader
-from ..client import Client
-from ..utils import OptimizerConfigurator, clear_cache
-from ..server import Server
-from ..comm import Message
-from . import CentralizedFL
 from torch.nn import Module
 import numpy as np
 import torch
@@ -13,6 +7,13 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import Client  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..server import Server  # NOQA
+from ..comm import Message  # NOQA
+from . import CentralizedFL  # NOQA
 
 
 def get_all_params_of(model, copy=True) -> torch.Tensor:

@@ -1,13 +1,14 @@
-from ..utils import OptimizerConfigurator
-from ..client import Client
-from ..data import FastTensorDataLoader
-from . import CentralizedFL
 from collections import Counter
 from typing import Callable
 import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator  # NOQA
+from ..client import Client  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from . import CentralizedFL  # NOQA
 
 
 class FedLCClient(Client):

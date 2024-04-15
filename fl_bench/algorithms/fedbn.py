@@ -1,11 +1,12 @@
-from ..algorithms import CentralizedFL
-from ..client import Client
-from ..comm import Message
 from copy import deepcopy
 import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
 
 
 class FedBNClient(Client):

@@ -1,9 +1,3 @@
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..server import Server
-from ..client import PFLClient, Client
-from . import PersonalizedFL
-from ..comm import Message
 from torch.nn import Module
 import torch
 from typing import Callable, Sequence
@@ -11,6 +5,13 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..client import PFLClient, Client  # NOQA
+from . import PersonalizedFL  # NOQA
+from ..comm import Message  # NOQA
 
 
 class FedAMPClient(PFLClient):

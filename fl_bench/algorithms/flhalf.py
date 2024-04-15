@@ -1,12 +1,3 @@
-from ..net import GlobalLocalNet
-from ..algorithms import PersonalizedFL
-from ..utils import OptimizerConfigurator
-from ..data import FastTensorDataLoader
-from ..server import Server
-from ..client import Client, PFLClient
-from ..evaluation import ClassificationEval
-from ..comm import Message
-from .. import GlobalSettings
 from rich.progress import Progress
 import torch.nn.functional as F
 from torch.nn import Module
@@ -17,6 +8,16 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..nets import GlobalLocalNet  # NOQA
+from ..algorithms import PersonalizedFL  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client, PFLClient  # NOQA
+from ..evaluation import ClassificationEval  # NOQA
+from ..comm import Message  # NOQA
+from .. import GlobalSettings  # NOQA
 
 
 def relative_projection(encoder: nn.Module,

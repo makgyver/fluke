@@ -1,8 +1,3 @@
-from ..algorithms import PersonalizedFL
-from ..server import Server
-from ..client import PFLClient
-from ..comm import Message
-from ..data import FastTensorDataLoader
 from typing import Sequence
 from copy import deepcopy
 import torch
@@ -10,9 +5,14 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from ..algorithms import PersonalizedFL  # NOQA
+from ..server import Server  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+
 
 # https://arxiv.org/abs/1912.00818
-
 class FedPerClient(PFLClient):
 
     def _send_model(self):

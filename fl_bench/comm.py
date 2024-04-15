@@ -1,10 +1,10 @@
-from . import ObserverSubject
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 import pickle
 import sys
 sys.path.append(".")
 
+from . import ObserverSubject  # NOQA
 
 __all__ = [
     'Message',

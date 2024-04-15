@@ -1,7 +1,3 @@
-from ..algorithms import CentralizedFL
-from ..data import FastTensorDataLoader
-from ..client import Client
-from ..server import Server
 from torch.nn import Module
 import torch
 from collections import OrderedDict
@@ -11,6 +7,11 @@ from enum import Enum
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..algorithms import CentralizedFL  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..client import Client  # NOQA
+from ..server import Server  # NOQA
 
 
 class FedOptMode(Enum):

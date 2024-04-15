@@ -3,8 +3,8 @@ This module contains the definition of several neural networks used in state-of-
 federated learning papers.
 """
 from abc import abstractmethod
-import torch
 import string
+import torch
 import torch.nn as nn
 from torch.functional import F
 from torchvision.models import resnet50, resnet18, resnet34
@@ -32,27 +32,43 @@ class EncoderHeadNet(nn.Module):
     def __init__(self, encoder: nn.Module, head: nn.Module):
         super(EncoderHeadNet, self).__init__()
         self.output_size = head.output_size
-        self.E = encoder
-        self.D = head
+        self._encoder = encoder
+        self._head = head
 
-    @property.fget
+    @property
     def encoder(self) -> nn.Module:
         """Return the encoder subnetwork"""
-        return self.E
+        return self._encoder
 
-    @property.fget
+    @property
     def head(self) -> nn.Module:
         """Return the global subnetwork"""
-        return self.D
+        return self._head
 
-    def forward_encoder(self, x) -> torch.Tensor:
-        return self.E(x)
+    def forward_encoder(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the encoder subnetwork.
 
-    def forward_head(self, z) -> torch.Tensor:
-        return self.D(z)
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor of the encoder subnetwork.
+        """
+        return self._encoder(x)
+
+    def forward_head(self, z: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the head subnetwork.
+
+        Args:
+            z (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor of the head subnetwork.
+        """
+        return self._head(z)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.D(self.E(x))
+        return self._head(self._encoder(x))
 
 
 class MNIST_2NN_E(nn.Module):
@@ -75,9 +91,10 @@ class MNIST_2NN_E(nn.Module):
 class MNIST_2NN_D(nn.Module):
     def __init__(self,
                  hidden_size: int = 200,
-                 softmax: bool = False):
+                 use_softmax: bool = False):
         super(MNIST_2NN_D, self).__init__()
         self.output_size = 10
+        self.use_softmax = use_softmax
         self.fc3 = nn.Linear(hidden_size, 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -648,19 +665,19 @@ class GlobalLocalNet(nn.Module):
 class FedPer_VGG9(GlobalLocalNet, VGG9):
 
     def get_local(self) -> nn.Module:
-        return self.D
+        return self._head
 
     def get_global(self) -> nn.Module:
-        return self.E
+        return self._encoder
 
 
 class LG_FedAvg_VGG9(GlobalLocalNet, VGG9):
 
     def get_local(self) -> nn.Module:
-        return self.E
+        return self._encoder
 
     def get_global(self) -> nn.Module:
-        return self.D
+        return self._head
 
 
 class SimpleCNN_E(nn.Module):
@@ -701,16 +718,16 @@ class SimpleCNN(EncoderHeadNet):
 class MNIST_2NN_GlobalD(GlobalLocalNet, MNIST_2NN):
 
     def get_local(self) -> nn.Module:
-        return self.E
+        return self._encoder
 
     def get_global(self) -> nn.Module:
-        return self.D
+        return self._head
 
 
 class MNIST_2NN_GlobalE(GlobalLocalNet, MNIST_2NN):
 
     def get_local(self) -> nn.Module:
-        return self.D
+        return self._head
 
     def get_global(self) -> nn.Module:
-        return self.E
+        return self._encoder

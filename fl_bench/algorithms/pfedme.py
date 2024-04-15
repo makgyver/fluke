@@ -1,9 +1,3 @@
-from ..utils import OptimizerConfigurator
-from ..data import FastTensorDataLoader
-from ..algorithms import CentralizedFL
-from ..server import Server
-from ..client import Client, PFLClient
-from ..comm import Message
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
@@ -13,6 +7,13 @@ from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils import OptimizerConfigurator  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..server import Server  # NOQA
+from ..client import Client, PFLClient  # NOQA
+from ..comm import Message  # NOQA
 
 
 class PFedMeOptimizer(Optimizer):

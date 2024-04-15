@@ -1,9 +1,3 @@
-from ..utils.model import merge_models
-from ..utils import OptimizerConfigurator, clear_cache
-from ..data import FastTensorDataLoader
-from ..algorithms import PersonalizedFL
-from ..client import Client, PFLClient
-from ..server import Server
 from copy import deepcopy
 from torch.nn import Module
 import torch
@@ -11,6 +5,13 @@ from typing import Any, Callable, Iterable
 import sys
 sys.path.append(".")
 sys.path.append("..")
+
+from ..utils.model import merge_models  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..algorithms import PersonalizedFL  # NOQA
+from ..client import Client, PFLClient  # NOQA
+from ..server import Server  # NOQA
 
 
 # https://arxiv.org/pdf/2012.04221.pdf
