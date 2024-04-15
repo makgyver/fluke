@@ -1,7 +1,9 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
-import pickle
 import sys
+import numpy as np
+import torch
+import warnings
 sys.path.append(".")
 
 from . import ObserverSubject  # NOQA
@@ -31,6 +33,26 @@ class Message:
         self.payload: Any = payload
         self.sender: Optional[Any] = sender
 
+    def __get_size(self, obj: Any) -> int:
+        if obj is None or isinstance(obj, (int, float, bool)):
+            return 1
+        elif isinstance(obj, str):
+            return len(obj)
+        elif isinstance(obj, (list, tuple, set)):
+            return sum([self.__get_size(i) for i in obj])
+        elif isinstance(obj, dict):
+            return self.__get_size(list(obj.values())) + self.__get_size(list(obj.keys()))
+        elif isinstance(obj, np.ndarray):
+            return obj.size
+        elif isinstance(obj, torch.Tensor):
+            return obj.numel()
+        elif isinstance(obj, (torch.nn.Module)):
+            return sum(p.numel() for p in obj.parameters())
+        else:
+            warnings.warn(f"Unknown type {type(obj)} of object {obj} in payload." +
+                          "Returning object size = 0.")
+            return 0
+
     def get_size(self) -> int:
         """Get the size of the message.
 
@@ -40,9 +62,7 @@ class Message:
         Returns:
             int: The size of the message in bytes.
         """
-        if self.payload is None:
-            return 1
-        return sys.getsizeof(pickle.dumps(self.payload))
+        return self.__get_size(self.payload)
 
 
 class Channel(ObserverSubject):
@@ -61,23 +81,11 @@ class Channel(ObserverSubject):
         super().__init__()
         self._buffer: Dict[Any, List[Message]] = defaultdict(list)
 
-    def _send_action(self, method, kwargs, mbox):
-        if callable(method):
-            method(**kwargs)
-        else:
-            getattr(mbox, method)(**kwargs)
-
     def send(self, message: Message, mbox: Any):
         """Send a message to a receiver.
 
-        If the message is a request to take an action (i.e., `type = '__action__'`), the payload
-        should be a tuple with the method to be called and the keyword arguments (as a dictionary)
-        to be passed to the method.
-
         To any sent message should correspond a received message. The receiver should call the
-        `receive` method of the channel to get the message. However, if the message is a request to
-        take an action, the channel directly calls the method on the receiver with the given keyword
-        arguments.
+        `receive` method of the channel to get the message.
 
         Args:
             message (Message): The message to be sent.
@@ -87,18 +95,8 @@ class Channel(ObserverSubject):
             Sending a string message from the `server` to a `client`:
             >>> channel = Channel()
             >>> channel.send(Message("Hello", "greeting", server), client)
-
-            If the `server` wants to request the clients to run the `train` method which has an
-            argument `epochs`, it can send a message with the following payload:
-            >>> message = Message((client.train, {"epochs": 3}), "__action__", server)
-            >>> channel.send(message, client)
-            This will call the `train` method of the client with the argument `epochs=3`.
         """
-        if message.msg_type == "__action__":
-            method, kwargs = message.payload
-            self._send_action(method, kwargs, mbox)
-        else:
-            self._buffer[mbox].append(message)
+        self._buffer[mbox].append(message)
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
         """Receive (read) a message from a sender.
@@ -138,24 +136,6 @@ class Channel(ObserverSubject):
         """
         for client in to:
             self.send(message, client)
-
-    # def pull(self, mbox: Any, sender: Any, msg_type: str, payload: Any) -> Message:
-    #     """Pull a message from the sender.
-
-    #     This method sends a message from the `sender` to the `mbox`. This simulate
-    #     a `pull` operation where the receiver requests a message from the sender.
-
-    #     Args:
-    #         mbox (Any): The receiver.
-    #         sender (Any): The sender.
-    #         msg_type (str): The type of the message.
-    #         payload (Any): The payload of the message.
-
-    #     Returns:
-    #         Message: The pulled message.
-    #     """
-    #     self.send(Message(payload, msg_type, sender), mbox)
-    #     return self.receive(mbox, sender, msg_type)
 
     def clear(self, mbox: Any) -> None:
         """Clear the message box of the given receiver.

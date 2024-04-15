@@ -11,7 +11,7 @@
             "loss": "CrossEntropyLoss",
             "n_protos": 10,
             "lam": 0.1,
-            "model": "MNIST_2NN_Proto",
+            "model": "MNIST_2NN",
             "optimizer": {		
                 "lr": 0.01,
                 "momentum": 0.9,
@@ -22,6 +22,6 @@
                 "gamma": 1
             }
         },
-        "model": "MNIST_2NN_Proto"
+        "model": "MNIST_2NN"
     }
 }

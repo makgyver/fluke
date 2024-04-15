@@ -100,7 +100,7 @@ class Server(ObserverSubject):
             eligible_perc (float, optional): The percentage of clients that will be selected for
               each round. Defaults to 0.1.
         """
-        with GlobalSettings().live_renderer():
+        with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
             client_x_round = int(self.n_clients*eligible_perc)
