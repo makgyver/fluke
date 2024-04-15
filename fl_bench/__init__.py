@@ -48,12 +48,12 @@ class ObserverSubject():
         if observer is None:
             return
 
-        if not isinstance(observer, Iterable):
+        if not isinstance(observer, (list, tuple, set)):
             observer = [observer]
 
-        for observer in observer:
-            if observer not in self._observers:
-                self._observers.append(observer)
+        for obs in observer:
+            if obs not in self._observers:
+                self._observers.append(obs)
 
     def detach(self, observer: Any):
         """Detach an observer.
