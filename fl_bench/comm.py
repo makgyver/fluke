@@ -56,8 +56,10 @@ class Message:
     def get_size(self) -> int:
         """Get the size of the message.
 
-        The message size is the size of the payload in bytes estimated using the `pickle` module.
-        A message containing an ACK (i.e., with no payload) has a size of 1 byte.
+        The message size is the size of the payload in "floating point" numbers. For example, a
+        message containing a tensor of size (10, 10) has a size of 100. A message containing a
+        string of length 10 has a size of 10.
+        A message containing an ACK (i.e., with no payload) has a size of 1.
 
         Returns:
             int: The size of the message in bytes.

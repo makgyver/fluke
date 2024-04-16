@@ -161,8 +161,12 @@ class Server(ObserverSubject):
         self._broadcast_model(self.clients)
         for client in self.clients:
             client._receive_model()
-        client_evals = [client.evaluate() for client in self.clients]
-        self._notify_finalize(client_evals if client_evals[0] else None)
+        client_evals = []
+        for client in self.clients:
+            client_eval = client.evaluate()
+            if client_eval:
+                client_evals.append(client_eval)
+        self._notify_finalize(client_evals)
 
     def _get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
         """Get the clients that will participate in the current round.
@@ -342,8 +346,7 @@ class ServerObserver():
 
     def end_round(self,
                   round: int,
-                  global_model: Any,
-                  data: FastTensorDataLoader,
+                  evals: Dict[str, float],
                   client_evals: Sequence[Any]):
         pass
 

@@ -9,10 +9,12 @@ sys.path.append(".")
 sys.path.append("..")
 
 
+from fl_bench.comm import Message  # NOQA
 from fl_bench.client import Client  # NOQA
 from fl_bench.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
            get_class_from_str, get_model, get_class_from_qualified_name,  # NOQA
-           get_full_classname, get_loss, get_scheduler, clear_cache, Configuration)  # NOQA
+           get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
+           Log, WandBLog)  # NOQA
 
 
 def test_optimcfg():
@@ -53,6 +55,7 @@ def test_functions():
         client_module = import_module_from_str("fl_bench.client")
         client_class = get_class_from_str("fl_bench.client", "Client")
         model = get_model("MNIST_2NN")
+        model2 = get_model("fl_bench.nets.MNIST_2NN")
         linear = get_class_from_qualified_name("torch.nn.Linear")
         full_linear = get_full_classname(Linear)
         loss = get_loss("CrossEntropyLoss")
@@ -65,6 +68,7 @@ def test_functions():
     assert client_module.__name__ == "fl_bench.client"
     assert client_class == Client
     assert model.__class__.__name__ == "MNIST_2NN"
+    assert model2.__class__.__name__ == "MNIST_2NN"
     assert linear == Linear
     assert full_linear == "torch.nn.modules.linear.Linear"
     assert isinstance(loss, CrossEntropyLoss)
@@ -142,7 +146,37 @@ def test_configuration():
         "_data(mnist, iid)_proto(C100, R50,E0.1)_seed(42)"
 
 
+def test_log():
+    log = Log()
+    # log2 = WandBLog()
+
+    log.init()
+    # log2.init()
+
+    try:
+        log.start_round(1, None)
+        log.selected_clients(1, [1, 2, 3])
+        log.message_received(Message("test", "test", None))
+        log.error("test")
+        log.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
+        log.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
+        temp = tempfile.NamedTemporaryFile(mode="w")
+        log.save(temp.name)
+    except Exception:
+        pytest.fail("Unexpected error!")
+
+    with open(temp.name, "r") as f:
+        data = dict(json.load(f))
+        assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
+            '0': 0, '1': 4}, 'perf_local': {'1': {'accuracy': 0.6}, '2': {'accuracy': 0.6}}}
+
+    assert log.history[1] == {"accuracy": 1}
+    assert log.client_history[1] == {"accuracy": 0.6}
+    assert log.comm_costs[1] == 4
+
+
 if __name__ == "__main__":
     test_optimcfg()
     test_functions()
     test_configuration()
+    test_log()

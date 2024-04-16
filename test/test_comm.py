@@ -67,6 +67,17 @@ def test_channel():
     assert not channel._buffer["pippo"]
     assert obs.msg == msg
 
+    channel.broadcast(Message("a", "type_test", "sender"), ["pippo", "pluto"])
+    assert len(channel._buffer) == 2
+    assert "pippo" in channel._buffer
+    assert "pluto" in channel._buffer
+
+    channel.send(Message("b", "type_test", "sender"), "pippo")
+    msg = channel.receive("pippo", "sender", "type_test")
+    assert msg.payload == "a"
+    msg = channel.receive("pippo", "sender", "type_test")
+    assert msg.payload == "b"
+
 
 if __name__ == "__main__":
     test_message()

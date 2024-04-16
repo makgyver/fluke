@@ -162,7 +162,7 @@ class Client(ABC):
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = "," + hpstr if hpstr else ""
-        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, " +\
+        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}," + \
                f"batch_size={self.train_set._batch_size}{hpstr})"
 
     def __repr__(self) -> str:
