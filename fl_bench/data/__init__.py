@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 from scipy.stats.mstats import mquantiles
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -18,8 +17,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-if TYPE_CHECKING:
-    from ..utils import DDict
+from .. import DDict  # NOQA
 
 __all__ = [
     'datasets',
@@ -61,8 +59,6 @@ class DataContainer:
         `train` and `test` attributes.
         """
         data_train, data_test = self.train[0], self.test[0]
-        if isinstance(data_train, torch.Tensor):
-            data_train = data_train.numpy()
         scaler = StandardScaler()
         scaler.fit(data_train)
         self.train = (torch.FloatTensor(scaler.transform(data_train)), self.train[1])
@@ -81,7 +77,8 @@ class FastTensorDataLoader:
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled.
         percentage (float): the percentage of the data to be used.
-        skip_singleton (bool): whether to skip batches with a single element.
+        skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
+          layers, you might want to set this to `True`.
     """
 
     def __init__(self,
@@ -94,13 +91,35 @@ class FastTensorDataLoader:
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
         self.num_labels = num_labels
-        self.size = int(self.tensors[0].shape[0] * percentage)
-        self.batch_size = batch_size if batch_size else self.size
+        self.set_sample_size(percentage)
         self.shuffle = shuffle
         self.skip_singleton = skip_singleton
+        self.batch_size = batch_size if batch_size else self.size
 
-        # Calculate # batches
-        n_batches, remainder = divmod(self.size, self.batch_size)
+    def set_sample_size(self, percentage: float) -> int:
+        """Set the sample size.
+
+        Args:
+            percentage (float): the percentage of the data to be used.
+
+        Returns:
+            int: the sample size.
+        """
+        if percentage > 1.0 or percentage <= 0.0:
+            raise ValueError("percentage must be in (0, 1]")
+        self.size = max(int(self.tensors[0].shape[0] * percentage), 1)
+        return self.size
+
+    @property
+    def batch_size(self) -> int:
+        return self._batch_size
+
+    @batch_size.setter
+    def batch_size(self, value: int):
+        if value <= 0:
+            raise ValueError("batch_size must be > 0")
+        self._batch_size = value
+        n_batches, remainder = divmod(self.size, self._batch_size)
         if remainder > 0:
             n_batches += 1
         self.n_batches = n_batches
@@ -115,32 +134,15 @@ class FastTensorDataLoader:
     def __next__(self) -> tuple:
         if self.i >= self.size:
             raise StopIteration
-        batch = tuple(t[self.i: self.i+self.batch_size] for t in self.tensors)
+        batch = tuple(t[self.i: self.i+self._batch_size] for t in self.tensors)
         # Useful in case of batch norm layers
         if self.skip_singleton and batch[0].shape[0] == 1:
             raise StopIteration
-        self.i += self.batch_size
+        self.i += self._batch_size
         return batch
 
     def __len__(self) -> int:
         return self.n_batches
-
-    def transform(self, f: callable, axis=(0,)) -> FastTensorDataLoader:
-        """Transform the data according to the function `f`.
-
-        Args:
-            f (callable): the transformation function.
-            axis (tuple): the axis along which to apply the transformation.
-
-        Returns:
-            FastTensorDataLoader: the transformed data loader.
-        """
-        tensors = [f(t) if i in axis else t for i, t in enumerate(self.tensors)]
-        return FastTensorDataLoader(*tensors,
-                                    num_labels=self.num_labels,
-                                    batch_size=self.batch_size,
-                                    shuffle=self.shuffle,
-                                    percentage=1.0)
 
 
 class DistributionEnum(Enum):

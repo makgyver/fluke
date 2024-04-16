@@ -1,8 +1,5 @@
 """This module contains utility functions and classes used throughout the package."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from ..data.datasets import DatasetsEnum
-from ..data import DistributionEnum, FastTensorDataLoader
 from rich.pretty import Pretty
 from rich.panel import Panel
 import rich
@@ -24,8 +21,12 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-if TYPE_CHECKING:
-    from ..comm import Message
+from .. import DDict  # NOQA
+from ..comm import ChannelObserver, Message  # NOQA
+from ..server import ServerObserver  # NOQA
+from ..data.datasets import DatasetsEnum  # NOQA
+from ..data import DistributionEnum  # NOQA
+
 
 __all__ = [
     'model',
@@ -33,9 +34,6 @@ __all__ = [
     'LogEnum',
     'Log',
     'WandBLog',
-    'ServerObserver',
-    'ChannelObserver',
-    'DDict',
     'Configuration',
     'import_module_from_str',
     'get_class_from_str',
@@ -87,8 +85,8 @@ class OptimizerConfigurator:
     def __str__(self) -> str:
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += "," + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
-        to_str += ")"
+        to_str += ",StepLR(" + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
+        to_str += "))"
         return to_str
 
 
@@ -111,49 +109,6 @@ class LogEnum(Enum):
             return Log()
         else:
             return WandBLog(**wandb_config)
-
-
-class ServerObserver():
-    """Server observer interface.
-
-    This interface is used to observe the server during the federated learning process.
-    For example, it can be used to log the performance of the global model and the communication
-    costs, as it is done in the `Log` class.
-    """
-
-    def start_round(self, round: int, global_model: Any):
-        pass
-
-    def end_round(self,
-                  round: int,
-                  global_model: Any,
-                  data: FastTensorDataLoader,
-                  client_evals: Sequence[Any]):
-        pass
-
-    def selected_clients(self, round: int, clients: Sequence):
-        pass
-
-    def error(self, error: str):
-        pass
-
-    def finished(self,  client_evals: Sequence[Any]):
-        pass
-
-
-class ChannelObserver():
-    """Channel observer interface.
-
-    This interface is used to observe the communication channel during the federated learning
-    process.
-
-    See Also:
-        `ServerObserver`, `ObserverSubject`
-
-    """
-
-    def message_received(self, message: Message):
-        pass
 
 
 class Log(ServerObserver, ChannelObserver):
@@ -420,32 +375,8 @@ def clear_cache(ipc: bool = False):
             CUDA IPC.
     """
     torch.cuda.empty_cache()
-    if ipc:
+    if ipc and torch.cuda.is_available():
         torch.cuda.ipc_collect()
-
-
-class DDict(dict):
-    """A dictionary that can be accessed with dot notation recursively."""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-
-    def __init__(self, d: dict):
-        self.update(d)
-
-    def update(self, d: dict):
-        for k, v in d.items():
-            if isinstance(v, dict):
-                self[k] = DDict(v)
-            else:
-                self[k] = v
-
-    def exclude(self, *keys: str):
-        """Create a new DDict excluding the specified keys.
-
-        Returns:
-            DDict: The new DDict.
-        """
-        return DDict({k: v for k, v in self.items() if k not in keys})
 
 
 class Configuration(DDict):

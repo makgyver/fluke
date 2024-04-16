@@ -107,14 +107,22 @@ class FLHalfClient(PFLClient):
         if self.test_set is not None:
             n_classes = self.model.output_size
             if self.hyper_params.relative:
-                test_loader = self.test_set.transform(
-                    lambda x: relative_projection(self.personalized_model.forward_local,
-                                                  x.view(x.size(0), -1),
-                                                  self.anchors)
+                test_loader = FastTensorDataLoader(
+                    relative_projection(self.personalized_model.forward_local,
+                                        self.test_set.tensors[0].view(
+                                            self.test_set.tensors[0].size(0), -1),
+                                        self.anchors),
+                    self.test_set.targets,
+                    batch_size=self.test_set.batch_size,
+                    shuffle=False
                 )
             else:
-                test_loader = self.test_set.transform(
-                    lambda x: self.personalized_model.forward_local(x))
+                test_loader = FastTensorDataLoader(
+                    self.personalized_model.forward_local(self.test_set.tensors[0]),
+                    self.test_set.targets,
+                    batch_size=self.test_set.batch_size,
+                    shuffle=False
+                )
             return ClassificationEval(self.hyper_params.loss_fn, n_classes).evaluate(self.model,
                                                                                      test_loader)
 

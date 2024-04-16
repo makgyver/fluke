@@ -19,7 +19,7 @@ __all__ = [
     'Singleton',
     'ObserverSubject',
     'GlobalSettings',
-    # 'DeviceEnum'
+    'DDict'
 ]
 
 
@@ -31,6 +31,30 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+class DDict(dict):
+    """A dictionary that can be accessed with dot notation recursively."""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+
+    def __init__(self, d: dict):
+        self.update(d)
+
+    def update(self, d: dict):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                self[k] = DDict(v)
+            else:
+                self[k] = v
+
+    def exclude(self, *keys: str):
+        """Create a new DDict excluding the specified keys.
+
+        Returns:
+            DDict: The new DDict.
+        """
+        return DDict({k: v for k, v in self.items() if k not in keys})
 
 
 class ObserverSubject():

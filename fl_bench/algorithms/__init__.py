@@ -5,7 +5,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import DDict, OptimizerConfigurator, get_loss, get_model  # NOQA
+from .. import DDict  # NOQA
+from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
 from ..data import DataSplitter, FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA

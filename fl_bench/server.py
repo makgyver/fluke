@@ -9,10 +9,9 @@ from torch import device
 from torch.nn import Module
 
 from .evaluation import ClassificationEval  # NOQA
-from .utils import DDict  # NOQA
 from .comm import Channel, Message  # NOQA
 from .data import FastTensorDataLoader  # NOQA
-from . import GlobalSettings, ObserverSubject  # NOQA
+from . import GlobalSettings, ObserverSubject, DDict  # NOQA
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -328,3 +327,31 @@ class Server(ObserverSubject):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+class ServerObserver():
+    """Server observer interface.
+
+    This interface is used to observe the server during the federated learning process.
+    For example, it can be used to log the performance of the global model and the communication
+    costs, as it is done in the `Log` class.
+    """
+
+    def start_round(self, round: int, global_model: Any):
+        pass
+
+    def end_round(self,
+                  round: int,
+                  global_model: Any,
+                  data: FastTensorDataLoader,
+                  client_evals: Sequence[Any]):
+        pass
+
+    def selected_clients(self, round: int, clients: Sequence):
+        pass
+
+    def error(self, error: str):
+        pass
+
+    def finished(self,  client_evals: Sequence[Any]):
+        pass

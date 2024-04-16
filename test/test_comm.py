@@ -7,7 +7,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.comm import Message, Channel  # NOQA
+from fl_bench.comm import Message, Channel, ChannelObserver  # NOQA
 
 
 def test_message():
@@ -46,7 +46,7 @@ def test_message():
 
 
 def test_channel():
-    class Observer:
+    class Observer(ChannelObserver):
         def message_received(self, msg):
             self.msg = msg
 

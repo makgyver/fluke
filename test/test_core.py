@@ -6,7 +6,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench import GlobalSettings, ObserverSubject  # NOQA
+from fl_bench import GlobalSettings, ObserverSubject, DDict  # NOQA
 
 
 def test_settings():
@@ -46,6 +46,27 @@ def test_observer():
     assert subj._observers == []
 
 
+def test_ddict():
+    dd = DDict({
+        "a": 1,
+        "b": 2,
+        "c": {
+            "d": 3,
+            "e": 4
+        }
+    })
+
+    assert dd.a == 1
+    assert dd.b == 2
+    assert dd.c.d == 3
+    assert dd.c.e == 4
+
+    dd_nota = dd.exclude("a")
+    assert "a" not in dd_nota
+    assert dd_nota.b == 2
+
+
 if __name__ == "__main__":
     test_settings()
     test_observer()
+    test_ddict()

@@ -87,7 +87,7 @@ class ClassificationEval(Evaluator):
         model.eval()
         model.to(self.device)
         task = "multiclass"  # if self.n_classes >= 2 else "binary"
-        accs = []
+        accs, losses = [], []
         micro_precs, micro_recs, micro_f1s = [], [], []
         macro_precs, macro_recs, macro_f1s = [], [], []
         loss, cnt = 0, 0
@@ -105,7 +105,7 @@ class ClassificationEval(Evaluator):
                 task=task, num_classes=self.n_classes, top_k=1, average="macro")
             macro_recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="macro")
             macro_f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="macro")
-
+            loss = 0
             for X, y in data_loader:
                 X, y = X.to(self.device), y.to(self.device)
                 with torch.no_grad():
@@ -131,6 +131,7 @@ class ClassificationEval(Evaluator):
             macro_precs.append(macro_precision.compute().item())
             macro_recs.append(macro_recall.compute().item())
             macro_f1s.append(macro_f1.compute().item())
+            losses.append(loss / cnt)
 
         model.to("cpu")
 
@@ -142,7 +143,7 @@ class ClassificationEval(Evaluator):
             "macro_precision": round(sum(macro_precs) / len(macro_precs), 5),
             "macro_recall":    round(sum(macro_recs) / len(macro_recs), 5),
             "macro_f1":        round(sum(macro_f1s) / len(macro_f1s), 5),
-            "loss":      round(loss / cnt, 5) if self.loss_fn is not None else None
+            "loss":  round(sum(losses) / len(losses), 5) if self.loss_fn is not None else None
         }
 
     def __str__(self) -> str:

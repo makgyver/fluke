@@ -11,10 +11,10 @@ sys.path.append(".")
 
 from .evaluation import ClassificationEval  # NOQA
 from .data import FastTensorDataLoader  # NOQA
-from .utils import DDict, OptimizerConfigurator, clear_cache  # NOQA
+from .utils import OptimizerConfigurator, clear_cache  # NOQA
 from .comm import Channel, Message  # NOQA
 from .server import Server  # NOQA
-from . import GlobalSettings  # NOQA
+from . import GlobalSettings, DDict  # NOQA
 
 
 class Client(ABC):
@@ -163,7 +163,7 @@ class Client(ABC):
         hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = "," + hpstr if hpstr else ""
         return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, " +\
-               f"batch_size={self.train_set.batch_size}{hpstr})"
+               f"batch_size={self.train_set._batch_size}{hpstr})"
 
     def __repr__(self) -> str:
         return super().__repr__()

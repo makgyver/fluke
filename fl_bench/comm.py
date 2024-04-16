@@ -65,6 +65,21 @@ class Message:
         return self.__get_size(self.payload)
 
 
+class ChannelObserver():
+    """Channel observer interface.
+
+    This interface is used to observe the communication channel during the federated learning
+    process.
+
+    See Also:
+        `ServerObserver`, `ObserverSubject`
+
+    """
+
+    def message_received(self, message: Message):
+        pass
+
+
 class Channel(ObserverSubject):
     """A bi-directional communication channel. It is used to send and receive messages between the
     parties.
