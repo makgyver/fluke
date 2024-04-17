@@ -1,6 +1,7 @@
 from __future__ import annotations
 import torch
 from torch.nn import Linear
+import pytest
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -32,7 +33,7 @@ def test_server():
             assert round == 1
 
         def error(self, error):
-            pass
+            assert error == "error"
 
         def finished(self,  client_evals):
             assert len(client_evals) == 0
@@ -77,7 +78,8 @@ def test_server():
     assert server.channel == clients[0].channel
     assert server.rounds == 0
 
-    server.attach(Observer())
+    obs = Observer()
+    server.attach(obs)
     ev0 = server.evaluate()
     server.fit(1, 1)
     ev1 = server.evaluate()
@@ -85,6 +87,23 @@ def test_server():
     assert ev0["loss"] >= ev1["loss"]
     assert server.rounds == 1
     assert str(server) == "Server(weighted=True)"
+
+    server._notify_error("error")  # test error
+    server.detach(obs)
+    server.hyper_params.weighted = False
+    try:
+        server.fit(2, 0.5)
+    except Exception:
+        pytest.fail("Unexpected exception!")
+
+    for c in clients:
+        c._send_model()
+    cmodels = server._get_client_models(clients, state_dict=False)
+    assert len(cmodels) == 2
+    assert isinstance(cmodels[0], Model)
+
+    server.test_data = None
+    assert not server.evaluate()
 
 
 if __name__ == "__main__":
