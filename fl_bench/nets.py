@@ -277,7 +277,7 @@ class ResidualBlock(nn.Module):
 
 class ResNet9_E(nn.Module):
     def __init__(self):
-        super(ResNet9, self).__init__()
+        super(ResNet9_E, self).__init__()
         self.output_size = 1024
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3,
@@ -312,7 +312,7 @@ class ResNet9_E(nn.Module):
 
 class ResNet9_D(nn.Module):
     def __init__(self):
-        super(ResNet9, self).__init__()
+        super(ResNet9_D, self).__init__()
         self.output_size = 100
         self.fc = nn.Linear(in_features=1024, out_features=100, bias=True)
 
