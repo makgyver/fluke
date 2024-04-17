@@ -6,7 +6,8 @@ sys.path.append("..")
 
 from fl_bench.nets import (MNIST_2NN, MNIST_LR, MNIST_CNN, FEMNIST_CNN,  # NOQA
                            VGG9, FedavgCNN, LeNet5, MoonCNN, SimpleCNN,  # NOQA
-                           ResNet9, ResNet18, ResNet34, ResNet50)  # NOQA
+                           ResNet9, ResNet18, ResNet34, ResNet50, Shakespeare_LSTM,  # NOQA
+                           FedPer_VGG9, LG_FedAvg_VGG9, MNIST_2NN_GlobalD, MNIST_2NN_GlobalE)  # NOQA
 
 
 def test_mnist_2nn():
@@ -131,7 +132,53 @@ def test_covnets():
 
 
 def test_recurrent():
-    pass
+    model = Shakespeare_LSTM()
+    x = torch.randint(0, 100, (1, 10))
+    z = model.forward_encoder(x)
+    y1 = model(x)
+    y2 = model.forward_head(z)
+    assert z.shape == (1, 256)
+    assert y1.shape == (1, 100)
+    assert y2.shape == (1, 100)
+    assert torch.allclose(y1, y2)
+
+
+def test_global_local():
+    model = FedPer_VGG9()
+    x = torch.randn(1, 1, 28, 28)
+    y1 = model(x)
+    z = model.forward_global(x)
+    y2 = model.forward_local(z)
+    assert y1.shape == (1, 62)
+    assert z.shape == (1, 512)
+    assert torch.allclose(y1, y2)
+
+    model = LG_FedAvg_VGG9()
+    x = torch.randn(1, 1, 28, 28)
+    y1 = model(x)
+    z = model.forward_local(x)
+    y2 = model.forward_global(z)
+    assert y1.shape == (1, 62)
+    assert z.shape == (1, 512)
+    assert torch.allclose(y1, y2)
+
+    model = MNIST_2NN_GlobalD()
+    x = torch.randn(1, 28, 28)
+    y1 = model(x)
+    z = model.forward_local(x)
+    y2 = model.forward_global(z)
+    assert z.shape == (1, 200)
+    assert y1.shape == (1, 10)
+    assert torch.allclose(y1, y2)
+
+    model = MNIST_2NN_GlobalE()
+    x = torch.randn(1, 28, 28)
+    y1 = model(x)
+    z = model.forward_global(x)
+    y2 = model.forward_local(z)
+    assert z.shape == (1, 200)
+    assert y1.shape == (1, 10)
+    assert torch.allclose(y1, y2)
 
 
 if __name__ == "__main__":
@@ -139,3 +186,4 @@ if __name__ == "__main__":
     test_mnist_lr()
     test_covnets()
     test_recurrent()
+    test_global_local()

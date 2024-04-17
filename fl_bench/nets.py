@@ -592,10 +592,9 @@ class Shakespeare_LSTM_E(nn.Module):
         )
 
     def forward(self, x) -> torch.Tensor:
-        x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
-        x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
-        x = x.view(-1, torch.prod(x.size()[1:]))
-        return x
+        x = self.encoder(x)
+        x, _ = self.rnn(x)
+        return x[:, -1, :]
 
 
 class Shakespeare_LSTM_D(nn.Module):
@@ -603,13 +602,10 @@ class Shakespeare_LSTM_D(nn.Module):
     def __init__(self, seed: int):
         super(Shakespeare_LSTM_D, self).__init__()
         self.output_size = len(string.printable)
-        self.classifier = VGG9._linear_layer(256, self.output_size, bias=False, seed=seed)
+        self.classifier = VGG9_D._linear_layer(256, self.output_size, bias=False, seed=seed)
 
     def forward(self, x) -> torch.Tensor:
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        return self.classifier(x)
 
 
 class Shakespeare_LSTM(EncoderHeadNet):
