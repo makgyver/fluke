@@ -345,7 +345,7 @@ class FEMNIST_CNN_E(nn.Module):
 
 class FEMNIST_CNN_D(nn.Module):
     def __init__(self):
-        super(FEMNIST_CNN, self).__init__()
+        super(FEMNIST_CNN_D, self).__init__()
         self.output_size = 62
         self.fc1 = nn.Linear(7 * 7 * 64, 1024)
         self.fc2 = nn.Linear(1024, 62)
@@ -406,6 +406,7 @@ class VGG9_E(nn.Module):
                              kernel_size=3, padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Flatten()
         )
 
     def forward(self, x) -> torch.Tensor:
@@ -425,7 +426,6 @@ class VGG9_D(nn.Module):
         super(VGG9_D, self).__init__()
         self.output_size = output_size
         self.downstream = nn.Sequential(
-            nn.Flatten(),
             VGG9_D._linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
             nn.ReLU(True),
             VGG9_D._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
@@ -447,11 +447,10 @@ class VGG9(EncoderHeadNet):
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
-class FedavgCNN(nn.Module):
-    def __init__(self, input_size=(32, 32), output_size=10):
+class FedavgCNN_E(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.input_size = input_size
-        self.output_size = output_size
+        self.output_size = 4096
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -460,10 +459,6 @@ class FedavgCNN(nn.Module):
         self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding=2)
         # self.norm2 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-
-        self.local3 = nn.Linear(4096, 384)
-        self.local4 = nn.Linear(384, 192)
-        self.linear = nn.Linear(192, output_size)
 
     def forward(self, x) -> torch.Tensor:
         x = F.relu(self.conv1(x))
@@ -475,11 +470,28 @@ class FedavgCNN(nn.Module):
         x = self.pool2(x)
 
         x = x.view(x.size(0), -1)
+        return x
+
+
+class FedavgCNN_D(nn.Module):
+    def __init__(self, output_size: int = 10):
+        super().__init__()
+        self.output_size = output_size
+        self.local3 = nn.Linear(4096, 384)
+        self.local4 = nn.Linear(384, 192)
+        self.linear = nn.Linear(192, output_size)
+
+    def forward(self, x) -> torch.Tensor:
         x = F.relu(self.local3(x))
         x = F.relu(self.local4(x))
         x = self.linear(x)
-
         return F.softmax(x, dim=1)
+
+
+class FedavgCNN(EncoderHeadNet):
+    def __init__(self, output_size=10):
+        super(FedavgCNN, self).__init__(FedavgCNN_E(),
+                                        FedavgCNN_D(output_size))
 
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
@@ -516,6 +528,7 @@ class ResNet50(nn.Module):
 
 
 class LeNet5_E(nn.Module):
+    # Expected input size: 32x32x3
     def __init__(self):
         super(LeNet5_E, self).__init__()
         self.output_size = 400
@@ -605,25 +618,34 @@ class Shakespeare_LSTM(EncoderHeadNet):
         super(Shakespeare_LSTM, self).__init__(Shakespeare_LSTM_E(), Shakespeare_LSTM_D(seed))
 
 
-# MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR10)
-class MoonCNN(nn.Module):
+class MoonCNN_E(nn.Module):
+    # Expected input size: 32x32x3
     def __init__(self):
-        super(MoonCNN, self).__init__()
-        self.output_size = 10
+        super(MoonCNN_E, self).__init__()
+        self.output_size = 400
 
         self.conv1 = nn.Conv2d(3, 6, kernel_size=5)
         self.pool1 = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
         self.pool2 = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(16*5*5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.projection_head = nn.Linear(84, 256)
-        self.out = nn.Linear(256, self.output_size)
 
     def forward(self, x) -> torch.Tensor:
         x = self.pool1(F.relu(self.conv1(x)))
         x = self.pool2(F.relu(self.conv2(x)))
         x = x.view(-1, 400)
+        return x
+
+
+class MoonCNN_D(nn.Module):
+    def __init__(self):
+        super(MoonCNN_D, self).__init__()
+        self.output_size = 10
+        self.fc1 = nn.Linear(400, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.projection_head = nn.Linear(84, 256)
+        self.out = nn.Linear(256, self.output_size)
+
+    def forward(self, x) -> torch.Tensor:
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         # The paper is not clear about the activation of
@@ -633,6 +655,48 @@ class MoonCNN(nn.Module):
         x = F.relu(self.projection_head(x))
         x = self.out(x)
         return x
+
+
+# MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR10)
+class MoonCNN(EncoderHeadNet):
+    def __init__(self):
+        super(MoonCNN, self).__init__(MoonCNN_E(), MoonCNN_D())
+
+
+class SimpleCNN_E(nn.Module):
+    # Expected input size: 32x32x3
+    def __init__(self, hidden_dims=(100, 100), output_dim=10):
+        super(SimpleCNN_E, self).__init__()
+        self.output_size = 400
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+
+    def forward(self, x) -> torch.Tensor:
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 16 * 5 * 5)
+        return x
+
+
+class SimpleCNN_D(nn.Module):
+    def __init__(self, hidden_dims=(100, 100), output_dim=10):
+        super(SimpleCNN_D, self).__init__()
+        self.output_size = output_dim
+        self.fc1 = nn.Linear(16*5*5, hidden_dims[0])
+        self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
+        self.fc3 = nn.Linear(hidden_dims[1], output_dim)
+
+    def forward(self, x) -> torch.Tensor:
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+
+class SimpleCNN(EncoderHeadNet):
+    def __init__(self, hidden_dims=(100, 100), output_dim=10):
+        super(SimpleCNN, self).__init__(SimpleCNN_E(), SimpleCNN_D(hidden_dims, output_dim))
 
 
 class GlobalLocalNet(nn.Module):
@@ -678,41 +742,6 @@ class LG_FedAvg_VGG9(GlobalLocalNet, VGG9):
 
     def get_global(self) -> nn.Module:
         return self._head
-
-
-class SimpleCNN_E(nn.Module):
-    def __init__(self, hidden_dims=(100, 100), output_dim=10):
-        super(SimpleCNN_E, self).__init__()
-        self.output_size = 400
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-
-    def forward(self, x) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        return x
-
-
-class SimpleCNN_D(nn.Module):
-    def __init__(self, hidden_dims=(100, 100), output_dim=10):
-        super(SimpleCNN_D, self).__init__()
-        self.output_size = output_dim
-        self.fc1 = nn.Linear(16*5*5, hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
-        self.fc3 = nn.Linear(hidden_dims[1], output_dim)
-
-    def forward(self, x) -> torch.Tensor:
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
-class SimpleCNN(EncoderHeadNet):
-    def __init__(self, hidden_dims=(100, 100), output_dim=10):
-        super(SimpleCNN, self).__init__(SimpleCNN_E(), SimpleCNN_D(hidden_dims, output_dim))
 
 
 class MNIST_2NN_GlobalD(GlobalLocalNet, MNIST_2NN):
