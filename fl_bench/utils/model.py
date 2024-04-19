@@ -12,60 +12,22 @@ sys.path.append(".")
 sys.path.append("..")
 
 
+from .. import GlobalSettings  # NOQA
+
 __all__ = [
-    "diff_model",
-    "merge_models",
     "MMMixin",
     "LinesLinear",
     "LinesConv",
     "LinesLSTM",
     "LinesEmbedding",
     "LinesBN",
+    "diff_model",
+    "merge_models",
     "set_lambda_model",
     "get_local_model_dict",
     "get_global_model_dict",
-    "mix_networks",
+    "mix_networks"
 ]
-
-
-def diff_model(model_dict1: dict, model_dict2: dict):
-    """Compute the difference between two model state dictionaries.
-
-    The difference is computed at the level of the parameters.
-
-    Args:
-        model_dict1 (dict): The state dictionary of the first model.
-        model_dict2 (dict): The state dictionary of the second model.
-
-    Returns:
-        OrderedDict: The state dictionary of the difference between the two models.
-
-    Raises:
-        AssertionError: If the two models have different architectures.
-    """
-    assert model_dict1.keys() == model_dict2.keys(), "Models have not the same architecture"
-    return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
-
-
-def merge_models(model_1: Module, model_2: Module, lam: float):
-    """Merge two models using a linear interpolation.
-
-    The interpolation is done at the level of the parameters using the formula:
-    `merged_model = (1 - lam) * model_1 + lam * model_2`.
-
-    Args:
-        model_1 (Module): The first model.
-        model_2 (Module): The second model.
-        lam (float): The interpolation constant.
-
-    Returns:
-        Module: The merged model.
-    """
-    merged_model = deepcopy(model_1)
-    for name, param in merged_model.named_parameters():
-        param.data = (1 - lam) * model_1.get_parameter(name).data + \
-            lam * model_2.get_parameter(name).data
-    return merged_model
 
 
 class MMMixin:
@@ -182,17 +144,21 @@ class SubspaceLSTM(MMMixin, nn.LSTM):
             torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device)
         )
         with torch.no_grad():
-            torch._cudnn_rnn_flatten_weight(
-                weight_arr=w,
-                weight_stride0=(4 if self.bias else 2),
-                input_size=self.input_size,
-                mode=torch.backends.cudnn.rnn.get_cudnn_mode('LSTM'),
-                hidden_size=self.hidden_size,
-                proj_size=0,
-                num_layers=self.num_layers,
-                batch_first=True,
-                bidirectional=False
-            )
+            if torch._use_cudnn_rnn_flatten_weight():
+                torch._cudnn_rnn_flatten_weight(
+                    weight_arr=w,
+                    weight_stride0=(4 if self.bias else 2),
+                    input_size=self.input_size,
+                    mode=2,  # torch.backends.cudnn.rnn.get_cudnn_mode('LSTM'),
+                    hidden_size=self.hidden_size,
+                    proj_size=0,
+                    num_layers=self.num_layers,
+                    batch_first=True,
+                    bidirectional=False
+                )
+            else:
+                self._flat_weights = w
+                self.flatten_parameters()
         result = torch._VF.lstm(x, h, w, self.bias, self.num_layers, 0.0,
                                 self.training, self.bidirectional, self.batch_first)
         return result[0], result[1:]
@@ -304,7 +270,11 @@ class LinesBN(TwoParamBN):
 
 def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module):
     layers = {}
-    for n, x in merged_net.named_children():
+    if next(merged_net.named_children(), None) is None:
+        named_modules = merged_net.named_modules()
+    else:
+        named_modules = merged_net.named_children()
+    for n, x in named_modules:
         if isinstance(x, torch.nn.Linear):
             layer = LinesLinear(x.in_features, x.out_features, bias=x.bias is not None)
         elif isinstance(x, torch.nn.Conv2d):
@@ -328,6 +298,9 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
                               x.batch_first,
                               x.dropout,
                               x.bidirectional)
+        elif next(x.parameters(), None) is None:
+            layers[n] = x
+            continue
         else:
             layers[n] = _recursive_mix_networks(x,
                                                 getattr(global_model, n),
@@ -335,8 +308,10 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
             continue
 
         for namep, _ in x.named_parameters():
-            setattr(layer, namep, getattr(global_model, n).get_parameter(namep))
-            setattr(layer, namep + "_local", getattr(local_model, n).get_parameter(namep))
+            setattr(layer, namep, getattr(global_model, n).get_parameter(
+                namep) if n else getattr(global_model, namep))
+            setattr(layer, namep + "_local", getattr(local_model, n).get_parameter(namep)
+                    if n else getattr(local_model, namep))
         layers[n] = layer
 
     return layers
@@ -350,7 +325,7 @@ def _recursive_set_layer(module: Module, layers: dict):
             setattr(module, n, l)
 
 
-def mix_networks(global_model: Module, local_model: Module, lamda: float) -> Module:
+def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMMixin:
     """Mix two networks using a linear interpolation.
 
     This method takes two models and a lambda value and returns a new model that is a linear
@@ -371,12 +346,15 @@ def mix_networks(global_model: Module, local_model: Module, lamda: float) -> Mod
     """
     merged_net = deepcopy(global_model)
     layers = _recursive_mix_networks(merged_net, global_model, local_model)
-    _recursive_set_layer(merged_net, layers)
+    if len(layers) == 1 and "" in layers:
+        merged_net = layers[""]
+    else:
+        _recursive_set_layer(merged_net, layers)
     set_lambda_model(merged_net, lamda)
     return merged_net
 
 
-def _set_lambda(module: Module, lam: float, layerwise: bool = False):
+def _set_lambda(module: MMMixin, lam: float, layerwise: bool = False):
     """Set model interpolation constant.
 
     Args:
@@ -397,7 +375,7 @@ def _set_lambda(module: Module, lam: float, layerwise: bool = False):
         setattr(module, 'lam', lam)
 
 
-def set_lambda_model(model: Module, lam: float, layerwise: bool = False) -> None:
+def set_lambda_model(model: MMMixin, lam: float, layerwise: bool = False) -> None:
     """Set model interpolation constant.
 
     Warning:
@@ -410,10 +388,11 @@ def set_lambda_model(model: Module, lam: float, layerwise: bool = False) -> None
           means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
+    setattr(model.__class__, 'get_lambda', lambda self: lam)
     model.apply(partial(_set_lambda, lam=lam, layerwise=layerwise))
 
 
-def get_local_model_dict(model) -> OrderedDict:
+def get_local_model_dict(model: MMMixin) -> OrderedDict:
     """Get the local model state dictionary.
 
     Args:
@@ -426,7 +405,7 @@ def get_local_model_dict(model) -> OrderedDict:
                         for k, v in model.state_dict().items() if "_local" in k})
 
 
-def get_global_model_dict(model) -> OrderedDict:
+def get_global_model_dict(model: MMMixin) -> OrderedDict:
     """Get the global model state dictionary.
 
     Args:
@@ -436,3 +415,43 @@ def get_global_model_dict(model) -> OrderedDict:
         OrderedDict: the global model state dictionary.
     """
     return OrderedDict({k: v for k, v in model.state_dict().items() if "_local" not in k})
+
+
+def diff_model(model_dict1: dict, model_dict2: dict):
+    """Compute the difference between two model state dictionaries.
+
+    The difference is computed at the level of the parameters.
+
+    Args:
+        model_dict1 (dict): The state dictionary of the first model.
+        model_dict2 (dict): The state dictionary of the second model.
+
+    Returns:
+        OrderedDict: The state dictionary of the difference between the two models.
+
+    Raises:
+        AssertionError: If the two models have different architectures.
+    """
+    assert model_dict1.keys() == model_dict2.keys(), "Models have not the same architecture"
+    return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
+
+
+def merge_models(model_1: Module, model_2: Module, lam: float):
+    """Merge two models using a linear interpolation.
+
+    The interpolation is done at the level of the parameters using the formula:
+    `merged_model = (1 - lam) * model_1 + lam * model_2`.
+
+    Args:
+        model_1 (Module): The first model.
+        model_2 (Module): The second model.
+        lam (float): The interpolation constant.
+
+    Returns:
+        Module: The merged model.
+    """
+    merged_model = deepcopy(model_1)
+    for name, param in merged_model.named_parameters():
+        param.data = (1 - lam) * model_1.get_parameter(name).data + \
+            lam * model_2.get_parameter(name).data
+    return merged_model
