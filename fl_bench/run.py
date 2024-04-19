@@ -18,7 +18,7 @@ from .evaluation import ClassificationEval  # NOQA
 app = typer.Typer()
 
 # CONST
-CONFIG_FNAME = "configs/exp_settings.json"
+CONFIG_FNAME = ""
 
 
 @app.command()
@@ -92,7 +92,6 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    # log.save(f'./log/{fl_algo}_{cfg.dataset.value}_{cfg.distribution.value}.json')
 
 
 @app.command()

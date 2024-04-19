@@ -15,6 +15,7 @@ import numpy as np
 import importlib
 import wandb
 import json
+import yaml
 import os
 import sys
 sys.path.append(".")
@@ -395,9 +396,9 @@ class Configuration(DDict):
 
     def __init__(self, config_exp_path: str, config_alg_path: str):
         with open(config_exp_path) as f:
-            config_exp = json.load(f)
+            config_exp = yaml.safe_load(f)
         with open(config_alg_path) as f:
-            config_alg = json.load(f)
+            config_alg = yaml.safe_load(f)
 
         self.update(config_exp)
         self.update({"method": config_alg})

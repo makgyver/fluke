@@ -1,0 +1,22 @@
+data:
+  client_split: 0.2
+  dataset:
+    name: femnist
+  distribution:
+    name: iid
+  sampling_perc: 1
+  standardize: false
+exp:
+  average: micro
+  device: cpu
+  seed: 42
+logger:
+  entity: mlgroup
+  name: wandb
+  project: fl-bench
+  tags:
+  - FEMNIST
+protocol:
+  eligible_perc: 0.007
+  n_clients: 730
+  n_rounds: 100
