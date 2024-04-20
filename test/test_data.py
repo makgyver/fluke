@@ -6,7 +6,9 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.data import DataContainer, FastTensorDataLoader  # NOQA
+from fl_bench.data import DataContainer, FastTensorDataLoader, DataSplitter, DistributionEnum  # NOQA
+from fl_bench.data.datasets import DatasetsEnum  # NOQA
+from fl_bench import DDict  # NOQA
 
 
 def test_container():
@@ -102,6 +104,61 @@ def test_ftdl():
                                       skip_singleton=True)
 
 
+def test_splitter():
+    cfg = DDict(
+        client_split=0.1,
+        dataset={
+            "name": DatasetsEnum.MNIST,
+        },
+        distribution={
+            "name": DistributionEnum.IID,
+        },
+        sampling_perc=0.1,
+        standardize=False
+    )
+
+    splitter = DataSplitter.from_config(cfg)
+    assert splitter.client_split == 0.1
+    assert splitter.sampling_perc == 0.1
+    assert not splitter.standardize
+    assert splitter.distribution == DistributionEnum.IID
+
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+    assert len(ctr) == 10
+    assert len(cte) == 10
+    assert isinstance(ctr[0], FastTensorDataLoader)
+    x, y = next(iter(ctr[0]))
+    assert x.shape == torch.Size([10, 28, 28])
+    assert y.shape == torch.Size([10])
+    x, y = next(iter(cte[0]))
+    assert x.shape == torch.Size([10, 28, 28])
+    assert y.shape == torch.Size([10])
+    assert isinstance(ste, FastTensorDataLoader)
+    x, y = next(iter(ste))
+    assert x.shape == torch.Size([128, 28, 28])
+    assert y.shape == torch.Size([128])
+
+    splitter.distribution = DistributionEnum.LABEL_DIRICHLET_SKEWED
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+    splitter.distribution = DistributionEnum.COVARIATE_SHIFT
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+    splitter.distribution = DistributionEnum.CLASSWISE_QUANTITY_SKEWED
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+    splitter.distribution = DistributionEnum.LABEL_PATHOLOGICAL_SKEWED
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+    splitter.distribution = DistributionEnum.LABEL_QUANTITY_SKEWED
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+    splitter.distribution = DistributionEnum.QUANTITY_SKEWED
+    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+
+
 if __name__ == "__main__":
     test_container()
     test_ftdl()
+    test_splitter()

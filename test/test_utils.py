@@ -165,10 +165,7 @@ def test_configuration():
 
 def test_log():
     log = Log()
-    log2 = WandBLog()
-
     log.init()
-    log2.init()
 
     try:
         log.start_round(1, None)
@@ -191,6 +188,10 @@ def test_log():
     assert log.client_history[1] == {"accuracy": 0.6}
     assert log.comm_costs[1] == 4
 
+
+def test_wandb_log():
+    log2 = WandBLog()
+    log2.init()
     try:
         log2.start_round(1, None)
         log2.selected_clients(1, [1, 2, 3])
@@ -296,5 +297,6 @@ if __name__ == "__main__":
     test_functions()
     test_configuration()
     test_log()
+    # test_wandb_log()
     test_models()
     test_mixing()

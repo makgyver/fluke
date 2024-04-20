@@ -211,13 +211,13 @@ class DataSplitter:
                  distribution: DistributionEnum = DistributionEnum.IID,
                  client_split: float = 0.0,
                  sampling_perc: float = 1.0,
-                 builder_args: DDict = {},
+                 builder_args: DDict = None,
                  **kwargs):
         assert 0 <= client_split <= 1, "client_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
 
         self.data_container = dataset if isinstance(
-            dataset, DataContainer) else dataset.klass()(**builder_args)
+            dataset, DataContainer) else dataset.klass()(**builder_args if builder_args else {})
         self.standardize = standardize
         if standardize:
             self.data_container.standardize()

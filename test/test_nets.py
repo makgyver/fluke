@@ -7,7 +7,8 @@ sys.path.append("..")
 from fl_bench.nets import (MNIST_2NN, MNIST_LR, MNIST_CNN, FEMNIST_CNN,  # NOQA
                            VGG9, FedavgCNN, LeNet5, MoonCNN, SimpleCNN,  # NOQA
                            ResNet9, ResNet18, ResNet34, ResNet50, Shakespeare_LSTM,  # NOQA
-                           FedPer_VGG9, LG_FedAvg_VGG9, MNIST_2NN_GlobalD, MNIST_2NN_GlobalE)  # NOQA
+                           FedPer_VGG9, LG_FedAvg_VGG9, MNIST_2NN_GlobalD, MNIST_2NN_GlobalE,  # NOQA
+                           FedBN_CNN)  # NOQA
 
 
 def test_mnist_2nn():
@@ -95,6 +96,15 @@ def test_covnets():
     y2 = model.forward_head(z)
     assert y1.shape == (1, 10)
     assert z.shape == (1, 400)
+    assert torch.allclose(y1, y2)
+
+    model = FedBN_CNN()
+    x = torch.randn(2, 1, 28, 28)
+    z = model.forward_encoder(x)
+    y1 = model(x)
+    y2 = model.forward_head(z)
+    assert y1.shape == (2, 10)
+    assert z.shape == (2, 6272)
     assert torch.allclose(y1, y2)
 
     model = SimpleCNN()

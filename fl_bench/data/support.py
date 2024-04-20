@@ -1,5 +1,5 @@
 from rich.progress import track
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Tuple
 from torchvision.datasets.utils import download_and_extract_archive
 from torchvision.datasets import VisionDataset, ImageFolder
 from torchvision.transforms import ToTensor
@@ -167,10 +167,10 @@ class CINIC10(VisionDataset):
     def __init__(self,
                  root: str = "../data",
                  split: str = "train",
-                 transform: Optional[Callable] = None,
+                 #  transform: Optional[Callable] = None,
                  download: bool = True):
 
-        super().__init__(root, transform=transform)
+        super().__init__(root)
         self.split = split
         self.root = os.path.join(root, "CINIC10")
 
@@ -192,15 +192,7 @@ class CINIC10(VisionDataset):
         return torch.stack(img_tensors)
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
-        img, target = self.data[index]
-
-        if self.transform is not None:
-            img = self.transform(img)
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-        return img, target
+        return self.data[index], self.targets[index]
 
     def __len__(self) -> int:
         return len(self.data)

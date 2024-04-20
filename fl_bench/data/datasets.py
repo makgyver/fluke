@@ -211,21 +211,21 @@ class Datasets:
 
     @classmethod
     def CINIC10(cls,
-                path: str = "../data",
-                transforms: callable = None) -> DataContainer:
+                path: str = "../data",) -> DataContainer:
+        # transforms: callable = None) -> DataContainer:
 
         train_data = support.CINIC10(
             root=path,
             split="train",
             download=True,
-            transform=transforms
+            # transform=transforms
         )
 
         test_data = support.CINIC10(
             root=path,
             split="test",
             download=True,
-            transform=transforms
+            # transform=transforms
         )
 
         return DataContainer(train_data.data,
