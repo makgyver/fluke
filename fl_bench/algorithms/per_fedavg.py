@@ -48,10 +48,10 @@ class PerFedAVGClient(Client):
                  beta: float):
 
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "mode": mode,
-            "beta": beta
-        })
+        self.hyper_params.update(
+            mode=mode,
+            beta=beta
+        )
         self.train_iterator = iter(self.train_set)
 
     def _get_next_batch(self):

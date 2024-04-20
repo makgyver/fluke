@@ -400,8 +400,8 @@ class Configuration(DDict):
         with open(config_alg_path) as f:
             config_alg = yaml.safe_load(f)
 
-        self.update(config_exp)
-        self.update({"method": config_alg})
+        self.update(**config_exp)
+        self.update(method=config_alg)
         self._validate()
 
     def _validate(self) -> bool:

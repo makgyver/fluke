@@ -30,9 +30,7 @@ class APFLClient(PFLClient):
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.internal_model = deepcopy(model)
-        self.hyper_params.update({
-            "lam": lam
-        })
+        self.hyper_params.update(lam=lam)
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
@@ -96,9 +94,7 @@ class APFLServer(Server):
                  weighted: bool = False,
                  tau: int = 3):
         super().__init__(model, test_data, clients, eval_every, weighted)
-        self.hyper_params.update({
-            "tau": tau
-        })
+        self.hyper_params.update(tau=tau)
 
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         if self.rounds % self.hyper_params.tau != 0:

@@ -51,10 +51,10 @@ class FLHalfClient(PFLClient):
                          loss_fn,
                          local_epochs)
         # self.personalized_model.init()
-        self.hyper_params.update({
-            "tau": tau,
-            "relative": relative
-        })
+        self.hyper_params.update(
+            tau=tau,
+            relative=relative
+        )
         self.anchors = None
 
     def private_fit(self):

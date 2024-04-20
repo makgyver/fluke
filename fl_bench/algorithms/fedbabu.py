@@ -29,10 +29,10 @@ class FedBABUClient(PFLClient):
                  fine_tune_epochs: int):
         assert mode in ["head", "body", "full"]
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "mode": mode,
-            "fine_tune_epochs": fine_tune_epochs
-        })
+        self.hyper_params.update(
+            mode=mode,
+            fine_tune_epochs=fine_tune_epochs
+        )
         self.model = self.personalized_model
 
     def _send_model(self):

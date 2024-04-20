@@ -21,9 +21,7 @@ class FedProxClient(Client):
                  local_epochs: int,
                  mu: float):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "mu": mu
-        })
+        self.hyper_params.update(mu=mu)
 
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0

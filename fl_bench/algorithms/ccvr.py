@@ -63,11 +63,11 @@ class CCVRServer(Server):
                  batch_size: int = 64,
                  sample_per_class: int = 100):
         super().__init__(model, test_data, clients, eval_every, weighted)
-        self.hyper_params.update({
-            "lr": lr,
-            "batch_size": batch_size,
-            "sample_per_class": sample_per_class
-        })
+        self.hyper_params.update(
+            lr=lr,
+            batch_size=batch_size,
+            sample_per_class=sample_per_class
+        )
 
     def _compute_mean_cov(self):
         means, covs, ns = [], [], []

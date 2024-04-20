@@ -52,9 +52,7 @@ class FedDynClient(Client):
                  alpha: float):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
 
-        self.hyper_params.update({
-            "alpha": alpha
-        })
+        self.hyper_params.update(alpha=alpha)
         self.weight = None
         self.weight_decay = self.optimizer_cfg.optimizer_kwargs[
             "weight_decay"] if "weight_decay" in self.optimizer_cfg.optimizer_kwargs else 0

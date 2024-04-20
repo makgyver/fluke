@@ -39,10 +39,10 @@ class DDict(dict):
     __setattr__ = dict.__setitem__
 
     def __init__(self, **kwargs):
-        self.update(kwargs)
+        self.update(**kwargs)
 
-    def update(self, d: dict):
-        for k, v in d.items():
+    def update(self, **kwargs):
+        for k, v in kwargs.items():
             if isinstance(v, dict):
                 self[k] = DDict(**v)
             else:

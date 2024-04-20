@@ -25,9 +25,7 @@ class FedAMPClient(PFLClient):
                  local_epochs: int,
                  lam: float):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "lam": lam
-        })
+        self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)
         # self.personalized_model = u_model
 
@@ -83,10 +81,10 @@ class FedAMPServer(Server):
                  sigma: float = 0.1,
                  alpha: float = 0.1):
         super().__init__(model, None, clients, eval_every, False)
-        self.hyper_params.update({
-            "sigma": sigma,
-            "alpha": alpha
-        })
+        self.hyper_params.update(
+            sigma=sigma,
+            alpha=alpha
+        )
 
     def __e(self, x: float):
         return torch.exp(-x / self.hyper_params.sigma) / self.hyper_params.sigma

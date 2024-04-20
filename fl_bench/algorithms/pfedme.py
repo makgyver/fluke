@@ -44,9 +44,7 @@ class PFedMeClient(PFLClient):
                  k: int):
 
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "k": k
-        })
+        self.hyper_params.update(k=k)
 
     def _receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
@@ -97,9 +95,7 @@ class PFedMeServer(Server):
                  weighted: bool = False,
                  beta: float = 0.5):
         super().__init__(model, test_data, clients, eval_every, weighted)
-        self.hyper_params.update({
-            "beta": beta
-        })
+        self.hyper_params.update(beta=beta)
 
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()

@@ -40,13 +40,13 @@ class FedOptServer(Server):
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
 
-        self.hyper_params.update({
-            "mode": mode,
-            "lr": lr,
-            "beta1": beta1,
-            "beta2": beta2,
-            "tau": tau
-        })
+        self.hyper_params.update(
+            mode=mode,
+            lr=lr,
+            beta1=beta1,
+            beta2=beta2,
+            tau=tau
+        )
         self._init_moments()
 
     def _init_moments(self):

@@ -23,9 +23,7 @@ class FedAVGMServer(Server):
                  weighted: bool = True,
                  momentum: float = 0.9):
         super().__init__(model, test_data, clients, eval_every, weighted)
-        self.hyper_params.update({
-            "momentum": momentum
-        })
+        self.hyper_params.update(momentum=momentum)
         self.optimizer = torch.optim.SGD(self.model.parameters(),
                                          lr=1.0,
                                          momentum=self.hyper_params.momentum,

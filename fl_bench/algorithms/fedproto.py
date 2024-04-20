@@ -58,10 +58,10 @@ class FedProtoClient(PFLClient):
                  n_protos: int,
                  lam: float):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "n_protos": n_protos,
-            "lam": lam
-        })
+        self.hyper_params.update(
+            n_protos=n_protos,
+            lam=lam
+        )
         self.model = self.personalized_model
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
 
@@ -141,9 +141,7 @@ class FedProtoServer(Server):
                  weighted: bool = True,
                  n_protos: int = 10):
         super().__init__(None, None, clients, eval_every, weighted)
-        self.hyper_params.update({
-            "n_protos": n_protos
-        })
+        self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
     def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:

@@ -33,12 +33,12 @@ class SuPerFedClient(PFLClient):
         assert mode in ["mm", "lm"]
 
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update({
-            "mode": mode,
-            "start_mix": start_mix,
-            "mu": mu,
-            "nu": nu
-        })
+        self.hyper_params.update(
+            mode=mode,
+            start_mix=start_mix,
+            mu=mu,
+            nu=nu
+        )
 
         self.internal_model = None
         self.mixed = False

@@ -28,9 +28,7 @@ class FedRepClient(PFLClient):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
-        self.hyper_params.update({
-            "tau": tau
-        })
+        self.hyper_params.update(tau=tau)
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs

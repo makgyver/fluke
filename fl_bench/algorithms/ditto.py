@@ -27,10 +27,10 @@ class DittoClient(PFLClient):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
-        self.hyper_params.update({
-            "tau": tau,
-            "lam": lam
-        })
+        self.hyper_params.update(
+            tau=tau,
+            lam=lam
+        )
 
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
