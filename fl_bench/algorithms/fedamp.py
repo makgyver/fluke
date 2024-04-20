@@ -9,7 +9,7 @@ sys.path.append("..")
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import PFLClient, Client  # NOQA
+from ..client import PFLClient  # NOQA
 from . import PersonalizedFL  # NOQA
 from ..comm import Message  # NOQA
 
@@ -78,7 +78,7 @@ class FedAMPServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
-                 clients: Sequence[Client],
+                 clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  sigma: float = 0.1,
                  alpha: float = 0.1):
@@ -97,7 +97,7 @@ class FedAMPServer(Server):
             param.data.zero_()
         return empty_model
 
-    def _aggregate(self, eligible: Sequence[Client]) -> None:
+    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         clients_model = self._get_client_models(eligible, state_dict=False)
 
         with torch.no_grad():
@@ -123,14 +123,14 @@ class FedAMPServer(Server):
 
                 self.channel.send(Message(ui_model, "model", self), client)
 
-    def _broadcast_model(self, eligible: Sequence[Client]) -> None:
+    def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate
         pass
 
 
 class FedAMP(PersonalizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> PFLClient:
         return FedAMPClient
 
     def get_server_class(self) -> Server:

@@ -14,7 +14,7 @@ from ..algorithms import PersonalizedFL  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import Client, PFLClient  # NOQA
+from ..client import PFLClient  # NOQA
 from ..evaluation import ClassificationEval  # NOQA
 from ..comm import Message  # NOQA
 from .. import GlobalSettings  # NOQA
@@ -131,7 +131,7 @@ class FLHalfServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
-                 clients: Iterable[Client],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  n_anchors: int = 100,
                  seed_anchors: int = 98765,
@@ -163,7 +163,7 @@ class FLHalf(PersonalizedFL):
     # def get_optimizer_class(self) -> torch.optim.Optimizer:
     #     return torch.optim.Adam
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> PFLClient:
         return FLHalfClient
 
     def get_server_class(self) -> Server:

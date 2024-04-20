@@ -63,9 +63,9 @@ class Server(ObserverSubject):
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__()
-        self.hyper_params = DDict({
-            "weighted": weighted
-        })
+        self.hyper_params = DDict(
+            weighted=weighted
+        )
         self.device: device = GlobalSettings().get_device()
         self.model: Module = model
         self.clients: Sequence[Client] = clients

@@ -54,10 +54,10 @@ class Client(ABC):
                  local_epochs: int = 3,
                  **additional_hyper_params):
 
-        self.hyper_params: DDict = DDict({
-            "loss_fn": loss_fn,
-            "local_epochs": local_epochs
-        })
+        self.hyper_params: DDict = DDict(
+            loss_fn=loss_fn,
+            local_epochs=local_epochs
+        )
         self.hyper_params.update(additional_hyper_params)
 
         self._index: int = index

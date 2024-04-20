@@ -9,7 +9,7 @@ from .. import DDict  # NOQA
 from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
 from ..data import DataSplitter, FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import Client  # NOQA
+from ..client import Client, PFLClient  # NOQA
 
 __all__ = [
     'apfl',
@@ -63,7 +63,7 @@ class CentralizedFL():
         model = get_model(
             mname=hyperparameters.model,
             **hyperparameters.net_args if 'net_args' in hyperparameters else {}
-        )
+        ) if isinstance(hyperparameters.model, str) else hyperparameters.model
 
         self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
         self.init_server(model, server_data, hyperparameters.server)
@@ -115,7 +115,7 @@ class CentralizedFL():
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(),
                                               **config.optimizer,
                                               scheduler_kwargs=config.scheduler)
-        self.loss = get_loss(config.loss)
+        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss
         self.clients = [
             self.get_client_class()(
                 index=i,
@@ -164,16 +164,19 @@ class CentralizedFL():
 
 class PersonalizedFL(CentralizedFL):
 
+    def get_client_class(self) -> PFLClient:
+        return PFLClient
+
     def init_clients(self,
                      clients_tr_data: list[FastTensorDataLoader],
                      clients_te_data: list[FastTensorDataLoader],
                      config: DDict) -> None:
 
-        model = get_model(mname=config.model)
+        model = get_model(mname=config.model) if isinstance(config.model, str) else config.model
         optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(),
                                               **config.optimizer,
                                               scheduler_kwargs=config.scheduler)
-        self.loss = get_loss(config.loss)
+        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss
         self.clients = [
             self.get_client_class()(
                 index=i,

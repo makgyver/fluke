@@ -38,13 +38,13 @@ class DDict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
 
-    def __init__(self, d: dict):
-        self.update(d)
+    def __init__(self, **kwargs):
+        self.update(kwargs)
 
     def update(self, d: dict):
         for k, v in d.items():
             if isinstance(v, dict):
-                self[k] = DDict(v)
+                self[k] = DDict(**v)
             else:
                 self[k] = v
 
@@ -54,7 +54,7 @@ class DDict(dict):
         Returns:
             DDict: The new DDict.
         """
-        return DDict({k: v for k, v in self.items() if k not in keys})
+        return DDict(**{k: v for k, v in self.items() if k not in keys})
 
 
 class ObserverSubject():

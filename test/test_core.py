@@ -47,7 +47,7 @@ def test_observer():
 
 
 def test_ddict():
-    dd = DDict({
+    dd = DDict(**{
         "a": 1,
         "b": 2,
         "c": {

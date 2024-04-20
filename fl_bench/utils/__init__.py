@@ -63,9 +63,9 @@ class OptimizerConfigurator:
                  scheduler_kwargs: dict = None,
                  **optimizer_kwargs):
         self.optimizer: type[Optimizer] = optimizer_class
-        self.scheduler_kwargs: DDict = (DDict(scheduler_kwargs) if scheduler_kwargs is not None
-                                        else DDict({"step_size": 1, "gamma": 1}))
-        self.optimizer_kwargs: DDict = DDict(optimizer_kwargs)
+        self.scheduler_kwargs: DDict = (DDict(**scheduler_kwargs) if scheduler_kwargs is not None
+                                        else DDict(step_size=1, gamma=1))
+        self.optimizer_kwargs: DDict = DDict(**optimizer_kwargs)
 
     def __call__(self, model: Module, **override_kwargs):
         """Creates the optimizer and the scheduler.
