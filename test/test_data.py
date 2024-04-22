@@ -94,6 +94,20 @@ def test_ftdl():
         assert X == torch.FloatTensor([[4, 5, 6]]) or X == torch.FloatTensor([[1, 2, 3]])
         assert y == torch.tensor([1]) or y == torch.tensor([0])
 
+    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                                  torch.LongTensor([0, 1]),
+                                  num_labels=10,
+                                  batch_size=1,
+                                  shuffle=False,
+                                  percentage=1,
+                                  skip_singleton=False,
+                                  single_batch=True)
+
+    cnt = 0
+    for X, y in loader:
+        cnt += 1
+    assert cnt == 1
+
     with pytest.raises(AssertionError):
         loader = FastTensorDataLoader(torch.rand(100, 20),
                                       torch.randint(0, 10, (101,)),
@@ -102,6 +116,17 @@ def test_ftdl():
                                       shuffle=True,
                                       percentage=1,
                                       skip_singleton=True)
+
+    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                                  torch.LongTensor([0, 1]),
+                                  num_labels=10,
+                                  batch_size=0,
+                                  shuffle=False,
+                                  percentage=1,
+                                  skip_singleton=False,
+                                  single_batch=False)
+
+    assert loader.batch_size == 2
 
 
 def test_splitter():

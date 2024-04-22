@@ -1,18 +1,29 @@
+from typing import Callable
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..data import DataSplitter  # NOQA
+from ..data import FastTensorDataLoader  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..client import Client  # NOQA
+
+
+class ClientSGD(Client):
+    def __init__(self,
+                 index: int,
+                 train_set: FastTensorDataLoader,
+                 test_set: FastTensorDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: Callable,
+                 local_epochs: int = 3):
+        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        self.train_set.single_batch = True
+        self.train_set.shuffle = True
+        self.hyper_params.local_epochs = 1
 
 
 class FedSGD(CentralizedFL):
-    def __init__(self,
-                 n_clients: int,
-                 data_splitter: DataSplitter,
-                 hyperparameters: dict):
-        # Force single epoch for each client
-        hyperparameters.client.local_epochs = 1
-        # Force batch size to 0 == full batch
-        hyperparameters.client.batch_size = 0
-        super().__init__(n_clients, data_splitter, hyperparameters)
+
+    def get_client_class(self) -> Client:
+        return ClientSGD

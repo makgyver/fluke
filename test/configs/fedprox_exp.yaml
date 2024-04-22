@@ -1,0 +1,18 @@
+data:
+  client_split: 0.2
+  dataset:
+    name: mnist
+  distribution:
+    name: iid
+  sampling_perc: 1
+  standardize: false
+exp:
+  average: micro
+  device: cpu
+  seed: 42
+logger:
+  name: local
+protocol:
+  eligible_perc: 0.01
+  n_clients: 1000
+  n_rounds: 100

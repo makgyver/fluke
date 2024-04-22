@@ -87,14 +87,16 @@ class FastTensorDataLoader:
                  batch_size: int = 32,
                  shuffle: bool = False,
                  percentage: float = 1.0,
-                 skip_singleton: bool = True):
+                 skip_singleton: bool = True,
+                 single_batch: bool = False):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
         self.tensors = tensors
         self.num_labels = num_labels
         self.set_sample_size(percentage)
         self.shuffle = shuffle
         self.skip_singleton = skip_singleton
-        self.batch_size = batch_size if batch_size else self.size
+        self.batch_size = batch_size if batch_size > 0 else self.size
+        self.single_batch = single_batch
 
     def set_sample_size(self, percentage: float) -> int:
         """Set the sample size.
@@ -132,6 +134,8 @@ class FastTensorDataLoader:
         return self
 
     def __next__(self) -> tuple:
+        if self.single_batch and self.i > 0:
+            raise StopIteration
         if self.i >= self.size:
             raise StopIteration
         batch = tuple(t[self.i: self.i+self._batch_size] for t in self.tensors)
@@ -195,12 +199,16 @@ class DataSplitter:
                                               **config.exclude('dataset', 'distribution'),
                                               **config.distribution.exclude('name'))
 
-    def _safe_train_test_split(self, X, y, test_size):
+    def _safe_train_test_split(self,
+                               client_id: int,
+                               X: torch.Tensor,
+                               y: torch.Tensor,
+                               test_size: float):
         try:
             return train_test_split(X, y, test_size=test_size, stratify=y)
         except ValueError:
             rich.print(
-                "[bold red]Warning: [/bold red] Stratified split failed." +
+                f"[bold red]Warning [Client {client_id}]: [/bold red] Stratified split failed." +
                 "Falling back to random split."
             )
             return train_test_split(X, y, test_size=test_size)
@@ -265,7 +273,8 @@ class DataSplitter:
             client_y = Ytr[self.assignments[c]]
             if self.client_split > 0.0:
                 (Xtr_client, Xte_client,
-                 Ytr_client, Yte_client) = self._safe_train_test_split(client_X,
+                 Ytr_client, Yte_client) = self._safe_train_test_split(c,
+                                                                       client_X,
                                                                        client_y,
                                                                        test_size=self.client_split)
                 client_tr_assignments.append(FastTensorDataLoader(Xtr_client,

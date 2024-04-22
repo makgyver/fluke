@@ -139,7 +139,5 @@ Inside the `net.py` file, you can find the definition of some neural networks.
 
 ## Desiderata
 - [ ] Add support to validation
-- [ ] FedSGD: add support to `batch_size != 0`, i.e., the client can perform a local update on a 
-  subset (the only batch!) of the data
 - [ ] Add support to tensorboard
 - [ ] Set up pypi package

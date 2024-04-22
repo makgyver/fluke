@@ -4,7 +4,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench import DDict  # NOQA
+from fl_bench import DDict, GlobalSettings  # NOQA
 from fl_bench.data import DataSplitter  # NOQA
 from fl_bench.data.datasets import Datasets  # NOQA
 from fl_bench.client import Client, PFLClient  # NOQA
@@ -12,6 +12,8 @@ from fl_bench.server import Server, ServerObserver  # NOQA
 from fl_bench.nets import MNIST_2NN  # NOQA
 from fl_bench.comm import ChannelObserver, Message  # NOQA
 from fl_bench.algorithms import CentralizedFL, PersonalizedFL  # NOQA
+from fl_bench.algorithms.fedavg import FedAVG  # NOQA
+from fl_bench.utils import Configuration, Log, get_class_from_qualified_name  # NOQA
 
 
 def test_centralized_fl():
@@ -156,5 +158,37 @@ def test_centralized_fl():
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
 
 
+def _test_algo(exp_config, alg_config):
+    cfg = Configuration(exp_config, alg_config)
+    GlobalSettings().set_seed(cfg.exp.seed)
+    GlobalSettings().set_device(cfg.exp.device)
+    splitter = DataSplitter.from_config(cfg.data)
+    fl_algo_class = get_class_from_qualified_name(cfg.method.name)
+    algo = fl_algo_class(cfg.protocol.n_clients,
+                         splitter,
+                         cfg.method.hyperparameters)
+
+    log = Log()
+    algo.set_callbacks(log)
+    algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
+    return algo, log
+
+
+def test_fedavg():
+    fedavg, log = _test_algo("./configs/fedavg_exp.yaml", "./configs/fedavg.yaml")
+    assert log.history[log.current_round]["accuracy"] >= 0.9642
+
+
+def test_fedprox():
+    fedprox, log = _test_algo("./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
+
+
+def test_fedsgd():
+    fedsgd, log = _test_algo("./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
+
+
 if __name__ == "__main__":
-    test_centralized_fl()
+    # test_centralized_fl()
+    # test_fedavg()
+    # test_fedprox()
+    test_fedsgd()
