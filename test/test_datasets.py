@@ -89,6 +89,7 @@ def test_mnistm():
     assert img.shape == torch.Size([3, 28, 28])
     assert isinstance(label, int)
     assert dmnistm[0][0].shape == torch.Size([3, 28, 28])
+    assert len(dmnistm) == 60000
 
     mnistm = Datasets.MNISTM("../data")
     assert mnistm.train[0].shape == torch.Size([60000, 3, 28, 28])
@@ -114,7 +115,6 @@ def test_tinyimagenet():
 
 # ### FEMNIST
 def test_femnist():
-
     femnist = Datasets.FEMNIST("../data")
     assert len(femnist[0]) == 3597  # Total number of clients
     assert len(femnist[1]) == 3597  # Total number of clients
@@ -161,11 +161,11 @@ def test_fashion_mnist():
 
 # ### CINIC10
 def test_cinic10():
-
     dcinic = CINIC10("../data")
     img, label = dcinic[0]
     assert img.shape == torch.Size([3, 32, 32])
     assert label.shape == torch.Size([])
+    assert len(dcinic) == 90000
 
     cinic = Datasets.CINIC10("../data")
     assert cinic.train[0].shape == torch.Size([90000, 3, 32, 32])

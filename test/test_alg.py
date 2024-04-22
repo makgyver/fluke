@@ -5,13 +5,13 @@ sys.path.append(".")
 sys.path.append("..")
 
 from fl_bench import DDict  # NOQA
-from fl_bench.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from fl_bench.data import DataSplitter  # NOQA
 from fl_bench.data.datasets import Datasets  # NOQA
 from fl_bench.client import Client, PFLClient  # NOQA
 from fl_bench.server import Server, ServerObserver  # NOQA
 from fl_bench.nets import MNIST_2NN  # NOQA
 from fl_bench.comm import ChannelObserver, Message  # NOQA
+from fl_bench.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 
 
 def test_centralized_fl():
