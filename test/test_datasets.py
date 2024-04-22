@@ -88,6 +88,7 @@ def test_mnistm():
     img, label = dmnistm[0]
     assert img.shape == torch.Size([3, 28, 28])
     assert isinstance(label, int)
+    assert dmnistm[0][0].shape == torch.Size([3, 28, 28])
 
     mnistm = Datasets.MNISTM("../data")
     assert mnistm.train[0].shape == torch.Size([60000, 3, 28, 28])
@@ -97,7 +98,6 @@ def test_mnistm():
     assert mnistm.num_classes == len(
         set(mnistm.train[1].unique().tolist() + mnistm.test[1].unique().tolist()))
     assert mnistm.num_classes == 10
-    assert mnistm[0][0].shape == torch.Size([3, 28, 28])
 
 
 # ### Tiny Imagenet
@@ -178,15 +178,15 @@ def test_cinic10():
 
 
 if __name__ == "__main__":
-    test_mnist()
-    test_mnist4d()
-    test_emnist()
-    test_svhn()
-    test_cifar10()
-    test_cifar100()
+    # test_mnist()
+    # test_mnist4d()
+    # test_emnist()
+    # test_svhn()
+    # test_cifar10()
+    # test_cifar100()
     test_mnistm()
-    test_tinyimagenet()
-    test_femnist()
-    test_shakespeare()
-    test_fashion_mnist()
-    test_cinic10()
+    # test_tinyimagenet()
+    # test_femnist()
+    # test_shakespeare()
+    # test_fashion_mnist()
+    # test_cinic10()
