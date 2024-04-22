@@ -10,7 +10,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-from fl_bench.nets import MNIST_2NN, VGG9, Shakespeare_LSTM  # NOQA
+from fl_bench.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
 from fl_bench.comm import Message  # NOQA
 from fl_bench.client import Client  # NOQA
 from fl_bench.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
@@ -291,12 +291,42 @@ def test_mixing():
     x = torch.randint(0, 100, (1, 10))
     mixed(x)
 
+    class TestNet(torch.nn.Module):
+        def __init__(self):
+            super(TestNet, self).__init__()
+
+            # Implement the sequential module for feature extraction
+            self.features = torch.nn.Sequential(
+                torch.nn.Conv2d(in_channels=1, out_channels=10, kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(2, 2), torch.nn.ReLU(inplace=True), torch.nn.BatchNorm2d(10),
+                torch.nn.Conv2d(in_channels=10, out_channels=20,
+                                kernel_size=3, stride=1, padding=1),
+                torch.nn.MaxPool2d(2, 2), torch.nn.ReLU(inplace=True), torch.nn.BatchNorm2d(20)
+            )
+
+            # Implement the fully connected layer for classification
+            self.fc = torch.nn.Linear(in_features=20 * 7 * 7, out_features=10)
+
+        def forward(self, x):
+            x = self.features(x)
+            x = x.view(x.size(0), -1)
+            x = self.fc(x)
+            return x
+
+    model1 = TestNet()
+    model2 = TestNet()
+    mixed = mix_networks(model1, model2, 0.3)
+    assert mixed.get_lambda() == 0.3
+
+    x = torch.randn(1, 1, 28, 28)
+    mixed(x)
+
 
 if __name__ == "__main__":
-    test_optimcfg()
-    test_functions()
-    test_configuration()
-    test_log()
+    # test_optimcfg()
+    # test_functions()
+    # test_configuration()
+    # test_log()
     # test_wandb_log()
     test_models()
     test_mixing()

@@ -5,7 +5,6 @@ from torchvision.datasets import VisionDataset, ImageFolder
 from torchvision.transforms import ToTensor
 from PIL import Image
 import torch
-import warnings
 import os
 import sys
 sys.path.append(".")
@@ -27,26 +26,6 @@ class MNISTM(VisionDataset):
     test_file = "mnist_m_test.pt"
     classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
                '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
-
-    @property
-    def train_labels(self):
-        warnings.warn("train_labels has been renamed targets")
-        return self.targets
-
-    @property
-    def test_labels(self):
-        warnings.warn("test_labels has been renamed targets")
-        return self.targets
-
-    @property
-    def train_data(self):
-        warnings.warn("train_data has been renamed data")
-        return self.data
-
-    @property
-    def test_data(self):
-        warnings.warn("test_data has been renamed data")
-        return self.data
 
     def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
         """Init MNIST-M dataset."""

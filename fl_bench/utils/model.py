@@ -298,6 +298,8 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
                               x.batch_first,
                               x.dropout,
                               x.bidirectional)
+        elif isinstance(x, (torch.nn.BatchNorm1d, torch.nn.BatchNorm3d)):
+            raise NotImplementedError("BatchNorm1d and BatchNorm3d are not supported")
         elif next(x.parameters(), None) is None:
             layers[n] = x
             continue

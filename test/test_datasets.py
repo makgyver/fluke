@@ -97,6 +97,7 @@ def test_mnistm():
     assert mnistm.num_classes == len(
         set(mnistm.train[1].unique().tolist() + mnistm.test[1].unique().tolist()))
     assert mnistm.num_classes == 10
+    assert mnistm[0][0].shape == torch.Size([3, 28, 28])
 
 
 # ### Tiny Imagenet
