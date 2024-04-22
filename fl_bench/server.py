@@ -118,7 +118,7 @@ class Server(ObserverSubject):
                     progress_fl.update(task_id=task_rounds, advance=1)
                 self._aggregate(eligible)
 
-                client_evals = []
+                client_evals, evals = [], {}
                 if (round + 1) % self._eval_every == 0:
                     for client in eligible:
                         client_eval = client.evaluate()

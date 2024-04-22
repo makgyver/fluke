@@ -187,8 +187,13 @@ def test_fedsgd():
     fedsgd, log = _test_algo("./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
 
 
+def test_fedexp():
+    fedexp, log = _test_algo("./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
+
+
 if __name__ == "__main__":
     # test_centralized_fl()
     # test_fedavg()
     # test_fedprox()
-    test_fedsgd()
+    # test_fedsgd()
+    test_fedexp()

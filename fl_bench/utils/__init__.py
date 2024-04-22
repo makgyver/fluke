@@ -163,9 +163,9 @@ class Log(ServerObserver, ChannelObserver):
             stats['local'] = client_mean
 
         stats['comm_cost'] = self.comm_costs[round]
-
-        rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-        rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
+        if stats['global'] or ('local' in stats and stats['local']):
+            rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
+            rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
 
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
