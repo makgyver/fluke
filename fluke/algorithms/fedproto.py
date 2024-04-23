@@ -127,7 +127,7 @@ class FedProtoClient(PFLClient):
             model = FedProtoModel(self.model, self.prototypes, self.device)
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.hyper_params.n_protos).evaluate(model,
-                                                                           self.test_set,)
+                                                                           self.test_set)
         return {}
 
 
