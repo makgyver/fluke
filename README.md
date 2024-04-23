@@ -1,4 +1,4 @@
-# fluke
+# FLUKE: Federated Learning Utility frameworK for Experimentation 
 Python module to benchmark federated learning algorithms.
 
 ## Running the code
