@@ -770,3 +770,17 @@ class MNIST_2NN_GlobalE(GlobalLocalNet, MNIST_2NN):
 
     def get_global(self) -> nn.Module:
         return self._encoder
+
+
+class ProtoNet(nn.Module):
+
+    def __init__(self, encoder: nn.Module, n_protos: int):
+        super(ProtoNet, self).__init__()
+        self._encoder = encoder
+        self.prototypes = nn.Parameter(torch.rand((n_protos, encoder.output_size)),
+                                       requires_grad=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        embeddings = self._encoder(x)
+        dists = -torch.norm(embeddings[:, None, :] - self.prototypes[None, :, :], dim=-1)
+        return embeddings, dists
