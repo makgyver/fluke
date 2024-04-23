@@ -191,9 +191,14 @@ def test_fedexp():
     fedexp, log = _test_algo("./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
 
 
+def test_fedproto():
+    fedproto, log = _test_algo("./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
+
+
 if __name__ == "__main__":
     # test_centralized_fl()
     # test_fedavg()
     # test_fedprox()
     # test_fedsgd()
-    test_fedexp()
+    # test_fedexp()
+    test_fedproto()
