@@ -7,6 +7,7 @@ sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
@@ -87,7 +88,7 @@ class FedRepClient(PFLClient):
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.model.get_global().load_state_dict(msg.payload.state_dict())
+        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
 class FedRepServer(Server):

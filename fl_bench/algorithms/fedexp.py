@@ -1,13 +1,12 @@
 from collections import OrderedDict
 from typing import Iterable
-from copy import deepcopy
 import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..utils.model import diff_model  # NOQA
+from ..utils.model import diff_model, STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 
@@ -24,8 +23,9 @@ class FedExPServer(Server):
         w = self.model.state_dict()
         with torch.no_grad():
             for key in self.model.state_dict().keys():
-                if "num_batches_tracked" in key:
-                    avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                    # avg_model_sd[key] = clients_sd[0][key].clone()
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
                 avg_model_sd[key] = w[key] - eta[key] * mu_diff[key]
             self.model.load_state_dict(avg_model_sd)
@@ -38,7 +38,7 @@ class FedExPServer(Server):
         M = len(clients_diff)
 
         for key in clients_diff[0].keys():
-            if 'num_batches_tracked' in key:
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 continue
             num[key] = torch.sum(torch.FloatTensor(
                 [torch.norm(c[key])**2 for c in clients_diff]))

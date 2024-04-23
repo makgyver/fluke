@@ -9,6 +9,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..server import Server  # NOQA
@@ -52,7 +53,7 @@ class PFedMeClient(PFLClient):
             self.personalized_model = deepcopy(model)
             self.model = deepcopy(self.personalized_model)
         else:
-            self.personalized_model.load_state_dict(model.state_dict())
+            safe_load_state_dict(self.personalized_model, model.state_dict())
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
@@ -104,8 +105,9 @@ class PFedMeServer(Server):
 
         with torch.no_grad():
             for key in self.model.state_dict().keys():
-                if "num_batches_tracked" in key:
-                    avg_model_sd[key] = clients_sd[0][key].clone()
+                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                    # avg_model_sd[key] = clients_sd[0][key].clone()
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
                 for i, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:

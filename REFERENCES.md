@@ -3,8 +3,9 @@
 <a id="1">[FedAvg, FedSGD 2016]</a>
 H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise Aguera y Arcas. Communication-efficient learning of deep networks from decentralized data. In AISTATS, 2017. URL: https://arxiv.org/abs/1602.05629
 
-<a id="2">[FedBN 2019]</a>
+<a id="2">[FedBN 2019, SiloBN 2020]</a>
 Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN: Federated Learning on Non-IID Features via Local Batch Normalization. ICLR 2021. URL: https://openreview.net/pdf?id=6YEQUn0QICG
+Mathieu Andreux, Jean Ogier du Terrail, Constance Beguier, Eric W. Tramel. Siloed Federated Learning for Multi-centric Histopathology Datasets. MICCAI Workshop on Domain Adaptation and Representation Transfer 2020. URL: https://arxiv.org/abs/2008.07424
 
 <a id="3">[FedProx 2018]</a>
 Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask Learning Workshop. URL: https://openreview.net/pdf?id=SkgwE5Ss3N

@@ -2,7 +2,6 @@ from torch.nn import Module
 import torch
 from collections import OrderedDict
 from typing import Iterable
-from copy import deepcopy
 from enum import Enum
 import sys
 sys.path.append(".")
@@ -12,6 +11,7 @@ from ..algorithms import CentralizedFL  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..client import Client  # NOQA
 from ..server import Server  # NOQA
+from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 
 class FedOptMode(Enum):
@@ -64,8 +64,9 @@ class FedOptServer(Server):
         clients_sd = self._get_client_models(eligible)
         with torch.no_grad():
             for key in self.model.state_dict().keys():
-                if "num_batches_tracked" in key:
-                    avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                    # avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
 
                 den, diff = 0, 0

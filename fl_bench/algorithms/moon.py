@@ -7,6 +7,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
@@ -37,7 +38,7 @@ class MOONClient(Client):
             self.prev_model = deepcopy(model)
         else:
             self.prev_model.load_state_dict(self.model.state_dict())
-            self.model.load_state_dict(model.state_dict())
+            safe_load_state_dict(self.model, model.state_dict())
         self.server_model = model
 
     def fit(self, override_local_epochs: int = 0):

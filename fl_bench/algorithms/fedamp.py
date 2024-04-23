@@ -7,6 +7,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
@@ -40,7 +41,7 @@ class FedAMPClient(PFLClient):
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.personalized_model.load_state_dict(msg.payload.state_dict())
+        safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs

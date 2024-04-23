@@ -8,6 +8,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..server import Server  # NOQA
@@ -62,7 +63,7 @@ class SCAFFOLDClient(Client):
             self.delta_c = [torch.zeros_like(p.data)
                             for p in self.model.parameters() if p.requires_grad]
         else:
-            self.model.load_state_dict(model.state_dict())
+            safe_load_state_dict(self.model, model.state_dict())
         self.server_control = server_control
 
     def fit(self, override_local_epochs: int = 0):

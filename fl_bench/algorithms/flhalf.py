@@ -12,6 +12,7 @@ sys.path.append("..")
 from ..nets import GlobalLocalNet  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
@@ -78,7 +79,7 @@ class FLHalfClient(PFLClient):
         msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:
             self.model = deepcopy(msg.payload)
-        self.model.load_state_dict(msg.payload.state_dict())
+        safe_load_state_dict(self.model, msg.payload.state_dict())
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs

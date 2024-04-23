@@ -11,6 +11,7 @@ sys.path.append("..")
 from ..data import FastTensorDataLoader  # NOQA
 from ..client import Client  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
 from ..server import Server  # NOQA
 from ..comm import Message  # NOQA
 from . import CentralizedFL  # NOQA
@@ -64,7 +65,7 @@ class FedDynClient(Client):
             self.model = deepcopy(model)
             self.prev_grads = torch.zeros_like(get_all_params_of(self.model))
         else:
-            self.model.load_state_dict(cld_mdl.state_dict())
+            safe_load_state_dict(self.model, cld_mdl.state_dict())
 
     def _receive_weights(self) -> None:
         self.weight = self.channel.receive(self, self.server, msg_type="weight").payload
@@ -160,8 +161,9 @@ class FedDynServer(Server):
         weights = self._get_client_weights(eligible)
         with torch.no_grad():
             for key in self.model.state_dict().keys():
-                if "num_batches_tracked" in key:
-                    avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
+                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                    # avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
                 for i, client_sd in enumerate(clients_sd):
                     client_sd = client_sd.state_dict()

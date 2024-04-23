@@ -12,6 +12,7 @@ sys.path.append(".")
 from .evaluation import ClassificationEval  # NOQA
 from .data import FastTensorDataLoader  # NOQA
 from .utils import OptimizerConfigurator, clear_cache  # NOQA
+from .utils.model import safe_load_state_dict  # NOQA
 from .comm import Channel, Message  # NOQA
 from .server import Server  # NOQA
 from . import GlobalSettings, DDict  # NOQA
@@ -96,7 +97,8 @@ class Client(ABC):
         if self.model is None:
             self.model = deepcopy(msg.payload)
         else:
-            self.model.load_state_dict(msg.payload.state_dict())
+            safe_load_state_dict(self.model, msg.payload.state_dict())
+            # self.model.load_state_dict(msg.payload.state_dict())
 
     def _send_model(self):
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)

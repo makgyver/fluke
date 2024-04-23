@@ -6,6 +6,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
@@ -56,8 +57,9 @@ class FedNovaServer(Server):
         avg_model_sd = deepcopy(self.model.state_dict())
         with torch.no_grad():
             for key in self.model.state_dict().keys():
-                if "num_batches_tracked" in key:
+                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                     # avg_model_sd[key] = clients_sd[0][key].clone()
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
 
                 for i, client_sd in enumerate(clients_sd):

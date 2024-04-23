@@ -18,8 +18,9 @@ from fl_bench.utils import (OptimizerConfigurator, import_module_from_str,  # NO
            get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
            Log, WandBLog)  # NOQA
 
-from fl_bench.utils.model import (merge_models, diff_model, mix_networks,   # NOQA
-                                  get_local_model_dict, get_global_model_dict, set_lambda_model)  # NOQA
+from fl_bench.utils.model import (merge_models, diff_model, mix_networks,  # NOQA
+                                  get_local_model_dict, get_global_model_dict, set_lambda_model,   # NOQA
+                                  safe_load_state_dict, STATE_DICT_KEYS_TO_IGNORE)  # NOQA
 
 
 def test_optimcfg():
@@ -78,6 +79,29 @@ def test_functions():
     assert full_linear == "torch.nn.modules.linear.Linear"
     assert isinstance(loss, CrossEntropyLoss)
     assert scheduler == StepLR
+
+    model3 = torch.nn.Sequential(
+        torch.nn.Conv2d(3, 6, 3, 1, 1),
+        torch.nn.BatchNorm2d(6),
+        torch.nn.ReLU()
+    )
+
+    model4 = torch.nn.Sequential(
+        torch.nn.Conv2d(3, 6, 3, 1, 1),
+        torch.nn.BatchNorm2d(6),
+        torch.nn.ReLU()
+    )
+
+    batch = torch.randn(1, 3, 28, 28)
+    model4(batch)
+
+    prev_state_dict = model3.state_dict()
+    safe_load_state_dict(model3, model4.state_dict())
+    for k in model3.state_dict().keys():
+        if k.endswith(STATE_DICT_KEYS_TO_IGNORE):
+            assert torch.all(prev_state_dict[k] == model3.state_dict()[k])
+        else:
+            assert torch.all(model3.state_dict()[k] == model4.state_dict()[k])
 
 
 def test_configuration():
@@ -324,9 +348,9 @@ def test_mixing():
 
 if __name__ == "__main__":
     # test_optimcfg()
-    # test_functions()
+    test_functions()
     # test_configuration()
     # test_log()
     # test_wandb_log()
-    test_models()
-    test_mixing()
+    # test_models()
+    # test_mixing()

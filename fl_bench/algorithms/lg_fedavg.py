@@ -7,6 +7,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
@@ -37,7 +38,7 @@ class LGFedAVGClient(PFLClient):
         if self.model is None:
             self.model = self.personalized_model  # personalized_model and model are the same
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.model.get_global().load_state_dict(msg.payload.state_dict())
+        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
 class LGFedAVGServer(Server):

@@ -8,19 +8,21 @@ from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 
+# Same idea in https://link.springer.com/chapter/10.1007/978-3-030-60548-3_13
+
 
 class FedBNClient(Client):
 
-    def receive(self, message: Message) -> None:
-        if message.msg_type == "model":
-            global_model = message.payload
-            if self.model is None:
-                self.model = deepcopy(global_model)
-            else:
-                with torch.no_grad():
-                    for key in global_model.state_dict().keys():
-                        if not key.startswith("bn"):
-                            self.model.state_dict()[key].data.copy_(global_model.state_dict()[key])
+    def _receive_model(self) -> None:
+        msg = self.channel.receive(self, self.server, msg_type="model")
+        global_model = msg.payload
+        if self.model is None:
+            self.model = deepcopy(global_model)
+        else:
+            with torch.no_grad():
+                for key in global_model.state_dict().keys():
+                    if not key.startswith("bn"):
+                        self.model.state_dict()[key].data.copy_(global_model.state_dict()[key])
 
 
 class FedBN(CentralizedFL):

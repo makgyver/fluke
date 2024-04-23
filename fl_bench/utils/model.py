@@ -12,8 +12,6 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-from .. import GlobalSettings  # NOQA
-
 __all__ = [
     "MMMixin",
     "LinesLinear",
@@ -28,6 +26,8 @@ __all__ = [
     "get_global_model_dict",
     "mix_networks"
 ]
+
+STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
 
 
 class MMMixin:
@@ -457,3 +457,24 @@ def merge_models(model_1: Module, model_2: Module, lam: float):
         param.data = (1 - lam) * model_1.get_parameter(name).data + \
             lam * model_2.get_parameter(name).data
     return merged_model
+
+
+def safe_load_state_dict(model1: Module, model2_state_dict: dict):
+    """Load a state dictionary into a model.
+
+    This function is a safe version of `model.load_state_dict` that handles the case in which the
+    state dictionary has keys that match with `STATE_DICT_KEYS_TO_IGNORE` and thus have to be
+    ignored.
+
+    Args:
+        model (Module): The model to load the state dictionary.
+        state_dict (dict): The state dictionary.
+    """
+    model1_state_dict = model1.state_dict()
+    new_state_dict = OrderedDict()
+    for key, value in model2_state_dict.items():
+        if not key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+            new_state_dict[key] = value
+        else:
+            new_state_dict[key] = model1_state_dict[key]
+    model1.load_state_dict(new_state_dict)

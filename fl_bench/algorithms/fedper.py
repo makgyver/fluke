@@ -10,6 +10,7 @@ from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 
 
 # https://arxiv.org/abs/1912.00818
@@ -22,7 +23,7 @@ class FedPerClient(PFLClient):
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.model.get_global().load_state_dict(msg.payload.state_dict())
+        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
 class FedPerServer(Server):

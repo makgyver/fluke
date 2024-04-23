@@ -8,6 +8,7 @@ sys.path.append("..")
 
 from ..nets import EncoderHeadNet  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastTensorDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
@@ -41,7 +42,7 @@ class FedBABUClient(PFLClient):
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.personalized_model.get_encoder().load_state_dict(msg.payload.state_dict())
+        safe_load_state_dict(self.personalized_model.get_encoder(), msg.payload.state_dict())
 
         # Deactivate gradient
         for param in self.personalized_model.get_head().parameters():

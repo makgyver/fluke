@@ -2,14 +2,14 @@ from torch.nn import Module
 import torch
 from collections import OrderedDict
 from typing import Iterable
-from copy import deepcopy
+# from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
 from ..data import FastTensorDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..utils.model import diff_model  # NOQA
+from ..utils.model import diff_model, STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 
@@ -38,8 +38,9 @@ class FedAVGMServer(Server):
 
         with torch.no_grad():
             for key in self.model.state_dict().keys():
-                if "num_batches_tracked" in key:
-                    avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                    # avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
                 for i, client_diff in enumerate(clients_diff):
                     if key not in avg_model_sd:
