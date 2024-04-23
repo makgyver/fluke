@@ -15,77 +15,90 @@ To run an algorithm in FL-Bench you need to create two configuration files:
 
 Some examples of these files can be found in the `configs` folder.
 
-The `EXP_CONFIG` is a json file containing the configurations for the experiment. It contains the 
+The `EXP_CONFIG` is a yaml file containing the configurations for the experiment. It contains the 
 following fields:
-- `protocol`: must contains a dictionary with the overall federated protocol settings, namely:
-    - `n_clients`: the number of clients in the federated learning system
-    - `n_rounds`: the number of communication rounds
-    - `eligible_perc`: the percentage of clients that are elegible for training in each round
 
-- `data`: must contains a dictionary with all settings regarding the data loading process, namely:
-    - `dataset`: the dataset used for training the model. This is a dictionary with a single 
-      mandatory filed, i.e., `name` which is the name of the dataset. To date the following datasets 
-      are supported: `mnist`, `mnistm`, `emnist`, `femnist`, `fashion_mnist`, `cifar10`, `cifar100`, 
-      `svhn`, `tiny_imagenet`, `shakespeare` and `femnist`. All other fields are treated as 
-      parameters for the specific dataset. Please see `fl_bench.data.datasets` for more details.
-    - `client_split`: the percentage of the local datasets used as test set
-    - `standardize`: boolean value that indicates whether the features have to be standardized or not
-    - `distribution`: the data distribution used for the experiment. It is a dictionary with a single
-      mandatory field, i.e., `name` which is the name of the distribution. To date the following
-      distributions are supported:
-        - `iid`: iid
-        - `qnt`: quantity skewed
-        - `classqnt`: classwise quantity skewed
-        - `lblqnt`: label quantity skewed
-        - `dir`: label dirichlet skewed
-        - `path`: label pathological skewed
-        - `covshift`: covariate shift
-      All other fields are treated as parameters for the specific distribution. Please see 
-      `fl_bench.data` for more details.
-    - `sampling_perc`: percentage of the dataset considered for training. 
-      If `1.0`, the whole dataset is used for training.
-    
-- `exp`: must contains the other settings for the experiment:
-    - `seed`: the seed used for reproducibility purposes
-    - `device`: the device used for training the model. If `auto`, the device is automatically selected
-    - `average`: the averaging method using in the evaluation (e.g., "macro", "micro")
-        
-- `logger`: must contains a dictionary with the settings for the logging:
-      - `name`: the logger used for logging the results. It must be one of the following:
-          - `local`: the results are logged locally
-          - `wandb`: the results are logged on wandb
-      - `eval_every`: the number of rounds after which the model(s) is/are evaluated
-    In the case of `wandb` as logger, the following fields must be specified:
-      - `project`: the name of the project on wandb
-      - `entity`: the name of the entity on wandb
-      - `tags`: the tags used for logging on wandb
+```yaml
+# Dataset configuration
+data:
+  # Client-side test set split percentage
+  client_split: 0
+  # Dataset loading config
+  dataset:
+    # Dataset's name 
+    # Currently supported: mnist, svhn, mnistm, femnist, emnist, cifar10, cifar100, tiny_imagenet,
+    #                      shakespeare, fashion_mnist, cinic10
+    name: mnist
+    # Potential parameters for loading the dataset correctly (see fl_bench.data.datasets)
+    params: null
+  # IID/non-IID data distribution
+  distribution:
+    # Currently supported: 
+    # - iid: Independent and Identically Distributed data.
+    # - qnt: Quantity skewed data.
+    # - classqnt: Class-wise quantity skewed data.
+    # - lblqnt: Label quantity skewed data.
+    # - dir: Label skewed data according to the Dirichlet distribution.
+    # - path : Pathological skewed data (each client has data from a small subset of the classes).
+    # - covshift: Covariate shift skewed data.
+    name: iid
+    # Potential parameters of the disribution, e.g., `beta` for `dir`
+    params: null
+  # Sampling percentage when loading the dataset
+  sampling_perc: 1
+  # Whether to standardize the data or not
+  standardize: false
+# Generic settings for the experiment
+exp:
+  # The device to load the tensors
+  device: cpu
+  # The seed (reproducibility)
+  seed: 42
+# Logger configuration
+logger:
+  # `local` is the standard output, `wandb` log everything on weights and bias
+  name: local
+  # `wand` parameters
+  params: null
+# FL protocol configuration
+protocol:
+  # % of eligible clients in each round
+  eligible_perc: 1
+  # Total number of clients partcipating in the federation
+  n_clients: 100
+  # Total number of rounds
+  n_rounds: 100
+```
 
-
-The `ALG_CONFIG` is a json file containing the hyper-parameters of the federated algorithm. It 
+The `ALG_CONFIG` is a yaml file containing the hyper-parameters of the federated algorithm. It 
 contains the following fields:
-- `name`: the name of the algorithm
-- `hyperparameters`: contains the dictinaries for the hyperparameters for clients and server:
-    - `model`: the model to train. It must be a valid PyTorch model defined in the `net.py` file
-
-    - `server`: must contains a dictionary with the server hyperparameters (e.g., `{"weighted": true}`)
-
-    - `client`: must contains a dictionary with the client hyperparameters, for example:
-        - `batch_size`: the batch size used client-side for training the model
-        - `loss`: the loss function used for training the model. It must be a valid PyTorch loss function
-        - `local_epochs`: the number of epochs used client-side for training the model
-        - `optimizer`: the parameters used for the optimizer. 
-          It must be a dictionary with the following fields:
-            - `lr`: the learning rate
-          All other parameters are optional.
-        - `scheduler`: (optional) the parameters used for the learning rate scheduler. 
-          It must be a dictionary with the following fields:
-            - `step_size`: the step size used for the learning rate scheduler
-            - `gamma`: the gamma used for the learning rate scheduler
-        
-    All other hyper-parameters added to either `client` or `server` are algorithm-specific. 
-    For example, the `fedprox` algorithm requires also the following hyperparameters for `client`:
-      - `mu`: the mu used for the FedProx algorithm
-      - `lambda`: the lambda used for the FedProx algorithm
+```yaml
+# Hyperparameters (HPs) of the algorithm
+# Name of the algorithm: this must be the full path to the algorithm's class
+name: fl_bench.algorithms.fedavg.FedAVG
+# Please refer to the algorithm's file to know which are the HPs 
+hyperparameters:
+  # HPs of the clients
+  client:
+    # Batch size
+    batch_size: 10
+    # Number of local epochs
+    local_epochs: 5
+    # The loss function
+    loss: CrossEntropyLoss
+    # HPs of the optimizer (the type of optimizer depends on the algorithm)
+    optimizer:
+      lr: 0.8
+    # HPs of the StepLR
+    scheduler:
+      gamma: 0.995
+      step_size: 10
+  model: Shakespeare_LSTM
+  # HPs of the server
+  server:
+    # whether to weight the client's contribution
+    weighted: true
+```
 
 To run a **federated** algorithm, you need to run the following command:
 ```bash
@@ -102,19 +115,19 @@ Finally, to run the learning process only on clients, you need to run the follow
 python -m fl_bench.run --config=EXP_CONFIG clients-only ALG_CONFIG
 ```
 
-the command run the `fedavg` algorithm on the `mnist` dataset (see `exp_settings.json`) with the 
-all the parameters specified in the `exp_settings.json` file and the `fedavg.json` file.
-
 To date, the following federated algorithms are implemented:
 - APFL
+- CCVR
 - Ditto
 - FedAMP
 - FedAvg
-- FedAvgM
+- FedAvgM [**to be checked**]
+- FedBABU
 - FedBN
-- FedDyn [**To be tested**]
+- FedDyn
 - FedExP
-- FedNova [**To be tested**]
+- FedLC
+- FedNova
 - FedOpt (FedAdam, FedAdagrad, FedYogi)
 - FedPer
 - FedProto
@@ -124,7 +137,7 @@ To date, the following federated algorithms are implemented:
 - LG-FedAvg
 - MOON
 - PerFedAVG (PerFedAVG-FO, PerFedAVG-HF)
-- pFedMe [**To be tested**]
+- pFedMe
 - SCAFFOLD
 - SuPerFed (SuPerFed-MM, SuPerFed-LM)
 
@@ -132,10 +145,8 @@ To date, the following federated algorithms are implemented:
 Inside the `net.py` file, you can find the definition of some neural networks. 
 
 ## TODO and Work in progress
-- [ ] Check the correctness of pFedMe -- **Work in progress**
-- [ ] Check the correctness of FedDyn -- **Work in progress**
-- [ ] Check the correctness of FedNova -- **Work in progress**
 - [ ] Add documentation + check typing -- **Work in progress**
+- [ ] Unit/Functional/Integration testing -- **Work in progress**
 
 ## Desiderata
 - [ ] Add support to validation
