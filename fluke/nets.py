@@ -9,6 +9,12 @@ import torch.nn as nn
 from torch.functional import F
 from torchvision.models import resnet50, resnet18, resnet34
 
+import sys
+sys.path.append(".")
+sys.path.append("..")
+
+from .utils.model import batch_norm_to_group_norm  # NOQA
+
 
 class EncoderHeadNet(nn.Module):
     """Encoder+Head Network (Base Class)
@@ -503,6 +509,14 @@ class ResNet18(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         return self.resnet(x)
+
+
+class ResNet18GN(ResNet18):
+    def __init__(self, output_size=10):
+        super(ResNet18GN, self).__init__(output_size)
+        print(self)
+        batch_norm_to_group_norm(self)
+        print(self)
 
 
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (CIFAR-100)

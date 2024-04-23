@@ -178,29 +178,24 @@ def _test_algo(exp_config, alg_config):
 
 
 def test_fedavg():
-    fedavg, log = _test_algo(
-        "./configs/fedavg_exp.yaml", "./configs/fedavg.yaml")
+    fedavg, log = _test_algo("./configs/fedavg_exp.yaml", "./configs/fedavg.yaml")
     assert log.history[log.current_round]["accuracy"] >= 0.9642
 
 
 def test_fedprox():
-    fedprox, log = _test_algo(
-        "./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
+    fedprox, log = _test_algo("./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
 
 
 def test_fedsgd():
-    fedsgd, log = _test_algo(
-        "./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
+    fedsgd, log = _test_algo("./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
 
 
 def test_fedexp():
-    fedexp, log = _test_algo(
-        "./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
+    fedexp, log = _test_algo("./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
 
 
 def test_fedproto():
-    fedproto, log = _test_algo(
-        "./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
+    fedproto, log = _test_algo("./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
 
 
 def test_fedopt():

@@ -8,7 +8,7 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: ResNet18
+  model: ResNet18GN
   server:
     beta1: 0.9
     beta2: 0.999

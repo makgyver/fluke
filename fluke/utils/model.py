@@ -478,3 +478,37 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict):
         else:
             new_state_dict[key] = model1_state_dict[key]
     model1.load_state_dict(new_state_dict)
+
+
+def batch_norm_to_group_norm(layer):
+    GROUP_NORM_LOOKUP = {
+        16: 2,  # -> channels per group: 8
+        32: 4,  # -> channels per group: 8
+        64: 8,  # -> channels per group: 8
+        128: 8,  # -> channels per group: 16
+        256: 16,  # -> channels per group: 16
+        512: 32,  # -> channels per group: 16
+        1024: 32,  # -> channels per group: 32
+        2048: 32,  # -> channels per group: 64
+    }
+
+    """Iterates over a whole model (or layer of a model) and replaces every
+    batch norm 2D with a group norm
+
+    Args:
+        layer (torch.nn.Module): model or one layer of a model.
+    """
+    for name, _ in layer.named_modules():
+        if name:
+            try:
+                sub_layer = getattr(layer, name)
+                if isinstance(sub_layer, torch.nn.BatchNorm2d):
+                    num_channels = sub_layer.num_features
+                    layer._modules[name] = torch.nn.GroupNorm(
+                        GROUP_NORM_LOOKUP[num_channels], num_channels)
+            except AttributeError:
+                name = name.split('.')[0]
+                sub_layer = getattr(layer, name)
+                sub_layer = batch_norm_to_group_norm(sub_layer)
+                layer.__setattr__(name=name, value=sub_layer)
+    return layer
