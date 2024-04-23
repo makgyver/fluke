@@ -93,11 +93,14 @@ hyperparameters:
     scheduler:
       gamma: 0.995
       step_size: 10
-  model: Shakespeare_LSTM
   # HPs of the server
   server:
     # whether to weight the client's contribution
     weighted: true
+  # The model (neural network) to federate.
+  # This can be the name of a neuranet included in fl_bench.nets or the fullname of a 
+  # user defined class
+  model: MNIST_2NN
 ```
 
 To run a **federated** algorithm, you need to run the following command:
