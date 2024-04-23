@@ -15,4 +15,4 @@ hyperparameters:
     lr: 0.01
     mode: yogi
     tau: 0.001
-name: fl_bench.algorithms.fedopt.FedOpt
+name: fluke.algorithms.fedopt.FedOpt

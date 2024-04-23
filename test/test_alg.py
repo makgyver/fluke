@@ -18,7 +18,7 @@ from fluke.utils import Configuration, Log, get_class_from_qualified_name  # NOQ
 
 def test_centralized_fl():
     hparams = DDict(
-        # model="fl_bench.nets.MNIST_2NN",
+        # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
         client=DDict(batch_size=32,
                      local_epochs=1,
@@ -46,7 +46,7 @@ def test_centralized_fl():
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
 
     hparams = DDict(
-        model="fl_bench.nets.MNIST_2NN",
+        model="fluke.nets.MNIST_2NN",
         client=DDict(batch_size=32,
                      local_epochs=1,
                      loss="CrossEntropyLoss",
@@ -114,7 +114,7 @@ def test_centralized_fl():
 
     assert fl.server._observers == [obs]
 
-    strfl = "CentralizedFL(model=fl_bench.nets.MNIST_2NN,Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
+    strfl = "CentralizedFL(model=fluke.nets.MNIST_2NN,Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
         "local_epochs=1),Server(weighted=True))"
 
@@ -130,7 +130,7 @@ def test_centralized_fl():
     assert obs.called_finished
 
     hparams = DDict(
-        # model="fl_bench.nets.MNIST_2NN",
+        # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
         client=DDict(batch_size=32,
                      local_epochs=1,

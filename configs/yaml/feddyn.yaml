@@ -13,4 +13,4 @@ hyperparameters:
   model: MNIST_2NN
   server:
     weighted: false
-name: fl_bench.algorithms.feddyn.FedDyn
+name: fluke.algorithms.feddyn.FedDyn

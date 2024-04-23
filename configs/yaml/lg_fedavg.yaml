@@ -13,4 +13,4 @@ hyperparameters:
       step_size: 1
   model: MNIST_2NN_D
   server: {}
-name: fl_bench.algorithms.lg_fedavg.LGFedAVG
+name: fluke.algorithms.lg_fedavg.LGFedAVG

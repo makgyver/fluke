@@ -6,13 +6,13 @@ hyperparameters:
     optimizer:
       lr: 0.01
     scheduler:
-      gamma: 1
-      step_size: 1
+      gamma: 0.995
+      step_size: 10
   model: MNIST_2NN
   server:
     beta1: 0.9
     beta2: 0.999
     lr: 0.01
-    mode: adagrad
+    mode: adam #adagrad,yogi
     tau: 0.001
 name: fluke.algorithms.fedopt.FedOpt

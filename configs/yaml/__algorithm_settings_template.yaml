@@ -21,4 +21,4 @@ hyperparameters:
   server:
     # whether to weight the client's contribution
     weighted: true
-name: fl_bench.algorithms.fedavg.FedAVG
+name: fluke.algorithms.fedavg.FedAVG

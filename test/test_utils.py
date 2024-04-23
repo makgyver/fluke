@@ -58,10 +58,10 @@ def test_optimcfg():
 
 def test_functions():
     try:
-        client_module = import_module_from_str("fl_bench.client")
-        client_class = get_class_from_str("fl_bench.client", "Client")
+        client_module = import_module_from_str("fluke.client")
+        client_class = get_class_from_str("fluke.client", "Client")
         model = get_model("MNIST_2NN")
-        model2 = get_model("fl_bench.nets.MNIST_2NN")
+        model2 = get_model("fluke.nets.MNIST_2NN")
         linear = get_class_from_qualified_name("torch.nn.Linear")
         full_linear = get_full_classname(Linear)
         loss = get_loss("CrossEntropyLoss")
@@ -71,7 +71,7 @@ def test_functions():
     except Exception:
         pytest.fail("Unexpected error!")
 
-    assert client_module.__name__ == "fl_bench.client"
+    assert client_module.__name__ == "fluke.client"
     assert client_class == Client
     assert model.__class__.__name__ == "MNIST_2NN"
     assert model2.__class__.__name__ == "MNIST_2NN"
@@ -133,7 +133,7 @@ def test_configuration():
         }
     })
     cfg_alg = dict({
-        'name': 'fl_bench.algorithms.fedavg.FedAVG',
+        'name': 'fluke.algorithms.fedavg.FedAVG',
         'hyperparameters': {
             'server': {
                 'weighted': True
@@ -171,11 +171,11 @@ def test_configuration():
     assert conf.exp.seed == 42
     # assert conf.logger.name == "local"
 
-    assert str(conf) == "fl_bench.algorithms.fedavg.FedAVG" + \
+    assert str(conf) == "fluke.algorithms.fedavg.FedAVG" + \
         "_data(mnist, iid)_proto(C100, R50,E0.1)_seed(42)"
 
     cfg = dict({"protocol": {}, "data": {}, "exp": {}, "logger": {}})
-    cfg_alg = dict({"name": "fl_bench.algorithms.fedavg.FedAVG", "hyperparameters": {
+    cfg_alg = dict({"name": "fluke.algorithms.fedavg.FedAVG", "hyperparameters": {
                    "server": {}, "client": {}, "model": "MNIST_2NN"}})
 
     temp_cfg = tempfile.NamedTemporaryFile(mode="w")

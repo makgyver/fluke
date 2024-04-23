@@ -16,4 +16,4 @@ hyperparameters:
     lr: 0.01
     sample_per_class: 1000
     weighted: true
-name: fl_bench.algorithms.ccvr.CCVR
+name: fluke.algorithms.ccvr.CCVR

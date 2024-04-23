@@ -13,7 +13,7 @@ exp:
 logger:
   entity: mlgroup
   name: wandb
-  project: fl-bench
+  project: fluke
   tags:
   - FEMNIST
 protocol:

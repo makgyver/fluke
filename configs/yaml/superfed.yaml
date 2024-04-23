@@ -18,4 +18,4 @@ hyperparameters:
   model: MNIST_2NN
   server:
     weighted: true
-name: fl_bench.algorithms.superfed.SuPerFed
+name: fluke.algorithms.superfed.SuPerFed

@@ -16,4 +16,4 @@ hyperparameters:
   server:
     tau: 1
     weighted: true
-name: fl_bench.algorithms.apfl.APFL
+name: fluke.algorithms.apfl.APFL

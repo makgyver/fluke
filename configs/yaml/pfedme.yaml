@@ -14,4 +14,4 @@ hyperparameters:
   model: MNIST_2NN
   server:
     beta: 0.5
-name: fl_bench.algorithms.pfedme.PFedMe
+name: fluke.algorithms.pfedme.PFedMe

@@ -13,4 +13,4 @@ hyperparameters:
   model: ResNet18
   server:
     eval_every: 10
-name: fl_bench.algorithms.fedexp.FedExP
+name: fluke.algorithms.fedexp.FedExP

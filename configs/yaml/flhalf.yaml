@@ -16,4 +16,4 @@ hyperparameters:
   server:
     n_anchors: 200
     seed_anchors: 98765
-name: fl_bench.algorithms.flhalf.FLHalf
+name: fluke.algorithms.flhalf.FLHalf

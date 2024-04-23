@@ -1,4 +1,4 @@
-# fl-bench
+# fluke
 Python module to benchmark federated learning algorithms.
 
 ## Running the code
@@ -9,7 +9,7 @@ pip install -r requirements.txt
 ```
 
 ### Run a federated algorithm
-To run an algorithm in FL-Bench you need to create two configuration files:
+To run an algorithm in Fluke you need to create two configuration files:
 - `EXP_CONFIG`: the experiment configuration file
 - `ALG_CONFIG`: the algorithm configuration file
 
@@ -29,7 +29,7 @@ data:
     # Currently supported: mnist, svhn, mnistm, femnist, emnist, cifar10, cifar100, tiny_imagenet,
     #                      shakespeare, fashion_mnist, cinic10
     name: mnist
-    # Potential parameters for loading the dataset correctly (see fl_bench.data.datasets)
+    # Potential parameters for loading the dataset correctly (see fluke.data.datasets)
     params: null
   # IID/non-IID data distribution
   distribution:
@@ -75,7 +75,7 @@ contains the following fields:
 ```yaml
 # Hyperparameters (HPs) of the algorithm
 # Name of the algorithm: this must be the full path to the algorithm's class
-name: fl_bench.algorithms.fedavg.FedAVG
+name: fluke.algorithms.fedavg.FedAVG
 # Please refer to the algorithm's file to know which are the HPs 
 hyperparameters:
   # HPs of the clients
@@ -98,24 +98,24 @@ hyperparameters:
     # whether to weight the client's contribution
     weighted: true
   # The model (neural network) to federate.
-  # This can be the name of a neuranet included in fl_bench.nets or the fullname of a 
+  # This can be the name of a neuranet included in fluke.nets or the fullname of a 
   # user defined class
   model: MNIST_2NN
 ```
 
 To run a **federated** algorithm, you need to run the following command:
 ```bash
-python -m fl_bench.run --config=EXP_CONFIG federate ALG_CONFIG
+python -m fluke.run --config=EXP_CONFIG federate ALG_CONFIG
 ```
 
 To run a **centralized (baseline) algorithm**, you need to run the following command:
 ```bash
-python -m fl_bench.run --config=EXP_CONFIG centralized ALG_CONFIG
+python -m fluke.run --config=EXP_CONFIG centralized ALG_CONFIG
 ```
 
 Finally, to run the learning process only on clients, you need to run the following command:
 ```bash
-python -m fl_bench.run --config=EXP_CONFIG clients-only ALG_CONFIG
+python -m fluke.run --config=EXP_CONFIG clients-only ALG_CONFIG
 ```
 
 To date, the following federated algorithms are implemented:

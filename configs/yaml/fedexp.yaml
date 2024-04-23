@@ -12,4 +12,4 @@ hyperparameters:
       step_size: 10
   model: MNIST_2NN
   server: {}
-name: fl_bench.algorithms.fedexp.FedExP
+name: fluke.algorithms.fedexp.FedExP

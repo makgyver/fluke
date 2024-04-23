@@ -100,9 +100,9 @@ class ObserverSubject():
 
 
 class GlobalSettings(metaclass=Singleton):
-    """Global settings for FL-bench.
+    """Global settings for FLUKE.
 
-    This class is a singleton that holds the global settings for FL-bench. The settings include:
+    This class is a singleton that holds the global settings for FLUKE. The settings include:
     - The device (CPU, CUDA, AUTO, MPS);
     - The seed for reproducibility;
     - The progress bars for the federated learning process, clients and server;

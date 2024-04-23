@@ -15,4 +15,4 @@ hyperparameters:
   model: MNIST_2NN_E
   server:
     weighted: false
-name: fl_bench.algorithms.fedrep.FedRep
+name: fluke.algorithms.fedrep.FedRep

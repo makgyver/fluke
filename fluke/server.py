@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class Server(ObserverSubject):
     """Standard Server for Federated Learning.
 
-    This class is the base class for all servers in `FL-bench`. It implements the basic
+    This class is the base class for all servers in `FLUKE`. It implements the basic
     functionalities of a federated learning server. The default behaviour of this server is based
     on the Federated Averaging algorithm. The server is responsible for coordinating the learning
     process, selecting the clients for each round, sending the global model to the clients, and
@@ -210,7 +210,7 @@ class Server(ObserverSubject):
         samples. Otherwise, all clients have the same weight.
 
         Note:
-            The computation of the weights do not adhere to the "best-practices" of FL-bench
+            The computation of the weights do not adhere to the "best-practices" of FLUKE
             because the server should not have direct access to the number of samples of the
             clients. Thus, the computation of the weights should be done communicating with the
             clients through the channel, but for simplicity, we are not following this practice

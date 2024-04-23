@@ -13,4 +13,4 @@ hyperparameters:
   model: MNIST_2NN
   server:
     weighted: true
-name: fl_bench.algorithms.fedavg.FedAVG
+name: fluke.algorithms.fedavg.FedAVG

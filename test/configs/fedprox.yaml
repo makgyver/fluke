@@ -15,4 +15,4 @@ hyperparameters:
   model: MNIST_LR
   server:
     weighted: true
-name: fl_bench.algorithms.fedprox.FedProx
+name: fluke.algorithms.fedprox.FedProx

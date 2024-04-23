@@ -17,4 +17,4 @@ hyperparameters:
   server:
     n_protos: 10
     weighted: true
-name: fl_bench.algorithms.fedproto.FedProto
+name: fluke.algorithms.fedproto.FedProto

@@ -21,7 +21,7 @@ from . import GlobalSettings, DDict  # NOQA
 class Client(ABC):
     """Base Client class.
 
-    This class is the base class for all clients in the `FL-bench`. The behavior of the client is
+    This class is the base class for all clients in the `FLUKE`. The behavior of the client is
     based on the Federated Averaging algorithm. The default behavior of a client includes:
     - Receiving the global model from the server;
     - Training the model locally for a number of epochs using the local training set;

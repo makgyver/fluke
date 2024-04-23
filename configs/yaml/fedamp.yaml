@@ -14,4 +14,4 @@ hyperparameters:
   server:
     alpha: 0.1
     sigma: 1
-name: fl_bench.algorithms.fedamp.FedAMP
+name: fluke.algorithms.fedamp.FedAMP

@@ -16,4 +16,4 @@ hyperparameters:
   model: MNIST_2NN
   server:
     weighted: true
-name: fl_bench.algorithms.ditto.Ditto
+name: fluke.algorithms.ditto.Ditto

@@ -11,7 +11,7 @@ from . import GlobalSettings  # NOQA
 
 
 class Evaluator(ABC):
-    """This class is the base class for all evaluators in `FL-bench`.
+    """This class is the base class for all evaluators in `FLUKE`.
 
     An evaluator object should be used to perform the evaluation of a model.
 
