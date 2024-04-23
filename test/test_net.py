@@ -1,7 +1,7 @@
-from fl_bench.utils import OptimizerConfigurator, clear_cache
-from fl_bench.data import FastTensorDataLoader
-from fl_bench.client import Client
-from fl_bench.algorithms import CentralizedFL
+from fluke.utils import OptimizerConfigurator, clear_cache
+from fluke.data import FastTensorDataLoader
+from fluke.client import Client
+from fluke.algorithms import CentralizedFL
 from typing import Callable
 from copy import deepcopy
 from torch import nn

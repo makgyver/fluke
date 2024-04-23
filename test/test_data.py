@@ -6,9 +6,9 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.data import DataContainer, FastTensorDataLoader, DataSplitter, DistributionEnum  # NOQA
-from fl_bench.data.datasets import DatasetsEnum  # NOQA
-from fl_bench import DDict  # NOQA
+from fluke.data import DataContainer, FastTensorDataLoader, DataSplitter, DistributionEnum  # NOQA
+from fluke.data.datasets import DatasetsEnum  # NOQA
+from fluke import DDict  # NOQA
 
 
 def test_container():

@@ -7,7 +7,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.comm import Message, Channel, ChannelObserver  # NOQA
+from fluke.comm import Message, Channel, ChannelObserver  # NOQA
 
 
 def test_message():

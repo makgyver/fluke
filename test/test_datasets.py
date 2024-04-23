@@ -5,8 +5,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.data.datasets import Datasets  # NOQA
-from fl_bench.data.support import MNISTM, CINIC10  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
+from fluke.data.support import MNISTM, CINIC10  # NOQA
 
 
 # ### MNIST

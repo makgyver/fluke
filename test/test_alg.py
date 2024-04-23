@@ -4,16 +4,16 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench import DDict, GlobalSettings  # NOQA
-from fl_bench.data import DataSplitter  # NOQA
-from fl_bench.data.datasets import Datasets  # NOQA
-from fl_bench.client import Client, PFLClient  # NOQA
-from fl_bench.server import Server, ServerObserver  # NOQA
-from fl_bench.nets import MNIST_2NN  # NOQA
-from fl_bench.comm import ChannelObserver, Message  # NOQA
-from fl_bench.algorithms import CentralizedFL, PersonalizedFL  # NOQA
-from fl_bench.algorithms.fedavg import FedAVG  # NOQA
-from fl_bench.utils import Configuration, Log, get_class_from_qualified_name  # NOQA
+from fluke import DDict, GlobalSettings  # NOQA
+from fluke.data import DataSplitter  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
+from fluke.client import Client, PFLClient  # NOQA
+from fluke.server import Server, ServerObserver  # NOQA
+from fluke.nets import MNIST_2NN  # NOQA
+from fluke.comm import ChannelObserver, Message  # NOQA
+from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
+from fluke.algorithms.fedavg import FedAVG  # NOQA
+from fluke.utils import Configuration, Log, get_class_from_qualified_name  # NOQA
 
 
 def test_centralized_fl():
@@ -118,8 +118,10 @@ def test_centralized_fl():
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
         "local_epochs=1),Server(weighted=True))"
 
-    assert str(fl).replace(" ", "").replace("\n", "").replace("\t", "") == strfl
-    assert fl.__repr__().replace(" ", "").replace("\n", "").replace("\t", "") == strfl
+    assert str(fl).replace(" ", "").replace(
+        "\n", "").replace("\t", "") == strfl
+    assert fl.__repr__().replace(" ", "").replace(
+        "\n", "").replace("\t", "") == strfl
 
     fl.run(1, 0.5)
     assert obs.called_start
@@ -175,24 +177,29 @@ def _test_algo(exp_config, alg_config):
 
 
 def test_fedavg():
-    fedavg, log = _test_algo("./configs/fedavg_exp.yaml", "./configs/fedavg.yaml")
+    fedavg, log = _test_algo(
+        "./configs/fedavg_exp.yaml", "./configs/fedavg.yaml")
     assert log.history[log.current_round]["accuracy"] >= 0.9642
 
 
 def test_fedprox():
-    fedprox, log = _test_algo("./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
+    fedprox, log = _test_algo(
+        "./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
 
 
 def test_fedsgd():
-    fedsgd, log = _test_algo("./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
+    fedsgd, log = _test_algo(
+        "./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
 
 
 def test_fedexp():
-    fedexp, log = _test_algo("./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
+    fedexp, log = _test_algo(
+        "./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
 
 
 def test_fedproto():
-    fedproto, log = _test_algo("./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
+    fedproto, log = _test_algo(
+        "./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
 
 
 if __name__ == "__main__":

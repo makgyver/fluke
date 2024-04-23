@@ -6,11 +6,11 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.client import Client, PFLClient  # NOQA
-from fl_bench.server import Server  # NOQA
-from fl_bench.utils import OptimizerConfigurator  # NOQA
-from fl_bench.data import FastTensorDataLoader  # NOQA
-from fl_bench.comm import Message  # NOQA
+from fluke.client import Client, PFLClient  # NOQA
+from fluke.server import Server  # NOQA
+from fluke.utils import OptimizerConfigurator  # NOQA
+from fluke.data import FastTensorDataLoader  # NOQA
+from fluke.comm import Message  # NOQA
 
 
 def test_client():
