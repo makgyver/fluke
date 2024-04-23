@@ -142,7 +142,7 @@ To date, the following federated algorithms are implemented:
 - SuPerFed (SuPerFed-MM, SuPerFed-LM)
 
 
-Inside the `net.py` file, you can find the definition of some neural networks. 
+Inside the `nets.py` file, you can find the definition of some neural networks. 
 
 ## TODO and Work in progress
 - [ ] Add documentation + check typing -- **Work in progress**
