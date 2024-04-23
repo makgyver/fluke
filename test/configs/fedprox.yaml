@@ -1,3 +1,4 @@
+# Results on this setting seems a bit worse than the one reported in the original paper
 hyperparameters:
   client:
     batch_size: 10
