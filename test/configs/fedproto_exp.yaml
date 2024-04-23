@@ -8,7 +8,6 @@ data:
   sampling_perc: 1
   standardize: false
 exp:
-  average: micro
   device: cpu
   seed: 42
 logger:

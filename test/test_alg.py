@@ -171,6 +171,7 @@ def _test_algo(exp_config, alg_config):
                          cfg.method.hyperparameters)
 
     log = Log()
+    log.init()
     algo.set_callbacks(log)
     algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
     return algo, log
@@ -202,10 +203,15 @@ def test_fedproto():
         "./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
 
 
+def test_fedopt():
+    fedopt, log = _test_algo("./configs/fedopt_exp.yaml", "./configs/fedopt.yaml")
+
+
 if __name__ == "__main__":
     # test_centralized_fl()
     # test_fedavg()
     # test_fedprox()
     # test_fedsgd()
     # test_fedexp()
-    test_fedproto()
+    # test_fedproto()
+    test_fedopt()

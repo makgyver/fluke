@@ -3,8 +3,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.data import FastTensorDataLoader  # NOQA
-from fl_bench.evaluation import ClassificationEval  # NOQA
+from fluke.data import FastTensorDataLoader  # NOQA
+from fluke.evaluation import ClassificationEval  # NOQA
 
 
 def test_classification_eval():

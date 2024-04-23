@@ -6,7 +6,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench import GlobalSettings, ObserverSubject, DDict  # NOQA
+from fluke import GlobalSettings, ObserverSubject, DDict  # NOQA
 
 
 def test_settings():

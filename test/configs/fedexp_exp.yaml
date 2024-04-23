@@ -7,7 +7,6 @@ data:
   sampling_perc: 1
   standardize: false
 exp:
-  average: micro
   device: mps
   seed: 42
 logger:

@@ -4,7 +4,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fl_bench.nets import (MNIST_2NN, MNIST_LR, MNIST_CNN, FEMNIST_CNN,  # NOQA
+from fluke.nets import (MNIST_2NN, MNIST_LR, MNIST_CNN, FEMNIST_CNN,  # NOQA
                            VGG9, FedavgCNN, LeNet5, MoonCNN, SimpleCNN,  # NOQA
                            ResNet9, ResNet18, ResNet34, ResNet50, Shakespeare_LSTM,  # NOQA
                            FedPer_VGG9, LG_FedAvg_VGG9, MNIST_2NN_GlobalD, MNIST_2NN_GlobalE,  # NOQA
