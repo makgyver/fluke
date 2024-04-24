@@ -177,6 +177,14 @@ class FedNHServer(Server):
                         avg_model_sd[key] += weight * client_sd[key]
             self.model.encoder.load_state_dict(avg_model_sd)
 
+    def evaluate(self) -> Dict[str, float]:
+        if self.test_data is not None:
+            model = FedNHModel(self.model, self.device)
+            return ClassificationEval(None,
+                                      self.hyper_params.n_protos).evaluate(model,
+                                                                           self.test_data)
+        return {}
+
 
 class FedNH(PersonalizedFL):
 
