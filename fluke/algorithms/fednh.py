@@ -64,18 +64,20 @@ class FedNHClient(PFLClient):
                  train_set: FastTensorDataLoader,
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: Callable,  # Not used
                  local_epochs: int,
-                 n_protos: int):
+                 n_protos: int,
+                 proto_norm: bool = False):
         super().__init__(index,
-                         ProtoNet(model, n_protos),
+                         ProtoNet(model, n_protos, proto_norm),
                          train_set,
                          test_set,
                          optimizer_cfg,
                          CrossEntropyLoss(),
                          local_epochs)
         self.hyper_params.update(
-            n_protos=n_protos
+            n_protos=n_protos,
+            proto_norm=proto_norm
         )
         self.model = self.personalized_model
 
@@ -138,9 +140,14 @@ class FedNHServer(Server):
                  eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10,
-                 rho: float = 0.1):
-        super().__init__(ProtoNet(model, n_protos), test_data, clients, eval_every, weighted)
-        self.hyper_params.update(n_protos=n_protos, rho=rho)
+                 rho: float = 0.1,
+                 proto_norm: bool = False):
+        super().__init__(ProtoNet(model, n_protos, proto_norm),
+                         test_data,
+                         clients,
+                         eval_every,
+                         weighted)
+        self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
 
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
@@ -155,12 +162,12 @@ class FedNHServer(Server):
         # Aggregate prototypes
         prototypes = self.model.prototypes
         for label, protos in label_protos.items():
-            prototypes.data[label] = self.hyper_params.rho * prototypes.data[label] + \
-                (1 - self.hyper_params.rho) * torch.sum(weight * torch.stack(protos))
+            prototypes.data[label, :] = self.hyper_params.rho * prototypes.data[label, :] + \
+                (1 - self.hyper_params.rho) * torch.sum(weight * torch.stack(protos), dim=0)
 
         # Normalize the prototypes
         for label in label_protos.keys():
-            prototypes.data[label] /= torch.norm(prototypes.data[label]).clamp(min=1e-12)
+            prototypes.data[label, :] /= torch.norm(prototypes.data[label, :]).clamp(min=1e-12)
 
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()
@@ -170,7 +177,7 @@ class FedNHServer(Server):
                 if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                     avg_model_sd[key] = self.model.encoder.state_dict()[key].clone()
                     continue
-                for i, client_sd in enumerate(clients_sd):
+                for _, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
                         avg_model_sd[key] = weight * client_sd[key]
                     else:
