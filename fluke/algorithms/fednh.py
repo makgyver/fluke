@@ -164,7 +164,7 @@ class FedNHServer(Server):
 
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()
-        clients_sd = [client.state_dict() for client in clients_models]
+        clients_sd = [client.encoder.state_dict() for client in clients_models]
         with torch.no_grad():
             for key in self.model.encoder.state_dict().keys():
                 if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
