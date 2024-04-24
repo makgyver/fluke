@@ -64,6 +64,7 @@ class FedProtoClient(PFLClient):
         )
         self.model = self.personalized_model
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
+        self.global_protos = None
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")

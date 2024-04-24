@@ -15,8 +15,21 @@ from ..data import FastTensorDataLoader  # NOQA
 from ..comm import Message  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..nets import ProtoNet  # NOQA
 from ..evaluation import ClassificationEval  # NOQA
+
+
+class ProtoNet(nn.Module):
+
+    def __init__(self, encoder: nn.Module, n_protos: int):
+        super(ProtoNet, self).__init__()
+        self._encoder = encoder
+        self.prototypes = nn.Parameter(torch.rand((n_protos, encoder.output_size)),
+                                       requires_grad=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        embeddings = self._encoder(x)
+        dists = -torch.norm(embeddings[:, None, :] - self.prototypes[None, :, :], dim=-1)
+        return embeddings, dists
 
 
 class FedHyperProtoModel(nn.Module):
@@ -38,10 +51,10 @@ class SeparationLoss(nn.Module):
     def __init__(self):
         super(SeparationLoss, self).__init__()
 
-    def forward(self, protos):
+    def forward(self, protos: torch.Tensor):
         """
         Args:
-            protos (tensor): (N_prototypes x Embedding_dimension)
+            protos (torch.Tensor): (N_prototypes x Embedding_dimension)
         """
         M = torch.matmul(protos, protos.transpose(0, 1)) - 2 * torch.eye(
             protos.shape[0]).to(protos.device)
@@ -159,12 +172,12 @@ class FedHyperProtoServer(Server):
         mapping = torch.rand((self.hyper_params.n_protos, self.hyper_params.embedding_size),
                              device=self.device, requires_grad=True)
         optimizer = torch.optim.SGD([mapping], lr=lr, momentum=momentum, weight_decay=wd)
-        L_hp = SeparationLoss()
+        loss_fn = SeparationLoss()
         for _ in track(range(n_steps), "[SERVER] Learning prototypes..."):
             with torch.no_grad():
                 mapping.div_(torch.norm(mapping, dim=1, keepdim=True))
             optimizer.zero_grad()
-            loss = L_hp(mapping)
+            loss = loss_fn(mapping)
             loss.backward()
             optimizer.step()
 
