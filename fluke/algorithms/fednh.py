@@ -117,12 +117,12 @@ class FedNHClient(PFLClient):
 
     def evaluate(self) -> Dict[str, float]:
         if self.test_set is not None:
-            if self.prototypes[0] is None:
+            if self.model is None:
                 # ask for the prototypes and receive them
-                self.channel.send(Message(self.server.prototypes, "model", self.server), self)
+                self.channel.send(Message(self.server, "model", self.server), self)
                 self._receive_model()
 
-            model = FedNHModel(self.model, self.prototypes, self.device)
+            model = FedNHModel(self.model, self.device)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos).evaluate(model,
                                                                            self.test_set)
