@@ -45,11 +45,9 @@ class ProtoNet(Module):
 
 class FedNHModel(Module):
     def __init__(self,
-                 model: Module,
-                 device: torch.device):
+                 model: Module):
         super().__init__()
         self.model: Module = model
-        self.device: torch.device = device
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -186,10 +184,11 @@ class FedNHServer(Server):
 
     def evaluate(self) -> Dict[str, float]:
         if self.test_data is not None:
-            model = FedNHModel(self.model, self.device)
+            model = FedNHModel(self.model)
             return ClassificationEval(None,
-                                      self.hyper_params.n_protos).evaluate(model,
-                                                                           self.test_data)
+                                      self.hyper_params.n_protos,
+                                      self.device).evaluate(model,
+                                                            self.test_data)
         return {}
 
 

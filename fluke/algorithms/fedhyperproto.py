@@ -34,11 +34,9 @@ class ProtoNet(nn.Module):
 
 class FedHyperProtoModel(nn.Module):
     def __init__(self,
-                 model: nn.Module,
-                 device: torch.device):
+                 model: nn.Module):
         super().__init__()
         self.model: nn.Module = model
-        self.device: torch.device = device
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -127,10 +125,11 @@ class FedHyperProtoClient(PFLClient):
                 self.channel.send(Message(self.server.prototypes, "model", self.server), self)
                 self._receive_model()
 
-            model = FedHyperProtoModel(self.model, self.device)
+            model = FedHyperProtoModel(self.model)
             return ClassificationEval(None,
-                                      self.hyper_params.n_protos).evaluate(model,
-                                                                           self.test_set)
+                                      self.hyper_params.n_protos,
+                                      self.device).evaluate(model,
+                                                            self.test_set)
         return {}
 
 
