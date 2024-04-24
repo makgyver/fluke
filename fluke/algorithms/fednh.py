@@ -100,7 +100,7 @@ class FedNHClient(PFLClient):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                Z, logits = self.model(X)
+                _, logits = self.model(X)
                 loss = self.hyper_params.loss_fn(logits, y)
                 loss.backward()
                 self.optimizer.step()

@@ -130,6 +130,7 @@ To date, the following federated algorithms are implemented:
 - FedDyn
 - FedExP
 - FedLC
+- FedNH
 - FedNova
 - FedOpt (FedAdam, FedAdagrad, FedYogi)
 - FedPer
