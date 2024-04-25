@@ -85,9 +85,10 @@ class OptimizerConfigurator:
 
     def __str__(self) -> str:
         strsched = self.scheduler.__name__
+        sch_params = self.scheduler_kwargs.exclude("name")
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
+        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in sch_params.items()])
         to_str += "))"
         return to_str
 
