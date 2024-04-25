@@ -122,7 +122,7 @@ class FedNHClient(PFLClient):
                 self.channel.send(Message(self.server, "model", self.server), self)
                 self._receive_model()
 
-            model = FedNHModel(self.model, self.device)
+            model = FedNHModel(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos).evaluate(model,
                                                                            self.test_set)

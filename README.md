@@ -89,8 +89,9 @@ hyperparameters:
     # HPs of the optimizer (the type of optimizer depends on the algorithm)
     optimizer:
       lr: 0.8
-    # HPs of the StepLR
+    # HPs of the scheduler (scheduler name from torch.optim.lr_scheduler)
     scheduler:
+      name: StepLR
       gamma: 0.995
       step_size: 10
   # HPs of the server

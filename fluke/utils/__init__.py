@@ -3,7 +3,6 @@ from __future__ import annotations
 from rich.pretty import Pretty
 from rich.panel import Panel
 import rich
-from torch.optim.lr_scheduler import StepLR
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
@@ -64,7 +63,8 @@ class OptimizerConfigurator:
                  **optimizer_kwargs):
         self.optimizer: type[Optimizer] = optimizer_class
         self.scheduler_kwargs: DDict = (DDict(**scheduler_kwargs) if scheduler_kwargs is not None
-                                        else DDict(step_size=1, gamma=1))
+                                        else DDict(name="StepLR", step_size=1, gamma=1))
+        self.scheduler = get_scheduler(self.scheduler_kwargs.name)
         self.optimizer_kwargs: DDict = DDict(**optimizer_kwargs)
 
     def __call__(self, model: Module, **override_kwargs):
@@ -80,13 +80,14 @@ class OptimizerConfigurator:
         if override_kwargs:
             self.optimizer_kwargs.update(override_kwargs)
         optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
-        scheduler = StepLR(optimizer, **self.scheduler_kwargs)
+        scheduler = self.scheduler(optimizer, **self.scheduler_kwargs.exclude("name"))
         return optimizer, scheduler
 
     def __str__(self) -> str:
+        strsched = self.scheduler.__name__
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += ",StepLR(" + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
+        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
         to_str += "))"
         return to_str
 

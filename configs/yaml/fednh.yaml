@@ -10,8 +10,8 @@ hyperparameters:
       momentum: 0.9
       # weight_decay: 0.0001
     scheduler:
-      gamma: 1
-      step_size: 1
+      name: ExponentialLR
+      gamma: 0.99
   model: MNIST_CNN_E
   server:
     n_protos: 10
