@@ -139,13 +139,16 @@ def test_splitter():
             "name": DistributionEnum.IID,
         },
         sampling_perc=0.1,
-        standardize=False
+        server_test=True,
+        server_split=0.2,
+        keep_test=False
     )
 
     splitter = DataSplitter.from_config(cfg)
     assert splitter.client_split == 0.1
     assert splitter.sampling_perc == 0.1
-    assert not splitter.standardize
+    assert splitter.server_split == 0.2
+    assert not splitter.keep_test
     assert splitter.distribution == DistributionEnum.IID
 
     (ctr, cte), ste = splitter.assign(10, batch_size=10)

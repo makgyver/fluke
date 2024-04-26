@@ -223,14 +223,14 @@ class DataSplitter:
                  server_split: float = 0.0,
                  builder_args: DDict = None,
                  dist_args: DDict = None):
-        print(locals())
         assert 0 <= client_split <= 1, "client_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
         assert 0 <= server_split <= 1, "server_split must be between 0 and 1."
-        assert not keep_test and server_test and server_split > 0.0, \
-            "server_split must be > 0.0 if server_test is True and keep_test is False."
-        assert not server_test and client_split > 0.0, \
-            "Either client_split > 0 or server_test = True must be true."
+        if not keep_test and server_test and server_split == 0.0:
+            raise AssertionError(
+                "server_split must be > 0.0 if server_test is True and keep_test is False.")
+        if not server_test and client_split == 0.0:
+            raise AssertionError("Either client_split > 0 or server_test = True must be true.")
 
         self.data_container = dataset if isinstance(
             dataset, DataContainer) else dataset.klass()(**builder_args if builder_args else {})
@@ -245,7 +245,7 @@ class DataSplitter:
     # def num_features(self) -> int:
     #     return self.data_container.num_features
 
-    @property
+    @ property
     def num_classes(self) -> int:
         """Return the number of classes of the dataset.
 

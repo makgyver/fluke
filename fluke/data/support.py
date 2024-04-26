@@ -101,8 +101,6 @@ class MNISTM(VisionDataset):
                                          extract_root=self.processed_folder,
                                          filename=filename, md5=md5)
 
-        # print('Done!')
-
     def extra_repr(self):
         return "Split: {}".format("Train" if self.train is True else "Test")
 
