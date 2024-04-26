@@ -62,9 +62,10 @@ class OptimizerConfigurator:
                  scheduler_kwargs: dict = None,
                  **optimizer_kwargs):
         self.optimizer: type[Optimizer] = optimizer_class
-        self.scheduler_kwargs: DDict = (DDict(**scheduler_kwargs) if scheduler_kwargs is not None
-                                        else DDict(name="StepLR", step_size=1, gamma=1))
-        self.scheduler = get_scheduler(self.scheduler_kwargs.name)
+        self.scheduler_kwargs: DDict = DDict(**scheduler_kwargs) if scheduler_kwargs is not None \
+            else DDict(name="StepLR", step_size=1, gamma=1)
+        self.scheduler = get_scheduler(
+            self.scheduler_kwargs.name if self.scheduler_kwargs.name else "StepLR")
         self.optimizer_kwargs: DDict = DDict(**optimizer_kwargs)
 
     def __call__(self, model: Module, **override_kwargs):
@@ -429,7 +430,7 @@ class Configuration(DDict):
         DATA_OPT_KEYS = {
             "sampling_perc": 1.0,
             "client_split": 0.0,
-            "standardize": False
+            # "standardize": False
         }
 
         ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]

@@ -124,8 +124,9 @@ class FedNHClient(PFLClient):
 
             model = FedNHModel(self.model)
             return ClassificationEval(None,
-                                      self.hyper_params.n_protos).evaluate(model,
-                                                                           self.test_set)
+                                      self.hyper_params.n_protos,
+                                      self.device).evaluate(model,
+                                                            self.test_set)
         return {}
 
 

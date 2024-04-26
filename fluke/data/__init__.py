@@ -197,7 +197,7 @@ class DataSplitter:
                                               builder_args=config.dataset.exclude('name'),
                                               distribution=config.distribution.name,
                                               **config.exclude('dataset', 'distribution'),
-                                              **config.distribution.exclude('name'))
+                                              dist_args=config.distribution.exclude('name'))
 
     def _safe_train_test_split(self,
                                client_id: int,
@@ -215,25 +215,32 @@ class DataSplitter:
 
     def __init__(self,
                  dataset: Union[DatasetsEnum, DataContainer],
-                 standardize: bool = False,
                  distribution: DistributionEnum = DistributionEnum.IID,
                  client_split: float = 0.0,
                  sampling_perc: float = 1.0,
+                 server_test: bool = False,
+                 keep_test: bool = False,
+                 server_split: float = 0.0,
                  builder_args: DDict = None,
-                 **kwargs):
+                 dist_args: DDict = None):
+        print(locals())
         assert 0 <= client_split <= 1, "client_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
+        assert 0 <= server_split <= 1, "server_split must be between 0 and 1."
+        assert not keep_test and server_test and server_split > 0.0, \
+            "server_split must be > 0.0 if server_test is True and keep_test is False."
+        assert not server_test and client_split > 0.0, \
+            "Either client_split > 0 or server_test = True must be true."
 
         self.data_container = dataset if isinstance(
             dataset, DataContainer) else dataset.klass()(**builder_args if builder_args else {})
-        self.standardize = standardize
-        if standardize:
-            self.data_container.standardize()
-
         self.distribution = distribution
         self.client_split = client_split
         self.sampling_perc = sampling_perc
-        self.kwargs = kwargs
+        self.keep_test = keep_test
+        self.server_test = server_test
+        self.server_split = server_split
+        self.dist_args = dist_args
 
     # def num_features(self) -> int:
     #     return self.data_container.num_features
@@ -263,20 +270,46 @@ class DataSplitter:
                   FastTensorDataLoader]:
                 The clients' training and testing assignments and the server's testing assignment.
         """
-        Xtr, Ytr = self.data_container.train
-        self.assignments = self._iidness_functions[self.distribution](
-            self, Xtr, Ytr, n_clients, **self.kwargs)
+        if self.keep_test:
+            Xtr, Ytr = self.data_container.train
+            if not self.server_test:
+                Xte, Yte = self.data_container.test
+                te_assignments = self.uniform(Xte, Yte, n_clients)
+        else:
+            Xtr, ytr = self.data_container.train
+            Xte, yte = self.data_container.test
+            # Merge and shuffle the data
+            X, Y = torch.cat((Xtr, Xte), dim=0), torch.cat((ytr, yte), dim=0)
+            idx = torch.randperm(X.size(0))
+            X, Y = X[idx], Y[idx]
+            # Split the data
+            if self.server_test:
+                Xtr, Xte, Ytr, Yte = train_test_split(X, Y, test_size=self.server_split)
+            else:
+                Xtr, Xte, Ytr, Yte = X, None, Y, None
+            self.data_container = DataContainer(Xtr, Ytr, Xte, Yte, self.num_classes)
+            Xtr, Ytr = self.data_container.train
+
+        tr_assignments = self._iidness_functions[self.distribution](
+            self, Xtr, Ytr, n_clients, **self.dist_args)
+
         client_tr_assignments = []
         client_te_assignments = []
         for c in range(n_clients):
-            client_X = Xtr[self.assignments[c]]
-            client_y = Ytr[self.assignments[c]]
-            if self.client_split > 0.0:
-                (Xtr_client, Xte_client,
-                 Ytr_client, Yte_client) = self._safe_train_test_split(c,
-                                                                       client_X,
-                                                                       client_y,
-                                                                       test_size=self.client_split)
+            client_X = Xtr[tr_assignments[c]]
+            client_y = Ytr[tr_assignments[c]]
+            if self.client_split > 0.0 or (not self.server_test and self.keep_test):
+                if (not self.server_test and self.keep_test):
+                    Xtr_client, Ytr_client = client_X, client_y
+                    Xte_client, Yte_client = Xte[te_assignments[c]], Yte[te_assignments[c]]
+                else:
+                    (Xtr_client,
+                     Xte_client,
+                     Ytr_client,
+                     Yte_client) = self._safe_train_test_split(c,
+                                                               client_X,
+                                                               client_y,
+                                                               test_size=self.client_split)
                 client_tr_assignments.append(FastTensorDataLoader(Xtr_client,
                                                                   Ytr_client,
                                                                   num_labels=self.num_classes,
@@ -301,8 +334,7 @@ class DataSplitter:
         server_te = FastTensorDataLoader(*self.data_container.test,
                                          num_labels=self.num_classes,
                                          batch_size=128,
-                                         shuffle=False)
-
+                                         shuffle=False) if self.server_test else None
         return (client_tr_assignments, client_te_assignments), server_te
 
     def uniform(self,
