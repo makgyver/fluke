@@ -171,6 +171,8 @@ class FedNHServer(Server):
                 (1 - self.hyper_params.rho) * \
                 torch.sum(sim_weights[label].unsqueeze(1) * torch.stack(protos), dim=0)
 
+        prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
+
         # Normalize the prototypes
         for label in label_protos.keys():
             prototypes.data[label, :] /= torch.norm(prototypes.data[label, :]).clamp(min=1e-12)
