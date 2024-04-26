@@ -75,7 +75,7 @@ class FedProtoClient(PFLClient):
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
         for label, prts in protos.items():
-            self.prototypes[label] = torch.sum(torch.stack(prts), dim=0) / len(prts)
+            self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -108,6 +108,11 @@ class FedProtoClient(PFLClient):
                 for i, yy in enumerate(y):
                     y_c = yy.item()
                     protos[y_c].append(Z[i, :].detach().data)
+
+                # for label in range(self.hyper_params.n_protos):
+                #     ids = y == label
+                #     if ids.sum() > 0:
+                #         protos[label].append(Z[ids, :].detach().data)
 
                 loss.backward()
                 self.optimizer.step()
