@@ -334,7 +334,9 @@ class DataSplitter:
         server_te = FastTensorDataLoader(*self.data_container.test,
                                          num_labels=self.num_classes,
                                          batch_size=128,
-                                         shuffle=False) if self.server_test else None
+                                         shuffle=True,
+                                         percentage=self.sampling_perc) if self.server_test \
+            else None
         return (client_tr_assignments, client_te_assignments), server_te
 
     def uniform(self,
