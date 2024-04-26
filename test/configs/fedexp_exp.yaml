@@ -5,7 +5,6 @@ data:
   distribution:
     name: iid
   sampling_perc: 1
-  standardize: false
 exp:
   device: mps
   seed: 42

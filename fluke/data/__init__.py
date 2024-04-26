@@ -218,8 +218,8 @@ class DataSplitter:
                  distribution: DistributionEnum = DistributionEnum.IID,
                  client_split: float = 0.0,
                  sampling_perc: float = 1.0,
-                 server_test: bool = False,
-                 keep_test: bool = False,
+                 server_test: bool = True,
+                 keep_test: bool = True,
                  server_split: float = 0.0,
                  builder_args: DDict = None,
                  dist_args: DDict = None):
