@@ -129,7 +129,7 @@ To date, the following federated algorithms are implemented:
 - Ditto
 - FedAMP
 - FedAvg
-- FedAvgM [**to be checked**]
+- FedAvgM
 - FedBABU
 - FedBN
 - FedDyn

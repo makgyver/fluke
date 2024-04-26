@@ -24,10 +24,6 @@ class FedAVGMServer(Server):
                  momentum: float = 0.9):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(momentum=momentum)
-        self.optimizer = torch.optim.SGD(self.model.parameters(),
-                                         lr=1.0,
-                                         momentum=self.hyper_params.momentum,
-                                         nesterov=True)
 
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
@@ -48,10 +44,8 @@ class FedAVGMServer(Server):
                     else:
                         avg_model_sd[key] += weights[i] * client_diff[key]
 
-        self.optimizer.zero_grad()
-        for key, param in self.model.named_parameters():
-            param.grad = avg_model_sd[key].data
-        self.optimizer.step()
+            for key, param in self.model.named_parameters():
+                param.data = self.hyper_params.momentum * param.data - avg_model_sd[key].data
 
 
 class FedAVGM(CentralizedFL):

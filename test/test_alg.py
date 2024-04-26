@@ -182,6 +182,10 @@ def test_fedavg():
     assert log.history[log.current_round]["accuracy"] >= 0.9642
 
 
+def test_fedavgm():
+    fedavgm, log = _test_algo("./configs/fedavgm_exp.yaml", "./configs/fedavgm.yaml")
+
+
 def test_fedprox():
     fedprox, log = _test_algo("./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
 
@@ -209,4 +213,5 @@ if __name__ == "__main__":
     # test_fedsgd()
     # test_fedexp()
     # test_fedproto()
-    test_fedopt()
+    # test_fedopt()
+    test_fedavgm()

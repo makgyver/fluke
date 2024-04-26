@@ -1,0 +1,16 @@
+data:
+  client_split: 0.0
+  dataset:
+    name: cifar10
+  distribution:
+    name: iid
+  sampling_perc: 1
+exp:
+  device: mps
+  seed: 42
+logger:
+  name: local
+protocol:
+  eligible_perc: 0.1
+  n_clients: 100
+  n_rounds: 75
