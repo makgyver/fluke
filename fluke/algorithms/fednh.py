@@ -158,11 +158,18 @@ class FedNHServer(Server):
                         for i in range(self.hyper_params.n_protos)}
 
         weight = 1. / len(clients_models)
+
         # Aggregate prototypes
         prototypes = self.model.prototypes
+        sim_weights = []
+        for protos in clients_protos:
+            sim_weights.append(torch.exp(torch.sum(prototypes.data * protos, dim=1)))
+        sim_weights = torch.stack(sim_weights, dim=0).T
+
         for label, protos in label_protos.items():
             prototypes.data[label, :] = self.hyper_params.rho * prototypes.data[label, :] + \
-                (1 - self.hyper_params.rho) * torch.sum(weight * torch.stack(protos), dim=0)
+                (1 - self.hyper_params.rho) * \
+                torch.sum(sim_weights[label].unsqueeze(1) * torch.stack(protos), dim=0)
 
         # Normalize the prototypes
         for label in label_protos.keys():
