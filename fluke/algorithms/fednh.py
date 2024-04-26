@@ -81,7 +81,7 @@ class FedNHClient(PFLClient):
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
         for label, prts in protos.items():
-            self.model.prototypes.data[label] = torch.sum(torch.stack(prts), dim=0) / len(prts)
+            self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -107,11 +107,10 @@ class FedNHClient(PFLClient):
         clear_cache()
 
         protos = defaultdict(list)
-        for _, (X, y) in enumerate(self.train_set):
-            for i, yy in enumerate(y):
-                y_c = yy.item()
-                Z, _ = self.model(X)
-                protos[y_c].append(Z[i, :].detach().data)
+        for label in range(self.hyper_params.n_protos):
+            Xlbl = self.train_set.tensors[0][self.train_set.tensors[1] == label]
+            protos[label] = self.model(Xlbl)[0].detach().data
+
         self._update_protos(protos)
         self._send_model()
 
