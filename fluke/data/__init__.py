@@ -208,7 +208,7 @@ class DataSplitter:
             return train_test_split(X, y, test_size=test_size, stratify=y)
         except ValueError:
             rich.print(
-                f"[bold red]Warning [Client {client_id}]: [/bold red] Stratified split failed." +
+                f"[bold red]Warning [Client {client_id}]: [/bold red] Stratified split failed. " +
                 "Falling back to random split."
             )
             return train_test_split(X, y, test_size=test_size)
@@ -240,7 +240,7 @@ class DataSplitter:
         self.keep_test = keep_test
         self.server_test = server_test
         self.server_split = server_split
-        self.dist_args = dist_args
+        self.dist_args = dist_args if dist_args is not None else DDict()
 
     # def num_features(self) -> int:
     #     return self.data_container.num_features
