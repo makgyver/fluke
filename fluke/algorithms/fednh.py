@@ -146,6 +146,7 @@ class FedNHServer(Server):
                          eval_every,
                          weighted)
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
+        # TODO: add server-side learning rate
 
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
@@ -156,25 +157,33 @@ class FedNHServer(Server):
         label_protos = {i: [protos[i] for protos in clients_protos]
                         for i in range(self.hyper_params.n_protos)}
 
-        weight = 1. / len(clients_models)
+        # server_lr = self.hyper_params.lr * self.hyper_params.lr_decay ** self.round
+        server_lr = 1.0
+        weight = server_lr / len(clients_models)
 
         # Aggregate prototypes
-        prototypes = self.model.prototypes
-        sim_weights = []
-        for protos in clients_protos:
-            sim_weights.append(torch.exp(torch.sum(prototypes.data * protos, dim=1)))
-        sim_weights = torch.stack(sim_weights, dim=0).T
+        with torch.no_grad():
+            prototypes = self.model.prototypes.clone()
+            sim_weights = []
+            for protos in clients_protos:
+                sim_weights.append(torch.exp(torch.sum(prototypes.data * protos, dim=1)))
+            sim_weights = torch.stack(sim_weights, dim=0).T
 
-        for label, protos in label_protos.items():
-            prototypes.data[label, :] = self.hyper_params.rho * prototypes.data[label, :] + \
-                (1 - self.hyper_params.rho) * \
-                torch.sum(sim_weights[label].unsqueeze(1) * torch.stack(protos), dim=0)
+            for label, protos in label_protos.items():
+                prototypes.data[label, :] = prototypes.data[label, :] + \
+                    torch.sum(sim_weights[label].unsqueeze(1) * torch.stack(protos), dim=0)
 
-        prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
+            prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
 
-        # Normalize the prototypes
-        for label in label_protos.keys():
-            prototypes.data[label, :] /= torch.norm(prototypes.data[label, :]).clamp(min=1e-12)
+            # Normalize the prototypes
+            prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
+
+            self.model.prototypes.data = (1 - self.hyper_params.rho) * prototypes.data + \
+                self.hyper_params.rho * self.model.prototypes.data
+
+            # Normalize the prototypes again
+            self.model.prototypes.data /= torch.norm(self.model.prototypes.data,
+                                                     dim=0).clamp(min=1e-12)
 
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()
