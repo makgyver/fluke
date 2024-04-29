@@ -192,8 +192,8 @@ class FedHyperProtoServer(Server):
         if self.hyper_params.weighted:
             client_weights = self._get_client_weights(eligible)
             avg_proto = torch.zeros_like(clients_protos[0])
-            for protos in clients_protos:
-                avg_proto += client_weights * protos
+            for i, protos in enumerate(clients_protos):
+                avg_proto += client_weights[i] * protos
         else:
             avg_proto = torch.zeros_like(clients_protos[0])
             for protos in clients_protos:
