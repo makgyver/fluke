@@ -28,6 +28,7 @@ class ProtoNet(Module):
                                     requires_grad=True)
         self.prototypes.data = torch.nn.init.orthogonal_(torch.rand(n_protos,
                                                                     encoder.output_size))
+        self.temperature = Parameter(torch.rand(1), requires_grad=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         embeddings = self.encoder(x)
@@ -39,11 +40,11 @@ class ProtoNet(Module):
             logits = torch.matmul(embeddings, normalized_prototypes.T)
         else:
             logits = torch.matmul(embeddings, self.prototypes.T)
-
+        logits = self.temperature * logits
         return embeddings, logits
 
 
-class FedNHModel(Module):
+class ArgMaxModule(Module):
     def __init__(self,
                  model: Module):
         super().__init__()
@@ -81,7 +82,11 @@ class FedNHClient(PFLClient):
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
         for label, prts in protos.items():
-            self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
+            if prts.shape[0] > 0:
+                self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
+                self.model.prototypes.data[label] /= torch.norm(self.model.prototypes.data[label])
+            else:
+                self.model.prototypes.data[label] = torch.zeros(self.train_set.num_labels)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -115,13 +120,14 @@ class FedNHClient(PFLClient):
         self._send_model()
 
     def evaluate(self) -> Dict[str, float]:
+
         if self.test_set is not None:
             if self.model is None:
                 # ask for the prototypes and receive them
                 self.channel.send(Message(self.server, "model", self.server), self)
                 self._receive_model()
 
-            model = FedNHModel(self.model)
+            model = ArgMaxModule(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos,
                                       self.device).evaluate(model,
@@ -146,7 +152,6 @@ class FedNHServer(Server):
                          eval_every,
                          weighted)
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
-        # TODO: add server-side learning rate
 
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
@@ -157,6 +162,7 @@ class FedNHServer(Server):
         label_protos = {i: [protos[i] for protos in clients_protos]
                         for i in range(self.hyper_params.n_protos)}
 
+        # This could be the learning rate for the server (not used in the official implementation)
         # server_lr = self.hyper_params.lr * self.hyper_params.lr_decay ** self.round
         server_lr = 1.0
         weight = server_lr / len(clients_models)
@@ -208,7 +214,7 @@ class FedNHServer(Server):
 
     def evaluate(self) -> Dict[str, float]:
         if self.test_data is not None:
-            model = FedNHModel(self.model)
+            model = ArgMaxModule(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos,
                                       self.device).evaluate(model,
