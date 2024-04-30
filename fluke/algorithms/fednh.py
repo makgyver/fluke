@@ -170,10 +170,9 @@ class FedNHServer(Server):
         # Aggregate prototypes
         with torch.no_grad():
             if self.hyper_params.weighted:
-                client_weights = torch.FloatTensor(self._get_client_weights(eligible)).unsqueeze(1)
                 for label, protos in label_protos.items():
                     self.model.prototypes.data[label, :] = torch.sum(
-                        client_weights * torch.stack(protos), dim=0)
+                        weight * torch.stack(protos), dim=0)
             else:
                 prototypes = self.model.prototypes.clone()
                 sim_weights = []
