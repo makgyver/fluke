@@ -1,3 +1,4 @@
+import re
 import torch
 import random
 import numpy as np
@@ -161,7 +162,9 @@ class GlobalSettings(metaclass=Singleton):
         Returns:
             torch.device: The device as torch.device.
         """
-        assert device in ['cpu', 'cuda', 'auto', 'mps'], f"Invalid device {device}."
+        assert device in ['cpu', 'auto', 'mps', 'cuda'] or re.match(r'^cuda:\d+$', device), \
+            f"Invalid device {device}."
+
         if device == "auto":
             return GlobalSettings().auto_device()
 
