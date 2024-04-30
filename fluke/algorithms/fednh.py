@@ -25,7 +25,7 @@ class ProtoNet(Module):
         self.encoder = encoder
         self._normalize = normalize
         self.prototypes = Parameter(torch.rand((n_protos, encoder.output_size)),
-                                    requires_grad=True)
+                                    requires_grad=False)
         self.prototypes.data = torch.nn.init.orthogonal_(torch.rand(n_protos,
                                                                     encoder.output_size))
         self.temperature = Parameter(torch.rand(1), requires_grad=True)
