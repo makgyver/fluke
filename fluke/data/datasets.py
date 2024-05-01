@@ -69,6 +69,9 @@ class Datasets:
             download=True
         )
 
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
         train_data.data = torch.Tensor(train_data.data / 255.)
         test_data.data = torch.Tensor(test_data.data / 255.)
 
@@ -119,11 +122,15 @@ class Datasets:
             download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
-        train_data.data = torch.movedim(train_data.data, 3, 1)
-        test_data.data = torch.movedim(test_data.data, 3, 1)
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+            train_data.data = torch.movedim(train_data.data, 3, 1)
+            test_data.data = torch.movedim(test_data.data, 3, 1)
 
         return DataContainer(train_data.data,
                              train_data.targets,
@@ -150,9 +157,16 @@ class Datasets:
             download=True
         )
 
-        return DataContainer(train_data.data / 255.,
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+        return DataContainer(train_data.data,
                              train_data.targets,
-                             test_data.data / 255.,
+                             test_data.data,
                              test_data.targets,
                              47)
 
@@ -173,22 +187,27 @@ class Datasets:
             download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
-        train_data.labels = torch.LongTensor(train_data.labels)
-        test_data.labels = torch.LongTensor(test_data.labels)
+        # Force targets to be named "targets" instead of "labels" for compatibility
+        setattr(train_data, "targets", train_data.labels)
+        setattr(test_data, "targets", test_data.labels)
+
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
+        if transforms is None:
+            train_data.data = torch.Tensor(train_data.data / 255.)
+            test_data.data = torch.Tensor(test_data.data / 255.)
 
         return DataContainer(train_data.data,
-                             train_data.labels,
+                             train_data.targets,
                              test_data.data,
-                             test_data.labels,
+                             test_data.targets,
                              10)
 
     @classmethod
     def CIFAR10(cls,
                 path: str = "../data",
-                train_transforms: Optional[callable] = None,
-                test_transforms: Optional[callable] = None) -> DataContainer:
+                transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = datasets.CIFAR10(
             root=path,
@@ -202,14 +221,15 @@ class Datasets:
             download=True
         )
 
-        train_data = _apply_transforms(train_data, train_transforms)
-        test_data = _apply_transforms(test_data, test_transforms)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
-        # train_data.data = torch.Tensor(train_data.data / 255.)
-        # test_data.data = torch.Tensor(test_data.data / 255.)
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
 
-        # train_data.data = torch.movedim(train_data.data, 3, 1)
-        # test_data.data = torch.movedim(test_data.data, 3, 1)
+            train_data.data = torch.movedim(train_data.data, 3, 1)
+            test_data.data = torch.movedim(test_data.data, 3, 1)
 
         return DataContainer(train_data.data,
                              train_data.targets,
@@ -226,15 +246,16 @@ class Datasets:
             root=path,
             split="train",
             download=True
-            # transform=transforms
         )
 
         test_data = support.CINIC10(
             root=path,
             split="test",
             download=True
-            # transform=transforms
         )
+
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
         return DataContainer(train_data.data,
                              train_data.targets,
@@ -259,16 +280,20 @@ class Datasets:
             download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
-        train_data.data = torch.movedim(train_data.data, 3, 1)
-        test_data.data = torch.movedim(test_data.data, 3, 1)
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+            train_data.data = torch.movedim(train_data.data, 3, 1)
+            test_data.data = torch.movedim(test_data.data, 3, 1)
 
         return DataContainer(train_data.data,
-                             torch.LongTensor(train_data.targets),
+                             train_data.targets,
                              test_data.data,
-                             torch.LongTensor(test_data.targets),
+                             test_data.targets,
                              100)
 
     @classmethod
@@ -288,10 +313,13 @@ class Datasets:
             download=True
         )
 
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
         return DataContainer(train_data.data,
-                             torch.LongTensor(train_data.targets),
+                             train_data.targets,
                              test_data.data,
-                             torch.LongTensor(test_data.targets),
+                             test_data.targets,
                              10)
 
     @classmethod
@@ -315,7 +343,12 @@ class Datasets:
         for image in track(tiny_imagenet_train, "Loading Tiny ImageNet train data..."):
             y = image['label']
             image = image['image']
-            x = ToTensor()(image).unsqueeze(0)
+            if transforms is not None:
+                x = transforms(image)
+            if not isinstance(image, torch.Tensor):
+                x = ToTensor()(image).unsqueeze(0)
+            else:
+                x = image.unsqueeze(0)
             if x.shape != torch.Size([1, 3, 64, 64]):
                 x = fix_bw_trans(x)
             X_train.append(x)
@@ -324,7 +357,12 @@ class Datasets:
         for image in track(tiny_imagenet_test, "Loading Tiny ImageNet test data..."):
             y = image['label']
             image = image['image']
-            x = ToTensor()(image).unsqueeze(0)
+            if transforms is not None:
+                image = transforms(image)
+            if not isinstance(image, torch.Tensor):
+                x = ToTensor()(image).unsqueeze(0)
+            else:
+                x = image.unsqueeze(0)
             if x.shape != torch.Size([1, 3, 64, 64]):
                 x = fix_bw_trans(x)
             X_test.append(x)
