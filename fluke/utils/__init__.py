@@ -1,4 +1,4 @@
-"""This module contains utility functions and classes used throughout the package."""
+"""This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
 from rich.pretty import Pretty
 from rich.panel import Panel
@@ -46,10 +46,7 @@ __all__ = [
 
 
 class OptimizerConfigurator:
-    """Optimizer configurator.
-
-    This class is used to configure the optimizer and the learning rate scheduler.
-    To date, only the `StepLR` scheduler is supported.
+    """This class is used to configure the optimizer and the learning rate scheduler.
 
     Attributes:
         optimizer (type[Optimizer]): The optimizer class.
@@ -61,6 +58,13 @@ class OptimizerConfigurator:
                  optimizer_class: type[Optimizer],
                  scheduler_kwargs: dict = None,
                  **optimizer_kwargs):
+        """Initialize the optimizer configurator. The default scheduler is the StepLR scheduler.
+
+        Args:
+            optimizer_class (type[Optimizer]): The optimizer class.
+            scheduler_kwargs (dict, optional): The scheduler keyword arguments. Defaults to None.
+            **optimizer_kwargs: The optimizer keyword arguments.
+        """
         self.optimizer: type[Optimizer] = optimizer_class
         self.scheduler_kwargs: DDict = DDict(**scheduler_kwargs) if scheduler_kwargs is not None \
             else DDict(name="StepLR", step_size=1, gamma=1)
@@ -100,7 +104,7 @@ class LogEnum(Enum):
     WANDB = "wandb"  # : Weights and Biases logging
 
     def logger(self,
-               **wandb_config):
+               **wandb_config) -> Log:
         """Returns a new logger according to the value of the enumerator.
 
         Args:
@@ -117,7 +121,6 @@ class LogEnum(Enum):
 
 class Log(ServerObserver, ChannelObserver):
     """Basic logger.
-
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process. The logging happens in the console.
 
@@ -136,7 +139,6 @@ class Log(ServerObserver, ChannelObserver):
 
     def init(self, **kwargs):
         """Initialize the logger.
-
         The initialization is done by printing the configuration in the console.
 
         Args:
@@ -213,7 +215,6 @@ class Log(ServerObserver, ChannelObserver):
 
 class WandBLog(Log):
     """Weights and Biases logger.
-
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process on Weights and Biases.
 
@@ -222,8 +223,6 @@ class WandBLog(Log):
         <https://docs.wandb.ai/>`_.
 
     Args:
-        evaluator (Evaluator): The evaluator that will be used to evaluate the model.
-        eval_every (int): The number of rounds between evaluations.
         **config: The configuration for Weights and Biases.
     """
 
@@ -276,7 +275,6 @@ def import_module_from_str(name: str) -> Any:
 
 def get_class_from_str(module_name: str, class_name: str) -> Any:
     """Get a class from its name.
-
     This function is used to get a class from its name and the name of the module where it is
     defined. It is used to dynamically import classes.
 
@@ -310,8 +308,7 @@ def get_class_from_qualified_name(qualname: str) -> Any:
 
 def get_loss(lname: str) -> Module:
     """Get a loss function from its name.
-
-    The supported loss functions are the ones defined in the `torch.nn` module.
+    The supported loss functions are the ones defined in the ``torch.nn`` module.
 
     Args:
         lname (str): The name of the loss function.
@@ -324,9 +321,9 @@ def get_loss(lname: str) -> Module:
 
 def get_model(mname: str, **kwargs) -> Module:
     """Get a model from its name.
-
-    This function is used to get a model from its name and the name of the module where it is
-    defined. It is used to dynamically import models.
+    This function is used to get a torch model from its name and the name of the module where it is
+    defined. It is used to dynamically import models. If ``mname`` is not a fully qualified name,
+    the model is assumed to be defined in the ``fluke.nets`` module.
 
     Args:
         mname (str): The name of the model.
@@ -357,10 +354,9 @@ def get_full_classname(classtype: type) -> str:
 
 def get_scheduler(sname: str) -> torch.nn.Module:
     """Get a learning rate scheduler from its name.
-
     This function is used to get a learning rate scheduler from its name. It is used to dynamically
     import learning rate schedulers. The supported schedulers are the ones defined in the
-    `torch.optim.lr_scheduler` module.
+    ``torch.optim.lr_scheduler`` module.
 
     Args:
         sname (str): The name of the scheduler.
@@ -384,8 +380,7 @@ def clear_cache(ipc: bool = False):
 
 
 class Configuration(DDict):
-    """FLUKE configuration class.
-
+    """Fluke configuration class.
     This class is used to store the configuration of an experiment. The configuration must adhere to
     a specific structure. The configuration is validated when the class is instantiated.
 
