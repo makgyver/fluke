@@ -75,6 +75,7 @@ class Server(ObserverSubject):
         self.rounds: int = 0
         self.test_data: FastTensorDataLoader = test_data
         self._eval_every: int = eval_every
+        self._participants: set[int] = set()
 
         for client in self.clients:
             client.set_server(self)
@@ -156,14 +157,13 @@ class Server(ObserverSubject):
     def _finalize(self) -> None:
         """Finalize the federated learning process.
 
-        The finalize method is called at the end of the federated learning process. It is used to
-        send the final model to the clients and to notify the observers that the process has ended.
+        The finalize method is called at the end of the federated learning process. The client-side
+        evaluation is only done if the client has participated in at least one round.
         """
-        self._broadcast_model(self.clients)
-        for client in self.clients:
-            client._receive_model()
         client_evals = []
         for client in self.clients:
+            if client.index not in self._participants:
+                continue
             client_eval = client.evaluate()
             if client_eval:
                 client_evals.append(client_eval)
@@ -179,9 +179,13 @@ class Server(ObserverSubject):
             Sequence[Client]: The clients that will participate in the current round.
         """
         if eligible_perc == 1:
+            if not self._participants:
+                self._participants = set(range(self.n_clients))
             return self.clients
         n = int(self.n_clients * eligible_perc)
-        return np.random.choice(self.clients, n)
+        selected = np.random.choice(self.clients, n)
+        self._participants.update([c.index for c in selected])
+        return selected
 
     def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True):
         """Retrieve the models of the clients.

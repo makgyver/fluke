@@ -66,7 +66,7 @@ class FedNHClient(PFLClient):
                  loss_fn: Callable,  # Not used
                  local_epochs: int,
                  n_protos: int,
-                 proto_norm: bool = False):
+                 proto_norm: bool = True):
         super().__init__(index,
                          ProtoNet(model, n_protos, proto_norm),
                          train_set,
@@ -145,7 +145,7 @@ class FedNHServer(Server):
                  weighted: bool = True,
                  n_protos: int = 10,
                  rho: float = 0.1,
-                 proto_norm: bool = False):
+                 proto_norm: bool = True):
         super().__init__(ProtoNet(model, n_protos, proto_norm),
                          test_data,
                          clients,
@@ -169,12 +169,12 @@ class FedNHServer(Server):
 
         # Aggregate prototypes
         with torch.no_grad():
+            prototypes = self.model.prototypes.clone()
             if self.hyper_params.weighted:
                 for label, protos in label_protos.items():
-                    self.model.prototypes.data[label, :] = torch.sum(
+                    prototypes.data[label, :] = torch.sum(
                         weight * torch.stack(protos), dim=0)
             else:
-                prototypes = self.model.prototypes.clone()
                 sim_weights = []
                 for protos in clients_protos:
                     sim_weights.append(torch.exp(torch.sum(prototypes.data * protos, dim=1)))
@@ -186,15 +186,15 @@ class FedNHServer(Server):
 
                 prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
 
-                # Normalize the prototypes
-                prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
+            # Normalize the prototypes
+            prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
 
-                self.model.prototypes.data = (1 - self.hyper_params.rho) * prototypes.data + \
-                    self.hyper_params.rho * self.model.prototypes.data
+            self.model.prototypes.data = (1 - self.hyper_params.rho) * prototypes.data + \
+                self.hyper_params.rho * self.model.prototypes.data
 
-                # Normalize the prototypes again
-                self.model.prototypes.data /= torch.norm(self.model.prototypes.data,
-                                                         dim=0).clamp(min=1e-12)
+            # Normalize the prototypes again
+            self.model.prototypes.data /= torch.norm(self.model.prototypes.data,
+                                                     dim=0).clamp(min=1e-12)
 
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()

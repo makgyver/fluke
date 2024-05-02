@@ -35,7 +35,18 @@ class Singleton(type):
 
 
 class DDict(dict):
-    """A dictionary that can be accessed with dot notation recursively."""
+    """A dictionary that can be accessed with dot notation recursively.
+
+    Example:
+    ```
+    d = DDict(a=1, b=2, c={'d': 3, 'e': 4})
+    print(d.a)  # 1
+    print(d.b)  # 2
+    print(d.c.d)  # 3
+    print(d.c.e)  # 4
+    ```
+
+    """
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
 
@@ -43,6 +54,11 @@ class DDict(dict):
         self.update(**kwargs)
 
     def update(self, **kwargs):
+        """Update the `DDict` with the specified key-value pairs.
+
+        Args:
+            **kwargs: The key-value pairs.
+        """
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 self[k] = DDict(**v)
@@ -59,7 +75,7 @@ class DDict(dict):
 
 
 class ObserverSubject():
-    """Observer subject class."""
+    """Subject class for the observer pattern."""
 
     def __init__(self):
         self._observers = []
@@ -92,19 +108,11 @@ class ObserverSubject():
             pass
 
 
-# class DeviceEnum(Enum):
-#     """Device enumerator."""
-#     CPU: str = "cpu"    #: CPU
-#     CUDA: str = "cuda"  #: CUDA
-#     AUTO: str = "auto"  #: AUTO - automatically selects CUDA if available, otherwise CPU
-#     MPS: str = "mps"    #: MPS - for Apple M1/M2 GPUs
-
-
 class GlobalSettings(metaclass=Singleton):
     """Global settings for FLUKE.
 
     This class is a singleton that holds the global settings for FLUKE. The settings include:
-    - The device (CPU, CUDA, AUTO, MPS);
+    - The device (cpu, cuda[:N], auto, mps);
     - The seed for reproducibility;
     - The progress bars for the federated learning process, clients and server;
     - The live renderer, which is used to render the progress bars.

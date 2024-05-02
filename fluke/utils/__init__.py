@@ -384,7 +384,7 @@ def clear_cache(ipc: bool = False):
 
 
 class Configuration(DDict):
-    """FL-Bench configuration class.
+    """FLUKE configuration class.
 
     This class is used to store the configuration of an experiment. The configuration must adhere to
     a specific structure. The configuration is validated when the class is instantiated.
