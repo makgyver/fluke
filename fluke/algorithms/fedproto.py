@@ -137,6 +137,9 @@ class FedProtoClient(PFLClient):
                                                             self.test_set)
         return {}
 
+    def finalize(self) -> None:
+        self.fit()
+
 
 class FedProtoServer(Server):
 

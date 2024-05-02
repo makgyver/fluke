@@ -134,6 +134,9 @@ class FedNHClient(PFLClient):
                                                             self.test_set)
         return {}
 
+    def finalize(self) -> None:
+        self.fit()
+
 
 class FedNHServer(Server):
 

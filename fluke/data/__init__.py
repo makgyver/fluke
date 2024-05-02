@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
-from typing import List, Union
+from typing import List, Union, TYPE_CHECKING
 from rich.progress import track
 import rich
 import torch
@@ -18,6 +18,9 @@ sys.path.append("..")
 
 
 from .. import DDict  # NOQA
+
+if TYPE_CHECKING:
+    from .datasets import DatasetsEnum  # NOQA
 
 __all__ = [
     'datasets',
@@ -181,8 +184,6 @@ class DataSplitter:
         builder_args (DDict, optional): The arguments for the dataset builder. Defaults to {}.
         **kwargs: Additional arguments.
     """
-    from .datasets import DatasetsEnum
-
     @classmethod
     def from_config(cls, config: DDict) -> DataSplitter:
         """Create a DataSplitter from a configuration dictionary.
@@ -267,8 +268,8 @@ class DataSplitter:
 
         Returns:
             tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]],
-                  FastTensorDataLoader]:
-                The clients' training and testing assignments and the server's testing assignment.
+                  FastTensorDataLoader]: The clients' training and testing assignments and the
+                  server's testing assignment.
         """
         if self.keep_test:
             Xtr, Ytr = self.data_container.train
@@ -371,14 +372,14 @@ class DataSplitter:
                       alpha: float = 4.) -> List[torch.Tensor]:
         """
         Distribute the examples across the users according to the following probability density
-        function:
-        $P(x; a) = a x^{a-1}$
+        function: :math:`P(x; a) = a x^{a-1}`
         where x is the id of a client (x in [0, n-1]), and a = `alpha` > 0 with
         - alpha = 1  => examples are equidistributed across clients;
         - alpha = 2  => the examples are "linearly" distributed across users;
         - alpha >= 3 => the examples are power law distributed;
         - alpha -> infinity => all users but one have `min_quantity` examples, and the remaining
-          user all the rest.
+         user all the rest.
+
         Each client is guaranteed to have at least `min_quantity` examples.
 
         Args:
@@ -622,8 +623,6 @@ class DummyDataSplitter(DataSplitter):
     """
     This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST).
     """
-
-    from .datasets import DatasetsEnum
 
     def __init__(self,
                  dataset: DatasetsEnum,

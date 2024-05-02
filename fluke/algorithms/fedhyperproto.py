@@ -132,6 +132,9 @@ class FedHyperProtoClient(PFLClient):
                                                             self.test_set)
         return {}
 
+    def finalize(self) -> None:
+        self.fit()
+
 
 class FedHyperProtoServer(Server):
 

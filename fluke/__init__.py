@@ -1,3 +1,14 @@
+"""
+The `fluke` package is the main package of the FLUKE framework. Besides the subpackages listed
+below, it also contains the following modules:
+
+- `Singleton`: A metaclass for creating singleton classes.
+- `GlobalSettings`: A singleton class for holding the global settings of FLUKE.
+- `ObserverSubject`: A class for the observer pattern.
+- `DDict`: A dictionary that can be accessed with dot notation recursively.
+
+"""
+
 import re
 import torch
 import random
@@ -25,7 +36,20 @@ __all__ = [
 
 
 class Singleton(type):
-    """Singleton metaclass."""
+    """This metaclass is used to create singleton classes. A singleton class is a class that can
+    have only one instance. If the instance does not exist, it is created; otherwise, the existing
+    instance is returned.
+
+    Example:
+        .. code-block:: python
+
+            class MyClass(metaclass=Singleton):
+                pass
+            a = MyClass()
+            b = MyClass()
+            print(a is b)  # True
+
+    """
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -38,13 +62,13 @@ class DDict(dict):
     """A dictionary that can be accessed with dot notation recursively.
 
     Example:
-    ```
-    d = DDict(a=1, b=2, c={'d': 3, 'e': 4})
-    print(d.a)  # 1
-    print(d.b)  # 2
-    print(d.c.d)  # 3
-    print(d.c.e)  # 4
-    ```
+        .. code-block:: python
+
+            d = DDict(a=1, b=2, c={'d': 3, 'e': 4})
+            print(d.a)  # 1
+            print(d.b)  # 2
+            print(d.c.d)  # 3
+            print(d.c.e)  # 4
 
     """
     __getattr__ = dict.get
@@ -68,20 +92,62 @@ class DDict(dict):
     def exclude(self, *keys: str):
         """Create a new DDict excluding the specified keys.
 
+        Args:
+            *keys: The keys to be excluded.
+
         Returns:
             DDict: The new DDict.
+
+        Example:
+            .. code-block:: python
+
+                d = DDict(a=1, b=2, c=3)
+                e = d.exclude('b', 'c')
+                print(e) # {'a': 1}
+
         """
         return DDict(**{k: v for k, v in self.items() if k not in keys})
 
 
 class ObserverSubject():
-    """Subject class for the observer pattern."""
+    """Subject class for the observer pattern. The subject is the class that is observed and thus
+    it holds the observers.
+
+    Example:
+        .. code-block:: python
+
+            class MySubject(ObserverSubject):
+                def __init__(self):
+                    super().__init__()
+                    self._data = 0
+
+                @property
+                def data(self):
+                    return self._data
+
+                @data.setter
+                def data(self, value):
+                    self._data = value
+                    self.notify()
+
+            class MyObserver:
+                def __init__(self, subject):
+                    subject.attach(self)
+
+                def update(self):
+                    print("Data changed.")
+
+            subject = MySubject()
+            observer = MyObserver(subject)
+            subject.data = 1  # "Data changed."
+
+    """
 
     def __init__(self):
         self._observers = []
 
     def attach(self, observer: Union[Any, Iterable[Any]]):
-        """Attach an observer.
+        """Attach one ore more observers.
 
         Args:
             observer (Union[Any, Iterable[Any]]): The observer or a list of observers.
@@ -135,8 +201,17 @@ class GlobalSettings(metaclass=Singleton):
                                          self._progress_clients,
                                          self._progress_server))
 
+    def get_seed(self):
+        """Get the seed.
+
+        Returns:
+            int: The seed.
+        """
+        return self._seed
+
     def set_seed(self, seed: int) -> None:
-        """Set seed for reproducibility.
+        """Set seed for reproducibility. The seed is used to set the random seed for the following
+        libraries: `torch`, `torch.cuda`, `numpy`, `random`.
 
         Args:
             seed (int): The seed.
@@ -153,7 +228,7 @@ class GlobalSettings(metaclass=Singleton):
         torch.backends.cudnn.deterministic = True
 
     def auto_device(self) -> torch.device:
-        """Set device to cuda if available, otherwise cpu.
+        """Set device to `cuda` if available, otherwise `cpu`.
 
         Returns:
             torch.device: The device.
@@ -162,7 +237,8 @@ class GlobalSettings(metaclass=Singleton):
         return self._device
 
     def set_device(self, device: str) -> torch.device:
-        """Set the device.
+        """Set the device. The device can be `cpu`, `auto`, `mps`, `cuda` or `cuda:N`, where `N` is
+        the GPU index.
 
         Args:
             device (str): The device as string.
@@ -180,7 +256,7 @@ class GlobalSettings(metaclass=Singleton):
         return self._device
 
     def get_device(self):
-        """Get the device.
+        """Get the current device.
 
         Returns:
             torch.device: The device.
@@ -190,7 +266,7 @@ class GlobalSettings(metaclass=Singleton):
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
 
-        The progress bar types are:
+        The possible progress bar types are:
         - FL: The progress bar for the federated learning process.
         - clients: The progress bar for the clients.
         - server: The progress bar for the server.
@@ -214,17 +290,9 @@ class GlobalSettings(metaclass=Singleton):
             raise ValueError(f'Invalid type of progress bar type {progress_type}.')
 
     def get_live_renderer(self) -> Live:
-        """Get the live renderer.
+        """Get the live renderer. The live renderer is used to render the progress bars.
 
         Returns:
             Live: The live renderer.
         """
         return self._live_renderer
-
-    def get_seed(self):
-        """Get the seed.
-
-        Returns:
-            int: The seed.
-        """
-        return self._seed

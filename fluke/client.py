@@ -1,7 +1,7 @@
 from __future__ import annotations
 from torch import device
 from torch.nn import Module
-from torch.optim.lr_scheduler import _LRScheduler as Scheduler
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim import Optimizer
 from typing import Callable, Dict
 from copy import deepcopy
@@ -19,10 +19,10 @@ from . import GlobalSettings, DDict  # NOQA
 
 
 class Client(ABC):
-    """Base Client class.
+    """Base ``Client`` class. This class is the base class for all clients in the ``FLUKE``.
+    The behavior of the client is based on the Federated Averaging algorithm. The default behavior
+    of a client includes:
 
-    This class is the base class for all clients in the `FLUKE`. The behavior of the client is
-    based on the Federated Averaging algorithm. The default behavior of a client includes:
     - Receiving the global model from the server;
     - Training the model locally for a number of epochs using the local training set;
     - Sending the updated local model back to the server;
@@ -30,8 +30,10 @@ class Client(ABC):
 
     Attributes:
         hyper_params (DDict): The hyper-parameters of the client. The default hyper-parameters are:
-            - loss_fn: The loss function.
-            - local_epochs: The number of local epochs.
+
+            - ``loss_fn``: The loss function.
+            - ``local_epochs``: The number of local epochs.
+
             When a new client class inherits from this class, it can add all its hyper-parameters
             to this dictionary.
         index (int): The client identifier.
@@ -40,7 +42,7 @@ class Client(ABC):
         optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
             the optimizer and the learning rate scheduler.
         optimizer (torch.optim.Optimizer): The optimizer.
-        scheduler (torch.optim.LRScheduler): The learning rate scheduler.
+        scheduler (torch.optim.lr_scheduler._LRScheduler): The learning rate scheduler.
         device (torch.device): The device where the client trains the model.
         server (Server): The server.
         channel (Channel): The channel to communicate with the server.
@@ -52,14 +54,14 @@ class Client(ABC):
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int = 3,
-                 **additional_hyper_params):
+                 local_epochs: int = 3):
+        #  **additional_hyper_params):
 
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
             local_epochs=local_epochs
         )
-        self.hyper_params.update(**additional_hyper_params)
+        # self.hyper_params.update(**additional_hyper_params)
 
         self._index: int = index
         self.train_set: FastTensorDataLoader = train_set
@@ -67,32 +69,45 @@ class Client(ABC):
         self.model: Module = None
         self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
         self.optimizer: Optimizer = None
-        self.scheduler: Scheduler = None
+        self.scheduler: _LRScheduler = None
         self.device: device = GlobalSettings().get_device()
         self.server: Server = None
         self.channel: Channel = None
 
     @property
     def n_examples(self) -> int:
+        """The number of examples in the local training set.
+
+        Returns:
+            int: The number of examples in the local training set.
+        """
         return self.train_set.size
 
     @property
     def index(self) -> int:
+        """The client identifier.
+
+        Returns:
+            int: The client identifier.
+        """
         return self._index
 
     def set_server(self, server: Server) -> None:
-        """Set the server.
-
-        Along with the server, the channel is also set and the client must use this channel to
-        communicate with the server.
+        """Set the reference to the server. Along with the server, the communication channel is also
+        set and the client must use this channel to communicate with the server.
 
         Args:
-            server (Server): The server.
+            server (Server): The server that orchestrates the federated learning process.
         """
         self.server = server
         self.channel = server.channel
 
     def _receive_model(self) -> None:
+        """Receive the global model from the server. This method is responsible for receiving the
+        global model from the server and updating the local model accordingly. The model is received
+        as a ``Message`` with  ``msg_type`` "model" from the inbox of the client iself.
+        The method uses the channel to receive the message.
+        """
         msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:
             self.model = deepcopy(msg.payload)
@@ -101,13 +116,17 @@ class Client(ABC):
             # self.model.load_state_dict(msg.payload.state_dict())
 
     def _send_model(self):
+        """Send the current model to the server. The model is sent as a ``Message`` with
+        ``msg_type`` "model" to the server. The method uses the channel to send the message.
+        """
         self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         """Client's local training.
-
-        The training occurs for a number of `hyper_params.local_epochs` epochs using the local
-        training set and as loss function the one defined in `hyper_params.loss_fn`.
+        Before starting the training, the client receives the global model from the server.
+        The training occurs for a number of ``hyper_params.local_epochs`` epochs using the local
+        training set and as loss function the one defined in ``hyper_params.loss_fn``. The training
+        happens on the device defined in the client.
         After the training, the client sends the model to the server.
 
         Args:
@@ -139,9 +158,8 @@ class Client(ABC):
         self._send_model()
 
     def evaluate(self) -> Dict[str, float]:
-        """Evaluate the local model on the `test_set`.
-
-        If the test set is not set, the method returns an empty dictionary.
+        """Evaluate the local model on the client's ``test_set``. If the test set is not set,
+        the method returns an empty dictionary.
 
         Warning:
             To date, only classification tasks are supported.
@@ -161,6 +179,12 @@ class Client(ABC):
                                                                        self.test_set)
         return {}
 
+    def finalize(self) -> None:
+        """Finalize the client. This method is called at the end of the federated learning process.
+        The default behavior is to receive the global model from the server.
+        """
+        self._receive_model()
+
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = "," + hpstr if hpstr else ""
@@ -168,17 +192,18 @@ class Client(ABC):
                f"batch_size={self.train_set._batch_size}{hpstr})"
 
     def __repr__(self) -> str:
-        return super().__repr__()
+        return str(self)
 
 
 class PFLClient(Client):
     """Personalized Federated Learning client.
-
-    This class is a personalized version of the `Client` class. It is used to implement
+    This class is a personalized version of the ``Client`` class. It is used to implement
     personalized federated learning algorithms. The main difference is that the client has a
-    personalized model (`personalized_model`).
+    personalized model (i.e., the attribute ``personalized_model``).
 
-    The client evaluation is performed using the personalized model instead of the global model.
+    Note:
+        The client evaluation is performed using ``personalized_model`` instead of the global model
+        (i.e., ``model``).
 
     Attributes:
         personalized_model (torch.nn.Module): The personalized model.
@@ -196,8 +221,7 @@ class PFLClient(Client):
         self.personalized_model: Module = model
 
     def evaluate(self) -> Dict[str, float]:
-        """Evaluate the personalized model on the :`test_set`.
-
+        """Evaluate the personalized model on the ``test_set``.
         If the test set is not set, the method returns an empty dictionary.
 
         Warning:

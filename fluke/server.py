@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from rich.progress import track
 import numpy as np
 from typing import Any, Dict, Sequence
 from collections import OrderedDict
@@ -161,9 +162,10 @@ class Server(ObserverSubject):
         evaluation is only done if the client has participated in at least one round.
         """
         client_evals = []
-        for client in self.clients:
-            if client.index not in self._participants:
-                continue
+        client_to_eval = [client for client in self.clients if client.index in self._participants]
+        self._broadcast_model(client_to_eval)
+        for client in track(client_to_eval, "Finalizing federation..."):
+            client.finalize()
             client_eval = client.evaluate()
             if client_eval:
                 client_evals.append(client_eval)
