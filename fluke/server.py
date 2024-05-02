@@ -21,14 +21,13 @@ if TYPE_CHECKING:
 
 
 class Server(ObserverSubject):
-    """Standard Server for Federated Learning.
-
-    This class is the base class for all servers in `FLUKE`. It implements the basic
+    """Basic Server for Federated Learning.
+    This class is the base class for all servers in ``fluke``. It implements the basic
     functionalities of a federated learning server. The default behaviour of this server is based
     on the Federated Averaging algorithm. The server is responsible for coordinating the learning
     process, selecting the clients for each round, sending the global model to the clients, and
-    aggregating the models of the clients. The server also evaluates the model server-side (if the
-    test data is provided) and sends the final model to the clients.
+    aggregating the models received from the clients at the end of the round. The server also
+    evaluates the model server-side (if the test data is provided).
 
     Attributes:
         hyper_params (DDict):
@@ -53,8 +52,8 @@ class Server(ObserverSubject):
         test_data (FastTensorDataLoader): The test data to evaluate the model.
         clients (Sequence[Client]): The clients that will participate in the federated learning
           process.
-        eval_every (int, optional): The number of rounds between evaluations. Defaults to 1.
-        weighted (bool, optional): A boolean indicating if the clients should be weighted by the
+        eval_every (int): The number of rounds between evaluations. Defaults to 1.
+        weighted (bool): A boolean indicating if the clients should be weighted by the
           number of samples when aggregating the models. Defaults to False.
     """
 
@@ -151,8 +150,8 @@ class Server(ObserverSubject):
         if self.test_data is not None:
             return ClassificationEval(self.clients[0].hyper_params.loss_fn,
                                       self.model.output_size,
-                                      device=GlobalSettings().get_device()).evaluate(self.model,
-                                                                                     self.test_data)
+                                      device=self.device).evaluate(self.model,
+                                                                   self.test_data)
         return {}
 
     def _finalize(self) -> None:
@@ -191,7 +190,6 @@ class Server(ObserverSubject):
 
     def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True):
         """Retrieve the models of the clients.
-
         This method assumes that the clients have already sent their models to the server.
 
         Args:
@@ -210,17 +208,16 @@ class Server(ObserverSubject):
 
     def _get_client_weights(self, eligible: Sequence[Client]):
         """Get the weights of the clients for the aggregation.
-
         The weights are calculated based on the number of samples of each client.
-        If the hyperparameter `weighted` is True, the clients are weighted by their number of
+        If the hyperparameter ``weighted`` is True, the clients are weighted by their number of
         samples. Otherwise, all clients have the same weight.
 
         Note:
-            The computation of the weights do not adhere to the "best-practices" of FLUKE
+            The computation of the weights do not adhere to the "best-practices" of ``fluke``
             because the server should not have direct access to the number of samples of the
             clients. Thus, the computation of the weights should be done communicating with the
             clients through the channel, but for simplicity, we are not following this practice
-            here. However, the communication overhead is minimal and does not affect the logged
+            here. However, the communication overhead is negligible and does not affect the logged
             performance.
 
         Args:
@@ -238,7 +235,6 @@ class Server(ObserverSubject):
 
     def _aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
-
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         `weighted` is True, the clients are weighted by their number of samples.
         The method directly updates the model of the server.
@@ -342,26 +338,54 @@ class Server(ObserverSubject):
 
 class ServerObserver():
     """Server observer interface.
-
     This interface is used to observe the server during the federated learning process.
     For example, it can be used to log the performance of the global model and the communication
     costs, as it is done in the `Log` class.
     """
 
     def start_round(self, round: int, global_model: Any):
+        """This method is called when a new round starts.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+        """
         pass
 
     def end_round(self,
                   round: int,
                   evals: Dict[str, float],
                   client_evals: Sequence[Any]):
+        """This method is called when a round ends.
+
+        Args:
+            round (int): The round number.
+            evals (Dict[str, float]): The evaluation results of the global model.
+            client_evals (Sequence[Any]): The evaluation rstuls of the clients.
+        """
         pass
 
     def selected_clients(self, round: int, clients: Sequence):
+        """This method is called when the clients have been selected for the current round.
+
+        Args:
+            round (int): The round number.
+            clients (Sequence): The clients selected for the current round.
+        """
         pass
 
     def error(self, error: str):
+        """This method is called when an error occurs.
+
+        Args:
+            error (str): The error message.
+        """
         pass
 
     def finished(self,  client_evals: Sequence[Any]):
+        """This method is called when the federated learning process has ended.
+
+        Args:
+            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+        """
         pass

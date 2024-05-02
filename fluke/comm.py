@@ -1,3 +1,4 @@
+"""This module contains the classes for the communication between the clients and the server."""
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 import sys
@@ -15,9 +16,7 @@ __all__ = [
 
 
 class Message:
-    """Message class.
-
-    This class represents a message that can be exchanged between clients and the server.
+    """This class represents a message that can be exchanged between clients and the server.
 
     Attributes:
         msg_type (str): The type of the message.
@@ -54,12 +53,11 @@ class Message:
             return 0
 
     def get_size(self) -> int:
-        """Get the size of the message.
-
-        The message size is the size of the payload in "floating point" numbers. For example, a
-        message containing a tensor of size (10, 10) has a size of 100. A message containing a
-        string of length 10 has a size of 10.
-        A message containing an ACK (i.e., with no payload) has a size of 1.
+        """Get the size of the message. The message size is the size of the payload calculated in
+        terms of "floating point" numbers. For example, a message containing a tensor of size
+        (10, 10) has a size of 100. A message containing a string of length 10 has a size of 10.
+        A message containing an ACK (i.e., with no payload) has a size of 1. In case of unknown
+        types, a warning is raised and the size is set to 0.
 
         Returns:
             int: The size of the message in bytes.
@@ -68,24 +66,28 @@ class Message:
 
 
 class ChannelObserver():
-    """Channel observer interface.
-
+    """Channel observer interface for the Observer pattern.
     This interface is used to observe the communication channel during the federated learning
     process.
 
     See Also:
-        `ServerObserver`, `ObserverSubject`
+        ``ServerObserver``, ``ObserverSubject``
 
     """
 
     def message_received(self, message: Message):
+        """This method is called when a message is received, i.e., when a message is read from the
+        message box of the receiver.
+
+        Args:
+            message (Message): The message received.
+        """
         pass
 
 
 class Channel(ObserverSubject):
     """A bi-directional communication channel. It is used to send and receive messages between the
     parties.
-
     The Channel class implements the Observer pattern. It notifies the observers when a message is
     received. Clients and server are supposed to use a channel to communicate with each other.
 
@@ -97,6 +99,9 @@ class Channel(ObserverSubject):
     def __init__(self):
         super().__init__()
         self._buffer: Dict[Any, List[Message]] = defaultdict(list)
+
+    def __getitem__(self, mbox: Any) -> List[Message]:
+        return self._buffer[mbox]
 
     def send(self, message: Message, mbox: Any):
         """Send a message to a receiver.
@@ -116,7 +121,10 @@ class Channel(ObserverSubject):
         self._buffer[mbox].append(message)
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
-        """Receive (read) a message from a sender.
+        """Receive (read) a message from a sender. The message is removed from the message box of
+        the receiver. If both ``sender`` and ``msg_type`` are None, the first message in the message
+        box is returned. If ``sender`` is None, the first message with the given ``msg_type`` is
+        returned. If ``msg_type`` is None, the first message from the given ``sender`` is returned.
 
         Args:
             mbox (Any): The receiver.

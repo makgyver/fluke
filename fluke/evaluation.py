@@ -8,6 +8,7 @@ sys.path.append(".")
 
 from .data import FastTensorDataLoader  # NOQA
 from . import GlobalSettings  # NOQA
+from .utils import clear_cache  # NOQA
 
 
 class Evaluator(ABC):
@@ -134,6 +135,7 @@ class ClassificationEval(Evaluator):
             losses.append(loss / cnt)
 
         model.to("cpu")
+        clear_cache()
 
         return {
             "accuracy":  round(sum(accs) / len(accs), 5),

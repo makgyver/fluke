@@ -175,13 +175,15 @@ class Client(ABC):
                 self._receive_model()
 
             return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.model.output_size).evaluate(self.model,
-                                                                       self.test_set)
+                                      self.model.output_size,
+                                      self.device).evaluate(self.model,
+                                                            self.test_set)
         return {}
 
     def finalize(self) -> None:
         """Finalize the client. This method is called at the end of the federated learning process.
-        The default behavior is to receive the global model from the server.
+        The default behavior is to receive the global model from the server that is then potentially
+        used to evaluate the performance of the client's model on the local test set.
         """
         self._receive_model()
 
@@ -233,7 +235,8 @@ class PFLClient(Client):
         """
         if self.test_set is not None:
             evaluator = ClassificationEval(self.hyper_params.loss_fn,
-                                           self.personalized_model.output_size)
+                                           self.personalized_model.output_size,
+                                           self.device)
             return evaluator.evaluate(self.personalized_model, self.test_set)
 
         return {}

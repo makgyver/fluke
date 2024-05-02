@@ -61,8 +61,8 @@ class CentralizedFL():
             data_splitter.assign(n_clients, hyperparameters.client.batch_size)
         # Federated model
         model = get_model(
-            mname=hyperparameters.model,
-            **hyperparameters.net_args if 'net_args' in hyperparameters else {}
+            mname=hyperparameters.model
+            # **hyperparameters.net_args if 'net_args' in hyperparameters else {}
         ) if isinstance(hyperparameters.model, str) else hyperparameters.model
 
         self.init_clients(clients_tr_data, clients_te_data, hyperparameters.client)
