@@ -184,7 +184,7 @@ class Client(ABC):
 
         Returns:
             Dict[str, float]: The evaluation results. The keys are the metrics and the values are
-                the results.
+            the results.
         """
         if self.test_set is not None:
             if self.model is None:
@@ -249,7 +249,7 @@ class PFLClient(Client):
 
         Returns:
             Dict[str, float]: The evaluation results. The keys are the metrics and the values are
-                the results.
+            the results.
         """
         if self.test_set is not None:
             evaluator = ClassificationEval(self.hyper_params.loss_fn,
