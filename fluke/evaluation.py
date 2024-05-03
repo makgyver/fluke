@@ -8,7 +8,6 @@ sys.path.append(".")
 
 from .data import FastTensorDataLoader  # NOQA
 from . import GlobalSettings  # NOQA
-from .utils import clear_cache  # NOQA
 
 
 class Evaluator(ABC):
@@ -81,6 +80,8 @@ class ClassificationEval(Evaluator):
         Returns:
             dict: A dictionary containing the computed metrics.
         """
+        from .utils import clear_cache  # NOQA
+
         if (model is None) or (eval_data_loader is None):
             return {}
 

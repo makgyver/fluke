@@ -42,17 +42,17 @@ class Datasets:
               transforms: Optional[callable] = None,
               channel_dim: bool = False) -> DataContainer:
         """Load the MNIST dataset.
-
         The dataset is split into training and testing sets according to the default split of the
-        `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
+        ``torchvision.datasets.MNIST`` class. If no transformations are provided, the data is
+        normalized to the range [0, 1].
         An example of the dataset is a 28x28 image, i.e., a tensor of shape (28, 28).
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to "../data".
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              `ToTensor`.
-            channel_dim (bool, optional): Whether to add a channel dimension to the data.
-              Defaults to `False`.
+              ``None``.
+            channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
+                shape of the an example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The MNIST dataset.
@@ -72,8 +72,9 @@ class Datasets:
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        if transforms is None:
+            train_data.data = torch.Tensor(train_data.data / 255.)
+            test_data.data = torch.Tensor(test_data.data / 255.)
 
         return DataContainer(train_data.data if not channel_dim else train_data.data[:, None, :, :],
                              train_data.targets,
@@ -81,35 +82,23 @@ class Datasets:
                              test_data.targets,
                              10)
 
-    # @classmethod
-    # def MNIST4D(cls,
-    #             path: str = "../data",
-    #             transforms: callable = ToTensor()) -> DataContainer:
-    #     """Load the MNIST dataset.
-
-    #     The dataset is split into training and testing sets according to the default split of the
-    #     `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
-    #     A 4D example of the dataset is a 1x28x28 image, i.e., a tensor of shape (1, 28, 28).
-
-    #     Args:
-    #         path (str, optional): The path where the dataset is stored. Defaults to "../data".
-    #         transforms (callable, optional): The transformations to apply to the data. Defaults to
-    #           `ToTensor`.
-
-    #     Returns:
-    #         DataContainer: The MNIST dataset.
-    #     """
-    #     mnist_dc = Datasets.MNIST(path, transforms)
-    #     return DataContainer(mnist_dc.train[0][:, None, :, :],
-    #                          mnist_dc.train[1],
-    #                          mnist_dc.test[0][:, None, :, :],
-    #                          mnist_dc.test[1],
-    #                          10)
-
     @classmethod
     def MNISTM(cls,
                path: str = "../data",
                transforms: Optional[callable] = None) -> DataContainer:
+        """Load the MNIST-M dataset. MNIST-M is a dataset where the MNIST digits are placed on
+        random color patches. The dataset is split into training and testing sets according to the
+        default split of the data at https://github.com/liyxi/mnist-m/releases/download/data/.
+        If no transformations are provided, the data is normalized to the range [0, 1].
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to "../data".
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The MNIST-M dataset.
+        """
         train_data = support.MNISTM(
             root=path,
             train=True,

@@ -71,8 +71,8 @@ class Client(ABC):
         self.optimizer: Optimizer = None
         self.scheduler: _LRScheduler = None
         self.device: device = GlobalSettings().get_device()
-        self.server: Server = None
-        self.channel: Channel = None
+        self._server: Server = None
+        self._channel: Channel = None
 
     @property
     def n_examples(self) -> int:
@@ -92,6 +92,24 @@ class Client(ABC):
         """
         return self._index
 
+    @property
+    def channel(self) -> Channel:
+        """The communication channel.
+
+        Returns:
+            Channel: The communication channel.
+        """
+        return self._channel
+
+    @property
+    def server(self) -> Server:
+        """The server to which the client is connected.
+
+        Returns:
+            Server: The server.
+        """
+        return self._server
+
     def set_server(self, server: Server) -> None:
         """Set the reference to the server. Along with the server, the communication channel is also
         set and the client must use this channel to communicate with the server.
@@ -99,8 +117,8 @@ class Client(ABC):
         Args:
             server (Server): The server that orchestrates the federated learning process.
         """
-        self.server = server
-        self.channel = server.channel
+        self._server = server
+        self._channel = server.channel
 
     def _receive_model(self) -> None:
         """Receive the global model from the server. This method is responsible for receiving the

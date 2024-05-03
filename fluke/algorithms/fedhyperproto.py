@@ -163,8 +163,7 @@ class FedHyperProtoServer(Server):
 
     def _hyperspherical_embedding(self, seed: int = 0):
         """
-        Function to learn the prototypes according to the separationLoss Minimization
-        embedding_dimension
+        Function to learn the prototypes according to the ``SeparationLoss`` minimization.
         """
         lr = 0.1
         momentum = 0.9

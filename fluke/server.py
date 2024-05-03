@@ -70,7 +70,7 @@ class Server(ObserverSubject):
         self.device: device = GlobalSettings().get_device()
         self.model: Module = model
         self.clients: Sequence[Client] = clients
-        self.channel: Channel = Channel()
+        self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
         self.test_data: FastTensorDataLoader = test_data
@@ -83,8 +83,35 @@ class Server(ObserverSubject):
     # def _local_train(self, client: Client) -> None:
     #     self.channel.send(Message((client.fit, {}), "__action__", self), client)
 
+    @property
+    def channel(self) -> Channel:
+        """The channel to communicate with the clients.
+
+        Returns:
+            Channel: The channel to communicate with the clients.
+        """
+        return self._channel
+
+    @property
+    def has_test(self) -> bool:
+        """Return whether the server can evaluate the model.
+
+        Returns:
+            bool: True if the server can evaluate the model, False otherwise.
+        """
+        return self.test_data is not None
+
+    @property
+    def has_model(self) -> bool:
+        """Return whether the server owns a global model.
+
+        Returns:
+            bool: True if the server owns a global model, False otherwise.
+        """
+        return self.model is not None
+
     def _broadcast_model(self, eligible: Sequence[Client]) -> None:
-        self.channel.broadcast(Message(self.model, "model", self), eligible)
+        self._channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
         """Run the federated learning algorithm.
@@ -200,7 +227,7 @@ class Server(ObserverSubject):
         Returns:
             List[torch.nn.Module]: The models of the clients.
         """
-        client_models = [self.channel.receive(self, client, "model").payload
+        client_models = [self._channel.receive(self, client, "model").payload
                          for client in eligible]
         if state_dict:
             return [m.state_dict() for m in client_models]

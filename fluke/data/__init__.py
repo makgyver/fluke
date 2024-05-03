@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
-from typing import List, Union, TYPE_CHECKING
+from typing import List, Union, TYPE_CHECKING, Sequence
 from rich.progress import track
 import rich
 import torch
@@ -73,7 +73,10 @@ class FastTensorDataLoader:
     A DataLoader-like object for a set of tensors that can be much faster than
     TensorDataset + DataLoader because dataloader grabs individual indices of
     the dataset and calls cat (slow).
-    Source: https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
+
+    Note:
+        This implementation is based on the following discussion:
+        https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
 
     Args:
         *tensors (Tensor): tensors to be loaded.
@@ -82,6 +85,23 @@ class FastTensorDataLoader:
         percentage (float): the percentage of the data to be used.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
           layers, you might want to set this to `True`.
+        single_batch (bool): whether to return a single batch at each generator iteration.
+
+    Attributes:
+        tensors (Sequence[Tensor]): tensors of the dataset. Ideally, the first tensor should be the
+            input data, and the second tensor should be the labels. However, this is not enforced
+            and the user is responsible for ensuring that the tensors are used correctly.
+        batch_size (int): batch size.
+        shuffle (bool): whether the data should be shuffled at each epoch. If `True`, the data is
+            shuffled at each iteration.
+        percentage (float): the percentage of the data to be used. If `1.0`, all the data is used.
+            Otherwise, the data is sampled according to the given percentage. **Note that the
+            sampled data varies at each epoch.**
+        skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
+          layers, you might want to set this to `True`.
+        single_batch (bool): whether to return a single batch at each generator iteration.
+        size (int): the size of the dataset according to the percentage of the data to be used.
+        max_size (int): the total size of the dataset.
     """
 
     def __init__(self,
@@ -92,14 +112,32 @@ class FastTensorDataLoader:
                  percentage: float = 1.0,
                  skip_singleton: bool = True,
                  single_batch: bool = False):
-        assert all(t.shape[0] == tensors[0].shape[0] for t in tensors)
-        self.tensors = tensors
-        self.num_labels = num_labels
+        assert all(t.shape[0] == tensors[0].shape[0] for t in tensors), \
+            "All tensors must have the same size along the first dimension."
+        self.tensors: Sequence[torch.Tensor] = tensors
+        self.num_labels: int = num_labels
+        self.max_size = self.tensors[0].shape[0]
         self.set_sample_size(percentage)
-        self.shuffle = shuffle
-        self.skip_singleton = skip_singleton
-        self.batch_size = batch_size if batch_size > 0 else self.size
-        self.single_batch = single_batch
+        self.shuffle: bool = shuffle
+        self.skip_singleton: bool = skip_singleton
+        self.batch_size: int = batch_size if batch_size > 0 else self.size
+        self.single_batch: bool = single_batch
+
+    def __getitem__(self, index: int) -> tuple:
+        """Get the entry at the given index for each tensor.
+
+        Args:
+            index (int): the index.
+
+        Raises:
+            IndexError: if the index is out of bounds.
+
+        Returns:
+            tuple: the entry at the given index for each tensor.
+        """
+        if index >= self.max_size:
+            raise IndexError("Index out of bounds.")
+        return tuple(t[index] for t in self.tensors)
 
     def set_sample_size(self, percentage: float) -> int:
         """Set the sample size.
