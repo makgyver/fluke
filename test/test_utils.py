@@ -116,7 +116,6 @@ def test_configuration():
             'dataset': {
                 'name': 'mnist'
             },
-            'standardize': False,
             'distribution': {
                 'name': "iid"
             },
