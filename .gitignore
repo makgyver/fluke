@@ -11,3 +11,5 @@ wandb
 data/*
 docs/*
 .flake8
+test/.coverage
+.coverage
