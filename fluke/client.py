@@ -18,7 +18,7 @@ from . import GlobalSettings, DDict  # NOQA
 
 
 class Client():
-    """Base ``Client`` class. This class is the base class for all clients in the ``FLUKE``.
+    """Base ``Client`` class. This class is the base class for all clients in the ``fluke``.
     The behavior of the client is based on the Federated Averaging algorithm. The default behavior
     of a client includes:
 
