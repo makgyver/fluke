@@ -29,19 +29,20 @@ from ..data import DistributionEnum  # NOQA
 
 __all__ = [
     'model',
+    'Configuration',
+    'Log',
+    'LogEnum',
     'OptimizerConfigurator',
     'ServerObserver',
-    'LogEnum',
-    'Log',
     'WandBLog',
-    'Configuration',
-    'import_module_from_str',
+    'clear_cache',
     'get_class_from_str',
+    'get_class_from_qualified_name',
+    'get_full_classname',
     'get_loss',
     'get_model',
     'get_scheduler',
-    'clear_cache',
-    'get_full_classname'
+    'import_module_from_str'
 ]
 
 

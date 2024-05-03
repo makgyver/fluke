@@ -19,19 +19,19 @@ from typing import Any, Union, Iterable
 
 
 __all__ = [
-    'comm',
     'algorithms',
-    'data',
-    'evaluation',
-    'net',
     'client',
+    'data',
+    'comm',
+    'evaluation',
+    'nets',
+    'run',
     'server',
     'utils',
-    'run',
-    'Singleton',
-    'ObserverSubject',
+    'DDict',
     'GlobalSettings',
-    'DDict'
+    'ObserverSubject',
+    'Singleton'
 ]
 
 
