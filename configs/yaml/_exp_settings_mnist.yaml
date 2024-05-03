@@ -2,10 +2,10 @@ data:
   client_split: 0.1
   dataset:
     name: mnist
+    path: ./data
   distribution:
     name: iid
   sampling_perc: 1
-  standardize: false
 exp:
   device: cpu
   seed: 42

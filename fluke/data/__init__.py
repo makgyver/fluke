@@ -670,7 +670,7 @@ class DummyDataSplitter(DataSplitter):
                  builder_args: DDict,
                  **kwargs):
         self.data_container = None
-        self.standardize = False
+        # self.standardize = False
         self.distribution = DistributionEnum.IID
         self.client_split = 0.0
         self.sampling_perc = 1.0
