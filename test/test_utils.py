@@ -347,10 +347,10 @@ def test_mixing():
 
 
 if __name__ == "__main__":
-    # test_optimcfg()
+    test_optimcfg()
     test_functions()
-    # test_configuration()
-    # test_log()
+    test_configuration()
+    test_log()
     # test_wandb_log()
-    # test_models()
-    # test_mixing()
+    test_models()
+    test_mixing()
