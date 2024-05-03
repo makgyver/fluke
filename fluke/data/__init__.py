@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
-from typing import List, Union, TYPE_CHECKING, Sequence
+from typing import Union, TYPE_CHECKING, Sequence
 from rich.progress import track
 import rich
 import torch
@@ -380,7 +380,7 @@ class DataSplitter:
     def uniform(self,
                 X: torch.Tensor,
                 y: torch.Tensor,
-                n: int) -> List[torch.Tensor]:
+                n: int) -> list[torch.Tensor]:
         """Distribute the examples uniformly across the users.
 
         Args:
@@ -389,7 +389,7 @@ class DataSplitter:
             n (int): The number of clients upon which the examples are distributed.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """
         assert X.shape[0] >= n, "# of instances must be > than #clients"
 
@@ -406,7 +406,7 @@ class DataSplitter:
                       y: torch.Tensor,  # not used
                       n: int,
                       min_quantity: int = 2,
-                      alpha: float = 4.) -> List[torch.Tensor]:
+                      alpha: float = 4.) -> list[torch.Tensor]:
         """
         Distribute the examples across the users according to the following probability density
         function: :math:`P(x; a) = a x^{a-1}`
@@ -428,7 +428,7 @@ class DataSplitter:
             alpha (float, optional): The skewness parameter. Defaults to 4.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """  # noqa: W605
         # The abow comment is to avoid flake8 error W605 (invalid escape sequence)
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
@@ -444,7 +444,7 @@ class DataSplitter:
                                 y: torch.Tensor,
                                 n: int,
                                 min_quantity: int = 2,
-                                alpha: float = 4.) -> List[torch.Tensor]:
+                                alpha: float = 4.) -> list[torch.Tensor]:
         """Class-wise quantity skewed data distribution.
 
         Distribute the examples of each class across the users according to the following
@@ -463,7 +463,7 @@ class DataSplitter:
             alpha (float, optional): The skewness parameter. Defaults to 4.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
@@ -492,7 +492,7 @@ class DataSplitter:
                             X: torch.Tensor,  # not used
                             y: torch.Tensor,
                             n: int,
-                            class_per_client: int = 2) -> List[torch.Tensor]:
+                            class_per_client: int = 2) -> list[torch.Tensor]:
         """
         Suppose each party only has data samples of `class_per_client` (i.e., k) different labels.
         We first randomly assign k different label IDs to each party. Then, for the samples of each
@@ -508,7 +508,7 @@ class DataSplitter:
             class_per_client (int, optional): The number of classes per client. Defaults to 2.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """
         labels = set(torch.unique(torch.LongTensor(y)).numpy())
         assert 0 < class_per_client <= len(labels), "class_per_client must be > 0 and <= #classes"
@@ -532,7 +532,7 @@ class DataSplitter:
                              y: torch.Tensor,
                              n: int,
                              beta: float = .1,
-                             min_ex_class: int = 2) -> List[torch.Tensor]:
+                             min_ex_class: int = 2) -> list[torch.Tensor]:
         """
         The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances
         of class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
@@ -548,7 +548,7 @@ class DataSplitter:
             min_ex_class (int, optional): The minimum number of examples per class. Defaults to 2.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """
         assert beta > 0, "beta must be > 0"
         labels = set(torch.unique(torch.LongTensor(y)).numpy())
@@ -568,7 +568,7 @@ class DataSplitter:
                                 X: torch.Tensor,  # not used
                                 y: torch.Tensor,
                                 n: int,
-                                shards_per_client: int = 2) -> List[torch.Tensor]:
+                                shards_per_client: int = 2) -> list[torch.Tensor]:
         """
         The function first sort the data by label, divide it into `n * shards_per_client` shards,
         and assign each of n clients `shards_per_client` shards. This is a pathological non-IID
@@ -583,7 +583,7 @@ class DataSplitter:
             shards_per_client (int, optional): The number of shards per client. Defaults to 2.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """
         sorted_ids = np.argsort(y)
         n_shards = int(shards_per_client * n)
@@ -603,7 +603,7 @@ class DataSplitter:
                         X: torch.Tensor,
                         y: torch.Tensor,
                         n: int,
-                        modes: int = 2) -> List[torch.Tensor]:
+                        modes: int = 2) -> list[torch.Tensor]:
         """
         The function first extracts the first principal component (through PCA) and then divides it
         in `modes` percentiles. To each user, only examples from a single mode are selected
@@ -616,7 +616,7 @@ class DataSplitter:
             modes (int, optional): The number of modes. Defaults to 2.
 
         Returns:
-            List[torch.Tensor]: The examples' ids assignment.
+            list[torch.Tensor]: The examples' ids assignment.
         """
         assert 2 <= modes <= n, "modes must be >= 2 and <= n"
 

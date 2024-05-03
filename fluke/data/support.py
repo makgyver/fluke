@@ -168,7 +168,7 @@ class CINIC10(VisionDataset):
 
         return torch.stack(img_tensors)
 
-    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+    def __getitem__(self, index: int) -> tuple[Any, Any]:
         return self.data[index], self.targets[index]
 
     def __len__(self) -> int:

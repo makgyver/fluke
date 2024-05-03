@@ -6,7 +6,7 @@ import rich
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 from enum import Enum
 import psutil
 import pandas as pd
@@ -63,13 +63,13 @@ class ServerObserver():
 
     def end_round(self,
                   round: int,
-                  evals: Dict[str, float],
+                  evals: dict[str, float],
                   client_evals: Sequence[Any]):
         """This method is called when a round ends.
 
         Args:
             round (int): The round number.
-            evals (Dict[str, float]): The evaluation results of the global model.
+            evals (dict[str, float]): The evaluation results of the global model.
             client_evals (Sequence[Any]): The evaluation rstuls of the clients.
         """
         pass
@@ -211,7 +211,7 @@ class Log(ServerObserver, ChannelObserver):
 
     def end_round(self,
                   round: int,
-                  global_eval: Dict[str, float],
+                  global_eval: dict[str, float],
                   client_evals: Sequence[Any]):
         self.history[round] = global_eval
         stats = {'global': self.history[round]}
@@ -295,7 +295,7 @@ class WandBLog(Log):
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_eval: Dict[str, float], client_evals: Sequence[Any]):
+    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Sequence[Any]):
         super().end_round(round, global_eval, client_evals)
         self.run.log({"global": self.history[round]}, step=round)
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)

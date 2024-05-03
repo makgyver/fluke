@@ -3,9 +3,8 @@ from torch import device
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim import Optimizer
-from typing import Callable, Dict
+from typing import Callable
 from copy import deepcopy
-from abc import ABC
 import sys
 sys.path.append(".")
 
@@ -18,7 +17,7 @@ from .server import Server  # NOQA
 from . import GlobalSettings, DDict  # NOQA
 
 
-class Client(ABC):
+class Client():
     """Base ``Client`` class. This class is the base class for all clients in the ``FLUKE``.
     The behavior of the client is based on the Federated Averaging algorithm. The default behavior
     of a client includes:
@@ -133,7 +132,7 @@ class Client(ABC):
             safe_load_state_dict(self.model, msg.payload.state_dict())
             # self.model.load_state_dict(msg.payload.state_dict())
 
-    def _send_model(self):
+    def _send_model(self) -> None:
         """Send the current model to the server. The model is sent as a ``Message`` with
         ``msg_type`` "model" to the server. The method uses the channel to send the message.
         """
@@ -175,7 +174,7 @@ class Client(ABC):
         clear_cache()
         self._send_model()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         """Evaluate the local model on the client's ``test_set``. If the test set is not set,
         the method returns an empty dictionary.
 
@@ -183,7 +182,7 @@ class Client(ABC):
             To date, only classification tasks are supported.
 
         Returns:
-            Dict[str, float]: The evaluation results. The keys are the metrics and the values are
+            dict[str, float]: The evaluation results. The keys are the metrics and the values are
             the results.
         """
         if self.test_set is not None:
@@ -240,7 +239,7 @@ class PFLClient(Client):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         """Evaluate the personalized model on the ``test_set``.
         If the test set is not set, the method returns an empty dictionary.
 
@@ -248,7 +247,7 @@ class PFLClient(Client):
             To date, only classification tasks are supported.
 
         Returns:
-            Dict[str, float]: The evaluation results. The keys are the metrics and the values are
+            dict[str, float]: The evaluation results. The keys are the metrics and the values are
             the results.
         """
         if self.test_set is not None:

@@ -144,7 +144,7 @@ class ObserverSubject():
     """
 
     def __init__(self):
-        self._observers = []
+        self._observers: list[Any] = []
 
     def attach(self, observer: Union[Any, Iterable[Any]]):
         """Attach one ore more observers.
@@ -196,14 +196,14 @@ class GlobalSettings(metaclass=Singleton):
 
     def __init__(self):
         super().__init__()
-        self._progress_FL = Progress()
-        self._progress_clients = Progress()
-        self._progress_server = Progress()
-        self._live_renderer = Live(Group(self._progress_FL,
-                                         self._progress_clients,
-                                         self._progress_server))
+        self._progress_FL: Progress = Progress()
+        self._progress_clients: Progress = Progress()
+        self._progress_server: Progress = Progress()
+        self._live_renderer: Live = Live(Group(self._progress_FL,
+                                               self._progress_clients,
+                                               self._progress_server))
 
-    def get_seed(self):
+    def get_seed(self) -> int:
         """Get the seed.
 
         Returns:
@@ -257,7 +257,7 @@ class GlobalSettings(metaclass=Singleton):
         self._device = torch.device(device)
         return self._device
 
-    def get_device(self):
+    def get_device(self) -> torch.device:
         """Get the current device.
 
         Returns:

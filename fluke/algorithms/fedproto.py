@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module
-from typing import Dict, Sequence, Callable
+from typing import Sequence, Callable
 from collections import defaultdict
 from copy import deepcopy
 import sys
@@ -21,11 +21,11 @@ from ..comm import Message  # NOQA
 class FedProtoModel(Module):
     def __init__(self,
                  model: EncoderHeadNet,
-                 prototypes: Dict[int, torch.Tensor],
+                 prototypes: dict[int, torch.Tensor],
                  device: torch.device):
         super().__init__()
         self.model: EncoderHeadNet = model
-        self.prototypes: Dict[int, torch.Tensor] = prototypes
+        self.prototypes: dict[int, torch.Tensor] = prototypes
         self.num_classes: int = len(prototypes)
         self.device: torch.device = device
 
@@ -123,7 +123,7 @@ class FedProtoClient(PFLClient):
         self._update_protos(protos)
         self._send_model()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         if self.test_set is not None:
             if self.prototypes[0] is None:
                 # ask for the prototypes and receive them

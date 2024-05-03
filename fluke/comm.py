@@ -1,6 +1,6 @@
 """This module contains the classes for the communication between the clients and the server."""
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 import sys
 import numpy as np
 import torch
@@ -75,7 +75,7 @@ class ChannelObserver():
 
     """
 
-    def message_received(self, message: Message):
+    def message_received(self, message: Message) -> None:
         """This method is called when a message is received, i.e., when a message is read from the
         message box of the receiver.
 
@@ -94,22 +94,22 @@ class Channel(ObserverSubject):
 
     def __init__(self):
         super().__init__()
-        self._buffer: Dict[Any, List[Message]] = defaultdict(list)
+        self._buffer: dict[Any, list[Message]] = defaultdict(list)
 
-    def __getitem__(self, mbox: Any) -> List[Message]:
+    def __getitem__(self, mbox: Any) -> list[Message]:
         return self._buffer[mbox]
 
     @property
-    def buffer(self) -> Dict[Any, List[Message]]:
+    def buffer(self) -> dict[Any, list[Message]]:
         """Get the buffer of the channel. The buffer stores the unread messages in a dictionary.
         The keys are the recipients and the values are the list of messages sent to the recipient.
 
         Returns:
-            Dict[Any, List[Message]]: The buffer of the channel.
+            dict[Any, list[Message]]: The buffer of the channel.
         """
         return self._buffer
 
-    def send(self, message: Message, mbox: Any):
+    def send(self, message: Message, mbox: Any) -> None:
         """Send a message to a receiver.
 
         To any sent message should correspond a received message. The receiver should call the
@@ -163,12 +163,12 @@ class Channel(ObserverSubject):
 
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
 
-    def broadcast(self, message: Message, to: List[Any]) -> None:
+    def broadcast(self, message: Message, to: list[Any]) -> None:
         """Send a message to a list of receivers.
 
         Args:
             message (Message): The message to be sent.
-            to (List[Any]): The list of receivers.
+            to (list[Any]): The list of receivers.
         """
         for client in to:
             self.send(message, client)

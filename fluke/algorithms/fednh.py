@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import torch
 from torch.nn import Module, Parameter, CrossEntropyLoss
-from typing import Dict, Sequence, Callable
+from typing import Sequence, Callable
 from collections import defaultdict
 import sys
 
@@ -119,7 +119,7 @@ class FedNHClient(PFLClient):
         self._update_protos(protos)
         self._send_model()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
 
         if self.test_set is not None:
             if self.model is None:
@@ -214,7 +214,7 @@ class FedNHServer(Server):
                         avg_model_sd[key] += weight * client_sd[key]
             self.model.encoder.load_state_dict(avg_model_sd)
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         if self.test_data is not None:
             model = ArgMaxModule(self.model)
             return ClassificationEval(None,

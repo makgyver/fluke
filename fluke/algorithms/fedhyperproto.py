@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Sequence, Callable, Dict
+from typing import Sequence, Callable
 import torch
 from torch import nn
 from rich.progress import track
@@ -118,7 +118,7 @@ class FedHyperProtoClient(PFLClient):
         clear_cache()
         self._send_model()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         if self.test_set is not None:
             if self.initial_prototypes is None:
                 self._receive_protos()

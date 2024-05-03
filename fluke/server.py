@@ -1,8 +1,7 @@
 from __future__ import annotations
-
 from rich.progress import track
 import numpy as np
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 from collections import OrderedDict
 
 import torch
@@ -162,7 +161,7 @@ class Server(ObserverSubject):
 
         self._finalize()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         """Evaluate the global federated model on the :`test_set`.
 
         If the test set is not set, the method returns an empty dictionary.
@@ -171,7 +170,7 @@ class Server(ObserverSubject):
             To date, only classification tasks are supported.
 
         Returns:
-            Dict[str, float]: The evaluation results. The keys are the metrics and the values are
+            dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
         if self.test_data is not None:
@@ -214,7 +213,7 @@ class Server(ObserverSubject):
         self._participants.update([c.index for c in selected])
         return selected
 
-    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True):
+    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
         """Retrieve the models of the clients.
         This method assumes that the clients have already sent their models to the server.
 
@@ -224,7 +223,7 @@ class Server(ObserverSubject):
               Otherwise, it returns the models. Defaults to True.
 
         Returns:
-            List[torch.nn.Module]: The models of the clients.
+            list[torch.nn.Module]: The models of the clients.
         """
         client_models = [self._channel.receive(self, client, "model").payload
                          for client in eligible]
@@ -250,7 +249,7 @@ class Server(ObserverSubject):
             eligible (Sequence[Client]): The clients that will participate in the aggregation.
 
         Returns:
-            List[float]: The weights of the clients.
+            list[float]: The weights of the clients.
         """
         if "weighted" in self.hyper_params.keys() and self.hyper_params.weighted:
             num_ex = [client.n_examples for client in eligible]
@@ -295,7 +294,7 @@ class Server(ObserverSubject):
 
     def _notify_end_round(self,
                           round: int,
-                          evals: Dict[str, float],
+                          evals: dict[str, float],
                           client_evals: Sequence[Any]) -> None:
         """Notify the observers that a round has ended.
 
