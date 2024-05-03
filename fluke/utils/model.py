@@ -75,6 +75,18 @@ class MMMixin:
 
 
 class LinesLinear(MMMixin, nn.Linear):
+    """Linear layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.Linear`` layer, while the local
+        ones are in the submodule ``weight_local`` (and ``bias_local``).
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+        bias_local (torch.Tensor): The local bias.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -97,6 +109,19 @@ class LinesLinear(MMMixin, nn.Linear):
 
 
 class LinesConv2d(MMMixin, nn.Conv2d):
+    """Conv2d layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.Conv2d`` layer, while the local
+        ones are in the submodule ``weight_local`` (and ``bias_local``).
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+        bias_local (torch.Tensor): The local bias.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
@@ -124,6 +149,22 @@ class LinesConv2d(MMMixin, nn.Conv2d):
 
 
 class LinesLSTM(MMMixin, nn.LSTM):
+    """LSTM layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.LSTM`` layer, while the local
+        ones are in the submodules ``weight_hh_l{layer}_local`` and ``weight_ih_l{layer}_local``,
+        where ``layer`` is the layer number. Similar considerations apply to the biases.
+
+    Attributes:
+        weight_hh_l{layer}_local (torch.Tensor): The local hidden-hidden weights of layer ``layer``.
+        weight_ih_l{layer}_local (torch.Tensor): The local input-hidden weights of layer ``layer``.
+        bias_hh_l{layer}_local (torch.Tensor): The local hidden-hidden biases of layer ``layer``.
+        bias_ih_l{layer}_local (torch.Tensor): The local input-hidden biases of layer ``layer``.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for layer in range(self.num_layers):
@@ -176,6 +217,18 @@ class LinesLSTM(MMMixin, nn.LSTM):
 
 
 class LinesEmbedding(MMMixin, nn.Embedding):
+    """Embedding layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.Embedding`` layer, while the local
+        ones are in the submodule ``weight_local``.
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
@@ -187,6 +240,19 @@ class LinesEmbedding(MMMixin, nn.Embedding):
 
 
 class LinesBN2d(MMMixin, nn.BatchNorm2d):
+    """BatchNorm2d layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.BatchNorm2d`` layer, while the
+        local ones are in the submodules ``weight_local`` and ``bias_local``.
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+        bias_local (torch.Tensor): The local bias.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.Tensor(self.num_features))
@@ -443,17 +509,6 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict):
 
 
 def batch_norm_to_group_norm(layer):
-    GROUP_NORM_LOOKUP = {
-        16: 2,  # -> channels per group: 8
-        32: 4,  # -> channels per group: 8
-        64: 8,  # -> channels per group: 8
-        128: 8,  # -> channels per group: 16
-        256: 16,  # -> channels per group: 16
-        512: 32,  # -> channels per group: 16
-        1024: 32,  # -> channels per group: 32
-        2048: 32,  # -> channels per group: 64
-    }
-
     """Iterates over a whole model (or layer of a model) and replaces every
     batch norm 2D with a group norm
 
@@ -466,6 +521,18 @@ def batch_norm_to_group_norm(layer):
     Raises:
         ValueError: If the number of channels is not in the ``GROUP_NORM_LOOKUP``.
     """
+
+    GROUP_NORM_LOOKUP = {
+        16: 2,  # -> channels per group: 8
+        32: 4,  # -> channels per group: 8
+        64: 8,  # -> channels per group: 8
+        128: 8,  # -> channels per group: 16
+        256: 16,  # -> channels per group: 16
+        512: 32,  # -> channels per group: 16
+        1024: 32,  # -> channels per group: 32
+        2048: 32,  # -> channels per group: 64
+    }
+
     for name, _ in layer.named_modules():
         if name:
             try:
