@@ -30,7 +30,6 @@ __all__ = [
     'fedprox',
     'fedrep',
     'fedsgd',
-    'flhalf',
     'lg_fedavg',
     'moon',
     'per_fedavg',

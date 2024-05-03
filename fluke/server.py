@@ -183,7 +183,6 @@ class Server(ObserverSubject):
 
     def _finalize(self) -> None:
         """Finalize the federated learning process.
-
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
@@ -263,7 +262,7 @@ class Server(ObserverSubject):
     def _aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
-        `weighted` is True, the clients are weighted by their number of samples.
+        ``weighted`` is True, the clients are weighted by their number of samples.
         The method directly updates the model of the server.
 
         Args:
@@ -367,7 +366,7 @@ class ServerObserver():
     """Server observer interface.
     This interface is used to observe the server during the federated learning process.
     For example, it can be used to log the performance of the global model and the communication
-    costs, as it is done in the `Log` class.
+    costs, as it is done in the ``Log`` class.
     """
 
     def start_round(self, round: int, global_model: Any):

@@ -78,7 +78,7 @@ class DDict(dict):
         self.update(**kwargs)
 
     def update(self, **kwargs):
-        """Update the `DDict` with the specified key-value pairs.
+        """Update the ``DDict`` with the specified key-value pairs.
 
         Args:
             **kwargs: The key-value pairs.
@@ -90,7 +90,7 @@ class DDict(dict):
                 self[k] = v
 
     def exclude(self, *keys: str):
-        """Create a new DDict excluding the specified keys.
+        """Create a new ``DDict`` excluding the specified keys.
 
         Args:
             *keys: The keys to be excluded.
@@ -175,13 +175,15 @@ class ObserverSubject():
 
 
 class GlobalSettings(metaclass=Singleton):
-    """Global settings for FLUKE.
+    """Global settings for ``fluke``.
 
-    This class is a singleton that holds the global settings for FLUKE. The settings include:
-    - The device (cpu, cuda[:N], auto, mps);
+    This class is a singleton that holds the global settings for ``fluke``. The settings include:
+
+    - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
     - The seed for reproducibility;
     - The progress bars for the federated learning process, clients and server;
     - The live renderer, which is used to render the progress bars.
+
     """
 
     _device: str = 'cpu'
@@ -211,7 +213,7 @@ class GlobalSettings(metaclass=Singleton):
 
     def set_seed(self, seed: int) -> None:
         """Set seed for reproducibility. The seed is used to set the random seed for the following
-        libraries: `torch`, `torch.cuda`, `numpy`, `random`.
+        libraries: ``torch``, ``torch.cuda``, ``numpy``, ``random``.
 
         Args:
             seed (int): The seed.
@@ -228,7 +230,7 @@ class GlobalSettings(metaclass=Singleton):
         torch.backends.cudnn.deterministic = True
 
     def auto_device(self) -> torch.device:
-        """Set device to `cuda` if available, otherwise `cpu`.
+        """Set device to ``cuda`` if available, otherwise ``cpu``.
 
         Returns:
             torch.device: The device.
@@ -237,8 +239,8 @@ class GlobalSettings(metaclass=Singleton):
         return self._device
 
     def set_device(self, device: str) -> torch.device:
-        """Set the device. The device can be `cpu`, `auto`, `mps`, `cuda` or `cuda:N`, where `N` is
-        the GPU index.
+        """Set the device. The device can be ``cpu``, ``auto``, ``mps``, ``cuda`` or ``cuda:N``,
+        where ``N`` is the GPU index.
 
         Args:
             device (str): The device as string.
@@ -267,6 +269,7 @@ class GlobalSettings(metaclass=Singleton):
         """Get the progress bar.
 
         The possible progress bar types are:
+
         - FL: The progress bar for the federated learning process.
         - clients: The progress bar for the clients.
         - server: The progress bar for the server.

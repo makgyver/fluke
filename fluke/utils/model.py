@@ -32,7 +32,6 @@ STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
 
 class MMMixin:
     """Mixin class for model interpolation.
-
     This class provides the necessary methods to interpolate between two models. This mixin class
     must be used as a parent class for the pytorch modules that need to be interpolated.
 
@@ -42,7 +41,7 @@ class MMMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lam = None
+        self.lam: float = None
 
     def set_lambda(self, lam) -> None:
         """Set the interpolation constant.
@@ -62,7 +61,11 @@ class MMMixin:
 
     # @abstractmethod
     def get_weight(self) -> torch.Tensor:
-        """Get the interpolated weights.
+        """Get the interpolated weights of the layer or module according to the interpolation
+        constant ``lam``. The default implementation assumes that the layer or module has a
+        ``weight`` attribute and a ``weight_local`` attribute that are both tensors of the same
+        shape. The interpolated weights are computed as:
+        ``w = (1 - self.lam) * self.weight + self.lam * self.weight_local``.
 
         Returns:
             torch.Tensor: The interpolated weights.

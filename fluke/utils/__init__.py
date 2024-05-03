@@ -56,7 +56,7 @@ class OptimizerConfigurator:
 
     def __init__(self,
                  optimizer_class: type[Optimizer],
-                 scheduler_kwargs: dict = None,
+                 scheduler_kwargs: DDict | dict = None,
                  **optimizer_kwargs):
         """Initialize the optimizer configurator. The default scheduler is the StepLR scheduler.
 

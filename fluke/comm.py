@@ -90,10 +90,6 @@ class Channel(ObserverSubject):
     parties.
     The Channel class implements the Observer pattern. It notifies the observers when a message is
     received. Clients and server are supposed to use a channel to communicate with each other.
-
-    Attributes:
-        _buffer (Dict[Any, List[Message]]): The buffer to store the unread messages. The key is the
-            recipient and the value is a list of messages.
     """
 
     def __init__(self):
@@ -102,6 +98,16 @@ class Channel(ObserverSubject):
 
     def __getitem__(self, mbox: Any) -> List[Message]:
         return self._buffer[mbox]
+
+    @property
+    def buffer(self) -> Dict[Any, List[Message]]:
+        """Get the buffer of the channel. The buffer stores the unread messages in a dictionary.
+        The keys are the recipients and the values are the list of messages sent to the recipient.
+
+        Returns:
+            Dict[Any, List[Message]]: The buffer of the channel.
+        """
+        return self._buffer
 
     def send(self, message: Message, mbox: Any):
         """Send a message to a receiver.
@@ -114,17 +120,22 @@ class Channel(ObserverSubject):
             mbox (Any): The receiver.
 
         Example:
-            Sending a string message from the `server` to a `client`:
-            >>> channel = Channel()
-            >>> channel.send(Message("Hello", "greeting", server), client)
+            Sending a string message from the ``server`` to a ``client``:
+
+            .. code-block:: python
+
+                channel = Channel()
+                channel.send(Message("Hello", "greeting", server), client)
+
         """
         self._buffer[mbox].append(message)
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
-        """Receive (read) a message from a sender. The message is removed from the message box of
-        the receiver. If both ``sender`` and ``msg_type`` are None, the first message in the message
-        box is returned. If ``sender`` is None, the first message with the given ``msg_type`` is
-        returned. If ``msg_type`` is None, the first message from the given ``sender`` is returned.
+        """Receive (i.e., read) a message from a sender. The message is removed from the message box
+        of the receiver. If both ``sender`` and ``msg_type`` are None, the first message in the
+        message box is returned. If ``sender`` is None, the first message with the given
+        ``msg_type`` is returned. If ``msg_type`` is None, the first message from the given
+        ``sender`` is returned.
 
         Args:
             mbox (Any): The receiver.
@@ -167,7 +178,8 @@ class Channel(ObserverSubject):
 
         Note:
             Any unread message will be lost after calling this method.
-            Lost messages are not considered in the communication protocol.
+            Lost messages are not considered in the communication protocol thus they are not
+            accounted for in the communication cost.
 
         Args:
             mbox (Any): The receiver.

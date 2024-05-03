@@ -411,14 +411,15 @@ class DataSplitter:
         """
         Distribute the examples across the users according to the following probability density
         function: :math:`P(x; a) = a x^{a-1}`
-        where x is the id of a client (x in [0, n-1]), and a = `alpha` > 0 with
-        - alpha = 1  => examples are equidistributed across clients;
-        - alpha = 2  => the examples are "linearly" distributed across users;
-        - alpha >= 3 => the examples are power law distributed;
-        - alpha -> infinity => all users but one have `min_quantity` examples, and the remaining
-         user all the rest.
+        where :math:`x` is the id of a client (:math:`x \in [0, n-1]`), and ``a = alpha > 0`` with
 
-        Each client is guaranteed to have at least `min_quantity` examples.
+        - ``alpha = 1``  => examples are equidistributed across clients;
+        - ``alpha = 2``  => the examples are "linearly" distributed across users;
+        - ``alpha >= 3`` => the examples are power law distributed;
+        - ``alpha``:math:`\to \infty` => all users but one have ``min_quantity`` examples,
+            and the remaining user all the rest.
+
+        Each client is guaranteed to have at least ``min_quantity`` examples.
 
         Args:
             X (torch.Tensor): The examples.
@@ -429,7 +430,8 @@ class DataSplitter:
 
         Returns:
             List[torch.Tensor]: The examples' ids assignment.
-        """
+        """  # noqa: W605
+        # The abow comment is to avoid flake8 error W605 (invalid escape sequence)
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
         s = np.array(power(alpha, X.shape[0] - min_quantity*n) * n, dtype=int)
