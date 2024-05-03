@@ -43,29 +43,35 @@ Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated Learn
 <a id="14">[FedDyn 2021]</a>
 Durmus Alp Emre Acar, Yue Zhao, Ramon Matas, Matthew Mattina, Paul Whatmough, and Venkatesh Saligrama. Federated Learning with Dynamic Regularization. ICLR 2021. URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
 
-<a id="15">[LG-FedAvg]</a>
-Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach, David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally: Federated Learning with Local and Global Representations. URL: https://arxiv.org/abs/2001.01523
+<a id="15">[LG-FedAvg 2020]</a>
+Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach, David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally: Federated Learning with Local and Global Representations. arXiv 2020. URL: https://arxiv.org/abs/2001.01523
 
-<a id="16">[SuPerFed]</a>
+<a id="16">[SuPerFed 2022]</a>
 Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for Personalized Federated Learning. KDD 2022. URL: https://arxiv.org/abs/2109.07628v3
 
-<a id="17">[FedAMP]</a>
+<a id="17">[FedAMP 2021]</a>
 Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. AAAI 2021. URL: https://arxiv.org/abs/2007.03797
 
-<a id="18">[FedProto]</a>
+<a id="18">[FedProto 2022]</a>
 Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. AAAI 2022. URL: https://arxiv.org/abs/2105.00243
 
-<a id="19">[FedLC]</a>
+<a id="19">[FedLC 2022]</a>
 Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu. Federated Learning with Label Distribution Skew via Logits Calibration. ICML 2022. URL: https://arxiv.org/abs/2209.00189
 
-<a id="20">[FedAVGM]</a>
+<a id="20">[FedAVGM 2019]</a>
 Tzu-Ming Harry Hsu, Hang Qi, Matthew Brown. Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification. arXiv 2019. URL: https://arxiv.org/abs/1909.06335
 
-<a id="21">[FedBABU]</a>
+<a id="21">[FedBABU 2022]</a>
 Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation for Federated Image Classification. ICLR 2022. URL: https://arxiv.org/abs/2106.06042
 
-<a id="22">[Per-FedAVG]</a>
+<a id="22">[Per-FedAVG 2020]</a>
 Alireza Fallah, Aryan Mokhtari, Asuman Ozdaglar. Personalized Federated Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach. NeurIPS 2020. URL: https://arxiv.org/abs/2002.07948
 
-<a id="23">[CCVR]</a>
+<a id="23">[CCVR 2021]</a>
 Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. NeurIPS 2021. URL: https://arxiv.org/abs/2106.05001
+
+<a id="24">[FedNH 2023]</a>
+Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu. Tackling Data Heterogeneity in Federated Learning with Class Prototypes. AAAI 2023 URL: https://arxiv.org/abs/2212.02758
+
+<a id="25">[FedHyperProto 2024]</a>
+Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype Learning. Submitted to ESANN 2024

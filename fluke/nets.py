@@ -514,9 +514,7 @@ class ResNet18(nn.Module):
 class ResNet18GN(ResNet18):
     def __init__(self, output_size=10):
         super(ResNet18GN, self).__init__(output_size)
-        print(self)
         batch_norm_to_group_norm(self)
-        print(self)
 
 
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (CIFAR-100)
@@ -770,3 +768,42 @@ class MNIST_2NN_GlobalE(GlobalLocalNet, MNIST_2NN):
 
     def get_global(self) -> nn.Module:
         return self._encoder
+
+
+# FedNH: https://arxiv.org/abs/2212.02758 (CIFAR-10)
+class Conv2Cifar_E(nn.Module):
+    def __init__(self, output_size=10):
+        super().__init__()
+        self.output_size = output_size
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.linear1 = nn.Linear(64 * 5 * 5, 384)
+        self.linear2 = nn.Linear(384, self.output_size)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 64 * 5 * 5)
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
+        return x
+
+
+class Conv2Cifar_D(nn.Module):
+    def __init__(self, input_size=10, num_classes=10):
+        super().__init__()
+        self.input_size = input_size
+        self.output_size = num_classes
+        self.linear3 = nn.Linear(self.input_size, self.output_size, bias=False)
+
+    def forward(self, x):
+        logits = self.linear3(x)
+        return logits
+
+
+class Conv2Cifar(EncoderHeadNet):
+    def __init__(self, embedding_size=10, num_classes=10):
+        super().__init__(Conv2Cifar_E(embedding_size),
+                         Conv2Cifar_D(input_size=embedding_size,
+                                      num_classes=num_classes))

@@ -1,7 +1,7 @@
 from __future__ import annotations
-
+from rich.progress import track
 import numpy as np
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 from collections import OrderedDict
 
 import torch
@@ -20,14 +20,13 @@ if TYPE_CHECKING:
 
 
 class Server(ObserverSubject):
-    """Standard Server for Federated Learning.
-
-    This class is the base class for all servers in `FLUKE`. It implements the basic
+    """Basic Server for Federated Learning.
+    This class is the base class for all servers in ``fluke``. It implements the basic
     functionalities of a federated learning server. The default behaviour of this server is based
     on the Federated Averaging algorithm. The server is responsible for coordinating the learning
     process, selecting the clients for each round, sending the global model to the clients, and
-    aggregating the models of the clients. The server also evaluates the model server-side (if the
-    test data is provided) and sends the final model to the clients.
+    aggregating the models received from the clients at the end of the round. The server also
+    evaluates the model server-side (if the test data is provided).
 
     Attributes:
         hyper_params (DDict):
@@ -52,8 +51,8 @@ class Server(ObserverSubject):
         test_data (FastTensorDataLoader): The test data to evaluate the model.
         clients (Sequence[Client]): The clients that will participate in the federated learning
           process.
-        eval_every (int, optional): The number of rounds between evaluations. Defaults to 1.
-        weighted (bool, optional): A boolean indicating if the clients should be weighted by the
+        eval_every (int): The number of rounds between evaluations. Defaults to 1.
+        weighted (bool): A boolean indicating if the clients should be weighted by the
           number of samples when aggregating the models. Defaults to False.
     """
 
@@ -70,11 +69,12 @@ class Server(ObserverSubject):
         self.device: device = GlobalSettings().get_device()
         self.model: Module = model
         self.clients: Sequence[Client] = clients
-        self.channel: Channel = Channel()
+        self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
         self.test_data: FastTensorDataLoader = test_data
         self._eval_every: int = eval_every
+        self._participants: set[int] = set()
 
         for client in self.clients:
             client.set_server(self)
@@ -82,8 +82,35 @@ class Server(ObserverSubject):
     # def _local_train(self, client: Client) -> None:
     #     self.channel.send(Message((client.fit, {}), "__action__", self), client)
 
+    @property
+    def channel(self) -> Channel:
+        """The channel to communicate with the clients.
+
+        Returns:
+            Channel: The channel to communicate with the clients.
+        """
+        return self._channel
+
+    @property
+    def has_test(self) -> bool:
+        """Return whether the server can evaluate the model.
+
+        Returns:
+            bool: True if the server can evaluate the model, False otherwise.
+        """
+        return self.test_data is not None
+
+    @property
+    def has_model(self) -> bool:
+        """Return whether the server owns a global model.
+
+        Returns:
+            bool: True if the server owns a global model, False otherwise.
+        """
+        return self.model is not None
+
     def _broadcast_model(self, eligible: Sequence[Client]) -> None:
-        self.channel.broadcast(Message(self.model, "model", self), eligible)
+        self._channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
         """Run the federated learning algorithm.
@@ -134,7 +161,7 @@ class Server(ObserverSubject):
 
         self._finalize()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         """Evaluate the global federated model on the :`test_set`.
 
         If the test set is not set, the method returns an empty dictionary.
@@ -143,27 +170,26 @@ class Server(ObserverSubject):
             To date, only classification tasks are supported.
 
         Returns:
-            Dict[str, float]: The evaluation results. The keys are the metrics and the values are
+            dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
         if self.test_data is not None:
             return ClassificationEval(self.clients[0].hyper_params.loss_fn,
                                       self.model.output_size,
-                                      device=GlobalSettings().get_device()).evaluate(self.model,
-                                                                                     self.test_data)
+                                      device=self.device).evaluate(self.model,
+                                                                   self.test_data)
         return {}
 
     def _finalize(self) -> None:
         """Finalize the federated learning process.
-
-        The finalize method is called at the end of the federated learning process. It is used to
-        send the final model to the clients and to notify the observers that the process has ended.
+        The finalize method is called at the end of the federated learning process. The client-side
+        evaluation is only done if the client has participated in at least one round.
         """
-        self._broadcast_model(self.clients)
-        for client in self.clients:
-            client._receive_model()
         client_evals = []
-        for client in self.clients:
+        client_to_eval = [client for client in self.clients if client.index in self._participants]
+        self._broadcast_model(client_to_eval)
+        for client in track(client_to_eval, "Finalizing federation..."):
+            client.finalize()
             client_eval = client.evaluate()
             if client_eval:
                 client_evals.append(client_eval)
@@ -179,13 +205,16 @@ class Server(ObserverSubject):
             Sequence[Client]: The clients that will participate in the current round.
         """
         if eligible_perc == 1:
+            if not self._participants:
+                self._participants = set(range(self.n_clients))
             return self.clients
         n = int(self.n_clients * eligible_perc)
-        return np.random.choice(self.clients, n)
+        selected = np.random.choice(self.clients, n)
+        self._participants.update([c.index for c in selected])
+        return selected
 
-    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True):
+    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
         """Retrieve the models of the clients.
-
         This method assumes that the clients have already sent their models to the server.
 
         Args:
@@ -194,9 +223,9 @@ class Server(ObserverSubject):
               Otherwise, it returns the models. Defaults to True.
 
         Returns:
-            List[torch.nn.Module]: The models of the clients.
+            list[torch.nn.Module]: The models of the clients.
         """
-        client_models = [self.channel.receive(self, client, "model").payload
+        client_models = [self._channel.receive(self, client, "model").payload
                          for client in eligible]
         if state_dict:
             return [m.state_dict() for m in client_models]
@@ -204,24 +233,23 @@ class Server(ObserverSubject):
 
     def _get_client_weights(self, eligible: Sequence[Client]):
         """Get the weights of the clients for the aggregation.
-
         The weights are calculated based on the number of samples of each client.
-        If the hyperparameter `weighted` is True, the clients are weighted by their number of
+        If the hyperparameter ``weighted`` is True, the clients are weighted by their number of
         samples. Otherwise, all clients have the same weight.
 
         Note:
-            The computation of the weights do not adhere to the "best-practices" of FLUKE
+            The computation of the weights do not adhere to the "best-practices" of ``fluke``
             because the server should not have direct access to the number of samples of the
             clients. Thus, the computation of the weights should be done communicating with the
             clients through the channel, but for simplicity, we are not following this practice
-            here. However, the communication overhead is minimal and does not affect the logged
+            here. However, the communication overhead is negligible and does not affect the logged
             performance.
 
         Args:
             eligible (Sequence[Client]): The clients that will participate in the aggregation.
 
         Returns:
-            List[float]: The weights of the clients.
+            list[float]: The weights of the clients.
         """
         if "weighted" in self.hyper_params.keys() and self.hyper_params.weighted:
             num_ex = [client.n_examples for client in eligible]
@@ -232,9 +260,8 @@ class Server(ObserverSubject):
 
     def _aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
-
         The aggregation is done by averaging the models of the clients. If the hyperparameter
-        `weighted` is True, the clients are weighted by their number of samples.
+        ``weighted`` is True, the clients are weighted by their number of samples.
         The method directly updates the model of the server.
 
         Args:
@@ -267,7 +294,7 @@ class Server(ObserverSubject):
 
     def _notify_end_round(self,
                           round: int,
-                          evals: Dict[str, float],
+                          evals: dict[str, float],
                           client_evals: Sequence[Any]) -> None:
         """Notify the observers that a round has ended.
 
@@ -332,30 +359,3 @@ class Server(ObserverSubject):
 
     def __repr__(self) -> str:
         return self.__str__()
-
-
-class ServerObserver():
-    """Server observer interface.
-
-    This interface is used to observe the server during the federated learning process.
-    For example, it can be used to log the performance of the global model and the communication
-    costs, as it is done in the `Log` class.
-    """
-
-    def start_round(self, round: int, global_model: Any):
-        pass
-
-    def end_round(self,
-                  round: int,
-                  evals: Dict[str, float],
-                  client_evals: Sequence[Any]):
-        pass
-
-    def selected_clients(self, round: int, clients: Sequence):
-        pass
-
-    def error(self, error: str):
-        pass
-
-    def finished(self,  client_evals: Sequence[Any]):
-        pass

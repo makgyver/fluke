@@ -1,6 +1,6 @@
 from torch.optim import Optimizer
 import torch
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Union
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -65,8 +65,8 @@ class PerFedAVGClient(Client):
 
     def _compute_grad(self,
                       model: torch.nn.Module,
-                      data_batch: Tuple[torch.Tensor, torch.Tensor],
-                      v: Union[Tuple[torch.Tensor, ...], None] = None) -> List[torch.Tensor]:
+                      data_batch: tuple[torch.Tensor, torch.Tensor],
+                      v: Union[tuple[torch.Tensor, ...], None] = None) -> list[torch.Tensor]:
         X, y = data_batch
         frz_model_params = deepcopy(model.state_dict())
         delta = 1e-3

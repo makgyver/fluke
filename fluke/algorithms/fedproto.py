@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module
-from typing import Dict, Sequence, Callable
+from typing import Sequence, Callable
 from collections import defaultdict
 from copy import deepcopy
 import sys
@@ -21,11 +21,11 @@ from ..comm import Message  # NOQA
 class FedProtoModel(Module):
     def __init__(self,
                  model: EncoderHeadNet,
-                 prototypes: Dict[int, torch.Tensor],
+                 prototypes: dict[int, torch.Tensor],
                  device: torch.device):
         super().__init__()
         self.model: EncoderHeadNet = model
-        self.prototypes: Dict[int, torch.Tensor] = prototypes
+        self.prototypes: dict[int, torch.Tensor] = prototypes
         self.num_classes: int = len(prototypes)
         self.device: torch.device = device
 
@@ -64,6 +64,7 @@ class FedProtoClient(PFLClient):
         )
         self.model = self.personalized_model
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
+        self.global_protos = None
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
@@ -74,7 +75,7 @@ class FedProtoClient(PFLClient):
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
         for label, prts in protos.items():
-            self.prototypes[label] = torch.sum(torch.stack(prts), dim=0) / len(prts)
+            self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -108,6 +109,11 @@ class FedProtoClient(PFLClient):
                     y_c = yy.item()
                     protos[y_c].append(Z[i, :].detach().data)
 
+                # for label in range(self.hyper_params.n_protos):
+                #     ids = y == label
+                #     if ids.sum() > 0:
+                #         protos[label].append(Z[ids, :].detach().data)
+
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
@@ -117,7 +123,7 @@ class FedProtoClient(PFLClient):
         self._update_protos(protos)
         self._send_model()
 
-    def evaluate(self) -> Dict[str, float]:
+    def evaluate(self) -> dict[str, float]:
         if self.test_set is not None:
             if self.prototypes[0] is None:
                 # ask for the prototypes and receive them
@@ -126,9 +132,13 @@ class FedProtoClient(PFLClient):
 
             model = FedProtoModel(self.model, self.prototypes, self.device)
             return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.hyper_params.n_protos).evaluate(model,
-                                                                           self.test_set)
+                                      self.hyper_params.n_protos,
+                                      self.device).evaluate(model,
+                                                            self.test_set)
         return {}
+
+    def finalize(self) -> None:
+        self.fit()
 
 
 class FedProtoServer(Server):
@@ -156,12 +166,13 @@ class FedProtoServer(Server):
         clients_protos = self._get_client_models(eligible)
 
         # Group by label
-        label_protos = {i: [protos[i] for protos in clients_protos]
+        label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]
                         for i in range(self.hyper_params.n_protos)}
 
         # Aggregate prototypes
         for label, protos in label_protos.items():
-            self.prototypes[label] = torch.sum(torch.stack(protos), dim=0) / len(protos)
+            if protos:
+                self.prototypes[label] = torch.sum(torch.stack(protos), dim=0) / len(protos)
 
 
 class FedProto(PersonalizedFL):

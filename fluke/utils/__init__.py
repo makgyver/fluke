@@ -1,13 +1,12 @@
-"""This module contains utility functions and classes used throughout the package."""
+"""This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
 from rich.pretty import Pretty
 from rich.panel import Panel
 import rich
-from torch.optim.lr_scheduler import StepLR
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 from enum import Enum
 import psutil
 import pandas as pd
@@ -24,7 +23,6 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
-from ..server import ServerObserver  # NOQA
 from ..data.datasets import DatasetsEnum  # NOQA
 from ..data import DistributionEnum  # NOQA
 
@@ -32,6 +30,7 @@ from ..data import DistributionEnum  # NOQA
 __all__ = [
     'model',
     'OptimizerConfigurator',
+    'ServerObserver',
     'LogEnum',
     'Log',
     'WandBLog',
@@ -46,11 +45,63 @@ __all__ = [
 ]
 
 
-class OptimizerConfigurator:
-    """Optimizer configurator.
+class ServerObserver():
+    """Server observer interface.
+    This interface is used to observe the server during the federated learning process.
+    For example, it can be used to log the performance of the global model and the communication
+    costs, as it is done in the ``Log`` class.
+    """
 
-    This class is used to configure the optimizer and the learning rate scheduler.
-    To date, only the `StepLR` scheduler is supported.
+    def start_round(self, round: int, global_model: Any):
+        """This method is called when a new round starts.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+        """
+        pass
+
+    def end_round(self,
+                  round: int,
+                  evals: dict[str, float],
+                  client_evals: Sequence[Any]):
+        """This method is called when a round ends.
+
+        Args:
+            round (int): The round number.
+            evals (dict[str, float]): The evaluation results of the global model.
+            client_evals (Sequence[Any]): The evaluation rstuls of the clients.
+        """
+        pass
+
+    def selected_clients(self, round: int, clients: Sequence):
+        """This method is called when the clients have been selected for the current round.
+
+        Args:
+            round (int): The round number.
+            clients (Sequence): The clients selected for the current round.
+        """
+        pass
+
+    def error(self, error: str):
+        """This method is called when an error occurs.
+
+        Args:
+            error (str): The error message.
+        """
+        pass
+
+    def finished(self,  client_evals: Sequence[Any]):
+        """This method is called when the federated learning process has ended.
+
+        Args:
+            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+        """
+        pass
+
+
+class OptimizerConfigurator:
+    """This class is used to configure the optimizer and the learning rate scheduler.
 
     Attributes:
         optimizer (type[Optimizer]): The optimizer class.
@@ -60,11 +111,20 @@ class OptimizerConfigurator:
 
     def __init__(self,
                  optimizer_class: type[Optimizer],
-                 scheduler_kwargs: dict = None,
+                 scheduler_kwargs: DDict | dict = None,
                  **optimizer_kwargs):
+        """Initialize the optimizer configurator. The default scheduler is the StepLR scheduler.
+
+        Args:
+            optimizer_class (type[Optimizer]): The optimizer class.
+            scheduler_kwargs (dict, optional): The scheduler keyword arguments. Defaults to None.
+            **optimizer_kwargs: The optimizer keyword arguments.
+        """
         self.optimizer: type[Optimizer] = optimizer_class
-        self.scheduler_kwargs: DDict = (DDict(**scheduler_kwargs) if scheduler_kwargs is not None
-                                        else DDict(step_size=1, gamma=1))
+        self.scheduler_kwargs: DDict = DDict(**scheduler_kwargs) if scheduler_kwargs is not None \
+            else DDict(name="StepLR", step_size=1, gamma=1)
+        self.scheduler = get_scheduler(
+            self.scheduler_kwargs.name if self.scheduler_kwargs.name else "StepLR")
         self.optimizer_kwargs: DDict = DDict(**optimizer_kwargs)
 
     def __call__(self, model: Module, **override_kwargs):
@@ -80,13 +140,15 @@ class OptimizerConfigurator:
         if override_kwargs:
             self.optimizer_kwargs.update(override_kwargs)
         optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
-        scheduler = StepLR(optimizer, **self.scheduler_kwargs)
+        scheduler = self.scheduler(optimizer, **self.scheduler_kwargs.exclude("name"))
         return optimizer, scheduler
 
     def __str__(self) -> str:
+        strsched = self.scheduler.__name__
+        sch_params = self.scheduler_kwargs.exclude("name")
         to_str = f"OptCfg({self.optimizer.__name__},"
         to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += ",StepLR(" + ",".join([f"{k}={v}" for k, v in self.scheduler_kwargs.items()])
+        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in sch_params.items()])
         to_str += "))"
         return to_str
 
@@ -97,7 +159,7 @@ class LogEnum(Enum):
     WANDB = "wandb"  # : Weights and Biases logging
 
     def logger(self,
-               **wandb_config):
+               **wandb_config) -> Log:
         """Returns a new logger according to the value of the enumerator.
 
         Args:
@@ -114,7 +176,6 @@ class LogEnum(Enum):
 
 class Log(ServerObserver, ChannelObserver):
     """Basic logger.
-
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process. The logging happens in the console.
 
@@ -133,7 +194,6 @@ class Log(ServerObserver, ChannelObserver):
 
     def init(self, **kwargs):
         """Initialize the logger.
-
         The initialization is done by printing the configuration in the console.
 
         Args:
@@ -151,7 +211,7 @@ class Log(ServerObserver, ChannelObserver):
 
     def end_round(self,
                   round: int,
-                  global_eval: Dict[str, float],
+                  global_eval: dict[str, float],
                   client_evals: Sequence[Any]):
         self.history[round] = global_eval
         stats = {'global': self.history[round]}
@@ -210,7 +270,6 @@ class Log(ServerObserver, ChannelObserver):
 
 class WandBLog(Log):
     """Weights and Biases logger.
-
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process on Weights and Biases.
 
@@ -219,8 +278,6 @@ class WandBLog(Log):
         <https://docs.wandb.ai/>`_.
 
     Args:
-        evaluator (Evaluator): The evaluator that will be used to evaluate the model.
-        eval_every (int): The number of rounds between evaluations.
         **config: The configuration for Weights and Biases.
     """
 
@@ -238,7 +295,7 @@ class WandBLog(Log):
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_eval: Dict[str, float], client_evals: Sequence[Any]):
+    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Sequence[Any]):
         super().end_round(round, global_eval, client_evals)
         self.run.log({"global": self.history[round]}, step=round)
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
@@ -273,7 +330,6 @@ def import_module_from_str(name: str) -> Any:
 
 def get_class_from_str(module_name: str, class_name: str) -> Any:
     """Get a class from its name.
-
     This function is used to get a class from its name and the name of the module where it is
     defined. It is used to dynamically import classes.
 
@@ -307,8 +363,7 @@ def get_class_from_qualified_name(qualname: str) -> Any:
 
 def get_loss(lname: str) -> Module:
     """Get a loss function from its name.
-
-    The supported loss functions are the ones defined in the `torch.nn` module.
+    The supported loss functions are the ones defined in the ``torch.nn`` module.
 
     Args:
         lname (str): The name of the loss function.
@@ -321,9 +376,9 @@ def get_loss(lname: str) -> Module:
 
 def get_model(mname: str, **kwargs) -> Module:
     """Get a model from its name.
-
-    This function is used to get a model from its name and the name of the module where it is
-    defined. It is used to dynamically import models.
+    This function is used to get a torch model from its name and the name of the module where it is
+    defined. It is used to dynamically import models. If ``mname`` is not a fully qualified name,
+    the model is assumed to be defined in the ``fluke.nets`` module.
 
     Args:
         mname (str): The name of the model.
@@ -354,10 +409,9 @@ def get_full_classname(classtype: type) -> str:
 
 def get_scheduler(sname: str) -> torch.nn.Module:
     """Get a learning rate scheduler from its name.
-
     This function is used to get a learning rate scheduler from its name. It is used to dynamically
     import learning rate schedulers. The supported schedulers are the ones defined in the
-    `torch.optim.lr_scheduler` module.
+    ``torch.optim.lr_scheduler`` module.
 
     Args:
         sname (str): The name of the scheduler.
@@ -381,8 +435,7 @@ def clear_cache(ipc: bool = False):
 
 
 class Configuration(DDict):
-    """FL-Bench configuration class.
-
+    """Fluke configuration class.
     This class is used to store the configuration of an experiment. The configuration must adhere to
     a specific structure. The configuration is validated when the class is instantiated.
 
@@ -427,7 +480,7 @@ class Configuration(DDict):
         DATA_OPT_KEYS = {
             "sampling_perc": 1.0,
             "client_split": 0.0,
-            "standardize": False
+            # "standardize": False
         }
 
         ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]

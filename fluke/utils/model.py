@@ -15,10 +15,10 @@ sys.path.append("..")
 __all__ = [
     "MMMixin",
     "LinesLinear",
-    "LinesConv",
+    "LinesConv2d",
     "LinesLSTM",
     "LinesEmbedding",
-    "LinesBN",
+    "LinesBN2d",
     "diff_model",
     "merge_models",
     "set_lambda_model",
@@ -32,7 +32,6 @@ STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
 
 class MMMixin:
     """Mixin class for model interpolation.
-
     This class provides the necessary methods to interpolate between two models. This mixin class
     must be used as a parent class for the pytorch modules that need to be interpolated.
 
@@ -42,7 +41,7 @@ class MMMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lam = None
+        self.lam: float = None
 
     def set_lambda(self, lam) -> None:
         """Set the interpolation constant.
@@ -62,7 +61,11 @@ class MMMixin:
 
     # @abstractmethod
     def get_weight(self) -> torch.Tensor:
-        """Get the interpolated weights.
+        """Get the interpolated weights of the layer or module according to the interpolation
+        constant ``lam``. The default implementation assumes that the layer or module has a
+        ``weight`` attribute and a ``weight_local`` attribute that are both tensors of the same
+        shape. The interpolated weights are computed as:
+        ``w = (1 - self.lam) * self.weight + self.lam * self.weight_local``.
 
         Returns:
             torch.Tensor: The interpolated weights.
@@ -71,25 +74,26 @@ class MMMixin:
         return w
 
 
-class SubspaceLinear(MMMixin, nn.Linear):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class LinesLinear(MMMixin, nn.Linear):
+    """Linear layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
 
-    def forward(self, x):
-        w, b = self.get_weight()
-        x = F.linear(input=x, weight=w, bias=b)
-        return x
+    Note:
+        The global weights are the "default" weights of the ``nn.Linear`` layer, while the local
+        ones are in the submodule ``weight_local`` (and ``bias_local``).
 
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+        bias_local (torch.Tensor): The local bias.
+    """
 
-class TwoParamLinear(SubspaceLinear):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
             self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
 
-
-class LinesLinear(TwoParamLinear):
     def get_weight(self):
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
         if self.bias is not None:
@@ -98,10 +102,39 @@ class LinesLinear(TwoParamLinear):
             b = None
         return w, b
 
+    def forward(self, x):
+        w, b = self.get_weight()
+        x = F.linear(input=x, weight=w, bias=b)
+        return x
 
-class SubspaceConv(MMMixin, nn.Conv2d):
+
+class LinesConv2d(MMMixin, nn.Conv2d):
+    """Conv2d layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.Conv2d`` layer, while the local
+        ones are in the submodule ``weight_local`` (and ``bias_local``).
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+        bias_local (torch.Tensor): The local bias.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
+        if self.bias is not None:
+            self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
+
+    def get_weight(self):
+        w = (1 - self.lam) * self.weight + self.lam * self.weight_local
+        if self.bias is not None:
+            b = (1 - self.lam) * self.bias + self.lam * self.bias_local
+        else:
+            b = None
+        return w, b
 
     def forward(self, x):
         w, b = self.get_weight()
@@ -115,27 +148,46 @@ class SubspaceConv(MMMixin, nn.Conv2d):
         return x
 
 
-class TwoParamConv(SubspaceConv):
+class LinesLSTM(MMMixin, nn.LSTM):
+    """LSTM layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.LSTM`` layer, while the local
+        ones are in the submodules ``weight_hh_l{layer}_local`` and ``weight_ih_l{layer}_local``,
+        where ``layer`` is the layer number. Similar considerations apply to the biases.
+
+    Attributes:
+        weight_hh_l{layer}_local (torch.Tensor): The local hidden-hidden weights of layer ``layer``.
+        weight_ih_l{layer}_local (torch.Tensor): The local input-hidden weights of layer ``layer``.
+        bias_hh_l{layer}_local (torch.Tensor): The local hidden-hidden biases of layer ``layer``.
+        bias_ih_l{layer}_local (torch.Tensor): The local input-hidden biases of layer ``layer``.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
-        if self.bias is not None:
-            self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
+        for layer in range(self.num_layers):
+            setattr(self, f'weight_hh_l{layer}_local', nn.Parameter(
+                torch.zeros_like(getattr(self, f'weight_hh_l{layer}'))))
+            setattr(self, f'weight_ih_l{layer}_local', nn.Parameter(
+                torch.zeros_like(getattr(self, f'weight_ih_l{layer}'))))
+            if self.bias:
+                setattr(self, f'bias_hh_l{layer}_local', nn.Parameter(
+                    torch.zeros_like(getattr(self, f'bias_hh_l{layer}'))))
+                setattr(self, f'bias_ih_l{layer}_local', nn.Parameter(
+                    torch.zeros_like(getattr(self, f'bias_ih_l{layer}'))))
 
-
-class LinesConv(TwoParamConv):
     def get_weight(self):
-        w = (1 - self.lam) * self.weight + self.lam * self.weight_local
-        if self.bias is not None:
-            b = (1 - self.lam) * self.bias + self.lam * self.bias_local
-        else:
-            b = None
-        return w, b
-
-
-class SubspaceLSTM(MMMixin, nn.LSTM):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        weight_list = []
+        for layer in range(self.num_layers):
+            weight_list.append((1 - self.lam) * getattr(self,
+                               f'weight_ih_l{layer}') +
+                               self.lam * getattr(self, f'weight_ih_l{layer}_local'))
+            weight_list.append((1 - self.lam) * getattr(self,
+                               f'weight_hh_l{layer}') +
+                               self.lam * getattr(self, f'weight_hh_l{layer}_local'))
+        return weight_list
 
     def forward(self, x):
         w = self.get_weight()
@@ -164,37 +216,22 @@ class SubspaceLSTM(MMMixin, nn.LSTM):
         return result[0], result[1:]
 
 
-class TwoParamLSTM(SubspaceLSTM):
+class LinesEmbedding(MMMixin, nn.Embedding):
+    """Embedding layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.Embedding`` layer, while the local
+        ones are in the submodule ``weight_local``.
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for layer in range(self.num_layers):
-            setattr(self, f'weight_hh_l{layer}_local', nn.Parameter(
-                torch.zeros_like(getattr(self, f'weight_hh_l{layer}'))))
-            setattr(self, f'weight_ih_l{layer}_local', nn.Parameter(
-                torch.zeros_like(getattr(self, f'weight_ih_l{layer}'))))
-            if self.bias:
-                setattr(self, f'bias_hh_l{layer}_local', nn.Parameter(
-                    torch.zeros_like(getattr(self, f'bias_hh_l{layer}'))))
-                setattr(self, f'bias_ih_l{layer}_local', nn.Parameter(
-                    torch.zeros_like(getattr(self, f'bias_ih_l{layer}'))))
-
-
-class LinesLSTM(TwoParamLSTM):
-    def get_weight(self):
-        weight_list = []
-        for layer in range(self.num_layers):
-            weight_list.append((1 - self.lam) * getattr(self,
-                               f'weight_ih_l{layer}') +
-                               self.lam * getattr(self, f'weight_ih_l{layer}_local'))
-            weight_list.append((1 - self.lam) * getattr(self,
-                               f'weight_hh_l{layer}') +
-                               self.lam * getattr(self, f'weight_hh_l{layer}_local'))
-        return weight_list
-
-
-class SubspaceEmbedding(MMMixin, nn.Embedding):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
 
     def forward(self, x):
         w = self.get_weight()
@@ -202,20 +239,32 @@ class SubspaceEmbedding(MMMixin, nn.Embedding):
         return x
 
 
-class TwoParamEmbedding(SubspaceEmbedding):
+class LinesBN2d(MMMixin, nn.BatchNorm2d):
+    """BatchNorm2d layer with gloabl and local weights. The weights are interpolated using the
+    interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
+    weights.
+
+    Note:
+        The global weights are the "default" weights of the ``nn.BatchNorm2d`` layer, while the
+        local ones are in the submodules ``weight_local`` and ``bias_local``.
+
+    Attributes:
+        weight_local (torch.Tensor): The local weights.
+        bias_local (torch.Tensor): The local bias.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
+        self.weight_local = nn.Parameter(torch.Tensor(self.num_features))
+        self.bias_local = nn.Parameter(torch.Tensor(self.num_features))
 
-
-class LinesEmbedding(TwoParamEmbedding):
-    pass
-
-
-class SubspaceBN(MMMixin, nn.BatchNorm2d):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def get_weight(self):
+        w = (1 - self.lam) * self.weight + self.lam * self.weight_local
+        if self.bias is not None:
+            b = (1 - self.lam) * self.bias + self.lam * self.bias_local
+        else:
+            b = None
+        return w, b
 
     def forward(self, x):
         # call get_weight, which samples from the subspace, then use the corresponding weight.
@@ -251,23 +300,6 @@ class SubspaceBN(MMMixin, nn.BatchNorm2d):
         )
 
 
-class TwoParamBN(SubspaceBN):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.weight_local = nn.Parameter(torch.Tensor(self.num_features))
-        self.bias_local = nn.Parameter(torch.Tensor(self.num_features))
-
-
-class LinesBN(TwoParamBN):
-    def get_weight(self):
-        w = (1 - self.lam) * self.weight + self.lam * self.weight_local
-        if self.bias is not None:
-            b = (1 - self.lam) * self.bias + self.lam * self.bias_local
-        else:
-            b = None
-        return w, b
-
-
 def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module):
     layers = {}
     if next(merged_net.named_children(), None) is None:
@@ -278,16 +310,16 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
         if isinstance(x, torch.nn.Linear):
             layer = LinesLinear(x.in_features, x.out_features, bias=x.bias is not None)
         elif isinstance(x, torch.nn.Conv2d):
-            layer = LinesConv(x.in_channels,
-                              x.out_channels,
-                              x.kernel_size,
-                              x.stride,
-                              x.padding,
-                              x.dilation,
-                              x.groups,
-                              x.bias is not None)
+            layer = LinesConv2d(x.in_channels,
+                                x.out_channels,
+                                x.kernel_size,
+                                x.stride,
+                                x.padding,
+                                x.dilation,
+                                x.groups,
+                                x.bias is not None)
         elif isinstance(x, torch.nn.BatchNorm2d):
-            layer = LinesBN(x.num_features)
+            layer = LinesBN2d(x.num_features)
         elif isinstance(x, torch.nn.Embedding):
             layer = LinesEmbedding(x.num_embeddings, x.embedding_dim)
         elif isinstance(x, torch.nn.LSTM):
@@ -329,7 +361,6 @@ def _recursive_set_layer(module: Module, layers: dict):
 
 def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMMixin:
     """Mix two networks using a linear interpolation.
-
     This method takes two models and a lambda value and returns a new model that is a linear
     interpolation of the two input models. It transparenly handles the interpolation of the
     different layers of the models. The returned model implements the `MMMixin` class and has all
@@ -421,7 +452,6 @@ def get_global_model_dict(model: MMMixin) -> OrderedDict:
 
 def diff_model(model_dict1: dict, model_dict2: dict):
     """Compute the difference between two model state dictionaries.
-
     The difference is computed at the level of the parameters.
 
     Args:
@@ -440,9 +470,8 @@ def diff_model(model_dict1: dict, model_dict2: dict):
 
 def merge_models(model_1: Module, model_2: Module, lam: float):
     """Merge two models using a linear interpolation.
-
     The interpolation is done at the level of the parameters using the formula:
-    `merged_model = (1 - lam) * model_1 + lam * model_2`.
+    ``merged_model = (1 - lam) * model_1 + lam * model_2``.
 
     Args:
         model_1 (Module): The first model.
@@ -461,9 +490,8 @@ def merge_models(model_1: Module, model_2: Module, lam: float):
 
 def safe_load_state_dict(model1: Module, model2_state_dict: dict):
     """Load a state dictionary into a model.
-
-    This function is a safe version of `model.load_state_dict` that handles the case in which the
-    state dictionary has keys that match with `STATE_DICT_KEYS_TO_IGNORE` and thus have to be
+    This function is a safe version of ``model.load_state_dict`` that handles the case in which the
+    state dictionary has keys that match with ``STATE_DICT_KEYS_TO_IGNORE`` and thus have to be
     ignored.
 
     Args:
@@ -481,6 +509,19 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict):
 
 
 def batch_norm_to_group_norm(layer):
+    """Iterates over a whole model (or layer of a model) and replaces every
+    batch norm 2D with a group norm
+
+    Args:
+        layer (torch.nn.Module): model or one layer of a model.
+
+    Returns:
+        torch.nn.Module: model with group norm layers instead of batch norm layers.
+
+    Raises:
+        ValueError: If the number of channels is not in the ``GROUP_NORM_LOOKUP``.
+    """
+
     GROUP_NORM_LOOKUP = {
         16: 2,  # -> channels per group: 8
         32: 4,  # -> channels per group: 8
@@ -492,20 +533,18 @@ def batch_norm_to_group_norm(layer):
         2048: 32,  # -> channels per group: 64
     }
 
-    """Iterates over a whole model (or layer of a model) and replaces every
-    batch norm 2D with a group norm
-
-    Args:
-        layer (torch.nn.Module): model or one layer of a model.
-    """
     for name, _ in layer.named_modules():
         if name:
             try:
                 sub_layer = getattr(layer, name)
                 if isinstance(sub_layer, torch.nn.BatchNorm2d):
                     num_channels = sub_layer.num_features
-                    layer._modules[name] = torch.nn.GroupNorm(
-                        GROUP_NORM_LOOKUP[num_channels], num_channels)
+                    if num_channels in GROUP_NORM_LOOKUP:
+                        layer._modules[name] = torch.nn.GroupNorm(
+                            GROUP_NORM_LOOKUP[num_channels], num_channels)
+                    else:
+                        raise ValueError(
+                            f"GroupNorm not implemented for {num_channels} channels")
             except AttributeError:
                 name = name.split('.')[0]
                 sub_layer = getattr(layer, name)

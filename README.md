@@ -21,8 +21,6 @@ following fields:
 ```yaml
 # Dataset configuration
 data:
-  # Client-side test set split percentage
-  client_split: 0
   # Dataset loading config
   dataset:
     # Dataset's name 
@@ -46,8 +44,14 @@ data:
     params: null
   # Sampling percentage when loading the dataset
   sampling_perc: 1
-  # Whether to standardize the data or not
-  standardize: false
+  # Client-side test set split percentage
+  client_split: 0
+  # Whether to keep the test set as provided by the dataset
+  keep_test: true
+  # Whether the server has a test set
+  server_test: true
+  # The size of the server split (only used when keep_test=false)
+  server_split: 0.0
 # Generic settings for the experiment
 exp:
   # The device to load the tensors
@@ -89,8 +93,9 @@ hyperparameters:
     # HPs of the optimizer (the type of optimizer depends on the algorithm)
     optimizer:
       lr: 0.8
-    # HPs of the StepLR
+    # HPs of the scheduler (scheduler name from torch.optim.lr_scheduler)
     scheduler:
+      name: StepLR
       gamma: 0.995
       step_size: 10
   # HPs of the server
@@ -124,12 +129,13 @@ To date, the following federated algorithms are implemented:
 - Ditto
 - FedAMP
 - FedAvg
-- FedAvgM [**to be checked**]
+- FedAvgM
 - FedBABU
 - FedBN
 - FedDyn
 - FedExP
 - FedLC
+- FedNH
 - FedNova
 - FedOpt (FedAdam, FedAdagrad, FedYogi)
 - FedPer

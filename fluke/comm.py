@@ -1,5 +1,6 @@
+"""This module contains the classes for the communication between the clients and the server."""
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 import sys
 import numpy as np
 import torch
@@ -15,9 +16,7 @@ __all__ = [
 
 
 class Message:
-    """Message class.
-
-    This class represents a message that can be exchanged between clients and the server.
+    """This class represents a message that can be exchanged between clients and the server.
 
     Attributes:
         msg_type (str): The type of the message.
@@ -54,12 +53,11 @@ class Message:
             return 0
 
     def get_size(self) -> int:
-        """Get the size of the message.
-
-        The message size is the size of the payload in "floating point" numbers. For example, a
-        message containing a tensor of size (10, 10) has a size of 100. A message containing a
-        string of length 10 has a size of 10.
-        A message containing an ACK (i.e., with no payload) has a size of 1.
+        """Get the size of the message. The message size is the size of the payload calculated in
+        terms of "floating point" numbers. For example, a message containing a tensor of size
+        (10, 10) has a size of 100. A message containing a string of length 10 has a size of 10.
+        A message containing an ACK (i.e., with no payload) has a size of 1. In case of unknown
+        types, a warning is raised and the size is set to 0.
 
         Returns:
             int: The size of the message in bytes.
@@ -68,37 +66,50 @@ class Message:
 
 
 class ChannelObserver():
-    """Channel observer interface.
-
+    """Channel observer interface for the Observer pattern.
     This interface is used to observe the communication channel during the federated learning
     process.
 
     See Also:
-        `ServerObserver`, `ObserverSubject`
+        ``ServerObserver``, ``ObserverSubject``
 
     """
 
-    def message_received(self, message: Message):
+    def message_received(self, message: Message) -> None:
+        """This method is called when a message is received, i.e., when a message is read from the
+        message box of the receiver.
+
+        Args:
+            message (Message): The message received.
+        """
         pass
 
 
 class Channel(ObserverSubject):
     """A bi-directional communication channel. It is used to send and receive messages between the
     parties.
-
     The Channel class implements the Observer pattern. It notifies the observers when a message is
     received. Clients and server are supposed to use a channel to communicate with each other.
-
-    Attributes:
-        _buffer (Dict[Any, List[Message]]): The buffer to store the unread messages. The key is the
-            recipient and the value is a list of messages.
     """
 
     def __init__(self):
         super().__init__()
-        self._buffer: Dict[Any, List[Message]] = defaultdict(list)
+        self._buffer: dict[Any, list[Message]] = defaultdict(list)
 
-    def send(self, message: Message, mbox: Any):
+    def __getitem__(self, mbox: Any) -> list[Message]:
+        return self._buffer[mbox]
+
+    @property
+    def buffer(self) -> dict[Any, list[Message]]:
+        """Get the buffer of the channel. The buffer stores the unread messages in a dictionary.
+        The keys are the recipients and the values are the list of messages sent to the recipient.
+
+        Returns:
+            dict[Any, list[Message]]: The buffer of the channel.
+        """
+        return self._buffer
+
+    def send(self, message: Message, mbox: Any) -> None:
         """Send a message to a receiver.
 
         To any sent message should correspond a received message. The receiver should call the
@@ -109,14 +120,22 @@ class Channel(ObserverSubject):
             mbox (Any): The receiver.
 
         Example:
-            Sending a string message from the `server` to a `client`:
-            >>> channel = Channel()
-            >>> channel.send(Message("Hello", "greeting", server), client)
+            Sending a string message from the ``server`` to a ``client``:
+
+            .. code-block:: python
+
+                channel = Channel()
+                channel.send(Message("Hello", "greeting", server), client)
+
         """
         self._buffer[mbox].append(message)
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
-        """Receive (read) a message from a sender.
+        """Receive (i.e., read) a message from a sender. The message is removed from the message box
+        of the receiver. If both ``sender`` and ``msg_type`` are None, the first message in the
+        message box is returned. If ``sender`` is None, the first message with the given
+        ``msg_type`` is returned. If ``msg_type`` is None, the first message from the given
+        ``sender`` is returned.
 
         Args:
             mbox (Any): The receiver.
@@ -144,12 +163,12 @@ class Channel(ObserverSubject):
 
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
 
-    def broadcast(self, message: Message, to: List[Any]) -> None:
+    def broadcast(self, message: Message, to: list[Any]) -> None:
         """Send a message to a list of receivers.
 
         Args:
             message (Message): The message to be sent.
-            to (List[Any]): The list of receivers.
+            to (list[Any]): The list of receivers.
         """
         for client in to:
             self.send(message, client)
@@ -159,7 +178,8 @@ class Channel(ObserverSubject):
 
         Note:
             Any unread message will be lost after calling this method.
-            Lost messages are not considered in the communication protocol.
+            Lost messages are not considered in the communication protocol thus they are not
+            accounted for in the communication cost.
 
         Args:
             mbox (Any): The receiver.

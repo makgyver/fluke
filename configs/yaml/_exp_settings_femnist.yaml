@@ -10,11 +10,9 @@ exp:
   device: cpu
   seed: 42
 logger:
-  entity: mlgroup
   name: wandb
+  entity: mlgroup
   project: fluke
-  tags:
-  - FEMNIST
 protocol:
   eligible_perc: 0.007
   n_clients: 730
