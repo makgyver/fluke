@@ -166,12 +166,13 @@ class FedProtoServer(Server):
         clients_protos = self._get_client_models(eligible)
 
         # Group by label
-        label_protos = {i: [protos[i] for protos in clients_protos]
+        label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]
                         for i in range(self.hyper_params.n_protos)}
 
         # Aggregate prototypes
         for label, protos in label_protos.items():
-            self.prototypes[label] = torch.sum(torch.stack(protos), dim=0) / len(protos)
+            if protos:
+                self.prototypes[label] = torch.sum(torch.stack(protos), dim=0) / len(protos)
 
 
 class FedProto(PersonalizedFL):
