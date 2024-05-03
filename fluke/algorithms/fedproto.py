@@ -37,8 +37,10 @@ class FedProtoModel(Module):
         for i, r in enumerate(Z):
             for j, proto in self.prototypes.items():
                 # CHECKME: is the following lines necessary?
-                if type(proto) is not type([]):
+                if proto is not None and type(proto) is not type([]):
                     output[i, j] = mse_loss(r, proto)
+                else:
+                    output[i, j] = float('inf')
 
         # Return the negative of the distance so
         # to compute the argmax to get the closest prototype
@@ -98,11 +100,14 @@ class FedProtoClient(PFLClient):
                 y_hat = self.model.forward_head(Z)
                 loss = self.hyper_params.loss_fn(y_hat, y)
 
-                if self.global_protos[0] is not None:
+                if self.server.rounds > 0:  # this is actually illegal in fluke :)
                     proto_new = deepcopy(Z.detach())
                     for i, yy in enumerate(y):
                         y_c = yy.item()
-                        proto_new[i, :] = self.global_protos[y_c].data
+                        if self.global_protos[y_c] is not None:
+                            proto_new[i, :] = self.global_protos[y_c].data
+                        else:
+                            proto_new[i, :] = torch.zeros_like(proto_new[i, :])
                     loss += self.hyper_params.lam * mse_loss(proto_new, Z)
 
                 for i, yy in enumerate(y):
