@@ -24,7 +24,7 @@ class SuPerFedClient(PFLClient):
                  train_set: FastTensorDataLoader,
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],  # This is ignored!
+                 loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
                  mode: str = "global",
                  start_mix: int = 10,

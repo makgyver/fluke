@@ -56,7 +56,7 @@ class MOONClient(Client):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                # FIXME
+
                 y_hat = self.model(X)
                 z_local = self.model.forward_encoder(X)  # , -1)
                 loss_sup = self.hyper_params.loss_fn(y_hat, y)

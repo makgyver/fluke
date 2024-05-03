@@ -26,7 +26,7 @@ class LGFedAVGClient(PFLClient):
                  train_set: FastTensorDataLoader,
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],  # This is ignored!
+                 loss_fn: Callable[..., Any],
                  local_epochs: int = 3):
         loss_fn = CrossEntropyLoss()
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)

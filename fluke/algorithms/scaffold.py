@@ -21,7 +21,6 @@ class SCAFFOLDOptimizer(Optimizer):
         defaults = dict(lr=lr, weight_decay=weight_decay)
         super(SCAFFOLDOptimizer, self).__init__(params, defaults)
 
-    # TODO: add types
     def step(self, server_controls, client_controls, closure=None):
 
         loss = None
@@ -85,7 +84,6 @@ class SCAFFOLDClient(Client):
                 self.optimizer.step(self.server_control, self.control)
             self.scheduler.step()
 
-        # TODO: get only the trainable parameters
         params = zip(self.model.parameters(), server_model.parameters(), self.delta_y)
         for local_model, server_model, delta_y in params:
             delta_y.data = local_model.data.detach() - server_model.data.detach()

@@ -391,7 +391,7 @@ class VGG9_E(nn.Module):
         self.output_size = output_size
         self.encoder = nn.Sequential(
             self._conv_layer(in_channels=1, out_channels=16, kernel_size=3,
-                             padding=1, bias=False, seed=seed),  # FIXME
+                             padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             self._conv_layer(in_channels=16, out_channels=32, kernel_size=3,
