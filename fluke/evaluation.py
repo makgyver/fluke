@@ -11,9 +11,8 @@ from . import GlobalSettings  # NOQA
 
 
 class Evaluator(ABC):
-    """This class is the base class for all evaluators in `FLUKE`.
-
-    An evaluator object should be used to perform the evaluation of a model.
+    """This class is the base class for all evaluators in ``fluke``.
+    An evaluator object should be used to perform the evaluation of a federated model.
 
     Attributes:
         loss_fn (Callable): The loss function.
@@ -35,7 +34,8 @@ class Evaluator(ABC):
     def __call__(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
         """Evaluate the model.
 
-        This method is equivalent to `evaluate`.
+        Note:
+            This method is equivalent to ``evaluate``.
 
         Args:
             model (Module): The model to evaluate.
@@ -45,13 +45,12 @@ class Evaluator(ABC):
 
 
 class ClassificationEval(Evaluator):
-    """Evaluate a classification pytorch model.
-
-    The metrics computed are `accuracy`, `precision`, `recall`, `f1` and the loss according
-    to the provided loss function `loss_fn`.
+    """Evaluate a pytorch model for classification.
+    The metrics computed are ``accuracy``, ``precision``, ``recall``, ``f1`` and the loss according
+    to the provided loss function ``loss_fn``. Metrics are computed both in a micro and macro
+    fashion.
 
     Attributes:
-        average (Literal["micro","macro"]): The average to use for the metrics.
         n_classes (int): The number of classes.
         device (Optional[torch.device]): The device where the evaluation is performed. If `None`,
             the device is the one set in the `GlobalSettings`.
@@ -81,6 +80,8 @@ class ClassificationEval(Evaluator):
         Returns:
             dict: A dictionary containing the computed metrics.
         """
+        from .utils import clear_cache  # NOQA
+
         if (model is None) or (eval_data_loader is None):
             return {}
 
@@ -134,6 +135,7 @@ class ClassificationEval(Evaluator):
             losses.append(loss / cnt)
 
         model.to("cpu")
+        clear_cache()
 
         return {
             "accuracy":  round(sum(accs) / len(accs), 5),

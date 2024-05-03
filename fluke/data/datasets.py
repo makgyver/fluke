@@ -1,9 +1,11 @@
 from __future__ import annotations
-from torchvision.transforms import ToTensor, Lambda, Compose, Normalize
+from torchvision.transforms import ToTensor, Lambda
 from torchvision import datasets
+from torchvision.datasets import VisionDataset
 from datasets import load_dataset
 from rich.progress import track
 from numpy.random import permutation
+from typing import Optional
 from enum import Enum
 import string
 import torch
@@ -16,6 +18,18 @@ sys.path.append("..")
 from . import DataContainer, FastTensorDataLoader, support  # NOQA
 
 
+def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:
+    if transforms is not None:
+        new_data = []
+        for i in range(len(dataset)):
+            new_data.append(transforms(dataset[i][0]))
+        dataset.data = torch.stack(new_data)
+
+    dataset.data = torch.Tensor(dataset.data)
+    dataset.targets = torch.LongTensor(dataset.targets)
+    return dataset
+
+
 class Datasets:
     """Static class for loading datasets.
 
@@ -25,20 +39,20 @@ class Datasets:
     @classmethod
     def MNIST(cls,
               path: str = "../data",
-              transforms: callable = ToTensor(),
+              transforms: Optional[callable] = None,
               channel_dim: bool = False) -> DataContainer:
         """Load the MNIST dataset.
-
         The dataset is split into training and testing sets according to the default split of the
-        `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
+        ``torchvision.datasets.MNIST`` class. If no transformations are provided, the data is
+        normalized to the range [0, 1].
         An example of the dataset is a 28x28 image, i.e., a tensor of shape (28, 28).
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to "../data".
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              `ToTensor`.
-            channel_dim (bool, optional): Whether to add a channel dimension to the data.
-              Defaults to `False`.
+              ``None``.
+            channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
+                shape of the an example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The MNIST dataset.
@@ -46,19 +60,21 @@ class Datasets:
         train_data = datasets.MNIST(
             root=path,
             train=True,
-            transform=transforms,
-            download=True,
+            download=True
         )
 
         test_data = datasets.MNIST(
             root=path,
             train=False,
-            transform=transforms,
             download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
+        if transforms is None:
+            train_data.data = torch.Tensor(train_data.data / 255.)
+            test_data.data = torch.Tensor(test_data.data / 255.)
 
         return DataContainer(train_data.data if not channel_dim else train_data.data[:, None, :, :],
                              train_data.targets,
@@ -66,54 +82,44 @@ class Datasets:
                              test_data.targets,
                              10)
 
-    # @classmethod
-    # def MNIST4D(cls,
-    #             path: str = "../data",
-    #             transforms: callable = ToTensor()) -> DataContainer:
-    #     """Load the MNIST dataset.
-
-    #     The dataset is split into training and testing sets according to the default split of the
-    #     `torchvision.datasets.MNIST` class. The data is normalized to the range [0, 1].
-    #     A 4D example of the dataset is a 1x28x28 image, i.e., a tensor of shape (1, 28, 28).
-
-    #     Args:
-    #         path (str, optional): The path where the dataset is stored. Defaults to "../data".
-    #         transforms (callable, optional): The transformations to apply to the data. Defaults to
-    #           `ToTensor`.
-
-    #     Returns:
-    #         DataContainer: The MNIST dataset.
-    #     """
-    #     mnist_dc = Datasets.MNIST(path, transforms)
-    #     return DataContainer(mnist_dc.train[0][:, None, :, :],
-    #                          mnist_dc.train[1],
-    #                          mnist_dc.test[0][:, None, :, :],
-    #                          mnist_dc.test[1],
-    #                          10)
-
     @classmethod
     def MNISTM(cls,
                path: str = "../data",
-               transforms: callable = ToTensor()) -> DataContainer:
+               transforms: Optional[callable] = None) -> DataContainer:
+        """Load the MNIST-M dataset. MNIST-M is a dataset where the MNIST digits are placed on
+        random color patches. The dataset is split into training and testing sets according to the
+        default split of the data at https://github.com/liyxi/mnist-m/releases/download/data/.
+        If no transformations are provided, the data is normalized to the range [0, 1].
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to "../data".
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The MNIST-M dataset.
+        """
         train_data = support.MNISTM(
             root=path,
             train=True,
-            transform=transforms,
             download=True,
         )
 
         test_data = support.MNISTM(
             root=path,
             train=False,
-            transform=transforms,
             download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
-        train_data.data = torch.movedim(train_data.data, 3, 1)
-        test_data.data = torch.movedim(test_data.data, 3, 1)
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+            train_data.data = torch.movedim(train_data.data, 3, 1)
+            test_data.data = torch.movedim(test_data.data, 3, 1)
 
         return DataContainer(train_data.data,
                              train_data.targets,
@@ -124,13 +130,12 @@ class Datasets:
     @classmethod
     def EMNIST(cls,
                path: str = "../data",
-               transforms: callable = ToTensor()) -> DataContainer:
+               transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = datasets.EMNIST(
             root=path,
             split="balanced",
             train=True,
-            transform=transforms,
             download=True
         )
 
@@ -138,95 +143,108 @@ class Datasets:
             root=path,
             split="balanced",
             train=False,
-            transform=transforms,
             download=True
         )
 
-        return DataContainer(train_data.data / 255.,
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+        return DataContainer(train_data.data,
                              train_data.targets,
-                             test_data.data / 255.,
+                             test_data.data,
                              test_data.targets,
                              47)
 
     @classmethod
     def SVHN(cls,
              path: str = "../data",
-             transforms: callable = ToTensor()) -> DataContainer:
+             transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = datasets.SVHN(
             root=path,
             split="train",
-            transform=transforms,
             download=True
         )
 
         test_data = datasets.SVHN(
             root=path,
             split="test",
-            transform=transforms,
             download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
-        train_data.labels = torch.LongTensor(train_data.labels)
-        test_data.labels = torch.LongTensor(test_data.labels)
+        # Force targets to be named "targets" instead of "labels" for compatibility
+        setattr(train_data, "targets", train_data.labels)
+        setattr(test_data, "targets", test_data.labels)
+
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
+        if transforms is None:
+            train_data.data = torch.Tensor(train_data.data / 255.)
+            test_data.data = torch.Tensor(test_data.data / 255.)
 
         return DataContainer(train_data.data,
-                             train_data.labels,
+                             train_data.targets,
                              test_data.data,
-                             test_data.labels,
+                             test_data.targets,
                              10)
 
     @classmethod
     def CIFAR10(cls,
                 path: str = "../data",
-                transforms: callable = ToTensor()) -> DataContainer:
+                transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = datasets.CIFAR10(
             root=path,
             train=True,
-            download=True,
-            transform=transforms
+            download=True
         )
 
         test_data = datasets.CIFAR10(
             root=path,
             train=False,
-            download=True,
-            transform=transforms
+            download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
-        train_data.data = torch.movedim(train_data.data, 3, 1)
-        test_data.data = torch.movedim(test_data.data, 3, 1)
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+            train_data.data = torch.movedim(train_data.data, 3, 1)
+            test_data.data = torch.movedim(test_data.data, 3, 1)
 
         return DataContainer(train_data.data,
-                             torch.LongTensor(train_data.targets),
+                             train_data.targets,
                              test_data.data,
-                             torch.LongTensor(test_data.targets),
+                             test_data.targets,
                              10)
 
     @classmethod
     def CINIC10(cls,
-                path: str = "../data",) -> DataContainer:
-        # transforms: callable = None) -> DataContainer:
+                path: str = "../data",
+                transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = support.CINIC10(
             root=path,
             split="train",
-            download=True,
-            # transform=transforms
+            download=True
         )
 
         test_data = support.CINIC10(
             root=path,
             split="test",
-            download=True,
-            # transform=transforms
+            download=True
         )
+
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
         return DataContainer(train_data.data,
                              train_data.targets,
@@ -237,64 +255,66 @@ class Datasets:
     @classmethod
     def CIFAR100(cls,
                  path: str = "../data",
-                 transforms: callable = ToTensor()) -> DataContainer:
+                 transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = datasets.CIFAR100(
             root=path,
             train=True,
-            download=True,
-            transform=transforms
+            download=True
         )
 
         test_data = datasets.CIFAR100(
             root=path,
             train=False,
-            download=True,
-            transform=transforms
+            download=True
         )
 
-        train_data.data = torch.Tensor(train_data.data / 255.)
-        test_data.data = torch.Tensor(test_data.data / 255.)
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
 
-        train_data.data = torch.movedim(train_data.data, 3, 1)
-        test_data.data = torch.movedim(test_data.data, 3, 1)
+        if transforms is None:
+            train_data.data = train_data.data / 255.
+            test_data.data = test_data.data / 255.
+
+            train_data.data = torch.movedim(train_data.data, 3, 1)
+            test_data.data = torch.movedim(test_data.data, 3, 1)
 
         return DataContainer(train_data.data,
-                             torch.LongTensor(train_data.targets),
+                             train_data.targets,
                              test_data.data,
-                             torch.LongTensor(test_data.targets),
+                             test_data.targets,
                              100)
 
     @classmethod
     def FASHION_MNIST(cls,
                       path: str = "../data",
-                      transforms: callable = Compose([ToTensor(),
-                                                     Normalize([0.5], [0.5])])) -> DataContainer:
+                      transforms: Optional[callable] = None) -> DataContainer:
 
         train_data = datasets.FashionMNIST(
             root=path,
             train=True,
-            download=True,
-            transform=transforms
+            download=True
         )
 
         test_data = datasets.FashionMNIST(
             root=path,
             train=False,
-            download=True,
-            transform=transforms
+            download=True
         )
 
+        train_data = _apply_transforms(train_data, transforms)
+        test_data = _apply_transforms(test_data, transforms)
+
         return DataContainer(train_data.data,
-                             torch.LongTensor(train_data.targets),
+                             train_data.targets,
                              test_data.data,
-                             torch.LongTensor(test_data.targets),
+                             test_data.targets,
                              10)
 
     @classmethod
     def TINY_IMAGENET(cls,
                       path: str = "../data",
-                      transforms: callable = None) -> DataContainer:
+                      transforms: Optional[callable] = None) -> DataContainer:
 
         tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet',
                                            split='train',
@@ -312,7 +332,12 @@ class Datasets:
         for image in track(tiny_imagenet_train, "Loading Tiny ImageNet train data..."):
             y = image['label']
             image = image['image']
-            x = ToTensor()(image).unsqueeze(0)
+            if transforms is not None:
+                x = transforms(image)
+            if not isinstance(image, torch.Tensor):
+                x = ToTensor()(image).unsqueeze(0)
+            else:
+                x = image.unsqueeze(0)
             if x.shape != torch.Size([1, 3, 64, 64]):
                 x = fix_bw_trans(x)
             X_train.append(x)
@@ -321,7 +346,12 @@ class Datasets:
         for image in track(tiny_imagenet_test, "Loading Tiny ImageNet test data..."):
             y = image['label']
             image = image['image']
-            x = ToTensor()(image).unsqueeze(0)
+            if transforms is not None:
+                image = transforms(image)
+            if not isinstance(image, torch.Tensor):
+                x = ToTensor()(image).unsqueeze(0)
+            else:
+                x = image.unsqueeze(0)
             if x.shape != torch.Size([1, 3, 64, 64]):
                 x = fix_bw_trans(x)
             X_test.append(x)
@@ -330,9 +360,9 @@ class Datasets:
         train_data = torch.vstack(X_train)
         test_data = torch.vstack(X_test)
 
-        if transforms is not None:
-            train_data = transforms(train_data)
-            test_data = transforms(test_data)
+        # if transforms is not None:
+        #     train_data = transforms(train_data)
+        #     test_data = transforms(test_data)
 
         idxperm = torch.randperm(train_data.shape[0])
         train_data = train_data[idxperm]

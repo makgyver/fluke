@@ -1,7 +1,7 @@
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Iterable, List
+from typing import Callable, Sequence
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -23,7 +23,7 @@ class PFedMeOptimizer(Optimizer):
         super(PFedMeOptimizer, self).__init__(params, defaults)
 
     @torch.no_grad()
-    def step(self, local_parameters: List[torch.nn.Parameter]):
+    def step(self, local_parameters: list[torch.nn.Parameter]):
         group = None
         for group in self.param_groups:
             for param_p, param_l in zip(group["params"], local_parameters):
@@ -91,14 +91,14 @@ class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastTensorDataLoader,
-                 clients: Iterable[Client],
+                 clients: Sequence[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
                  beta: float = 0.5):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(beta=beta)
 
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def _aggregate(self, eligible: Sequence[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)

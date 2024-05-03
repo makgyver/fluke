@@ -6,10 +6,10 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.server import Server, ServerObserver  # NOQA
+from fluke.server import Server  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.data import FastTensorDataLoader  # NOQA
-from fluke.utils import OptimizerConfigurator  # NOQA
+from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
 
 
 def test_server():

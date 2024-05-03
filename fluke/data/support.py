@@ -101,8 +101,6 @@ class MNISTM(VisionDataset):
                                          extract_root=self.processed_folder,
                                          filename=filename, md5=md5)
 
-        # print('Done!')
-
     def extra_repr(self):
         return "Split: {}".format("Train" if self.train is True else "Test")
 
@@ -170,7 +168,7 @@ class CINIC10(VisionDataset):
 
         return torch.stack(img_tensors)
 
-    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+    def __getitem__(self, index: int) -> tuple[Any, Any]:
         return self.data[index], self.targets[index]
 
     def __len__(self) -> int:

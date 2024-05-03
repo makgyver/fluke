@@ -1,12 +1,13 @@
 from __future__ import annotations
 import torch
-from torchvision.transforms import ToTensor
+from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, ToTensor, Normalize
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.data.support import MNISTM, CINIC10  # NOQA
+from fluke.data import DataSplitter  # NOQA
 
 
 # ### MNIST
@@ -59,7 +60,13 @@ def test_svhn():
 
 # ### CIFAR10
 def test_cifar10():
-    cifar10 = Datasets.CIFAR10("../data")
+    transform = Compose([
+        RandomCrop(32, padding=4),
+        RandomHorizontalFlip(),
+        ToTensor(),
+        Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    cifar10 = Datasets.CIFAR10("../data", transforms=transform)
     assert cifar10.train[0].shape == torch.Size([50000, 3, 32, 32])
     assert cifar10.train[1].shape == torch.Size([50000])
     assert cifar10.test[0].shape == torch.Size([10000, 3, 32, 32])
@@ -178,15 +185,15 @@ def test_cinic10():
 
 
 if __name__ == "__main__":
-    # test_mnist()
-    # test_mnist4d()
-    # test_emnist()
-    # test_svhn()
-    # test_cifar10()
-    # test_cifar100()
+    test_mnist()
+    test_mnist4d()
+    test_emnist()
+    test_svhn()
+    test_cifar10()
+    test_cifar100()
     test_mnistm()
-    # test_tinyimagenet()
-    # test_femnist()
-    # test_shakespeare()
-    # test_fashion_mnist()
-    # test_cinic10()
+    test_tinyimagenet()
+    test_femnist()
+    test_shakespeare()
+    test_fashion_mnist()
+    test_cinic10()

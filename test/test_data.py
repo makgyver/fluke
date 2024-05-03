@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# import numpy as np
 import pytest
 import torch
 import sys
@@ -139,15 +140,19 @@ def test_splitter():
             "name": DistributionEnum.IID,
         },
         sampling_perc=0.1,
-        standardize=False
+        server_test=True,
+        server_split=0.2,
+        keep_test=False
     )
 
     splitter = DataSplitter.from_config(cfg)
     assert splitter.client_split == 0.1
     assert splitter.sampling_perc == 0.1
-    assert not splitter.standardize
+    assert splitter.server_split == 0.2
+    assert not splitter.keep_test
     assert splitter.distribution == DistributionEnum.IID
 
+    # OK uniform
     (ctr, cte), ste = splitter.assign(10, batch_size=10)
 
     assert len(ctr) == 10
@@ -164,23 +169,118 @@ def test_splitter():
     assert x.shape == torch.Size([128, 28, 28])
     assert y.shape == torch.Size([128])
 
+    n_clients = 100
+
+    # OK
     splitter.distribution = DistributionEnum.LABEL_DIRICHLET_SKEWED
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.COVARIATE_SHIFT
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    # splitter.distribution = DistributionEnum.COVARIATE_SHIFT
+    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
+    # OK
     splitter.distribution = DistributionEnum.CLASSWISE_QUANTITY_SKEWED
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     splitter.distribution = DistributionEnum.LABEL_PATHOLOGICAL_SKEWED
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     splitter.distribution = DistributionEnum.LABEL_QUANTITY_SKEWED
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     splitter.distribution = DistributionEnum.QUANTITY_SKEWED
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+
+    # freq = []
+    # for i in range(n_clients):
+    #     arr = np.concatenate([ctr[i].tensors[1].numpy(), cte[i].tensors[1].numpy()])
+    #     freq.append({val: np.sum(arr == val) for val in np.unique(arr)})
+    #     # print(i, freq[-1])
+
+    # freq0 = np.array([freq[i][0] - 2 for i in range(n_clients)], dtype=float)
+    # freq0 /= np.sum(freq0, dtype=float)
+
+    # print(",".join([str(x) for x in freq0]))
+
+    # keep_test
+    # - server_test + client_split = 0
+    # - server_test + client_split > 0
+    # - not server_test + client_split > 0
+    # not keep_test
+    # - server_test + client_split = 0
+    # - server_test + client_split > 0
+    # - not server_test + client_split > 0
+
+    # ERROR: keep_test=False, server_test=False, client_split=0
+    # ERROR: keep_test=False, server_test=True, server_split=0
+    cfg = DDict(
+        dataset={
+            "name": DatasetsEnum.MNIST,
+        },
+        distribution={
+            "name": DistributionEnum.IID,
+        },
+        sampling_perc=0.1,
+        keep_test=True,
+        server_test=True,
+        server_split=0.2,
+        client_split=0.1
+    )
+
+    splitter = DataSplitter.from_config(cfg)
+    (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
+
+    n_examples = splitter.data_container.train[0].shape[0]
+    assert ctr[0].size == int(n_examples / 10 * 0.1 * 0.9)
+    assert cte[0].size == int(n_examples / 10 * 0.1 * 0.1)
+    assert ste.size == 1000
+
+    cfg.client_split = 0
+    splitter = DataSplitter.from_config(cfg)
+    (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
+
+    assert ctr[0].size == int(n_examples / 10 * 0.1)
+    assert cte[0] is None
+    assert ste.size == 1000
+
+    cfg.server_test = False
+    cfg.client_split = 0.1
+    splitter = DataSplitter.from_config(cfg)
+    (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
+
+    n_examples_te = splitter.data_container.test[0].shape[0]
+    assert ctr[0].size == int(n_examples / 10 * 0.1)
+    assert cte[0].size == int(n_examples_te / 10 * 0.1)
+    assert ste is None
+
+    cfg.keep_test = False
+    splitter = DataSplitter.from_config(cfg)
+    (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
+
+    assert ctr[0].size == int((n_examples + n_examples_te) / 10 * 0.1 * 0.9)
+    assert cte[0].size == int((n_examples + n_examples_te) / 10 * 0.1 * 0.1)
+    assert ste is None
+
+    cfg.client_split = 0
+    cfg.server_test = True
+    cfg.server_split = 0.2
+    splitter = DataSplitter.from_config(cfg)
+    (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
+
+    assert ctr[0].size == int((n_examples + n_examples_te) * 0.8 / 10 * 0.1)
+    assert cte[0] is None
+    assert ste.size == int((n_examples + n_examples_te) * 0.1 * 0.2)
+
+    cfg.client_split = 0
+    cfg.keep_test = False
+    cfg.server_test = False
+    with pytest.raises(AssertionError):
+        DataSplitter.from_config(cfg)
+
+    cfg.server_test = True
+    cfg.server_split = 0
+    with pytest.raises(AssertionError):
+        DataSplitter.from_config(cfg)
 
 
 if __name__ == "__main__":
