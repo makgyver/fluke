@@ -23,7 +23,6 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
-from ..server import ServerObserver  # NOQA
 from ..data.datasets import DatasetsEnum  # NOQA
 from ..data import DistributionEnum  # NOQA
 
@@ -31,6 +30,7 @@ from ..data import DistributionEnum  # NOQA
 __all__ = [
     'model',
     'OptimizerConfigurator',
+    'ServerObserver',
     'LogEnum',
     'Log',
     'WandBLog',
@@ -43,6 +43,61 @@ __all__ = [
     'clear_cache',
     'get_full_classname'
 ]
+
+
+class ServerObserver():
+    """Server observer interface.
+    This interface is used to observe the server during the federated learning process.
+    For example, it can be used to log the performance of the global model and the communication
+    costs, as it is done in the ``Log`` class.
+    """
+
+    def start_round(self, round: int, global_model: Any):
+        """This method is called when a new round starts.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+        """
+        pass
+
+    def end_round(self,
+                  round: int,
+                  evals: Dict[str, float],
+                  client_evals: Sequence[Any]):
+        """This method is called when a round ends.
+
+        Args:
+            round (int): The round number.
+            evals (Dict[str, float]): The evaluation results of the global model.
+            client_evals (Sequence[Any]): The evaluation rstuls of the clients.
+        """
+        pass
+
+    def selected_clients(self, round: int, clients: Sequence):
+        """This method is called when the clients have been selected for the current round.
+
+        Args:
+            round (int): The round number.
+            clients (Sequence): The clients selected for the current round.
+        """
+        pass
+
+    def error(self, error: str):
+        """This method is called when an error occurs.
+
+        Args:
+            error (str): The error message.
+        """
+        pass
+
+    def finished(self,  client_evals: Sequence[Any]):
+        """This method is called when the federated learning process has ended.
+
+        Args:
+            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+        """
+        pass
 
 
 class OptimizerConfigurator:

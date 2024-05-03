@@ -169,27 +169,27 @@ def test_splitter():
     assert x.shape == torch.Size([128, 28, 28])
     assert y.shape == torch.Size([128])
 
-    # n_clients = 100
+    n_clients = 100
 
     # OK
-    # splitter.distribution = DistributionEnum.LABEL_DIRICHLET_SKEWED
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    splitter.distribution = DistributionEnum.LABEL_DIRICHLET_SKEWED
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # splitter.distribution = DistributionEnum.COVARIATE_SHIFT
     # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK
-    # splitter.distribution = DistributionEnum.CLASSWISE_QUANTITY_SKEWED
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    splitter.distribution = DistributionEnum.CLASSWISE_QUANTITY_SKEWED
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    # splitter.distribution = DistributionEnum.LABEL_PATHOLOGICAL_SKEWED
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    splitter.distribution = DistributionEnum.LABEL_PATHOLOGICAL_SKEWED
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    # splitter.distribution = DistributionEnum.LABEL_QUANTITY_SKEWED
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    splitter.distribution = DistributionEnum.LABEL_QUANTITY_SKEWED
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    # splitter.distribution = DistributionEnum.QUANTITY_SKEWED
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    splitter.distribution = DistributionEnum.QUANTITY_SKEWED
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # freq = []
     # for i in range(n_clients):

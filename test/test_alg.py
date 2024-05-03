@@ -8,12 +8,12 @@ from fluke import DDict, GlobalSettings  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.client import Client, PFLClient  # NOQA
-from fluke.server import Server, ServerObserver  # NOQA
+from fluke.server import Server  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
 from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from fluke.algorithms.fedavg import FedAVG  # NOQA
-from fluke.utils import Configuration, Log, get_class_from_qualified_name  # NOQA
+from fluke.utils import Configuration, Log, get_class_from_qualified_name, ServerObserver  # NOQA
 
 
 def test_centralized_fl():

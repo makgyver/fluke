@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     'datasets',
-    # 'support',
+    'support',
     'DataContainer',
     'FastTensorDataLoader',
     'DistributionEnum',
@@ -57,9 +57,8 @@ class DataContainer:
 
     def standardize(self):
         """Standardize the data.
-
-        The data is standardized using the `StandardScaler` from `sklearn`. The method modifies the
-        `train` and `test` attributes.
+        The data is standardized using the ``StandardScaler`` from ``sklearn``. The method modifies
+        the ``train`` and ``test`` attributes.
         """
         data_train, data_test = self.train[0], self.test[0]
         scaler = StandardScaler()
