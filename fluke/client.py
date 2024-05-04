@@ -129,7 +129,7 @@ class Client():
         if self.model is None:
             self.model = deepcopy(msg.payload)
         else:
-            safe_load_state_dict(self.model, msg.payload.state_dict())
+            safe_load_state_dict(self.model, deepcopy(msg.payload.state_dict()))
             # self.model.load_state_dict(msg.payload.state_dict())
 
     def _send_model(self) -> None:

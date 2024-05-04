@@ -41,7 +41,7 @@ class FedAMPClient(PFLClient):
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
+        safe_load_state_dict(self.personalized_model, deepcopy(msg.payload.state_dict()))
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs

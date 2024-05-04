@@ -22,7 +22,8 @@ class FedBNClient(Client):
             with torch.no_grad():
                 for key in global_model.state_dict().keys():
                     if not key.startswith("bn"):
-                        self.model.state_dict()[key].data.copy_(global_model.state_dict()[key])
+                        self.model.state_dict()[key].data.copy_(
+                            global_model.state_dict()[key].clone())
 
 
 class FedBN(CentralizedFL):

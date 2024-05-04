@@ -23,7 +23,7 @@ class FedPerClient(PFLClient):
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
+        safe_load_state_dict(self.model.get_global(), deepcopy(msg.payload.state_dict()))
 
 
 class FedPerServer(Server):

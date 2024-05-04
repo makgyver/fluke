@@ -53,7 +53,7 @@ class PFedMeClient(PFLClient):
             self.personalized_model = deepcopy(model)
             self.model = deepcopy(self.personalized_model)
         else:
-            safe_load_state_dict(self.personalized_model, model.state_dict())
+            safe_load_state_dict(self.personalized_model, deepcopy(model.state_dict()))
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs

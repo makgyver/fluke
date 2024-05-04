@@ -1,6 +1,7 @@
 from __future__ import annotations
 import torch
 from typing import Callable, Union, Any, Iterable
+from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -181,7 +182,7 @@ class PersonalizedFL(CentralizedFL):
         self.clients = [
             self.get_client_class()(
                 index=i,
-                model=model,
+                model=deepcopy(model),
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,

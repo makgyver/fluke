@@ -37,8 +37,8 @@ class MOONClient(Client):
             self.model = deepcopy(model)
             self.prev_model = deepcopy(model)
         else:
-            self.prev_model.load_state_dict(self.model.state_dict())
-            safe_load_state_dict(self.model, model.state_dict())
+            self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
+            safe_load_state_dict(self.model, deepcopy(model.state_dict()))
         self.server_model = model
 
     def fit(self, override_local_epochs: int = 0):

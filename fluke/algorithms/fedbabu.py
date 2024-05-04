@@ -42,7 +42,8 @@ class FedBABUClient(PFLClient):
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model.get_encoder(), msg.payload.state_dict())
+        safe_load_state_dict(self.personalized_model.get_encoder(),
+                             deepcopy(msg.payload.state_dict()))
 
         # Deactivate gradient
         for param in self.personalized_model.get_head().parameters():

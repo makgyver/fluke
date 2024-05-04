@@ -65,7 +65,7 @@ class FedDynClient(Client):
             self.model = deepcopy(model)
             self.prev_grads = torch.zeros_like(get_all_params_of(self.model))
         else:
-            safe_load_state_dict(self.model, cld_mdl.state_dict())
+            safe_load_state_dict(self.model, deepcopy(cld_mdl.state_dict()))
 
     def _receive_weights(self) -> None:
         self.weight = self.channel.receive(self, self.server, msg_type="weight").payload
