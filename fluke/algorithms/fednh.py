@@ -86,7 +86,8 @@ class FedNHClient(PFLClient):
                 self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
                 self.model.prototypes.data[label] /= torch.norm(self.model.prototypes.data[label])
             else:
-                self.model.prototypes.data[label] = torch.zeros(self.train_set.num_labels)
+                self.model.prototypes.data[label] = torch.zeros_like(
+                    self.model.prototypes.data[label])
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -120,7 +121,6 @@ class FedNHClient(PFLClient):
         self._send_model()
 
     def evaluate(self) -> dict[str, float]:
-
         if self.test_set is not None:
             if self.model is None:
                 # ask for the prototypes and receive them
