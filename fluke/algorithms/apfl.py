@@ -96,6 +96,7 @@ class APFLServer(Server):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(tau=tau)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache

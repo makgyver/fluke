@@ -166,12 +166,13 @@ class FedProtoServer(Server):
     def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_protos = self._get_client_models(eligible)
 
         # Group by label
-        label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]
+        label_protos = {i: [protos[i].clone() for protos in clients_protos if protos[i] is not None]
                         for i in range(self.hyper_params.n_protos)}
 
         # Aggregate prototypes

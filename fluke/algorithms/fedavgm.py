@@ -25,6 +25,7 @@ class FedAVGMServer(Server):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(momentum=momentum)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
@@ -32,20 +33,19 @@ class FedAVGMServer(Server):
                         for client_model in clients_sd]
         weights = self._get_client_weights(eligible)
 
-        with torch.no_grad():
-            for key in self.model.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    # avg_model_sd[key] = deepcopy(clients_sd[0][key])
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
-                for i, client_diff in enumerate(clients_diff):
-                    if key not in avg_model_sd:
-                        avg_model_sd[key] = weights[i] * client_diff[key]
-                    else:
-                        avg_model_sd[key] += weights[i] * client_diff[key]
+        for key in self.model.state_dict().keys():
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                # avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
+            for i, client_diff in enumerate(clients_diff):
+                if key not in avg_model_sd:
+                    avg_model_sd[key] = weights[i] * client_diff[key].clone()
+                else:
+                    avg_model_sd[key] += weights[i] * client_diff[key].clone()
 
-            for key, param in self.model.named_parameters():
-                param.data = self.hyper_params.momentum * param.data - avg_model_sd[key].data
+        for key, param in self.model.named_parameters():
+            param.data = self.hyper_params.momentum * param.data - avg_model_sd[key].data
 
 
 class FedAVGM(CentralizedFL):

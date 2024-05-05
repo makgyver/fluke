@@ -84,7 +84,8 @@ class FedNHClient(PFLClient):
         for label, prts in protos.items():
             if prts.shape[0] > 0:
                 self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
-                self.model.prototypes.data[label] /= torch.norm(self.model.prototypes.data[label])
+                self.model.prototypes.data[label] /= torch.norm(
+                    self.model.prototypes.data[label]).clamp(min=1e-12)
             else:
                 self.model.prototypes.data[label] = torch.zeros_like(
                     self.model.prototypes.data[label])
@@ -156,11 +157,12 @@ class FedNHServer(Server):
                          weighted)
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_models = self._get_client_models(eligible, state_dict=False)
+        clients_protos = [cmodel.prototypes.data.clone() for cmodel in clients_models]
 
-        clients_protos = [cmodel.prototypes.data for cmodel in clients_models]
         # Group by label
         label_protos = {i: [protos[i] for protos in clients_protos]
                         for i in range(self.hyper_params.n_protos)}
@@ -171,33 +173,32 @@ class FedNHServer(Server):
         weight = server_lr / len(clients_models)
 
         # Aggregate prototypes
-        with torch.no_grad():
-            prototypes = self.model.prototypes.clone()
-            if self.hyper_params.weighted:
-                for label, protos in label_protos.items():
-                    prototypes.data[label, :] = torch.sum(
-                        weight * torch.stack(protos), dim=0)
-            else:
-                sim_weights = []
-                for protos in clients_protos:
-                    sim_weights.append(torch.exp(torch.sum(prototypes.data * protos, dim=1)))
-                sim_weights = torch.stack(sim_weights, dim=0).T
+        prototypes = self.model.prototypes.clone()
+        if self.hyper_params.weighted:
+            for label, protos in label_protos.items():
+                prototypes.data[label, :] = torch.sum(
+                    weight * torch.stack(protos), dim=0)
+        else:
+            sim_weights = []
+            for protos in clients_protos:
+                sim_weights.append(torch.exp(torch.sum(prototypes.data * protos, dim=1)))
+            sim_weights = torch.stack(sim_weights, dim=0).T
 
-                for label, protos in label_protos.items():
-                    prototypes.data[label, :] = prototypes.data[label, :] + \
-                        torch.sum(sim_weights[label].unsqueeze(1) * torch.stack(protos), dim=0)
+            for label, protos in label_protos.items():
+                prototypes.data[label, :] = prototypes.data[label, :] + \
+                    torch.sum(sim_weights[label].unsqueeze(1) * torch.stack(protos), dim=0)
 
-                prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
+            prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
 
-            # Normalize the prototypes
-            prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
+        # Normalize the prototypes
+        prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
 
-            self.model.prototypes.data = (1 - self.hyper_params.rho) * prototypes.data + \
-                self.hyper_params.rho * self.model.prototypes.data
+        self.model.prototypes.data = (1 - self.hyper_params.rho) * prototypes.data + \
+            self.hyper_params.rho * self.model.prototypes.data
 
-            # Normalize the prototypes again
-            self.model.prototypes.data /= torch.norm(self.model.prototypes.data,
-                                                     dim=0).clamp(min=1e-12)
+        # Normalize the prototypes again
+        self.model.prototypes.data /= torch.norm(self.model.prototypes.data,
+                                                 dim=0).clamp(min=1e-12)
 
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()
@@ -209,9 +210,9 @@ class FedNHServer(Server):
                     continue
                 for _, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
-                        avg_model_sd[key] = weight * client_sd[key]
+                        avg_model_sd[key] = weight * client_sd[key].clone()
                     else:
-                        avg_model_sd[key] += weight * client_sd[key]
+                        avg_model_sd[key] += weight * client_sd[key].clone()
             self.model.encoder.load_state_dict(avg_model_sd)
 
     def evaluate(self) -> dict[str, float]:

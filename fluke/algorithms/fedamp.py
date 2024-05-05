@@ -96,31 +96,32 @@ class FedAMPServer(Server):
             param.data.zero_()
         return empty_model
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         clients_model = self._get_client_models(eligible, state_dict=False)
+        clients_model = [deepcopy(client) for client in clients_model]
 
-        with torch.no_grad():
-            for i, client in enumerate(eligible):
-                ci_model = clients_model[i]
-                ui_model = self._empty_model()
+        for i, client in enumerate(eligible):
+            ci_model = clients_model[i]
+            ui_model = self._empty_model()
 
-                coef = torch.zeros(len(eligible))
-                for j, cj_model in enumerate(clients_model):
-                    if i != j:
-                        weights_i = torch.cat([p.data.view(-1)
-                                              for p in ci_model.parameters()], dim=0)
-                        weights_j = torch.cat([p.data.view(-1)
-                                              for p in cj_model.parameters()], dim=0)
-                        sub = (weights_i - weights_j).view(-1)
-                        sub = torch.dot(sub, sub)
-                        coef[j] = self.hyper_params.alpha * self.__e(sub)
-                coef[i] = 1 - torch.sum(coef)
+            coef = torch.zeros(len(eligible))
+            for j, cj_model in enumerate(clients_model):
+                if i != j:
+                    weights_i = torch.cat([p.data.view(-1)
+                                           for p in ci_model.parameters()], dim=0)
+                    weights_j = torch.cat([p.data.view(-1)
+                                           for p in cj_model.parameters()], dim=0)
+                    sub = (weights_i - weights_j).view(-1)
+                    sub = torch.dot(sub, sub)
+                    coef[j] = self.hyper_params.alpha * self.__e(sub)
+            coef[i] = 1 - torch.sum(coef)
 
-                for j, cj_model in enumerate(clients_model):
-                    for param_i, param_j in zip(ui_model.parameters(), cj_model.parameters()):
-                        param_i.data += coef[j] * param_j
+            for j, cj_model in enumerate(clients_model):
+                for param_i, param_j in zip(ui_model.parameters(), cj_model.parameters()):
+                    param_i.data += coef[j] * param_j
 
-                self.channel.send(Message(ui_model, "model", self), client)
+            self.channel.send(Message(ui_model, "model", self), client)
 
     def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate

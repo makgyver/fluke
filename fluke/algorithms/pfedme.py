@@ -98,22 +98,21 @@ class PFedMeServer(Server):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(beta=beta)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Sequence[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)
-
-        with torch.no_grad():
-            for key in self.model.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    # avg_model_sd[key] = clients_sd[0][key].clone()
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
-                for i, client_sd in enumerate(clients_sd):
-                    if key not in avg_model_sd:
-                        avg_model_sd[key] = weights[i] * client_sd[key]
-                    else:
-                        avg_model_sd[key] += weights[i] * client_sd[key]
+        for key in self.model.state_dict().keys():
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                # avg_model_sd[key] = clients_sd[0][key].clone()
+                avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
+            for i, client_sd in enumerate(clients_sd):
+                if key not in avg_model_sd:
+                    avg_model_sd[key] = weights[i] * client_sd[key].clone()
+                else:
+                    avg_model_sd[key] += weights[i] * client_sd[key].clone()
 
         for key, param in self.model.named_parameters():
             param.data = (1 - self.hyper_params.beta) * param.data

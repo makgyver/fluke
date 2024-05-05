@@ -59,40 +59,41 @@ class FedOptServer(Server):
                 self.v[key] = torch.rand_like(self.model.state_dict()[
                                               key]) * self.hyper_params.tau ** 2
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
-        with torch.no_grad():
-            for key in self.model.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    # avg_model_sd[key] = deepcopy(clients_sd[0][key])
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
 
-                den, diff = 0, 0
-                for i, client_sd in enumerate(clients_sd):
-                    weight = 1 if not self.hyper_params.weighted else eligible[i].n_examples
-                    diff += weight * (client_sd[key] - self.model.state_dict()[key])
-                    den += weight
-                diff /= den
-                self.m[key] = self.hyper_params.beta1 * \
-                    self.m[key] + (1 - self.hyper_params.beta1) * diff
+        for key in self.model.state_dict().keys():
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                # avg_model_sd[key] = deepcopy(clients_sd[0][key])
+                avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
 
-                diff_2 = diff ** 2
-                if self.hyper_params.mode == FedOptMode.FedAdam:
-                    self.v[key] = self.hyper_params.beta2 * self.v[key] + \
-                        (1 - self.hyper_params.beta2) * diff_2
-                elif self.hyper_params.mode == FedOptMode.FedYogi:
-                    self.v[key] -= (1 - self.hyper_params.beta2) * \
-                        diff_2 * torch.sign(self.v[key] - diff_2)
-                elif self.hyper_params.mode == FedOptMode.FedAdagrad:
-                    self.v[key] += diff_2
+            den, diff = 0, 0
+            for i, client_sd in enumerate(clients_sd):
+                weight = 1 if not self.hyper_params.weighted else eligible[i].n_examples
+                diff += weight * (client_sd[key].clone() - self.model.state_dict()[key])
+                den += weight
+            diff /= den
+            self.m[key] = self.hyper_params.beta1 * \
+                self.m[key] + (1 - self.hyper_params.beta1) * diff
 
-                update = self.m[key] + self.hyper_params.lr * self.m[key] / \
-                    (torch.sqrt(self.v[key]) + self.hyper_params.tau)
-                avg_model_sd[key] = self.model.state_dict()[key] + update
+            diff_2 = diff ** 2
+            if self.hyper_params.mode == FedOptMode.FedAdam:
+                self.v[key] = self.hyper_params.beta2 * self.v[key] + \
+                    (1 - self.hyper_params.beta2) * diff_2
+            elif self.hyper_params.mode == FedOptMode.FedYogi:
+                self.v[key] -= (1 - self.hyper_params.beta2) * \
+                    diff_2 * torch.sign(self.v[key] - diff_2)
+            elif self.hyper_params.mode == FedOptMode.FedAdagrad:
+                self.v[key] += diff_2
 
-            self.model.load_state_dict(avg_model_sd)
+            update = self.m[key] + self.hyper_params.lr * self.m[key] / \
+                (torch.sqrt(self.v[key]) + self.hyper_params.tau)
+            avg_model_sd[key] = self.model.state_dict()[key] + update
+
+        self.model.load_state_dict(avg_model_sd)
 
 
 class FedOpt(CentralizedFL):

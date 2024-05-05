@@ -258,6 +258,7 @@ class Server(ObserverSubject):
         else:
             return [1. / len(eligible)] * len(eligible)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
@@ -270,17 +271,16 @@ class Server(ObserverSubject):
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)
-        with torch.no_grad():
-            for key in self.model.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
-                for i, client_sd in enumerate(clients_sd):
-                    if key not in avg_model_sd:
-                        avg_model_sd[key] = weights[i] * client_sd[key]
-                    else:
-                        avg_model_sd[key] += weights[i] * client_sd[key]
-            self.model.load_state_dict(avg_model_sd)
+        for key in self.model.state_dict().keys():
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
+            for i, client_sd in enumerate(clients_sd):
+                if key not in avg_model_sd:
+                    avg_model_sd[key] = weights[i] * client_sd[key].clone()
+                else:
+                    avg_model_sd[key] += weights[i] * client_sd[key].clone()
+        self.model.load_state_dict(avg_model_sd)
 
     def _notify_start_round(self, round: int, global_model: Any) -> None:
         """Notify the observers that a new round has started.

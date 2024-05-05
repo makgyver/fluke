@@ -45,6 +45,7 @@ class FedNovaClient(Client):
 
 class FedNovaServer(Server):
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)
@@ -55,18 +56,17 @@ class FedNovaServer(Server):
 
         coeff = sum([a_i[i] * weights[i] for i in range(len(eligible))])
         avg_model_sd = deepcopy(self.model.state_dict())
-        with torch.no_grad():
-            for key in self.model.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    # avg_model_sd[key] = clients_sd[0][key].clone()
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
+        for key in self.model.state_dict().keys():
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                # avg_model_sd[key] = clients_sd[0][key].clone()
+                avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
 
-                for i, client_sd in enumerate(clients_sd):
-                    avg_model_sd[key] += coeff * weights[i] * \
-                        torch.true_divide(client_sd[key] - avg_model_sd[key], a_i[i])
+            for i, client_sd in enumerate(clients_sd):
+                avg_model_sd[key] += coeff * weights[i] * \
+                    torch.true_divide(client_sd[key].clone() - avg_model_sd[key], a_i[i])
 
-            self.model.load_state_dict(avg_model_sd)
+        self.model.load_state_dict(avg_model_sd)
 
 
 class FedNova(CentralizedFL):

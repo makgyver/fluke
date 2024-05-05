@@ -155,38 +155,39 @@ class FedDynServer(Server):
 
         return super().fit(n_rounds, eligible_perc)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self._get_client_models(eligible, state_dict=False)
         weights = self._get_client_weights(eligible)
-        with torch.no_grad():
-            for key in self.model.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    # avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
-                    continue
-                for i, client_sd in enumerate(clients_sd):
-                    client_sd = client_sd.state_dict()
-                    if key not in avg_model_sd:
-                        avg_model_sd[key] = weights[i] * client_sd[key]
-                    else:
-                        avg_model_sd[key] += weights[i] * client_sd[key]
 
-            avg_grad = None
-            grad_count = 0
-            for cl in self.clients:
-                if cl.prev_grads is not None:
-                    grad_count += 1
-                    if avg_grad is None:
-                        avg_grad = cl.prev_grads.clone().detach()
-                    else:
-                        avg_grad += cl.prev_grads.clone().detach()
+        for key in self.model.state_dict().keys():
+            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
+                # avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
+                avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
+            for i, client_sd in enumerate(clients_sd):
+                client_sd = client_sd.state_dict()
+                if key not in avg_model_sd:
+                    avg_model_sd[key] = weights[i] * client_sd[key].clone()
+                else:
+                    avg_model_sd[key] += weights[i] * client_sd[key].clone()
 
-            if grad_count > 0:
-                avg_grad /= grad_count
+        avg_grad = None
+        grad_count = 0
+        for cl in self.clients:
+            if cl.prev_grads is not None:
+                grad_count += 1
+                if avg_grad is None:
+                    avg_grad = cl.prev_grads.clone().detach()
+                else:
+                    avg_grad += cl.prev_grads.clone().detach()
 
-            self.model.load_state_dict(avg_model_sd)
-            load_all_params(self.device, self.cld_mdl, get_all_params_of(self.model) + avg_grad)
+        if grad_count > 0:
+            avg_grad /= grad_count
+
+        self.model.load_state_dict(avg_model_sd)
+        load_all_params(self.device, self.cld_mdl, get_all_params_of(self.model) + avg_grad)
 
 
 class FedDyn(CentralizedFL):

@@ -123,27 +123,27 @@ class SCAFFOLDServer(Server):
     def _broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
-        with torch.no_grad():
-            delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-            delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
 
-            for client in eligible:
-                cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
-                deltas = zip(cl_delta_c, cl_delta_y, delta_c, delta_y)
-                for client_delta_c, client_delta_y, server_delta_c, server_delta_y in deltas:
-                    server_delta_y.data = server_delta_y.data + client_delta_y.data
-                    server_delta_c.data = server_delta_c.data + client_delta_c.data
+        for client in eligible:
+            cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
+            deltas = zip(cl_delta_c, cl_delta_y, delta_c, delta_y)
+            for client_delta_c, client_delta_y, server_delta_c, server_delta_y in deltas:
+                server_delta_y.data = server_delta_y.data + client_delta_y.data.clone()
+                server_delta_c.data = server_delta_c.data + client_delta_c.data.clone()
 
-            for server_delta_c, server_delta_y in zip(delta_c, delta_y):
-                # * (eligible[i].n_examples / tot_examples)
-                server_delta_y.data = server_delta_y.data / len(eligible)
-                server_delta_c.data = server_delta_c.data / self.n_clients
+        for server_delta_c, server_delta_y in zip(delta_c, delta_y):
+            # * (eligible[i].n_examples / tot_examples)
+            server_delta_y.data = server_delta_y.data / len(eligible)
+            server_delta_c.data = server_delta_c.data / self.n_clients
 
-            params_deltas = zip(self.model.parameters(), self.control, delta_y, delta_c)
-            for param, server_control, server_delta_y, server_delta_c in params_deltas:
-                param.data = param.data + self.hyper_params.global_step * server_delta_y
-                server_control.data = server_control.data + server_delta_c.data
+        params_deltas = zip(self.model.parameters(), self.control, delta_y, delta_c)
+        for param, server_control, server_delta_y, server_delta_c in params_deltas:
+            param.data = param.data + self.hyper_params.global_step * server_delta_y
+            server_control.data = server_control.data + server_delta_c.data
 
 
 class SCAFFOLD(CentralizedFL):

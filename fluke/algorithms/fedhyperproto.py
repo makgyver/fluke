@@ -189,17 +189,18 @@ class FedHyperProtoServer(Server):
     def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
+    @torch.no_grad()
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         clients_protos = self._get_client_models(eligible)
         if self.hyper_params.weighted:
             client_weights = self._get_client_weights(eligible)
             avg_proto = torch.zeros_like(clients_protos[0])
             for i, protos in enumerate(clients_protos):
-                avg_proto += client_weights[i] * protos
+                avg_proto += client_weights[i] * protos.clone()
         else:
             avg_proto = torch.zeros_like(clients_protos[0])
             for protos in clients_protos:
-                avg_proto += protos
+                avg_proto += protos.clone()
             avg_proto /= len(clients_protos)
 
         self.prototypes = avg_proto
