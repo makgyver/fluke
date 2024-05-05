@@ -161,7 +161,7 @@ class FedNHServer(Server):
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_models = self._get_client_models(eligible, state_dict=False)
-        clients_protos = [cmodel.prototypes.data.clone() for cmodel in clients_models]
+        clients_protos = [cmodel.prototypes.data for cmodel in clients_models]
 
         # Group by label
         label_protos = {i: [protos[i] for protos in clients_protos]

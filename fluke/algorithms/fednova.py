@@ -50,7 +50,7 @@ class FedNovaServer(Server):
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         a_i = [
-            self.channel.receive(self, client, "local_a").payload
+            deepcopy(self.channel.receive(self, client, "local_a").payload)
             for client in eligible
         ]
 
@@ -64,7 +64,7 @@ class FedNovaServer(Server):
 
             for i, client_sd in enumerate(clients_sd):
                 avg_model_sd[key] += coeff * weights[i] * \
-                    torch.true_divide(client_sd[key].clone() - avg_model_sd[key], a_i[i])
+                    torch.true_divide(client_sd[key] - avg_model_sd[key], a_i[i])
 
         self.model.load_state_dict(avg_model_sd)
 

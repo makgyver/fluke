@@ -73,7 +73,7 @@ class FedOptServer(Server):
             den, diff = 0, 0
             for i, client_sd in enumerate(clients_sd):
                 weight = 1 if not self.hyper_params.weighted else eligible[i].n_examples
-                diff += weight * (client_sd[key].clone() - self.model.state_dict()[key])
+                diff += weight * (client_sd[key] - self.model.state_dict()[key])
                 den += weight
             diff /= den
             self.m[key] = self.hyper_params.beta1 * \

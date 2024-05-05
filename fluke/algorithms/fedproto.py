@@ -172,7 +172,7 @@ class FedProtoServer(Server):
         clients_protos = self._get_client_models(eligible)
 
         # Group by label
-        label_protos = {i: [protos[i].clone() for protos in clients_protos if protos[i] is not None]
+        label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]
                         for i in range(self.hyper_params.n_protos)}
 
         # Aggregate prototypes

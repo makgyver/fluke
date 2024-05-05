@@ -105,7 +105,8 @@ class SCAFFOLDClient(Client):
         self._send_model()
 
     def _send_model(self):
-        self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
+        self.channel.send(
+            Message((deepcopy(self.delta_y), deepcopy(self.delta_c)), "model", self), self.server)
 
 
 class SCAFFOLDServer(Server):

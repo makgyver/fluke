@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from typing import Iterable
 import torch
-from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -17,7 +16,7 @@ class FedExPServer(Server):
     @torch.no_grad()
     def _aggregate(self, eligible: Iterable[Client]) -> None:
         clients_sd = self._get_client_models(eligible)
-        clients_diff = [diff_model(self.model.state_dict(), deepcopy(client_model))
+        clients_diff = [diff_model(self.model.state_dict(), client_model)
                         for client_model in clients_sd]
         eta, mu_diff = self._compute_eta(clients_diff)
 

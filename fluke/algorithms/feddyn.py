@@ -169,9 +169,9 @@ class FedDynServer(Server):
             for i, client_sd in enumerate(clients_sd):
                 client_sd = client_sd.state_dict()
                 if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_sd[key].clone()
+                    avg_model_sd[key] = weights[i] * client_sd[key]
                 else:
-                    avg_model_sd[key] += weights[i] * client_sd[key].clone()
+                    avg_model_sd[key] += weights[i] * client_sd[key]
 
         avg_grad = None
         grad_count = 0

@@ -99,7 +99,7 @@ class FedAMPServer(Server):
     @torch.no_grad()
     def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
         clients_model = self._get_client_models(eligible, state_dict=False)
-        clients_model = [deepcopy(client) for client in clients_model]
+        clients_model = [client for client in clients_model]
 
         for i, client in enumerate(eligible):
             ci_model = clients_model[i]

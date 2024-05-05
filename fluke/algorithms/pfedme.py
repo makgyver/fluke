@@ -110,9 +110,9 @@ class PFedMeServer(Server):
                 continue
             for i, client_sd in enumerate(clients_sd):
                 if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_sd[key].clone()
+                    avg_model_sd[key] = weights[i] * client_sd[key]
                 else:
-                    avg_model_sd[key] += weights[i] * client_sd[key].clone()
+                    avg_model_sd[key] += weights[i] * client_sd[key]
 
         for key, param in self.model.named_parameters():
             param.data = (1 - self.hyper_params.beta) * param.data

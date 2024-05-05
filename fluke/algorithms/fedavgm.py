@@ -40,9 +40,9 @@ class FedAVGMServer(Server):
                 continue
             for i, client_diff in enumerate(clients_diff):
                 if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_diff[key].clone()
+                    avg_model_sd[key] = weights[i] * client_diff[key]
                 else:
-                    avg_model_sd[key] += weights[i] * client_diff[key].clone()
+                    avg_model_sd[key] += weights[i] * client_diff[key]
 
         for key, param in self.model.named_parameters():
             param.data = self.hyper_params.momentum * param.data - avg_model_sd[key].data
