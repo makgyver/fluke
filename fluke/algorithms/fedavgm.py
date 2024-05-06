@@ -2,7 +2,6 @@ from torch.nn import Module
 import torch
 from collections import OrderedDict
 from typing import Iterable
-# from copy import deepcopy
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -35,7 +34,6 @@ class FedAVGMServer(Server):
 
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                # avg_model_sd[key] = deepcopy(clients_sd[0][key])
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
                 continue
             for i, client_diff in enumerate(clients_diff):

@@ -105,6 +105,13 @@ def test_server():
     server.test_data = None
     assert not server.evaluate()
 
+    server._broadcast_model(clients)
+
+    for c in clients:
+        m = c.channel.receive(c, server, "model")
+        assert id(m) != id(server.model)
+        assert m is not server.model
+
 
 if __name__ == "__main__":
     test_server()

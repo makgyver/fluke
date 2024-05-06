@@ -1,4 +1,3 @@
-from copy import deepcopy
 from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
 from typing import Any, Callable, Sequence
@@ -32,13 +31,13 @@ class LGFedAVGClient(PFLClient):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
+        self.channel.send(Message(self.model.get_global(), "model", self), self.server)
 
     def _receive_model(self) -> None:
         if self.model is None:
             self.model = self.personalized_model  # personalized_model and model are the same
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.model.get_global(), deepcopy(msg.payload.state_dict()))
+        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
 class LGFedAVGServer(Server):

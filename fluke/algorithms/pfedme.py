@@ -50,10 +50,10 @@ class PFedMeClient(PFLClient):
     def _receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.personalized_model = deepcopy(model)
+            self.personalized_model = model
             self.model = deepcopy(self.personalized_model)
         else:
-            safe_load_state_dict(self.personalized_model, deepcopy(model.state_dict()))
+            safe_load_state_dict(self.personalized_model, model.state_dict())
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
@@ -84,7 +84,7 @@ class PFedMeClient(PFLClient):
         self._send_model()
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self.channel.send(Message(self.model, "model", self), self.server)
 
 
 class PFedMeServer(Server):

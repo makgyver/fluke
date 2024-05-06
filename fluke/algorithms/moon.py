@@ -34,6 +34,7 @@ class MOONClient(Client):
     def _receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
+            # one of these deepcopy is not needed
             self.model = deepcopy(model)
             self.prev_model = deepcopy(model)
         else:

@@ -1,9 +1,11 @@
-from copy import deepcopy
 from typing import Sequence, Callable
 import torch
 from torch import nn
+from torch.optim import Adam
 from rich.progress import track
 import sys
+
+from torch.optim.optimizer import Optimizer as Optimizer
 
 sys.path.append(".")
 sys.path.append("..")
@@ -79,14 +81,14 @@ class FedHyperProtoClient(PFLClient):
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.model.prototypes.data = deepcopy(msg.payload)
+        self.model.prototypes.data = msg.payload
 
     def _receive_protos(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="protos")
-        self.initial_prototypes = deepcopy(msg.payload)
+        self.initial_prototypes = msg.payload
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model.prototypes.data), "model", self), self.server)
+        self.channel.send(Message(self.model.prototypes.data, "model", self), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -119,12 +121,7 @@ class FedHyperProtoClient(PFLClient):
         self._send_model()
 
     def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None:
-            if self.initial_prototypes is None:
-                self._receive_protos()
-                self.channel.send(Message(self.server.prototypes, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.initial_prototypes is not None:
             model = FedHyperProtoModel(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos,
@@ -213,3 +210,6 @@ class FedHyperProto(PersonalizedFL):
 
     def get_server_class(self) -> Server:
         return FedHyperProtoServer
+
+    def get_optimizer_class(self) -> Optimizer:
+        return Adam

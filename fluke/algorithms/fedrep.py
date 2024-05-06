@@ -1,4 +1,3 @@
-from copy import deepcopy
 import torch
 from typing import Any, Callable, Sequence
 import sys
@@ -82,13 +81,13 @@ class FedRepClient(PFLClient):
         self._send_model()
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
+        self.channel.send(Message(self.model.get_global(), "model", self), self.server)
 
     def _receive_model(self) -> None:
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.model.get_global(), deepcopy(msg.payload.state_dict()))
+        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
 class FedRepServer(Server):

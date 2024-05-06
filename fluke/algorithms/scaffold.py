@@ -54,7 +54,7 @@ class SCAFFOLDClient(Client):
     def _receive_model(self) -> None:
         model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.model = deepcopy(model)
+            self.model = model
             self.control = [torch.zeros_like(p.data)
                             for p in self.model.parameters() if p.requires_grad]
             self.delta_y = [torch.zeros_like(p.data)
@@ -62,7 +62,7 @@ class SCAFFOLDClient(Client):
             self.delta_c = [torch.zeros_like(p.data)
                             for p in self.model.parameters() if p.requires_grad]
         else:
-            safe_load_state_dict(self.model, deepcopy(model.state_dict()))
+            safe_load_state_dict(self.model, model.state_dict())
         self.server_control = server_control
 
     def fit(self, override_local_epochs: int = 0):
@@ -105,8 +105,7 @@ class SCAFFOLDClient(Client):
         self._send_model()
 
     def _send_model(self):
-        self.channel.send(
-            Message((deepcopy(self.delta_y), deepcopy(self.delta_c)), "model", self), self.server)
+        self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 
 class SCAFFOLDServer(Server):

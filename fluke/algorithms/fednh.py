@@ -122,12 +122,7 @@ class FedNHClient(PFLClient):
         self._send_model()
 
     def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None:
-            if self.model is None:
-                # ask for the prototypes and receive them
-                self.channel.send(Message(self.server, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.model is not None:
             model = ArgMaxModule(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos,

@@ -101,9 +101,6 @@ class APFLServer(Server):
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache
             self.channel.clear(self)
-            # for client in eligible:
-            # self.channel.send(Message((client.get_model, {}), "__action__", self), client)
-            # self.channel.pull(self, client, "model", client.model)
         else:
             super()._aggregate(eligible)
 

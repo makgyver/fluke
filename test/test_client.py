@@ -76,13 +76,20 @@ def test_client():
     client.fit()
     ev1 = client.evaluate()
     assert server.channel._buffer[server]
-    assert ev1["loss"] <= ev0["loss"]
+    assert not ev0
+    assert ev1
 
     assert str(client) == "Client[0](optim=OptCfg(SGD,lr=0.1,StepLR(step_size=1,gamma=0.1))," + \
         "batch_size=10,loss_fn=CrossEntropyLoss(),local_epochs=10)"
 
     client.test_set = None  # THIS IS NOT ALLOWED
     assert client.evaluate() == {}
+
+    client._send_model()
+
+    m = server.channel.receive(server, client, "model")
+    assert id(m) != id(client.model)
+    assert m is not client.model
 
 
 def test_pflclient():

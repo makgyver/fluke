@@ -70,10 +70,10 @@ class FedProtoClient(PFLClient):
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.global_protos = deepcopy(msg.payload)
+        self.global_protos = msg.payload
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.prototypes), "model", self), self.server)
+        self.channel.send(Message(self.prototypes, "model", self), self.server)
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
         for label, prts in protos.items():
@@ -129,12 +129,7 @@ class FedProtoClient(PFLClient):
         self._send_model()
 
     def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None:
-            if self.prototypes[0] is None:
-                # ask for the prototypes and receive them
-                self.channel.send(Message(self.server.prototypes, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.prototypes[0] is not None:
             model = FedProtoModel(self.model, self.prototypes, self.device)
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.hyper_params.n_protos,

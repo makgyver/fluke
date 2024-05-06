@@ -1,4 +1,3 @@
-from copy import deepcopy
 import torch
 import sys
 sys.path.append(".")
@@ -17,7 +16,7 @@ class FedBNClient(Client):
         msg = self.channel.receive(self, self.server, msg_type="model")
         global_model = msg.payload
         if self.model is None:
-            self.model = deepcopy(global_model)
+            self.model = global_model
         else:
             with torch.no_grad():
                 for key in global_model.state_dict().keys():

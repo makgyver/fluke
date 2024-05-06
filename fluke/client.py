@@ -4,7 +4,6 @@ from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim import Optimizer
 from typing import Callable
-from copy import deepcopy
 import sys
 sys.path.append(".")
 
@@ -127,16 +126,16 @@ class Client():
         """
         msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:
-            self.model = deepcopy(msg.payload)
+            self.model = msg.payload
         else:
-            safe_load_state_dict(self.model, deepcopy(msg.payload.state_dict()))
+            safe_load_state_dict(self.model, msg.payload.state_dict())
             # self.model.load_state_dict(msg.payload.state_dict())
 
     def _send_model(self) -> None:
         """Send the current model to the server. The model is sent as a ``Message`` with
         ``msg_type`` "model" to the server. The method uses the channel to send the message.
         """
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self.channel.send(Message(self.model, "model", self), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         """Client's local training.
@@ -185,12 +184,7 @@ class Client():
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
             the results.
         """
-        if self.test_set is not None:
-            if self.model is None:
-                # ask for the model and receive it
-                self.channel.send(Message(self.server.model, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.model is not None:
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.model.output_size,
                                       self.device).evaluate(self.model,

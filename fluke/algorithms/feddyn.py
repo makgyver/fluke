@@ -62,10 +62,10 @@ class FedDynClient(Client):
     def _receive_model(self) -> None:
         model, cld_mdl = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.model = deepcopy(model)
+            self.model = model
             self.prev_grads = torch.zeros_like(get_all_params_of(self.model))
         else:
-            safe_load_state_dict(self.model, deepcopy(cld_mdl.state_dict()))
+            safe_load_state_dict(self.model, cld_mdl.state_dict())
 
     def _receive_weights(self) -> None:
         self.weight = self.channel.receive(self, self.server, msg_type="weight").payload
@@ -163,7 +163,6 @@ class FedDynServer(Server):
 
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                # avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
                 continue
             for i, client_sd in enumerate(clients_sd):

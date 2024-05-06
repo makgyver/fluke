@@ -1,5 +1,4 @@
 from rich.progress import Progress
-from copy import deepcopy
 from typing import Any, Callable, Sequence
 from torch.nn import Module
 import sys
@@ -37,13 +36,13 @@ class FedBABUClient(PFLClient):
         self.model = self.personalized_model
 
     def _send_model(self):
-        self.channel.send(Message(deepcopy(self.personalized_model.get_encoder()),
+        self.channel.send(Message(self.personalized_model.get_encoder(),
                           "model", self), self.server)
 
     def _receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         safe_load_state_dict(self.personalized_model.get_encoder(),
-                             deepcopy(msg.payload.state_dict()))
+                             msg.payload.state_dict())
 
         # Deactivate gradient
         for param in self.personalized_model.get_head().parameters():
@@ -98,7 +97,6 @@ class FedBABUServer(Server):
         with Progress() as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
-                # self.channel.send(Message((client._fine_tune, {}), "__action__", self), client)
                 client.fine_tune()
                 progress.update(task, advance=1)
 

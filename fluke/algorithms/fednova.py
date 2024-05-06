@@ -50,7 +50,7 @@ class FedNovaServer(Server):
         clients_sd = self._get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         a_i = [
-            deepcopy(self.channel.receive(self, client, "local_a").payload)
+            self.channel.receive(self, client, "local_a").payload
             for client in eligible
         ]
 

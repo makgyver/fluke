@@ -3,7 +3,6 @@ from rich.progress import track
 import numpy as np
 from typing import Any, Sequence
 from collections import OrderedDict
-
 import torch
 from torch import device
 from torch.nn import Module
@@ -78,9 +77,6 @@ class Server(ObserverSubject):
 
         for client in self.clients:
             client.set_server(self)
-
-    # def _local_train(self, client: Client) -> None:
-    #     self.channel.send(Message((client.fit, {}), "__action__", self), client)
 
     @property
     def channel(self) -> Channel:

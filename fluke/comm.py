@@ -1,7 +1,9 @@
 """This module contains the classes for the communication between the clients and the server."""
+from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Optional
 import sys
+from copy import deepcopy
 import numpy as np
 import torch
 import warnings
@@ -52,6 +54,14 @@ class Message:
                           "Returning object size = 0.")
             return 0
 
+    def clone(self) -> Message:
+        """Clone the message.
+
+        Returns:
+            Message: The cloned message.
+        """
+        return Message(deepcopy(self.payload), self.msg_type, self.sender)
+
     def get_size(self) -> int:
         """Get the size of the message. The message size is the size of the payload calculated in
         terms of "floating point" numbers. For example, a message containing a tensor of size
@@ -63,6 +73,13 @@ class Message:
             int: The size of the message in bytes.
         """
         return self.__get_size(self.payload)
+
+    def __str__(self) -> str:
+        return f"Message(type={self.msg_type},from={self.sender},payload={self.payload}," + \
+            f"size={self.get_size()})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class ChannelObserver():
@@ -110,8 +127,7 @@ class Channel(ObserverSubject):
         return self._buffer
 
     def send(self, message: Message, mbox: Any) -> None:
-        """Send a message to a receiver.
-
+        """Send a copy of the message to a receiver.
         To any sent message should correspond a received message. The receiver should call the
         `receive` method of the channel to get the message.
 
@@ -128,7 +144,7 @@ class Channel(ObserverSubject):
                 channel.send(Message("Hello", "greeting", server), client)
 
         """
-        self._buffer[mbox].append(message)
+        self._buffer[mbox].append(message.clone())
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
         """Receive (i.e., read) a message from a sender. The message is removed from the message box
@@ -164,7 +180,7 @@ class Channel(ObserverSubject):
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
 
     def broadcast(self, message: Message, to: list[Any]) -> None:
-        """Send a message to a list of receivers.
+        """Send a copy of the message to a list of receivers.
 
         Args:
             message (Message): The message to be sent.
