@@ -10,6 +10,7 @@ from fluke.server import Server  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.data import FastTensorDataLoader  # NOQA
 from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
+from fluke import DDict  # NOQA
 
 
 def test_server():
@@ -56,7 +57,7 @@ def test_server():
                    for i in range(2)]
     ftdl_server = FastTensorDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=False)
 
-    cfg = OptimizerConfigurator(optimizer_class=torch.optim.SGD, lr=0.1, momentum=0.9)
+    cfg = OptimizerConfigurator(optimizer_cfg=DDict(name=torch.optim.SGD, lr=0.1, momentum=0.9))
     clients = [Client(index=i,
                       train_set=ftdl_client[i],
                       test_set=None,

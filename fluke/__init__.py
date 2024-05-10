@@ -147,7 +147,7 @@ class ObserverSubject():
         self._observers: list[Any] = []
 
     def attach(self, observer: Union[Any, Iterable[Any]]):
-        """Attach one ore more observers.
+        """Attach one or more observers.
 
         Args:
             observer (Union[Any, Iterable[Any]]): The observer or a list of observers.
@@ -176,7 +176,6 @@ class ObserverSubject():
 
 class GlobalSettings(metaclass=Singleton):
     """Global settings for ``fluke``.
-
     This class is a singleton that holds the global settings for ``fluke``. The settings include:
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
@@ -246,7 +245,7 @@ class GlobalSettings(metaclass=Singleton):
             device (str): The device as string.
 
         Returns:
-            torch.device: The device as torch.device.
+            torch.device: The selected device as torch.device.
         """
         assert device in ['cpu', 'auto', 'mps', 'cuda'] or re.match(r'^cuda:\d+$', device), \
             f"Invalid device {device}."
@@ -267,7 +266,6 @@ class GlobalSettings(metaclass=Singleton):
 
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
-
         The possible progress bar types are:
 
         - FL: The progress bar for the federated learning process.

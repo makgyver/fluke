@@ -110,13 +110,12 @@ class Server(ObserverSubject):
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
         """Run the federated learning algorithm.
-
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to
         the clients, which compute the local updates and send them back to the server. The server
         aggregates the models of the clients and repeats the process for a number of rounds.
         During the process, the server evaluates the global model and the local model every
-        `eval_every` rounds.
+        ``eval_every`` rounds.
 
         Args:
             n_rounds (int, optional): The number of rounds to run. Defaults to 10.
@@ -126,7 +125,7 @@ class Server(ObserverSubject):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*eligible_perc)
+            client_x_round = int(self.n_clients * eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
@@ -158,8 +157,7 @@ class Server(ObserverSubject):
         self._finalize()
 
     def evaluate(self) -> dict[str, float]:
-        """Evaluate the global federated model on the :`test_set`.
-
+        """Evaluate the global federated model on the ``test_set``.
         If the test set is not set, the method returns an empty dictionary.
 
         Warning:

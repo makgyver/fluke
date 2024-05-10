@@ -10,7 +10,7 @@ from fluke.client import Client, PFLClient  # NOQA
 from fluke.server import Server  # NOQA
 from fluke.utils import OptimizerConfigurator  # NOQA
 from fluke.data import FastTensorDataLoader  # NOQA
-from fluke.comm import Message  # NOQA
+from fluke import DDict  # NOQA
 
 
 def test_client():
@@ -48,9 +48,8 @@ def test_client():
         train_set=train_set,
         test_set=test_set,
         optimizer_cfg=OptimizerConfigurator(
-            optimizer_class=SGD,
-            scheduler_kwargs={"step_size": 1, "gamma": 0.1},
-            lr=0.1
+            optimizer_cfg=DDict(name=SGD, lr=0.1),
+            scheduler_cfg=DDict(step_size=1, gamma=0.1),
         ),
         loss_fn=CrossEntropyLoss(),
         local_epochs=10
@@ -119,9 +118,8 @@ def test_pflclient():
         train_set=train_set,
         test_set=None,
         optimizer_cfg=OptimizerConfigurator(
-            optimizer_class=SGD,
-            scheduler_kwargs={"step_size": 1, "gamma": 0.1},
-            lr=0.1
+            optimizer_cfg=DDict(name=SGD, lr=0.1),
+            scheduler_cfg=DDict(step_size=1, gamma=0.1)
         ),
         loss_fn=CrossEntropyLoss(),
         local_epochs=10

@@ -5,6 +5,7 @@ from rich.panel import Panel
 import rich
 from torch.optim import Optimizer
 from torch.nn import Module
+from torch.optim.lr_scheduler import LRScheduler
 import torch
 from typing import Any, Sequence
 from enum import Enum
@@ -12,6 +13,7 @@ import psutil
 import pandas as pd
 import numpy as np
 import importlib
+import inspect
 import wandb
 import json
 import yaml
@@ -106,27 +108,67 @@ class OptimizerConfigurator:
 
     Attributes:
         optimizer (type[Optimizer]): The optimizer class.
-        scheduler_kwargs (DDict): The scheduler keyword arguments.
-        optimizer_kwargs (DDict): The optimizer keyword arguments.
+        scheduler (type[LRScheduler]): The learning rate scheduler class.
+        optimizer_cfg (DDict): The optimizer keyword arguments.
+        scheduler_cfg (DDict): The scheduler keyword arguments.
     """
 
     def __init__(self,
-                 optimizer_class: type[Optimizer],
-                 scheduler_kwargs: DDict | dict = None,
-                 **optimizer_kwargs):
-        """Initialize the optimizer configurator. The default scheduler is the StepLR scheduler.
+                 optimizer_cfg: DDict | dict,
+                 scheduler_cfg: DDict | dict = None):
+        """Initialize the optimizer configurator. In both the ``optimizer_cfg`` and the
+        ``scheduler_cfg`` dictionaries, the key "name" is used to specify the optimizer and the
+        scheduler, respectively. If not present, the default optimizer is the ``SGD`` optimizer, and
+        the default scheduler is the ``StepLR`` scheduler. The other keys are the keyword arguments
+        for the optimizer and the scheduler, respectively.
+
+        Note:
+            In the key "name" of the ``optimizer_cfg`` dictionary, you can specify the optimizer
+            class directly, instead of its string name. Same for the scheduler.
 
         Args:
-            optimizer_class (type[Optimizer]): The optimizer class.
-            scheduler_kwargs (dict, optional): The scheduler keyword arguments. Defaults to None.
-            **optimizer_kwargs: The optimizer keyword arguments.
+            optimizer_cfg (dict, DDict): The optimizer class.
+            scheduler_cfg (dict or DDict, optional): The scheduler keyword arguments. If not
+                specified, the default scheduler is the ``StepLR`` scheduler with a step size of 1
+                and a gamma of 1. Defaults to ``None``.
         """
-        self.optimizer: type[Optimizer] = optimizer_class
-        self.scheduler_kwargs: DDict = DDict(**scheduler_kwargs) if scheduler_kwargs is not None \
-            else DDict(name="StepLR", step_size=1, gamma=1)
-        self.scheduler = get_scheduler(
-            self.scheduler_kwargs.name if self.scheduler_kwargs.name else "StepLR")
-        self.optimizer_kwargs: DDict = DDict(**optimizer_kwargs)
+
+        if isinstance(optimizer_cfg, dict):
+            self.optimizer_cfg = DDict(**optimizer_cfg)
+        elif isinstance(optimizer_cfg, DDict):
+            self.optimizer_cfg = optimizer_cfg
+        else:
+            raise ValueError("Invalid optimizer configuration.")
+
+        if isinstance(scheduler_cfg, dict):
+            self.scheduler_cfg = DDict(**scheduler_cfg)
+        elif scheduler_cfg is None:
+            self.scheduler_cfg = DDict(name="StepLR", step_size=1, gamma=1)
+        elif isinstance(scheduler_cfg, DDict):
+            self.scheduler_cfg = scheduler_cfg
+        else:
+            raise ValueError("Invalid scheduler configuration.")
+
+        if isinstance(self.optimizer_cfg.name, str):
+            self.optimizer: type[Optimizer] = get_optimizer(self.optimizer_cfg.name)
+        elif inspect.isclass(self.optimizer_cfg.name) and \
+                issubclass(self.optimizer_cfg.name, Optimizer):
+            self.optimizer = self.optimizer_cfg.name
+        else:
+            raise ValueError("Invalid optimizer name. Must be a string or an optimizer class.")
+
+        if "name" not in self.scheduler_cfg:
+            self.scheduler = get_scheduler("StepLR")
+        elif isinstance(self.scheduler_cfg.name, str):
+            self.scheduler: type[LRScheduler] = get_scheduler(self.scheduler_kwargs.name)
+        elif inspect.isclass(self.scheduler_cfg.name) and \
+                issubclass(self.scheduler_cfg.name, LRScheduler):
+            self.scheduler = self.scheduler_cfg.name
+        else:
+            raise ValueError("Invalid scheduler name. Must be a string or a scheduler class.")
+
+        self.scheduler_cfg = self.scheduler_cfg.exclude("name")
+        self.optimizer_cfg = self.optimizer_cfg.exclude("name")
 
     def __call__(self, model: Module, **override_kwargs):
         """Creates the optimizer and the scheduler.
@@ -139,17 +181,16 @@ class OptimizerConfigurator:
             tuple[Optimizer, StepLR]: The optimizer and the scheduler.
         """
         if override_kwargs:
-            self.optimizer_kwargs.update(override_kwargs)
-        optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
-        scheduler = self.scheduler(optimizer, **self.scheduler_kwargs.exclude("name"))
+            self.optimizer_cfg.update(override_kwargs)
+        optimizer = self.optimizer(model.parameters(), **self.optimizer_cfg)
+        scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 
     def __str__(self) -> str:
         strsched = self.scheduler.__name__
-        sch_params = self.scheduler_kwargs.exclude("name")
         to_str = f"OptCfg({self.optimizer.__name__},"
-        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in sch_params.items()])
+        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
+        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
         to_str += "))"
         return to_str
 
@@ -408,7 +449,21 @@ def get_full_classname(classtype: type) -> str:
     return f"{classtype.__module__}.{classtype.__name__}"
 
 
-def get_scheduler(sname: str) -> torch.nn.Module:
+def get_optimizer(oname: str) -> type[Optimizer]:
+    """Get an optimizer from its name.
+    This function is used to get an optimizer from its name. It is used to dynamically import
+    optimizers. The supported optimizers are the ones defined in the ``torch.optim`` module.
+
+    Args:
+        oname (str): The name of the optimizer.
+
+    Returns:
+        type[Optimizer]: The optimizer class.
+    """
+    return get_class_from_str("torch.optim", oname)
+
+
+def get_scheduler(sname: str) -> type[LRScheduler]:
     """Get a learning rate scheduler from its name.
     This function is used to get a learning rate scheduler from its name. It is used to dynamically
     import learning rate schedulers. The supported schedulers are the ones defined in the

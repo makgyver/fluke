@@ -114,9 +114,10 @@ class CentralizedFL():
             config (DDict): Configuration of the clients.
         """
 
-        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(),
-                                              **config.optimizer,
-                                              scheduler_kwargs=config.scheduler)
+        if "name" not in config.optimizer:
+            config.optimizer.name = self.get_optimizer_class()
+        optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
+                                              scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss
         self.clients = [
             self.get_client_class()(
@@ -175,9 +176,10 @@ class PersonalizedFL(CentralizedFL):
                      config: DDict) -> None:
 
         model = get_model(mname=config.model) if isinstance(config.model, str) else config.model
-        optimizer_cfg = OptimizerConfigurator(self.get_optimizer_class(),
-                                              **config.optimizer,
-                                              scheduler_kwargs=config.scheduler)
+        if "name" not in config.optimizer:
+            config.optimizer.name = self.get_optimizer_class()
+        optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
+                                              scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss
         self.clients = [
             self.get_client_class()(

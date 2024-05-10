@@ -10,6 +10,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 
+from fluke import DDict  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
 from fluke.comm import Message  # NOQA
 from fluke.client import Client  # NOQA
@@ -25,13 +26,13 @@ from fluke.utils.model import (merge_models, diff_model, mix_networks,  # NOQA
 
 def test_optimcfg():
     opt_cfg = OptimizerConfigurator(
-        optimizer_class=SGD,
-        scheduler_kwargs={
-            "step_size": 1,
-            "gamma": 0.1
-        },
-        lr=0.1,
-        momentum=0.9
+        optimizer_cfg=DDict(name=SGD,
+                            lr=0.1,
+                            momentum=0.9),
+        scheduler_cfg=DDict(
+            step_size=1,
+            gamma=.1
+        ),
     )
 
     assert opt_cfg.optimizer == SGD

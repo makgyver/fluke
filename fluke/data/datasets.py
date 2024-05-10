@@ -32,8 +32,7 @@ def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) ->
 
 class Datasets:
     """Static class for loading datasets.
-
-    Each dataset is loaded as a `DataContainer` object.
+    Each dataset is loaded as a ``DataContainer`` object.
     """
 
     @classmethod
@@ -131,6 +130,19 @@ class Datasets:
     def EMNIST(cls,
                path: str = "../data",
                transforms: Optional[callable] = None) -> DataContainer:
+        """Load the Extended MNIST (EMNIST) dataset. The dataset is split into training and testing
+        sets according to the default split of the data at
+        https://www.westernsydney.edu.au/bens/home/reproducible_research/emnist.
+        If no transformations are provided, the data is normalized to the range [0, 1].
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to "../data".
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: _description_
+        """
 
         train_data = datasets.EMNIST(
             root=path,
@@ -547,7 +559,6 @@ class Datasets:
 class DatasetsEnum(Enum):
     MNIST = "mnist"
     MNISTM = "mnistm"
-    # MNIST4D = "mnist4d"
     SVHN = "svhn"
     FEMNIST = "femnist"
     EMNIST = "emnist"
@@ -568,7 +579,6 @@ class DatasetsEnum(Enum):
     def klass(self):
         DATASET_MAP = {
             "mnist": Datasets.MNIST,
-            # "mnist4d": Datasets.MNIST4D,
             "svhn": Datasets.SVHN,
             "mnistm": Datasets.MNISTM,
             "femnist": Datasets.FEMNIST,

@@ -15,10 +15,10 @@ class Evaluator(ABC):
     An evaluator object should be used to perform the evaluation of a federated model.
 
     Attributes:
-        loss_fn (Callable): The loss function.
+        loss_fn (Callable, optional): The loss function to use for evaluation.
     """
 
-    def __init__(self, loss_fn: Callable):
+    def __init__(self, loss_fn: Optional[Callable] = None):
         self.loss_fn: Callable = loss_fn
 
     @abstractmethod
@@ -60,6 +60,14 @@ class ClassificationEval(Evaluator):
                  loss_fn: Callable,
                  n_classes: int,
                  device: Optional[torch.device] = None):
+        """Initialize the evaluator.
+
+        Args:
+            loss_fn (Callable): The loss function to use for evaluation.
+            n_classes (int): The number of classes.
+            device (torch.device, optional): The device where the evaluation is performed.
+                If ``None``, the device is the one set in the ``GlobalSettings``.
+        """
         super().__init__(loss_fn)
         self.n_classes: int = n_classes
         self.device: torch.device = device if device is not None else GlobalSettings().get_device()
@@ -68,13 +76,15 @@ class ClassificationEval(Evaluator):
                  model: torch.nn.Module,
                  eval_data_loader: Union[FastTensorDataLoader,
                                          Iterable[FastTensorDataLoader]]) -> dict:
-        """Evaluate the model.
+        """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
+        ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
+        computed both in a micro and macro fashion.
 
         Args:
-            model (torch.nn.Module): The model to evaluate. If `None`, the method returns an
+            model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
                 empty dictionary.
             eval_data_loader (Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]):
-                The data loader(s) to use for evaluation. If `None`, the method returns an empty
+                The data loader(s) to use for evaluation. If ``None``, the method returns an empty
                 dictionary.
 
         Returns:

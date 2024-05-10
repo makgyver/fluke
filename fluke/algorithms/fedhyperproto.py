@@ -1,11 +1,13 @@
 from typing import Sequence, Callable
 import torch
 from torch import nn
-from torch.optim import Adam
+# from torch.optim import Adam
 from rich.progress import track
 import sys
 
 from torch.optim.optimizer import Optimizer as Optimizer
+
+# from torch.optim.optimizer import Optimizer as Optimizer
 
 sys.path.append(".")
 sys.path.append("..")
@@ -79,16 +81,9 @@ class FedHyperProtoClient(PFLClient):
         self.model = self.personalized_model
         self.initial_prototypes = None
 
-    def _receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
-        self.model.prototypes.data = msg.payload
-
     def _receive_protos(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="protos")
         self.initial_prototypes = msg.payload
-
-    def _send_model(self):
-        self.channel.send(Message(self.model.prototypes.data, "model", self), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -143,19 +138,15 @@ class FedHyperProtoServer(Server):
                  weighted: bool = True,
                  n_protos: int = 10,
                  embedding_size: int = 100):
-        super().__init__(None, None, clients, eval_every, weighted)
+        super().__init__(ProtoNet(model, n_protos), None, clients, eval_every, weighted)
         self.hyper_params.update(n_protos=n_protos,
                                  embedding_size=embedding_size)
         self.device = GlobalSettings().get_device()
-        self.prototypes = None
-
-    def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
-        # This funciton broadcasts the prototypes to the clients
-        self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
+        # self.prototypes = None
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
-        self.prototypes = self._hyperspherical_embedding()
-        self.channel.broadcast(Message(self.prototypes, "protos", self), self.clients)
+        self.model.prototypes.data = self._hyperspherical_embedding()
+        self.channel.broadcast(Message(self.model.prototypes.data, "protos", self), self.clients)
         return super().fit(n_rounds, eligible_perc)
 
     def _hyperspherical_embedding(self, seed: int = 0):
@@ -183,24 +174,8 @@ class FedHyperProtoServer(Server):
             mapping.div_(torch.norm(mapping, dim=1, keepdim=True))
         return mapping.detach()
 
-    def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
-        return [self.channel.receive(self, client, "model").payload for client in eligible]
-
-    @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
-        clients_protos = self._get_client_models(eligible)
-        if self.hyper_params.weighted:
-            client_weights = self._get_client_weights(eligible)
-            avg_proto = torch.zeros_like(clients_protos[0])
-            for i, protos in enumerate(clients_protos):
-                avg_proto += client_weights[i] * protos
-        else:
-            avg_proto = torch.zeros_like(clients_protos[0])
-            for protos in clients_protos:
-                avg_proto += protos
-            avg_proto /= len(clients_protos)
-
-        self.prototypes = avg_proto
+    # def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
+    #     return [self.channel.receive(self, client, "model").payload for client in eligible]
 
 
 class FedHyperProto(PersonalizedFL):
@@ -212,4 +187,4 @@ class FedHyperProto(PersonalizedFL):
         return FedHyperProtoServer
 
     def get_optimizer_class(self) -> Optimizer:
-        return Adam
+        return torch.optim.Adam

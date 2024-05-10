@@ -1,7 +1,7 @@
 from __future__ import annotations
 from torch import device
 from torch.nn import Module
-from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
 from typing import Callable
 import sys
@@ -40,7 +40,7 @@ class Client():
         optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
             the optimizer and the learning rate scheduler.
         optimizer (torch.optim.Optimizer): The optimizer.
-        scheduler (torch.optim.lr_scheduler._LRScheduler): The learning rate scheduler.
+        scheduler (torch.optim.lr_scheduler.LRScheduler): The learning rate scheduler.
         device (torch.device): The device where the client trains the model.
         server (Server): The server.
         channel (Channel): The channel to communicate with the server.
@@ -53,13 +53,11 @@ class Client():
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):
-        #  **additional_hyper_params):
 
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
             local_epochs=local_epochs
         )
-        # self.hyper_params.update(**additional_hyper_params)
 
         self._index: int = index
         self.train_set: FastTensorDataLoader = train_set
@@ -67,7 +65,7 @@ class Client():
         self.model: Module = None
         self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
         self.optimizer: Optimizer = None
-        self.scheduler: _LRScheduler = None
+        self.scheduler: LRScheduler = None
         self.device: device = GlobalSettings().get_device()
         self._server: Server = None
         self._channel: Channel = None
@@ -174,8 +172,9 @@ class Client():
         self._send_model()
 
     def evaluate(self) -> dict[str, float]:
-        """Evaluate the local model on the client's ``test_set``. If the test set is not set,
-        the method returns an empty dictionary.
+        """Evaluate the local model on the client's ``test_set``. If the test set is not set or the
+        client has not received the global model from the server, the method returns an empty
+        dictionary.
 
         Warning:
             To date, only classification tasks are supported.
@@ -235,7 +234,8 @@ class PFLClient(Client):
 
     def evaluate(self) -> dict[str, float]:
         """Evaluate the personalized model on the ``test_set``.
-        If the test set is not set, the method returns an empty dictionary.
+        If the test set is not set or the client has no personalized model, the method returns an
+        empty dictionary.
 
         Warning:
             To date, only classification tasks are supported.
@@ -244,7 +244,7 @@ class PFLClient(Client):
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
             the results.
         """
-        if self.test_set is not None:
+        if self.test_set is not None and self.personalized_model is not None:
             evaluator = ClassificationEval(self.hyper_params.loss_fn,
                                            self.personalized_model.output_size,
                                            self.device)

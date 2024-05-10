@@ -42,9 +42,9 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     # , **cfg.method.hyperparameters.net_args)
     model = get_model(mname=cfg.method.hyperparameters.model)
     sch_args = cfg.method.hyperparameters.client.scheduler
-    optimizer_cfg = OptimizerConfigurator(torch.optim.SGD,
-                                          **cfg.method.hyperparameters.client.optimizer,
-                                          scheduler_kwargs=sch_args)
+    cfg.method.hyperparameters.client.optimizer.name = torch.optim.SGD
+    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.method.hyperparameters.client.optimizer,
+                                          scheduler_cfg=sch_args)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
     evaluator = ClassificationEval(
@@ -114,9 +114,9 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     for i, (train_loader, test_loader) in progress:
         rich.print(f"Client [{i}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
-        optimizer_cfg = OptimizerConfigurator(torch.optim.SGD,
-                                              **hp.client.optimizer,
-                                              scheduler_kwargs=hp.client.scheduler)
+        hp.client.optimizer.name = torch.optim.SGD
+        optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
+                                              scheduler_cfg=hp.client.scheduler)
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(criterion,
                                        data_splitter.data_container.num_classes,

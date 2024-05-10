@@ -13,7 +13,8 @@ from . import ObserverSubject  # NOQA
 
 __all__ = [
     'Message',
-    'Channel'
+    'Channel',
+    'ChannelObserver'
 ]
 
 
@@ -55,7 +56,8 @@ class Message:
             return 0
 
     def clone(self) -> Message:
-        """Clone the message.
+        """Clone the message. The cloned message containes a deepcopy of the payload while
+        keeping the same message type and the same reference to the sender.
 
         Returns:
             Message: The cloned message.
