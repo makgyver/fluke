@@ -17,23 +17,24 @@ from .utils.model import batch_norm_to_group_norm  # NOQA
 
 
 class EncoderHeadNet(nn.Module):
-    """Encoder+Head Network (Base Class)
-
-    A network that has two subnetworks, one is meant to be the encoder that learns a latent
-    representation of the input and the other is meant to be the head that learns to classify.
-    The forward method should work as expected, but the `forward_encoder` and
-    `forward_head` methods should be used to get the output of the econer and head subnetworks,
-    respectively. If this is not possible, they fallback to the forward method (default behavior).
+    """Encoder (aka backbone) + Head Network [Base Class]
+    This type of networks are defined as two subnetworks, where one is meant to be the
+    encoder/backbone network that learns a latent representation of the input, and the head network
+    that is the classifier part of the model. The forward method should work as usual (i.e.,
+    :math:`g(f(\mathbf{x}))` where :math:`mathbf{x}` is the input, :math:`f` is the encoder and
+    :math:`g` is the head), but the ``forward_encoder`` and ``forward_head`` methods should be used
+    to get the output of the encoder and head subnetworks, respectively.
+    If this is not possible, they fallback to the forward method (default behavior).
 
     Attributes:
-        E (nn.Module): Encoder subnetwork.
-        D (nn.Module): Head subnetwork.
+        encoder (nn.Module): Encoder subnetwork.
+        head (nn.Module): Head subnetwork.
         output_size (int): Output size of the head subnetwork.
 
     Args:
         encoder (nn.Module): Encoder subnetwork.
         head (nn.Module): Head subnetwork.
-    """
+    """  # noqa: W605
 
     def __init__(self, encoder: nn.Module, head: nn.Module):
         super(EncoderHeadNet, self).__init__()
@@ -43,12 +44,20 @@ class EncoderHeadNet(nn.Module):
 
     @property
     def encoder(self) -> nn.Module:
-        """Return the encoder subnetwork"""
+        """Return the encoder subnetwork.
+
+        Returns:
+            nn.Module: Encoder subnetwork.
+        """
         return self._encoder
 
     @property
     def head(self) -> nn.Module:
-        """Return the global subnetwork"""
+        """Return the head subnetwork.
+
+        Returns:
+            nn.Module: head subnetwork.
+        """
         return self._head
 
     def forward_encoder(self, x: torch.Tensor) -> torch.Tensor:
@@ -772,7 +781,7 @@ class MNIST_2NN_GlobalE(GlobalLocalNet, MNIST_2NN):
 
 # FedNH: https://arxiv.org/abs/2212.02758 (CIFAR-10)
 class Conv2Cifar_E(nn.Module):
-    def __init__(self, output_size=10):
+    def __init__(self, output_size=100):
         super().__init__()
         self.output_size = output_size
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
@@ -791,7 +800,7 @@ class Conv2Cifar_E(nn.Module):
 
 
 class Conv2Cifar_D(nn.Module):
-    def __init__(self, input_size=10, num_classes=10):
+    def __init__(self, input_size=100, num_classes=10):
         super().__init__()
         self.input_size = input_size
         self.output_size = num_classes
@@ -803,7 +812,7 @@ class Conv2Cifar_D(nn.Module):
 
 
 class Conv2Cifar(EncoderHeadNet):
-    def __init__(self, embedding_size=10, num_classes=10):
+    def __init__(self, embedding_size=100, num_classes=10):
         super().__init__(Conv2Cifar_E(embedding_size),
                          Conv2Cifar_D(input_size=embedding_size,
                                       num_classes=num_classes))
