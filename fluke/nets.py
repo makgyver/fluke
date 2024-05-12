@@ -14,6 +14,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from .utils.model import batch_norm_to_group_norm  # NOQA
+from . import GlobalSettings  # NOQA
 
 
 class EncoderHeadNet(nn.Module):
@@ -72,7 +73,8 @@ class EncoderHeadNet(nn.Module):
         return self._encoder(x)
 
     def forward_head(self, z: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the head subnetwork.
+        """Forward pass through the head subnetwork. ``z`` is assumed to be the output of the
+        encoder subnetwork or an "equivalent" tensor.
 
         Args:
             z (torch.Tensor): Input tensor.
@@ -87,6 +89,16 @@ class EncoderHeadNet(nn.Module):
 
 
 class MNIST_2NN_E(nn.Module):
+    """Encoder for the :class:`MNIST_2NN` network.
+
+    Args:
+        hidden_size (tuple[int, int], optional): Size of the hidden layers. Defaults to (200, 200).
+
+    See Also:
+        - :class:`MNIST_2NN`
+        - :class:`MNIST_2NN_D`
+    """
+
     def __init__(self,
                  hidden_size: tuple[int, int] = (200, 200)):
         super(MNIST_2NN_E, self).__init__()
@@ -104,6 +116,18 @@ class MNIST_2NN_E(nn.Module):
 
 
 class MNIST_2NN_D(nn.Module):
+    """Head for the :class:`MNIST_2NN` network.
+
+    Args:
+        hidden_size (int, optional): Size of the hidden layer. Defaults to 200.
+        use_softmax (bool, optional): If True, the output is passed through a softmax layer,
+            otherwise, a sigmoid activation is used. Defaults to False.
+
+    See Also:
+        - :class:`MNIST_2NN`
+        - :class:`MNIST_2NN_E`
+    """
+
     def __init__(self,
                  hidden_size: int = 200,
                  use_softmax: bool = False):
@@ -124,22 +148,35 @@ class MNIST_2NN_D(nn.Module):
 # pFedMe: https://arxiv.org/pdf/2006.08848.pdf - hidden_size=[100,100], w/ softmax
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w - hidden_size=[200,100], w/o softmax
 class MNIST_2NN(EncoderHeadNet):
-    """Multi-layer Perceptron for MNIST.
-
-    2-layer neural network for MNIST classification first introduced in the paper
-    "Communication-Efficient Learning of Deep Networks from Decentralized Data" by
-    H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y Arcas, where
-    the hidden layers have 200 neurons each and the output layer with sigmoid activation.
+    """Multi-layer Perceptron for MNIST. This is a
+    2-layer neural network for MNIST classification first introduced in the [FedAvg]_ paper,
+    where the hidden layers have 200 neurons each and the output layer with sigmoid activation.
 
     Similar architectures are also used in other papers:
-    - SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf - `hidden_size=(200, 200)`
-    - pFedMe: https://arxiv.org/pdf/2006.08848.pdf - `hidden_size=(100, 100)` with softmax layer
-    - FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w - `hidden_size=(200, 100)`
+
+    - [SuPerFed]_: ``hidden_size=(200, 200)``, same as FedAvg;
+    - [pFedMe]_: ``hidden_size=(100, 100)`` with softmax on the output layer;
+    - [FedDyn]_: ``hidden_size=(200, 100)``.
 
     Args:
         hidden_size (tuple[int, int], optional): Size of the hidden layers. Defaults to (200, 200).
         softmax (bool, optional): If True, the output is passed through a softmax layer.
           Defaults to True.
+
+    See Also:
+        - :class:`MNIST_2NN_E`
+        - :class:`MNIST_2NN_D`
+
+    References:
+        .. [FedAvg] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y
+            Arcas. "Communication-Efficient Learning of Deep Networks from Decentralized Data".
+            In: AISTATS (2017).
+        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
+            Personalized Federated Learning. In: KDD (2022).
+        .. [pFedMe] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
+            Learning with Moreau Envelopes. In: NeurIPS (2020).
+        .. [FedDyn] S. Wang, T. Liu, and M. Hong. "FedDyn: A Dynamic Federated Learning Framework".
+            In: ICLR (2021).
     """
 
     def __init__(self,
@@ -152,6 +189,13 @@ class MNIST_2NN(EncoderHeadNet):
 
 
 class MNIST_CNN_E(nn.Module):
+    """Encoder for the :class:`MNIST_CNN` network.
+
+    See Also:
+        - :class:`MNIST_CNN`
+        - :class:`MNIST_CNN_D`
+    """
+
     def __init__(self):
         super(MNIST_CNN_E, self).__init__()
         self.output_size = 1024
@@ -167,6 +211,13 @@ class MNIST_CNN_E(nn.Module):
 
 
 class MNIST_CNN_D(nn.Module):
+    """Head for the :class:`MNIST_CNN` network.
+
+    See Also:
+        - :class:`MNIST_CNN`
+        - :class:`MNIST_CNN_E`
+    """
+
     def __init__(self):
         super(MNIST_CNN_D, self).__init__()
         self.output_size = 10
@@ -182,11 +233,36 @@ class MNIST_CNN_D(nn.Module):
 # SuPerFed - https://arxiv.org/pdf/2109.07628v3.pdf
 # works with 1 channel input - MNIST4D
 class MNIST_CNN(EncoderHeadNet):
+    """Convolutional Neural Network for MNIST. This is a simple CNN for MNIST classification
+    first introduced in the [FedAvg]_ paper, where the architecture consists of two convolutional
+    layers with 32 and 64 filters, respectively, followed by two fully connected layers with 512
+    and 10 neurons, respectively.
+
+    Very same architecture is also used in the [SuPerFed]_ paper.
+
+    References:
+        .. [FedAvg] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y
+            Arcas. "Communication-Efficient Learning of Deep Networks from Decentralized Data".
+            In: AISTATS (2017).
+        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
+            Personalized Federated Learning. In: KDD (2022).
+    """
+
     def __init__(self):
         super(MNIST_CNN, self).__init__(MNIST_CNN_E(), MNIST_CNN_D())
 
 
 class FedBN_CNN_E(nn.Module):
+    """Encoder for the :class:`FedBN_CNN` network.
+
+    Args:
+        channels (int, optional): Number of input channels. Defaults to 1.
+
+    See Also:
+        - :class:`FedBN_CNN`
+        - :class:`FedBN_CNN_D`
+    """
+
     def __init__(self, channels: int = 1):
         super(FedBN_CNN_E, self).__init__()
         self.output_size = 6272
@@ -212,6 +288,13 @@ class FedBN_CNN_E(nn.Module):
 
 
 class FedBN_CNN_D(nn.Module):
+    """Head for the :class:`FedBN_CNN` network.
+
+    See Also:
+        - :class:`FedBN_CNN`
+        - :class:`FedBN_CNN_E`
+    """
+
     def __init__(self):
         super(FedBN_CNN_D, self).__init__()
         self.output_size = 10
@@ -229,6 +312,26 @@ class FedBN_CNN_D(nn.Module):
 
 # FedBN: https://openreview.net/pdf?id=6YEQUn0QICG
 class FedBN_CNN(EncoderHeadNet):
+    """Convolutional Neural Network with Batch Normalization for CIFAR-10. This network
+    follows the architecture proposed in the [FedBN]_ paper, where the encoder consists of four
+    convolutional layers with 64, 64, 128, and 128 filters, respectively, and the head network
+    consists of three fully connected layers with 2048, 512, and 10 neurons, respectively.
+
+    Args:
+        channels (int, optional): Number of input channels. Defaults to 1.
+
+    Note:
+        In the original paper, the size of the last convolutional layer is erroneously reported.
+
+    See Also:
+        - :class:`FedBN_CNN_E`
+        - :class:`FedBN_CNN_D`
+
+    References:
+        .. [FedBN] Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN:
+            Federated Learning on Non-IID Features via Local Batch Normalization. In: ICLR (2021).
+    """
+
     def __init__(self, channels: int = 1):
         super(FedBN_CNN, self).__init__(FedBN_CNN_E(channels), FedBN_CNN_D())
 
@@ -236,6 +339,18 @@ class FedBN_CNN(EncoderHeadNet):
 # FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N (MNIST and FEMNIST)
 # Logistic Regression
 class MNIST_LR(nn.Module):
+    """Logistic Regression for MNIST. This is a simple logistic regression model for MNIST
+    classification used in the [FedProx]_ paper for both MNIST and FEMNIST datasets.
+
+    Args:
+        num_classes (int, optional): Number of classes, i.e., the output size. Defaults to 10.
+
+    References:
+        .. [FedProx] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and
+            Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
+            Learning Workshop. In: Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
+    """
+
     def __init__(self, num_classes: int = 10):
         super(MNIST_LR, self).__init__()
         self.output_size = num_classes
@@ -246,10 +361,10 @@ class MNIST_LR(nn.Module):
         return F.softmax(self.fc(x), dim=1)
 
 
-class ResidualBlock(nn.Module):
+class _ResidualBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, padding, stride):
-        super(ResidualBlock, self).__init__()
+        super(_ResidualBlock, self).__init__()
         self.conv_res1 = nn.Conv2d(in_channels=in_channels,
                                    out_channels=out_channels,
                                    kernel_size=kernel_size,
@@ -304,7 +419,7 @@ class ResNet9_E(nn.Module):
             nn.BatchNorm2d(num_features=128, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            ResidualBlock(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
+            _ResidualBlock(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
             nn.Conv2d(in_channels=128, out_channels=256,
                       kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
@@ -315,7 +430,7 @@ class ResNet9_E(nn.Module):
             nn.BatchNorm2d(num_features=256, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            ResidualBlock(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
+            _ResidualBlock(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
@@ -344,6 +459,13 @@ class ResNet9(EncoderHeadNet):
 
 # DITTO: https://arxiv.org/pdf/2012.04221.pdf (FEMNIST)
 class FEMNIST_CNN_E(nn.Module):
+    """Encoder for the :class:`FEMNIST_CNN` network.
+
+    See Also:
+        - :class:`FEMNIST_CNN`
+        - :class:`FEMNIST_CNN_D`
+    """
+
     def __init__(self):
         super(FEMNIST_CNN_E, self).__init__()
         self.output_size = 3136
@@ -359,6 +481,13 @@ class FEMNIST_CNN_E(nn.Module):
 
 
 class FEMNIST_CNN_D(nn.Module):
+    """Head for the :class:`FEMNIST_CNN` network.
+
+    See Also:
+        - :class:`FEMNIST_CNN`
+        - :class:`FEMNIST_CNN_E`
+    """
+
     def __init__(self):
         super(FEMNIST_CNN_D, self).__init__()
         self.output_size = 62
@@ -372,6 +501,17 @@ class FEMNIST_CNN_D(nn.Module):
 
 
 class FEMNIST_CNN(EncoderHeadNet):
+    """Convolutional Neural Network for FEMNIST. This is a simple CNN for FEMNIST classification
+    first introduced in the [DITTO]_ paper, where the architecture consists of two convolutional
+    layers with 32 and 64 filters, respectively, followed by two fully connected layers with 1024
+    and 62 neurons, respectively. Each convolutional layer is followed by a ReLU activation and a
+    max pooling layer.
+
+    References:
+        .. [DITTO] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia Smith. Ditto: Fair and Robust
+        Federated Learning Through Personalization. In: ICML (2021).
+    """
+
     def __init__(self):
         super(FEMNIST_CNN, self).__init__(FEMNIST_CNN_E(), FEMNIST_CNN_D())
 
@@ -460,30 +600,23 @@ class VGG9(EncoderHeadNet):
         )
 
 
+# TODO: check if this is the correct architecture
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
 class FedavgCNN_E(nn.Module):
     def __init__(self):
         super().__init__()
         self.output_size = 4096
-
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        # self.norm1 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
-
         self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding=2)
-        # self.norm2 = nn.LocalResponseNorm(4, alpha=0.001 / 9.0, beta=0.75)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
     def forward(self, x) -> torch.Tensor:
         x = F.relu(self.conv1(x))
         x = self.pool1(x)
-        # x = self.norm1(x)
-
         x = F.relu(self.conv2(x))
-        # x = self.norm2(x)
         x = self.pool2(x)
-
         x = x.view(x.size(0), -1)
         return x
 
@@ -599,6 +732,12 @@ class LeNet5(EncoderHeadNet):
 
 # SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (Shakespeare)
 class Shakespeare_LSTM_E(nn.Module):
+    """Encoder for the :class:`Shakespeare_LSTM` network.
+
+    See Also:
+        - :class:`Shakespeare_LSTM`
+        - :class:`Shakespeare_LSTM_D`
+    """
 
     def __init__(self):
         super(Shakespeare_LSTM_E, self).__init__()
@@ -619,20 +758,40 @@ class Shakespeare_LSTM_E(nn.Module):
 
 
 class Shakespeare_LSTM_D(nn.Module):
+    """Head for the :class:`Shakespeare_LSTM` network.
 
-    def __init__(self, seed: int):
+    See Also:
+        - :class:`Shakespeare_LSTM`
+        - :class:`Shakespeare_LSTM_E`
+    """
+
+    def __init__(self):
         super(Shakespeare_LSTM_D, self).__init__()
         self.output_size = len(string.printable)
-        self.classifier = VGG9_D._linear_layer(256, self.output_size, bias=False, seed=seed)
+        self.classifier = VGG9_D._linear_layer(
+            256, self.output_size, bias=False, seed=GlobalSettings.get_seed())
 
     def forward(self, x) -> torch.Tensor:
         return self.classifier(x)
 
 
 class Shakespeare_LSTM(EncoderHeadNet):
+    """LSTM for Shakespeare. This is an LSTM for Shakespeare classification first introduced
+    in the [SuPerFed]_ paper, where the architecture consists of an embedding layer with 8
+    dimensions, followed by a two-layer LSTM with 256 hidden units, and a linear layer with
+    256 neurons.
 
-    def __init__(self, seed: int = 42):
-        super(Shakespeare_LSTM, self).__init__(Shakespeare_LSTM_E(), Shakespeare_LSTM_D(seed))
+    See Also:
+        - :class:`Shakespeare_LSTM_E`
+        - :class:`Shakespeare_LSTM_D`
+
+    References:
+        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
+            Personalized Federated Learning. In: KDD (2022).
+    """
+
+    def __init__(self):
+        super(Shakespeare_LSTM, self).__init__(Shakespeare_LSTM_E(), Shakespeare_LSTM_D())
 
 
 class MoonCNN_E(nn.Module):
@@ -718,7 +877,6 @@ class SimpleCNN(EncoderHeadNet):
 
 class GlobalLocalNet(nn.Module):
     """Global-Local Network (Abstract Class)
-
     A network that has two subnetworks, one is meant to be shared (global) and one is meant to be
     personalized (local). The forward method should work as expected, but the forward_local and
     forward_global methods should be used to get the output of the local and global subnetworks,
