@@ -50,6 +50,12 @@ class ClassificationEval(Evaluator):
     to the provided loss function ``loss_fn``. Metrics are computed both in a micro and macro
     fashion.
 
+    Args:
+        loss_fn (Callable): The loss function to use for evaluation.
+        n_classes (int): The number of classes.
+        device (torch.device, optional): The device where the evaluation is performed.
+            If ``None``, the device is the one set in the ``GlobalSettings``.
+
     Attributes:
         n_classes (int): The number of classes.
         device (Optional[torch.device]): The device where the evaluation is performed. If `None`,
@@ -60,14 +66,6 @@ class ClassificationEval(Evaluator):
                  loss_fn: Callable,
                  n_classes: int,
                  device: Optional[torch.device] = None):
-        """Initialize the evaluator.
-
-        Args:
-            loss_fn (Callable): The loss function to use for evaluation.
-            n_classes (int): The number of classes.
-            device (torch.device, optional): The device where the evaluation is performed.
-                If ``None``, the device is the one set in the ``GlobalSettings``.
-        """
         super().__init__(loss_fn)
         self.n_classes: int = n_classes
         self.device: torch.device = device if device is not None else GlobalSettings().get_device()

@@ -116,6 +116,14 @@ class Channel(ObserverSubject):
         self._buffer: dict[Any, list[Message]] = defaultdict(list)
 
     def __getitem__(self, mbox: Any) -> list[Message]:
+        """Get the messages of the given receiver.
+
+        Args:
+            mbox (Any): The receiver.
+
+        Returns:
+            list[Message]: The list of messages sent to the receiver.
+        """
         return self._buffer[mbox]
 
     @property
