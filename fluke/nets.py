@@ -406,6 +406,13 @@ class _ResidualBlock(nn.Module):
 
 
 class ResNet9_E(nn.Module):
+    """Encoder for the :class:`ResNet9` network.
+
+    See Also:
+        - :class:`ResNet9`
+        - :class:`ResNet9_D`
+    """
+
     def __init__(self):
         super(ResNet9_E, self).__init__()
         self.output_size = 1024
@@ -441,6 +448,13 @@ class ResNet9_E(nn.Module):
 
 
 class ResNet9_D(nn.Module):
+    """Head for the :class:`ResNet9` network.
+
+    See Also:
+        - :class:`ResNet9`
+        - :class:`ResNet9_E`
+    """
+
     def __init__(self):
         super(ResNet9_D, self).__init__()
         self.output_size = 100
@@ -453,6 +467,20 @@ class ResNet9_D(nn.Module):
 
 # SuPerFed - https://arxiv.org/pdf/2001.01523.pdf (CIFAR-100)
 class ResNet9(EncoderHeadNet):
+    """ResNet-9 network for CIFAR-100 classification. This network follows the architecture proposed
+    in the [SuPerFed]_ paper, which fllows the standard ResNet-9. The encoder consists of all the
+    layers but the last fully connected layer, and thus the head network consists of the last fully
+    connected layer.
+
+    See Also:
+        - :class:`ResNet9_E`
+        - :class:`ResNet9_D`
+
+    References:
+        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
+            Personalized Federated Learning. In: KDD (2022).
+    """
+
     def __init__(self):
         super(ResNet9, self).__init__(ResNet9_E(), ResNet9_D())
 
@@ -517,7 +545,19 @@ class FEMNIST_CNN(EncoderHeadNet):
 
 
 class VGG9_E(nn.Module):
+    """Encoder for the :class:`VGG9` network.
 
+    Args:
+        input_size (int, optional): Size of the input tensor. Defaults to 784.
+        output_size (int, optional): Number of output classes. Defaults to 62.
+        seed (int, optional): Seed used for weight initialization. Defaults to 98765.
+
+    See Also:
+        - :class:`VGG9`
+        - :class:`VGG9_D`
+    """
+
+    @classmethod
     def _conv_layer(self,
                     in_channels,
                     out_channels,
@@ -539,26 +579,26 @@ class VGG9_E(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.encoder = nn.Sequential(
-            self._conv_layer(in_channels=1, out_channels=16, kernel_size=3,
-                             padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(in_channels=1, out_channels=16, kernel_size=3,
+                               padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            self._conv_layer(in_channels=16, out_channels=32, kernel_size=3,
-                             padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(in_channels=16, out_channels=32, kernel_size=3,
+                               padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            self._conv_layer(in_channels=32, out_channels=64, kernel_size=3,
-                             padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(in_channels=32, out_channels=64, kernel_size=3,
+                               padding=1, bias=False, seed=seed),
             nn.ReLU(True),
-            self._conv_layer(in_channels=64, out_channels=128, kernel_size=3,
-                             padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(in_channels=64, out_channels=128, kernel_size=3,
+                               padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            self._conv_layer(in_channels=128, out_channels=256,
-                             kernel_size=3, padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(in_channels=128, out_channels=256,
+                               kernel_size=3, padding=1, bias=False, seed=seed),
             nn.ReLU(True),
-            self._conv_layer(in_channels=256, out_channels=512,
-                             kernel_size=3, padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(in_channels=256, out_channels=512,
+                               kernel_size=3, padding=1, bias=False, seed=seed),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Flatten()
@@ -569,7 +609,17 @@ class VGG9_E(nn.Module):
 
 
 class VGG9_D(nn.Module):
+    """Head for the :class:`VGG9` network.
 
+    Args:
+        input_size (int, optional): Size of the input tensor. Defaults to 512.
+        output_size (int, optional): Number of output classes. Defaults to 62.
+        seed (int, optional): Seed used for weight initialization. Defaults to 98765.
+
+    See Also:
+        - :class:`VGG9`
+        - :class:`VGG9_E`
+    """
     @classmethod
     def _linear_layer(cls, in_features, out_features, bias=False, seed=0):
         fc = nn.Linear(in_features, out_features, bias=bias)
@@ -592,6 +642,24 @@ class VGG9_D(nn.Module):
 
 # SuPerFed: https://arxiv.org/pdf/2109.07628v3.pdf (FEMNIST)
 class VGG9(EncoderHeadNet):
+    """VGG-9 network for FEMNIST classification. This network follows the architecture proposed in
+    the [SuPerFed]_ paper which follows the standard VGG-9 architecture. In this implementation
+    all convolutional layers are considered as the encoder and the fully connected layers are
+    considered as the head network.
+
+    Args:
+        input_size (int, optional): Size of the input tensor. Defaults to 784.
+        output_size (int, optional): Number of output classes. Defaults to 62.
+        seed (int, optional): Seed used for weight initialization. Defaults to 98765.
+
+    See Also:
+        - :class:`VGG9_E`
+        - :class:`VGG9_D`
+
+    References:
+        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
+            Personalized Federated Learning. In: KDD (2022).
+    """
 
     def __init__(self, input_size: int = 784, output_size: int = 62, seed: int = 98765):
         super(VGG9, self).__init__(
@@ -644,6 +712,16 @@ class FedavgCNN(EncoderHeadNet):
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
 class ResNet18(nn.Module):
+    """ResNet-18 network as defined in the torchvision library.
+
+    Note:
+        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        implement the :class:`EncoderHeadNet` interface.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+    """
+
     def __init__(self, output_size=10):
         super(ResNet18, self).__init__()
         self.output_size = output_size
@@ -654,6 +732,17 @@ class ResNet18(nn.Module):
 
 
 class ResNet18GN(ResNet18):
+    """ResNet-18 network as defined in the torchvision library but with Group Normalization layers
+    instead of Batch Normalization.
+
+    Note:
+        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        implement the :class:`EncoderHeadNet` interface.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+    """
+
     def __init__(self, output_size=10):
         super(ResNet18GN, self).__init__(output_size)
         batch_norm_to_group_norm(self)
@@ -661,6 +750,16 @@ class ResNet18GN(ResNet18):
 
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (CIFAR-100)
 class ResNet34(nn.Module):
+    """ResNet-34 network as defined in the torchvision library.
+
+    Note:
+        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        implement the :class:`EncoderHeadNet` interface.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 100.
+    """
+
     def __init__(self, output_size=100):
         super(ResNet34, self).__init__()
         self.output_size = output_size
@@ -672,6 +771,16 @@ class ResNet34(nn.Module):
 
 # MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR-100)
 class ResNet50(nn.Module):
+    """ResNet-50 network as defined in the torchvision library.
+
+    Note:
+        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        implement the :class:`EncoderHeadNet` interface.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 100.
+    """
+
     def __init__(self, output_size=100):
         super(ResNet50, self).__init__()
         self.output_size = output_size
@@ -682,7 +791,14 @@ class ResNet50(nn.Module):
 
 
 class LeNet5_E(nn.Module):
+    """Encoder for the :class:`LeNet5` network.
+
+    See Also:
+        - :class:`LeNet5`
+        - :class:`LeNet5_D`
+    """
     # Expected input size: 32x32x3
+
     def __init__(self):
         super(LeNet5_E, self).__init__()
         self.output_size = 400
@@ -705,6 +821,16 @@ class LeNet5_E(nn.Module):
 
 
 class LeNet5_D(nn.Module):
+    """Head for the :class:`LeNet5` network.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 100.
+
+    See Also:
+        - :class:`LeNet5`
+        - :class:`LeNet5_E`
+    """
+
     def __init__(self, output_size=100):
         super(LeNet5_D, self).__init__()
         self.output_size = output_size
@@ -726,6 +852,28 @@ class LeNet5_D(nn.Module):
 # FedRep: https://arxiv.org/pdf/2102.07078.pdf (CIFAR-100 and CIFAR-10)
 # LG-FedAvg: https://arxiv.org/pdf/2001.01523.pdf
 class LeNet5(EncoderHeadNet):
+    """LeNet-5 for CIFAR. This is a LeNet-5 for CIFAR-10/100 classification as described in the
+    [FedRep]_ paper, where the architecture consists of two convolutional layers with 6 and 16
+    filters, respectively, followed by two fully connected layers with 120 and 84 neurons,
+    respectively, and the output layer with 10 neurons. The activation functions are ReLU. The
+    architecture is also used in the [LG-FedAvg]_ paper.
+
+    See Also:
+        - :class:`LeNet5_E`
+        - :class:`LeNet5_D`
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 100.
+
+    References:
+        .. [FedRep] Liam Collins, Hamed Hassani, Aryan Mokhtari, and Sanjay Shakkottai.
+            Exploiting shared representations for personalized federated learning. In: ICML (2021).
+        .. [LG-FedAvg] Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach,
+            David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally:
+            Federated Learning with Local and Global Representations.
+            In: arXiv https://arxiv.org/abs/2001.01523 (2020).
+    """
+
     def __init__(self, output_size=100):
         super(LeNet5, self).__init__(LeNet5_E(), LeNet5_D(output_size))
 
@@ -795,6 +943,13 @@ class Shakespeare_LSTM(EncoderHeadNet):
 
 
 class MoonCNN_E(nn.Module):
+    """Encoder for the :class:`MoonCNN` network.
+
+    See Also:
+        - :class:`MoonCNN`
+        - :class:`MoonCNN_D`
+    """
+
     # Expected input size: 32x32x3
     def __init__(self):
         super(MoonCNN_E, self).__init__()
@@ -813,6 +968,13 @@ class MoonCNN_E(nn.Module):
 
 
 class MoonCNN_D(nn.Module):
+    """Head for the :class:`MoonCNN` network.
+
+    See Also:
+        - :class:`MoonCNN`
+        - :class:`MoonCNN_E`
+    """
+
     def __init__(self):
         super(MoonCNN_D, self).__init__()
         self.output_size = 10
@@ -835,6 +997,21 @@ class MoonCNN_D(nn.Module):
 
 # MOON: https://arxiv.org/pdf/2103.16257.pdf (CIFAR10)
 class MoonCNN(EncoderHeadNet):
+    """Convolutional Neural Network for CIFAR-10. This is a CNN for CIFAR-10 classification first
+    described in the [MOON]_ paper, where the architecture consists of two convolutional layers with
+    6 and 16 filters, respectively, followed by two fully connected layers with 120 and 84 neurons,
+    respectively, and a projection head with 256 neurons followed by the output layer with 10
+    neurons.
+
+    See Also:
+        - :class:`MoonCNN_E`
+        - :class:`MoonCNN_D`
+
+    References:
+        .. [MOON] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
+            In: CVPR (2021).
+    """
+
     def __init__(self):
         super(MoonCNN, self).__init__(MoonCNN_E(), MoonCNN_D())
 
