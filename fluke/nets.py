@@ -839,40 +839,40 @@ class MoonCNN(EncoderHeadNet):
         super(MoonCNN, self).__init__(MoonCNN_E(), MoonCNN_D())
 
 
-class SimpleCNN_E(nn.Module):
-    # Expected input size: 32x32x3
-    def __init__(self, hidden_dims=(100, 100), output_dim=10):
-        super(SimpleCNN_E, self).__init__()
-        self.output_size = 400
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
+# class SimpleCNN_E(nn.Module):
+#     # Expected input size: 32x32x3
+#     def __init__(self, hidden_dims=(100, 100), output_dim=10):
+#         super(SimpleCNN_E, self).__init__()
+#         self.output_size = 400
+#         self.conv1 = nn.Conv2d(3, 6, 5)
+#         self.pool = nn.MaxPool2d(2, 2)
+#         self.conv2 = nn.Conv2d(6, 16, 5)
 
-    def forward(self, x) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        return x
-
-
-class SimpleCNN_D(nn.Module):
-    def __init__(self, hidden_dims=(100, 100), output_dim=10):
-        super(SimpleCNN_D, self).__init__()
-        self.output_size = output_dim
-        self.fc1 = nn.Linear(16*5*5, hidden_dims[0])
-        self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
-        self.fc3 = nn.Linear(hidden_dims[1], output_dim)
-
-    def forward(self, x) -> torch.Tensor:
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+#     def forward(self, x) -> torch.Tensor:
+#         x = self.pool(F.relu(self.conv1(x)))
+#         x = self.pool(F.relu(self.conv2(x)))
+#         x = x.view(-1, 16 * 5 * 5)
+#         return x
 
 
-class SimpleCNN(EncoderHeadNet):
-    def __init__(self, hidden_dims=(100, 100), output_dim=10):
-        super(SimpleCNN, self).__init__(SimpleCNN_E(), SimpleCNN_D(hidden_dims, output_dim))
+# class SimpleCNN_D(nn.Module):
+#     def __init__(self, hidden_dims=(100, 100), output_dim=10):
+#         super(SimpleCNN_D, self).__init__()
+#         self.output_size = output_dim
+#         self.fc1 = nn.Linear(16*5*5, hidden_dims[0])
+#         self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
+#         self.fc3 = nn.Linear(hidden_dims[1], output_dim)
+
+#     def forward(self, x) -> torch.Tensor:
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
+
+
+# class SimpleCNN(EncoderHeadNet):
+#     def __init__(self, hidden_dims=(100, 100), output_dim=10):
+#         super(SimpleCNN, self).__init__(SimpleCNN_E(), SimpleCNN_D(hidden_dims, output_dim))
 
 
 class GlobalLocalNet(nn.Module):
@@ -885,12 +885,20 @@ class GlobalLocalNet(nn.Module):
 
     @abstractmethod
     def get_local(self) -> nn.Module:
-        """Return the local subnetwork"""
+        """Return the local subnetwork.
+
+        Returns:
+            nn.Module: The local subnetwork
+        """
         pass
 
     @abstractmethod
     def get_global(self) -> nn.Module:
-        """Return the global subnetwork"""
+        """Return the global subnetwork.
+
+        Returns:
+            nn.Module: The global subnetwork
+        """
         pass
 
     def forward_local(self, x) -> torch.Tensor:
@@ -900,45 +908,87 @@ class GlobalLocalNet(nn.Module):
         return self.get_global()(x)
 
 
+class EncoderGlobalHeadLocalNet(GlobalLocalNet):
+    """This implementation of the Global-Local Network (:class:`GlobalLocalNet`) is meant to be used
+    with the Encoder-Head architecture. The global subnetwork is the encoder and the local
+    subnetwork is the head.
+
+    Args:
+        model (EncoderHeadNet): The federated model to use.
+
+    See Also:
+        - :class:`EncoderHeadNet`
+        - :class:`GlobalLocalNet`
+        - :class:`HeadGlobalEncoderLocalNet`
+    """
+
+    def __init__(self, model: EncoderHeadNet):
+        assert isinstance(model, EncoderHeadNet), "model must be an EncoderHeadNet."
+        super(HeadGlobalEncoderLocalNet, self).__init__()
+        self.model = model
+
+    def get_local(self) -> nn.Module:
+        return self.model.head
+
+    def get_global(self) -> nn.Module:
+        return self.model.encoder
+
+
+class HeadGlobalEncoderLocalNet(GlobalLocalNet):
+    """This implementation of the Global-Local Network (:class:`GlobalLocalNet`) is meant to be used
+    with the Encoder-Head architecture. The global subnetwork is the head and the local subnetwork
+    is the encoder.
+
+    Args:
+        model (EncoderHeadNet): The federated model to use.
+
+    See Also:
+        - :class:`EncoderHeadNet`
+        - :class:`GlobalLocalNet`
+        - :class:`EncoderGlobalHeadLocalNet`
+    """
+
+    def __init__(self, model: EncoderHeadNet):
+        assert isinstance(model, EncoderHeadNet), "model must be an EncoderHeadNet."
+        super(HeadGlobalEncoderLocalNet, self).__init__()
+        self.model = model
+
+    def get_local(self) -> nn.Module:
+        return self.model.encoder
+
+    def get_global(self) -> nn.Module:
+        return self.model.head
+
+
 # FedPer: https://arxiv.org/pdf/1912.00818.pdf (FEMNIST - meant to be used by FedPer)
-class FedPer_VGG9(GlobalLocalNet, VGG9):
-
-    def get_local(self) -> nn.Module:
-        return self._head
-
-    def get_global(self) -> nn.Module:
-        return self._encoder
+# class FedPer_VGG9(EncoderGlobalHeadLocalNet, VGG9):
+#     pass
 
 
-class LG_FedAvg_VGG9(GlobalLocalNet, VGG9):
-
-    def get_local(self) -> nn.Module:
-        return self._encoder
-
-    def get_global(self) -> nn.Module:
-        return self._head
+# class LG_FedAvg_VGG9(HeadGlobalEncoderLocalNet, VGG9):
+#     pass
 
 
-class MNIST_2NN_GlobalD(GlobalLocalNet, MNIST_2NN):
-
-    def get_local(self) -> nn.Module:
-        return self._encoder
-
-    def get_global(self) -> nn.Module:
-        return self._head
+# class MNIST_2NN_GlobalD(HeadGlobalEncoderLocalNet, MNIST_2NN):
+#     pass
 
 
-class MNIST_2NN_GlobalE(GlobalLocalNet, MNIST_2NN):
-
-    def get_local(self) -> nn.Module:
-        return self._head
-
-    def get_global(self) -> nn.Module:
-        return self._encoder
+# class MNIST_2NN_GlobalE(EncoderGlobalHeadLocalNet, MNIST_2NN):
+#     pass
 
 
 # FedNH: https://arxiv.org/abs/2212.02758 (CIFAR-10)
-class Conv2Cifar_E(nn.Module):
+class CifarConv2_E(nn.Module):
+    """Encoder for the :class:`CifarConv2` network.
+
+    Args:
+        output_size (int, optional): Size of the output, i.e., the embedding size. Defaults to 100.
+
+    See Also:
+        - :class:`CifarConv2`
+        - :class:`CifarConv2_D`
+    """
+
     def __init__(self, output_size=100):
         super().__init__()
         self.output_size = output_size
@@ -957,7 +1007,18 @@ class Conv2Cifar_E(nn.Module):
         return x
 
 
-class Conv2Cifar_D(nn.Module):
+class CifarConv2_D(nn.Module):
+    """Head for the :class:`CifarConv2` network.
+
+    Args:
+        input_size (int, optional): Size of the input. Defaults to 100.
+        num_classes (int, optional): Number of classes. Defaults to 10.
+
+    See Also:
+        - :class:`CifarConv2`
+        - :class:`CifarConv2_E`
+    """
+
     def __init__(self, input_size=100, num_classes=10):
         super().__init__()
         self.input_size = input_size
@@ -969,8 +1030,29 @@ class Conv2Cifar_D(nn.Module):
         return logits
 
 
-class Conv2Cifar(EncoderHeadNet):
+class CifarConv2(EncoderHeadNet):
+    """Convolutional Neural Network for CIFAR-10. This is a CNN for CIFAR-10 classification
+    as described in the [FedNH]_ paper, where the architecture consists of two convolutional
+    layers with 64 filters, followed by two fully connected layers with 384 and 100 neurons,
+    respectively. The convolutional layers are followed by ReLU activations and max pooling.
+    The last classification layer is a linear layer with 10 neurons.
+
+    Args:
+        embedding_size (int, optional): Size of the embedding after the second linear layer.
+            Defaults to 100.
+        num_classes (int, optional): Number of classes. Defaults to 10.
+
+    See Also:
+        - :class:`CifarConv2_E`
+        - :class:`CifarConv2_D`
+
+    References:
+        .. [FedNH] Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu.
+            Tackling Data Heterogeneity in Federated Learning with Class Prototypes.
+            In: AAAI (2023).
+    """
+
     def __init__(self, embedding_size=100, num_classes=10):
-        super().__init__(Conv2Cifar_E(embedding_size),
-                         Conv2Cifar_D(input_size=embedding_size,
+        super().__init__(CifarConv2_E(embedding_size),
+                         CifarConv2_D(input_size=embedding_size,
                                       num_classes=num_classes))

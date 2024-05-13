@@ -413,7 +413,7 @@ def set_lambda_model(model: MMMixin, lam: float, layerwise: bool = False) -> Non
 
     Warning:
         This function performs an inplace operation on the model, and
-        it assumes that the model has been built using the `MMMixin` classes.
+        it assumes that the model has been built using the :class:`MMMixin` classes.
 
     Args:
         model (torch.nn.Module): model
@@ -434,7 +434,7 @@ def get_local_model_dict(model: MMMixin) -> OrderedDict:
     Returns:
         OrderedDict: the local model state dictionary.
     """
-    return OrderedDict({k.replace("_local", ""): v
+    return OrderedDict({k.replace("_local", ""): deepcopy(v)
                         for k, v in model.state_dict().items() if "_local" in k})
 
 
@@ -447,7 +447,7 @@ def get_global_model_dict(model: MMMixin) -> OrderedDict:
     Returns:
         OrderedDict: the global model state dictionary.
     """
-    return OrderedDict({k: v for k, v in model.state_dict().items() if "_local" not in k})
+    return OrderedDict({k: deepcopy(v) for k, v in model.state_dict().items() if "_local" not in k})
 
 
 def diff_model(model_dict1: dict, model_dict2: dict):

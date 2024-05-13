@@ -12,6 +12,7 @@ from ..client import PFLClient  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..server import Server  # NOQA
 from ..comm import Message  # NOQA
+from ..nets import EncoderHeadNet, HeadGlobalEncoderLocalNet  # NOQA
 
 
 # The implementation is almost identical to FedPerClient
@@ -21,14 +22,14 @@ class LGFedAVGClient(PFLClient):
 
     def __init__(self,
                  index: int,
-                 model: Module,
+                 model: EncoderHeadNet,
                  train_set: FastTensorDataLoader,
                  test_set: FastTensorDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: Callable[..., Any],  # not used because fixed to CrossEntropyLoss
                  local_epochs: int = 3):
-        loss_fn = CrossEntropyLoss()
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, HeadGlobalEncoderLocalNet(model),
+                         train_set, test_set, optimizer_cfg, CrossEntropyLoss(), local_epochs)
 
     def _send_model(self):
         self.channel.send(Message(self.model.get_global(), "model", self), self.server)
