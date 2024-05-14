@@ -444,6 +444,27 @@ def get_full_classname(classtype: type) -> str:
 
     Returns:
         str: The fully qualified name of the class.
+
+    Example:
+        Let ``A`` be a class defined in the module ``fluke.utils``
+
+        .. code-block:: python
+
+            # This is the content of the file fluke/utils.py
+            class A:
+                pass
+
+            get_full_classname(A) # 'fluke.utils.A'
+
+        If the class is defined in the ``__main__`` module, then:
+
+        .. code-block:: python
+
+            if __name__ == "__main__":
+                class B:
+                    pass
+
+                get_full_classname(B) # '__main__.B'
     """
     return f"{classtype.__module__}.{classtype.__name__}"
 
@@ -478,7 +499,8 @@ def get_scheduler(sname: str) -> type[LRScheduler]:
 
 
 def clear_cache(ipc: bool = False):
-    """Clear the CUDA cache.
+    """Clear the CUDA cache. This function should be used to free the GPU memory after the training
+    process has ended. It is usually used after the local training of the clients.
 
     Args:
         ipc (bool, optional): Whether to force collecting GPU memory after it has been released by

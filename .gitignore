@@ -9,7 +9,8 @@ wandb
 *.mat
 *.gz
 data/*
-docs/*
+docs/_build
+docs/_tags
 .flake8
 test/.coverage
 .coverage
