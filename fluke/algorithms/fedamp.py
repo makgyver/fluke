@@ -8,7 +8,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
 from . import PersonalizedFL  # NOQA
@@ -19,8 +19,8 @@ class FedAMPClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -76,7 +76,7 @@ class FedAMPServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  sigma: float = 0.1,

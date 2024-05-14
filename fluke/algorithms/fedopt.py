@@ -8,7 +8,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
@@ -26,7 +26,7 @@ class FedOptMode(Enum):
 class FedOptServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  mode: str = "fedadam",

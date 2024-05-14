@@ -9,7 +9,7 @@ from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
 from ..nets import EncoderHeadNet, EncoderGlobalHeadLocalNet  # NOQA
 
@@ -20,8 +20,8 @@ class FedRepClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: EncoderHeadNet,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
@@ -96,7 +96,7 @@ class FedRepServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastTensorDataLoader,  # test_data is not used
+                 test_data: FastDataLoader,  # test_data is not used
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):

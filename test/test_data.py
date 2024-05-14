@@ -7,7 +7,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataContainer, FastTensorDataLoader, DataSplitter, DistributionEnum  # NOQA
+from fluke.data import DataContainer, FastDataLoader, DataSplitter, DistributionEnum  # NOQA
 from fluke.data.datasets import DatasetsEnum  # NOQA
 from fluke import DDict  # NOQA
 
@@ -35,13 +35,13 @@ def test_container():
 
 
 def test_ftdl():
-    loader = FastTensorDataLoader(torch.rand(100, 20),
-                                  torch.randint(0, 10, (100,)),
-                                  num_labels=10,
-                                  batch_size=10,
-                                  shuffle=True,
-                                  percentage=1,
-                                  skip_singleton=True)
+    loader = FastDataLoader(torch.rand(100, 20),
+                            torch.randint(0, 10, (100,)),
+                            num_labels=10,
+                            batch_size=10,
+                            shuffle=True,
+                            percentage=1,
+                            skip_singleton=True)
 
     assert len(loader) == 10
 
@@ -77,13 +77,13 @@ def test_ftdl():
     with pytest.raises(ValueError):
         loader.set_sample_size(1.1)
 
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
-                                  torch.LongTensor([0, 1]),
-                                  num_labels=10,
-                                  batch_size=1,
-                                  shuffle=False,
-                                  percentage=1,
-                                  skip_singleton=True)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                            torch.LongTensor([0, 1]),
+                            num_labels=10,
+                            batch_size=1,
+                            shuffle=False,
+                            percentage=1,
+                            skip_singleton=True)
 
     for X, y in loader:
         assert X == torch.FloatTensor([[1, 2, 3]])
@@ -95,14 +95,14 @@ def test_ftdl():
         assert X == torch.FloatTensor([[4, 5, 6]]) or X == torch.FloatTensor([[1, 2, 3]])
         assert y == torch.tensor([1]) or y == torch.tensor([0])
 
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
-                                  torch.LongTensor([0, 1]),
-                                  num_labels=10,
-                                  batch_size=1,
-                                  shuffle=False,
-                                  percentage=1,
-                                  skip_singleton=False,
-                                  single_batch=True)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                            torch.LongTensor([0, 1]),
+                            num_labels=10,
+                            batch_size=1,
+                            shuffle=False,
+                            percentage=1,
+                            skip_singleton=False,
+                            single_batch=True)
 
     cnt = 0
     for X, y in loader:
@@ -110,22 +110,22 @@ def test_ftdl():
     assert cnt == 1
 
     with pytest.raises(AssertionError):
-        loader = FastTensorDataLoader(torch.rand(100, 20),
-                                      torch.randint(0, 10, (101,)),
-                                      num_labels=10,
-                                      batch_size=10,
-                                      shuffle=True,
-                                      percentage=1,
-                                      skip_singleton=True)
+        loader = FastDataLoader(torch.rand(100, 20),
+                                torch.randint(0, 10, (101,)),
+                                num_labels=10,
+                                batch_size=10,
+                                shuffle=True,
+                                percentage=1,
+                                skip_singleton=True)
 
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
-                                  torch.LongTensor([0, 1]),
-                                  num_labels=10,
-                                  batch_size=0,
-                                  shuffle=False,
-                                  percentage=1,
-                                  skip_singleton=False,
-                                  single_batch=False)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                            torch.LongTensor([0, 1]),
+                            num_labels=10,
+                            batch_size=0,
+                            shuffle=False,
+                            percentage=1,
+                            skip_singleton=False,
+                            single_batch=False)
 
     assert loader.batch_size == 2
 
@@ -157,14 +157,14 @@ def test_splitter():
 
     assert len(ctr) == 10
     assert len(cte) == 10
-    assert isinstance(ctr[0], FastTensorDataLoader)
+    assert isinstance(ctr[0], FastDataLoader)
     x, y = next(iter(ctr[0]))
     assert x.shape == torch.Size([10, 28, 28])
     assert y.shape == torch.Size([10])
     x, y = next(iter(cte[0]))
     assert x.shape == torch.Size([10, 28, 28])
     assert y.shape == torch.Size([10])
-    assert isinstance(ste, FastTensorDataLoader)
+    assert isinstance(ste, FastDataLoader)
     x, y = next(iter(ste))
     assert x.shape == torch.Size([128, 28, 28])
     assert y.shape == torch.Size([128])

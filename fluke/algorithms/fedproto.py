@@ -10,7 +10,7 @@ sys.path.append("..")
 
 from ..evaluation import ClassificationEval  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..server import Server  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
@@ -52,8 +52,8 @@ class FedProtoClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -145,7 +145,7 @@ class FedProtoServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,

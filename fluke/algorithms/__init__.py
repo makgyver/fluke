@@ -8,7 +8,7 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
-from ..data import DataSplitter, FastTensorDataLoader  # NOQA
+from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client, PFLClient  # NOQA
 
@@ -101,15 +101,15 @@ class CentralizedFL():
         return Server
 
     def init_clients(self,
-                     clients_tr_data: list[FastTensorDataLoader],
-                     clients_te_data: list[FastTensorDataLoader],
+                     clients_tr_data: list[FastDataLoader],
+                     clients_te_data: list[FastDataLoader],
                      config: DDict) -> None:
         """Initialize the clients.
 
         Args:
-            clients_tr_data (list[FastTensorDataLoader]): List of training data loaders, one for
+            clients_tr_data (list[FastDataLoader]): List of training data loaders, one for
                each client.
-            clients_te_data (list[FastTensorDataLoader]): List of test data loaders, one for
+            clients_te_data (list[FastDataLoader]): List of test data loaders, one for
                each client.
             config (DDict): Configuration of the clients.
         """
@@ -130,12 +130,12 @@ class CentralizedFL():
             )
             for i in range(self.n_clients)]
 
-    def init_server(self, model: Any, data: FastTensorDataLoader, config: DDict):
+    def init_server(self, model: Any, data: FastDataLoader, config: DDict):
         """Initailize the server.
 
         Args:
             model (Any): The global model.
-            data (FastTensorDataLoader): The server-side test set.
+            data (FastDataLoader): The server-side test set.
             config (DDict): Configuration of the server.
         """
         self.server = self.get_server_class()(model, data, self.clients, **config)
@@ -171,8 +171,8 @@ class PersonalizedFL(CentralizedFL):
         return PFLClient
 
     def init_clients(self,
-                     clients_tr_data: list[FastTensorDataLoader],
-                     clients_te_data: list[FastTensorDataLoader],
+                     clients_tr_data: list[FastDataLoader],
+                     clients_te_data: list[FastDataLoader],
                      config: DDict) -> None:
 
         model = get_model(mname=config.model) if isinstance(config.model, str) else config.model

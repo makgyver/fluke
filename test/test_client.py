@@ -9,7 +9,7 @@ sys.path.append("..")
 from fluke.client import Client, PFLClient  # NOQA
 from fluke.server import Server  # NOQA
 from fluke.utils import OptimizerConfigurator  # NOQA
-from fluke.data import FastTensorDataLoader  # NOQA
+from fluke.data import FastDataLoader  # NOQA
 from fluke import DDict  # NOQA
 
 
@@ -29,14 +29,14 @@ def test_client():
     ytr = torch.tensor([target_function(x) for x in Xtr])
     Xte = torch.rand((100, 10))
     yte = torch.tensor([target_function(x) for x in Xte])
-    train_set = FastTensorDataLoader(
+    train_set = FastDataLoader(
         Xtr, ytr,
         num_labels=2,
         batch_size=10,
         shuffle=True
     )
 
-    test_set = FastTensorDataLoader(
+    test_set = FastDataLoader(
         Xte, yte,
         num_labels=2,
         batch_size=10,
@@ -105,7 +105,7 @@ def test_pflclient():
 
     Xtr = torch.rand((100, 10))
     ytr = torch.tensor([target_function(x) for x in Xtr])
-    train_set = FastTensorDataLoader(
+    train_set = FastDataLoader(
         Xtr, ytr,
         num_labels=2,
         batch_size=10,

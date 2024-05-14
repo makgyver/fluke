@@ -64,8 +64,6 @@ class EncoderHeadNet(nn.Module):
     If this is not possible, they fallback to the forward method (default behavior).
 
     Attributes:
-        encoder (nn.Module): Encoder subnetwork.
-        head (nn.Module): Head subnetwork.
         output_size (int): Output size of the head subnetwork.
 
     Args:
@@ -125,11 +123,11 @@ class EncoderHeadNet(nn.Module):
 
 
 class GlobalLocalNet(nn.Module):
-    """Global-Local Network (Abstract Class)
-    A network that has two subnetworks, one is meant to be shared (global) and one is meant to be
-    personalized (local). The forward method should work as expected, but the forward_local and
-    forward_global methods should be used to get the output of the local and global subnetworks,
-    respectively. If this is not possible, they fallback to the forward method (default behavior).
+    """Global-Local Network (Abstract Class). This is a network that has two subnetworks, one is
+    meant to be shared (global) and one is meant to be personalized (local). The ``forward`` method
+    should work as expected, but the ``forward_local`` and ``forward_global`` methods should be used
+    to get the output of the local and global subnetworks, respectively. If this is not possible,
+    they fallback to the forward method (default behavior).
     """
 
     @abstractmethod
@@ -159,8 +157,8 @@ class GlobalLocalNet(nn.Module):
 
 class EncoderGlobalHeadLocalNet(GlobalLocalNet):
     """This implementation of the Global-Local Network (:class:`GlobalLocalNet`) is meant to be used
-    with the Encoder-Head architecture. The global subnetwork is the encoder and the local
-    subnetwork is the head.
+    with the Encoder-Head architecture. The global (i.e., that is shared between clients and server)
+    subnetwork is the encoder and the local (i.e., not shared) subnetwork is the head.
 
     Args:
         model (EncoderHeadNet): The federated model to use.
@@ -185,8 +183,8 @@ class EncoderGlobalHeadLocalNet(GlobalLocalNet):
 
 class HeadGlobalEncoderLocalNet(GlobalLocalNet):
     """This implementation of the Global-Local Network (:class:`GlobalLocalNet`) is meant to be used
-    with the Encoder-Head architecture. The global subnetwork is the head and the local subnetwork
-    is the encoder.
+    with the Encoder-Head architecture. The global (i.e., that is shared between clients and server)
+    subnetwork is the head and the local (i.e., not shared) subnetwork is the encoder.
 
     Args:
         model (EncoderHeadNet): The federated model to use.
@@ -739,7 +737,7 @@ class FEMNIST_CNN(EncoderHeadNet):
 
     References:
         .. [DITTO] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia Smith. Ditto: Fair and Robust
-        Federated Learning Through Personalization. In: ICML (2021).
+            Federated Learning Through Personalization. In: ICML (2021).
     """
 
     def __init__(self):

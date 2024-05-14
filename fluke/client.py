@@ -8,7 +8,7 @@ import sys
 sys.path.append(".")
 
 from .evaluation import ClassificationEval  # NOQA
-from .data import FastTensorDataLoader  # NOQA
+from .data import FastDataLoader  # NOQA
 from .utils import OptimizerConfigurator, clear_cache  # NOQA
 from .utils.model import safe_load_state_dict  # NOQA
 from .comm import Channel, Message  # NOQA
@@ -34,22 +34,21 @@ class Client():
 
             When a new client class inherits from this class, it can add all its hyper-parameters
             to this dictionary.
-        index (int): The client identifier.
-        train_set (FastTensorDataLoader): The local training set.
-        test_set (FastTensorDataLoader): The local test set.
+
+        train_set (FastDataLoader): The local training set.
+        test_set (FastDataLoader): The local test set.
         optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
             the optimizer and the learning rate scheduler.
         optimizer (torch.optim.Optimizer): The optimizer.
         scheduler (torch.optim.lr_scheduler.LRScheduler): The learning rate scheduler.
         device (torch.device): The device where the client trains the model.
         server (Server): The server.
-        channel (Channel): The channel to communicate with the server.
     """
 
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):
@@ -60,8 +59,8 @@ class Client():
         )
 
         self._index: int = index
-        self.train_set: FastTensorDataLoader = train_set
-        self.test_set: FastTensorDataLoader = test_set
+        self.train_set: FastDataLoader = train_set
+        self.test_set: FastDataLoader = test_set
         self.model: Module = None
         self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
         self.optimizer: Optimizer = None
@@ -71,15 +70,6 @@ class Client():
         self._channel: Channel = None
 
     @property
-    def n_examples(self) -> int:
-        """The number of examples in the local training set.
-
-        Returns:
-            int: The number of examples in the local training set.
-        """
-        return self.train_set.size
-
-    @property
     def index(self) -> int:
         """The client identifier.
 
@@ -87,6 +77,15 @@ class Client():
             int: The client identifier.
         """
         return self._index
+
+    @property
+    def n_examples(self) -> int:
+        """The number of examples in the local training set.
+
+        Returns:
+            int: The number of examples in the local training set.
+        """
+        return self.train_set.size
 
     @property
     def channel(self) -> Channel:
@@ -224,8 +223,8 @@ class PFLClient(Client):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):

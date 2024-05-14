@@ -15,7 +15,7 @@ sys.path.append("..")
 from .. import GlobalSettings  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import PersonalizedFL  # NOQA
@@ -68,8 +68,8 @@ class FedHyperProtoClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: nn.Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -132,7 +132,7 @@ class FedHyperProtoServer(Server):
 
     def __init__(self,
                  model: nn.Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,

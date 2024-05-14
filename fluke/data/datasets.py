@@ -15,7 +15,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from . import DataContainer, FastTensorDataLoader, support  # NOQA
+from . import DataContainer, FastDataLoader, support  # NOQA
 
 
 def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:
@@ -442,7 +442,7 @@ class Datasets:
             Xtr_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             ytr_client = torch.LongTensor(udata["y"])
             client_tr_assignments.append(
-                FastTensorDataLoader(
+                FastDataLoader(
                     Xtr_client,
                     ytr_client,
                     num_labels=62,
@@ -459,7 +459,7 @@ class Datasets:
             Xte_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             yte_client = torch.LongTensor(udata["y"])
             client_te_assignments.append(
-                FastTensorDataLoader(
+                FastDataLoader(
                     Xte_client,
                     yte_client,
                     num_labels=62,
@@ -518,7 +518,7 @@ class Datasets:
             Xtr_client = torch.LongTensor(inputs)
             ytr_client = torch.LongTensor(targets)
             client_tr_assignments.append(
-                FastTensorDataLoader(
+                FastDataLoader(
                     Xtr_client,
                     ytr_client,
                     num_labels=100,
@@ -540,7 +540,7 @@ class Datasets:
             Xte_client = torch.LongTensor(inputs)
             yte_client = torch.LongTensor(targets)
             client_te_assignments.append(
-                FastTensorDataLoader(
+                FastDataLoader(
                     Xte_client,
                     yte_client,
                     num_labels=100,

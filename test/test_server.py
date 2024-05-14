@@ -8,7 +8,7 @@ sys.path.append("..")
 
 from fluke.server import Server  # NOQA
 from fluke.client import Client  # NOQA
-from fluke.data import FastTensorDataLoader  # NOQA
+from fluke.data import FastDataLoader  # NOQA
 from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
 from fluke import DDict  # NOQA
 
@@ -53,9 +53,9 @@ def test_server():
     Xte = torch.rand((100, 10))
     yte = torch.tensor([target_function(x) for x in Xte])
 
-    ftdl_client = [FastTensorDataLoader(Xtr[i], ytr[i], num_labels=2, batch_size=10, shuffle=True)
+    ftdl_client = [FastDataLoader(Xtr[i], ytr[i], num_labels=2, batch_size=10, shuffle=True)
                    for i in range(2)]
-    ftdl_server = FastTensorDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=False)
+    ftdl_server = FastDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=False)
 
     cfg = OptimizerConfigurator(optimizer_cfg=DDict(name=torch.optim.SGD, lr=0.1, momentum=0.9))
     clients = [Client(index=i,

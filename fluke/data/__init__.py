@@ -26,7 +26,7 @@ __all__ = [
     'datasets',
     'support',
     'DataContainer',
-    'FastTensorDataLoader',
+    'FastDataLoader',
     'DistributionEnum',
     'DataSplitter',
     'DummyDataSplitter'
@@ -67,7 +67,7 @@ class DataContainer:
         self.test = (torch.FloatTensor(scaler.transform(data_test)), self.test[1])
 
 
-class FastTensorDataLoader:
+class FastDataLoader:
     """
     A DataLoader-like object for a set of tensors that can be much faster than
     TensorDataset + DataLoader because dataloader grabs individual indices of
@@ -312,9 +312,9 @@ class DataSplitter:
 
     def assign(self,
                n_clients: int,
-               batch_size: Optional[int] = None) -> tuple[tuple[FastTensorDataLoader,
-                                                                Optional[FastTensorDataLoader]],
-                                                          FastTensorDataLoader]:
+               batch_size: Optional[int] = None) -> tuple[tuple[FastDataLoader,
+                                                                Optional[FastDataLoader]],
+                                                          FastDataLoader]:
         """Assign the data to the clients according to the distribution.
 
         Args:
@@ -322,8 +322,8 @@ class DataSplitter:
             batch_size (Optional[int], optional): The batch size. Defaults to None.
 
         Returns:
-            tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]],
-                  FastTensorDataLoader]: The clients' training and testing assignments and the
+            tuple[tuple[FastDataLoader, Optional[FastDataLoader]],
+                  FastDataLoader]: The clients' training and testing assignments and the
                   server's testing assignment.
         """
         if self.server_test and self.keep_test:
@@ -370,29 +370,29 @@ class DataSplitter:
         client_te_assignments = []
         for c in range(n_clients):
             Xtr_client, Ytr_client = client_Xtr[assignments_tr[c]], client_Ytr[assignments_tr[c]]
-            client_tr_assignments.append(FastTensorDataLoader(Xtr_client,
-                                                              Ytr_client,
-                                                              num_labels=self.num_classes,
-                                                              batch_size=batch_size,
-                                                              shuffle=True,
-                                                              percentage=self.sampling_perc))
+            client_tr_assignments.append(FastDataLoader(Xtr_client,
+                                                        Ytr_client,
+                                                        num_labels=self.num_classes,
+                                                        batch_size=batch_size,
+                                                        shuffle=True,
+                                                        percentage=self.sampling_perc))
             if assignments_te is not None:
                 Xte_client = client_Xte[assignments_te[c]]
                 Yte_client = client_Yte[assignments_te[c]]
-                client_te_assignments.append(FastTensorDataLoader(Xte_client,
-                                                                  Yte_client,
-                                                                  num_labels=self.num_classes,
-                                                                  batch_size=batch_size,
-                                                                  shuffle=True,
-                                                                  percentage=self.sampling_perc))
+                client_te_assignments.append(FastDataLoader(Xte_client,
+                                                            Yte_client,
+                                                            num_labels=self.num_classes,
+                                                            batch_size=batch_size,
+                                                            shuffle=True,
+                                                            percentage=self.sampling_perc))
             else:
                 client_te_assignments.append(None)
 
-        server_te = FastTensorDataLoader(server_X, server_Y,
-                                         num_labels=self.num_classes,
-                                         batch_size=128,
-                                         shuffle=True,
-                                         percentage=self.sampling_perc) if self.server_test \
+        server_te = FastDataLoader(server_X, server_Y,
+                                   num_labels=self.num_classes,
+                                   batch_size=128,
+                                   shuffle=True,
+                                   percentage=self.sampling_perc) if self.server_test \
             else None
         return (client_tr_assignments, client_te_assignments), server_te
 
@@ -426,16 +426,16 @@ class DataSplitter:
                       n: int,
                       min_quantity: int = 2,
                       alpha: float = 4.) -> list[torch.Tensor]:
-        """
+        r"""
         Distribute the examples across the users according to the following probability density
         function: :math:`P(x; a) = a x^{a-1}`
         where :math:`x` is the id of a client (:math:`x \in [0, n-1]`), and ``a = alpha > 0`` with
 
-        - ``alpha = 1``  => examples are equidistributed across clients;
-        - ``alpha = 2``  => the examples are "linearly" distributed across users;
-        - ``alpha >= 3`` => the examples are power law distributed;
-        - ``alpha``:math:`\to \infty` => all users but one have ``min_quantity`` examples,
-            and the remaining user all the rest.
+        - ``alpha = 1``: examples are equidistributed across clients;
+        - ``alpha = 2``: the examples are "linearly" distributed across users;
+        - ``alpha >= 3``: the examples are power law distributed;
+        - ``alpha`` :math:`\rightarrow \infty`: all users but one have ``min_quantity`` examples,
+          and the remaining user all the rest.
 
         Each client is guaranteed to have at least ``min_quantity`` examples.
 

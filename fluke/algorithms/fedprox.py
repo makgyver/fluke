@@ -6,7 +6,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
 from . import CentralizedFL  # NOQA
 
@@ -14,8 +14,8 @@ from . import CentralizedFL  # NOQA
 class FedProxClient(Client):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,

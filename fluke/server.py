@@ -9,7 +9,7 @@ from torch.nn import Module
 
 from .evaluation import ClassificationEval  # NOQA
 from .comm import Channel, Message  # NOQA
-from .data import FastTensorDataLoader  # NOQA
+from .data import FastDataLoader  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from . import GlobalSettings, ObserverSubject, DDict  # NOQA
 
@@ -42,12 +42,12 @@ class Server(ObserverSubject):
           process.
         channel (Channel): The channel to communicate with the clients.
         rounds (int): The number of rounds that have been executed.
-        test_data (FastTensorDataLoader): The test data to evaluate the model. If None, the model
+        test_data (FastDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
 
     Args:
         model (torch.nn.Module): The federated model to be trained.
-        test_data (FastTensorDataLoader): The test data to evaluate the model.
+        test_data (FastDataLoader): The test data to evaluate the model.
         clients (Sequence[Client]): The clients that will participate in the federated learning
           process.
         eval_every (int): The number of rounds between evaluations. Defaults to 1.
@@ -57,7 +57,7 @@ class Server(ObserverSubject):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[Client],
                  eval_every: int = 1,
                  weighted: bool = False):
@@ -71,7 +71,7 @@ class Server(ObserverSubject):
         self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
-        self.test_data: FastTensorDataLoader = test_data
+        self.test_data: FastDataLoader = test_data
         self._eval_every: int = eval_every
         self._participants: set[int] = set()
 
@@ -295,7 +295,7 @@ class Server(ObserverSubject):
         Args:
             round (int): The round number.
             global_model (Any): The current global model.
-            data (FastTensorDataLoader): The test data.
+            data (FastDataLoader): The test data.
             client_evals (Sequence[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:

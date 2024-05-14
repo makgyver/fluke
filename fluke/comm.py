@@ -19,21 +19,46 @@ __all__ = [
 
 
 class Message:
-    """This class represents a message that can be exchanged between clients and the server.
-
-    Attributes:
-        msg_type (str): The type of the message.
-        payload (Any): The payload of the message.
-        sender (Any): The sender of the message.
+    """This class represents a message that can be exchanged between clients and the server. This
+    type is immutable. The message contains a payload, a type and a sender. The payload can be of
+    any type. The type is a string that describes the content of the message. The sender is the
+    object that sends the message.
     """
 
     def __init__(self,
                  payload: Any,
                  msg_type: str = "model",
                  sender: Optional[Any] = None):
-        self.msg_type: str = msg_type
-        self.payload: Any = payload
-        self.sender: Optional[Any] = sender
+        self.__msg_type: str = msg_type
+        self.__payload: Any = payload
+        self.__sender: Optional[Any] = sender
+
+    @property
+    def msg_type(self) -> str:
+        """Get the type of the message.
+
+        Returns:
+            str: The type of the message.
+        """
+        return self.__msg_type
+
+    @property
+    def payload(self) -> Any:
+        """Get the payload of the message.
+
+        Returns:
+            Any: The payload of the message.
+        """
+        return self.__payload
+
+    @property
+    def sender(self) -> Optional[Any]:
+        """Get the sender of the message.
+
+        Returns:
+            Optional[Any]: The sender of the message.
+        """
+        return self.__sender
 
     def __get_size(self, obj: Any) -> int:
         if obj is None or isinstance(obj, (int, float, bool)):

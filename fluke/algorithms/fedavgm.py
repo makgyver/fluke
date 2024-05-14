@@ -6,7 +6,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..utils.model import diff_model, STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from ..server import Server  # NOQA
@@ -16,7 +16,7 @@ from ..client import Client  # NOQA
 class FedAVGMServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = True,

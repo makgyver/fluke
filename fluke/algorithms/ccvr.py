@@ -11,7 +11,7 @@ sys.path.append("..")
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from . import CentralizedFL  # NOQA
 
 
@@ -55,7 +55,7 @@ class CCVRServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
@@ -137,11 +137,11 @@ class CCVRServer(Server):
         # FIXME: loss, optimizer and scheduler are fixed for now
         optimizer = torch.optim.SGD(self.model.get_head().parameters(), lr=self.hyper_params.lr)
         loss_fn = torch.nn.CrossEntropyLoss()
-        train_set = FastTensorDataLoader(Z_train,
-                                         y_train,
-                                         num_labels=len(set(y_train.cpu().numpy())),
-                                         batch_size=self.hyper_params.batch_size,
-                                         shuffle=True)
+        train_set = FastDataLoader(Z_train,
+                                   y_train,
+                                   num_labels=len(set(y_train.cpu().numpy())),
+                                   batch_size=self.hyper_params.batch_size,
+                                   shuffle=True)
 
         for Z, y in train_set:
             Z, y = Z.to(self.device), y.to(self.device)

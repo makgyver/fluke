@@ -7,7 +7,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..server import Server  # NOQA
@@ -23,8 +23,8 @@ class LGFedAVGClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: EncoderHeadNet,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],  # not used because fixed to CrossEntropyLoss
                  local_epochs: int = 3):
@@ -45,7 +45,7 @@ class LGFedAVGServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):

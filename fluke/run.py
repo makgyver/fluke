@@ -12,7 +12,7 @@ sys.path.append(".")
 from . import GlobalSettings  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)  # NOQA
-from .data import DataSplitter, FastTensorDataLoader  # NOQA
+from .data import DataSplitter, FastDataLoader  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 
 app = typer.Typer()
@@ -32,12 +32,12 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
     device = GlobalSettings().get_device()
 
-    train_loader = FastTensorDataLoader(*data_container.train,
-                                        batch_size=cfg.method.hyperparameters.client.batch_size,
-                                        shuffle=True)
-    test_loader = FastTensorDataLoader(*data_container.test,
-                                       batch_size=1,
-                                       shuffle=False)
+    train_loader = FastDataLoader(*data_container.train,
+                                  batch_size=cfg.method.hyperparameters.client.batch_size,
+                                  shuffle=True)
+    test_loader = FastDataLoader(*data_container.test,
+                                 batch_size=1,
+                                 shuffle=False)
 
     # , **cfg.method.hyperparameters.net_args)
     model = get_model(mname=cfg.method.hyperparameters.model)

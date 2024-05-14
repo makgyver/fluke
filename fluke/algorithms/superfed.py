@@ -12,7 +12,7 @@ from ..utils.model import (get_global_model_dict,  # NOQA
                            get_local_model_dict,  # NOQA
                            mix_networks,  # NOQA
                            set_lambda_model)  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 
 
@@ -21,8 +21,8 @@ class SuPerFedClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,

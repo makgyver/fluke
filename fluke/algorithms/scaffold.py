@@ -9,7 +9,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
@@ -40,8 +40,8 @@ class SCAFFOLDOptimizer(Optimizer):
 class SCAFFOLDClient(Client):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):
@@ -111,7 +111,7 @@ class SCAFFOLDClient(Client):
 class SCAFFOLDServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  global_step: float = 1.):

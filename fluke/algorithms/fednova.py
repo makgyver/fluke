@@ -7,7 +7,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
@@ -18,8 +18,8 @@ class FedNovaClient(Client):
 
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int):

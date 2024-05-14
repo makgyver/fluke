@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
 
-from .data import FastTensorDataLoader  # NOQA
+from .data import FastDataLoader  # NOQA
 from . import GlobalSettings  # NOQA
 
 
@@ -22,16 +22,16 @@ class Evaluator(ABC):
         self.loss_fn: Callable = loss_fn
 
     @abstractmethod
-    def evaluate(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
+    def evaluate(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
         """Evaluate the model.
 
         Args:
             model (Module): The model to evaluate.
-            eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
+            eval_data_loader (FastDataLoader): The data loader to use for evaluation.
         """
         pass
 
-    def __call__(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
+    def __call__(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
         """Evaluate the model.
 
         Note:
@@ -39,7 +39,7 @@ class Evaluator(ABC):
 
         Args:
             model (Module): The model to evaluate.
-            eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
+            eval_data_loader (FastDataLoader): The data loader to use for evaluation.
         """
         return self.evaluate(model, eval_data_loader)
 
@@ -72,8 +72,8 @@ class ClassificationEval(Evaluator):
 
     def evaluate(self,
                  model: torch.nn.Module,
-                 eval_data_loader: Union[FastTensorDataLoader,
-                                         Iterable[FastTensorDataLoader]]) -> dict:
+                 eval_data_loader: Union[FastDataLoader,
+                                         Iterable[FastDataLoader]]) -> dict:
         """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
         ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
         computed both in a micro and macro fashion.
@@ -81,7 +81,7 @@ class ClassificationEval(Evaluator):
         Args:
             model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
                 empty dictionary.
-            eval_data_loader (Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]):
+            eval_data_loader (Union[FastDataLoader, Iterable[FastDataLoader]]):
                 The data loader(s) to use for evaluation. If ``None``, the method returns an empty
                 dictionary.
 
