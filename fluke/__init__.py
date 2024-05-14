@@ -1,12 +1,6 @@
 """
-The ``fluke`` package is the main package of the ``fluke`` framework. Besides the subpackages listed
-below, it also contains the following modules:
-
-- ``Singleton``: A metaclass for creating singleton classes.
-- ``GlobalSettings``: A singleton class for holding the global settings of ``fluke``.
-- ``ObserverSubject``: A class for the observer pattern.
-- ``DDict``: A dictionary that can be accessed with dot notation recursively.
-
+The ``fluke`` module is the entry module of the ``fluke`` framework. Here are defined generic
+classes used by the other modules.
 """
 
 import re

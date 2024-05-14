@@ -1,3 +1,6 @@
+"""
+The module ``fluke.client`` provides the base classes for the clients in ``fluke``.
+"""
 from __future__ import annotations
 from torch import device
 from torch.nn import Module

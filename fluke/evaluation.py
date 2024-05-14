@@ -1,3 +1,5 @@
+"""This module contains the definition of the evaluation classes used to perform the evaluation
+of the model client-side and server-side."""
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.nn import Module
 import torch
@@ -5,9 +7,15 @@ from typing import Callable, Optional, Union, Iterable
 from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
+sys.path.append("..")
 
 from .data import FastDataLoader  # NOQA
 from . import GlobalSettings  # NOQA
+
+__all__ = [
+    "Evaluator",
+    "ClassificationEval"
+]
 
 
 class Evaluator(ABC):

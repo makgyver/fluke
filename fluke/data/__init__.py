@@ -1,3 +1,4 @@
+"""This module contains the data utilities for ``fluke``."""
 from __future__ import annotations
 from scipy.stats.mstats import mquantiles
 from sklearn.preprocessing import StandardScaler
@@ -10,7 +11,6 @@ import rich
 import torch
 from sklearn.model_selection import train_test_split
 from pyparsing import Optional
-from enum import Enum
 import sys
 
 sys.path.append(".")
@@ -27,7 +27,6 @@ __all__ = [
     'support',
     'DataContainer',
     'FastDataLoader',
-    'DistributionEnum',
     'DataSplitter',
     'DummyDataSplitter'
 ]
@@ -78,7 +77,7 @@ class FastDataLoader:
         https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
 
     Args:
-        *tensors (Tensor): tensors to be loaded.
+        *tensors (Sequence[torch.Tensor]): tensors to be loaded.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled.
         percentage (float): the percentage of the data to be used.
@@ -87,9 +86,9 @@ class FastDataLoader:
         single_batch (bool): whether to return a single batch at each generator iteration.
 
     Attributes:
-        tensors (Sequence[Tensor]): tensors of the dataset. Ideally, the first tensor should be the
-            input data, and the second tensor should be the labels. However, this is not enforced
-            and the user is responsible for ensuring that the tensors are used correctly.
+        tensors (Sequence[torch.Tensor]): tensors of the dataset. Ideally, the first tensor should
+            be the input data, and the second tensor should be the labels. However, this is not
+            enforced and the user is responsible for ensuring that the tensors are used correctly.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled at each epoch. If `True`, the data is
             shuffled at each iteration.
@@ -101,6 +100,9 @@ class FastDataLoader:
         single_batch (bool): whether to return a single batch at each generator iteration.
         size (int): the size of the dataset according to the percentage of the data to be used.
         max_size (int): the total size of the dataset.
+
+    Raises:
+        AssertionError: if the tensors do not have the same size along the first dimension.
     """
 
     def __init__(self,
@@ -189,22 +191,22 @@ class FastDataLoader:
         return self.n_batches
 
 
-class DistributionEnum(Enum):
-    """Enum for data distribution across clients."""
-    IID = "iid"  # : Independent and Identically Distributed data.
-    QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
-    CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
-    LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
-    LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
-    # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
-    LABEL_PATHOLOGICAL_SKEWED = "path"
-    COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
+# class DistributionEnum(Enum):
+#     """Enum for data distribution across clients."""
+#     IID = "iid"  # : Independent and Identically Distributed data.
+#     QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
+#     CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
+#     LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
+#     LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
+#     # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
+#     LABEL_PATHOLOGICAL_SKEWED = "path"
+#     COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
 
-    def __hash__(self) -> int:
-        return self.value.__hash__()
+#     def __hash__(self) -> int:
+#         return self.value.__hash__()
 
-    def __eq__(self, other) -> bool:
-        return self.value == other.value
+#     def __eq__(self, other) -> bool:
+#         return self.value == other.value
 
 
 class DataSplitter:
@@ -245,7 +247,7 @@ class DataSplitter:
 
     def __init__(self,
                  dataset: Union[DatasetsEnum, DataContainer],
-                 distribution: DistributionEnum = DistributionEnum.IID,
+                 distribution: str = "iid",
                  client_split: float = 0.0,
                  sampling_perc: float = 1.0,
                  server_test: bool = True,
@@ -258,8 +260,8 @@ class DataSplitter:
 
         Args:
             dataset (Union[DatasetsEnum, DataContainer]): The dataset.
-            distribution (DistributionEnum, optional): The data distribution function. Defaults to
-                DistributionEnum.IID.
+            distribution (str, optional): The data distribution function. Defaults to
+                ``"iid"``.
             client_split (float, optional): The size of the client's test set. Defaults to 0.0.
             sampling_perc (float, optional): The percentage of the data to be used. Defaults to 1.0.
             server_test (bool, optional): Whether to keep a server test set. Defaults to True.
@@ -667,13 +669,13 @@ class DataSplitter:
         return [np.where(assignment == i)[0] for i in range(n)]
 
     _iidness_functions = {
-        DistributionEnum.IID: uniform,
-        DistributionEnum.QUANTITY_SKEWED: quantity_skew,
-        DistributionEnum.CLASSWISE_QUANTITY_SKEWED: classwise_quantity_skew,
-        DistributionEnum.LABEL_QUANTITY_SKEWED: label_quantity_skew,
-        DistributionEnum.LABEL_DIRICHLET_SKEWED: label_dirichlet_skew,
-        DistributionEnum.LABEL_PATHOLOGICAL_SKEWED: label_pathological_skew,
-        DistributionEnum.COVARIATE_SHIFT: covariate_shift
+        "iid": uniform,
+        "qnt": quantity_skew,
+        "classwise_qnt": classwise_quantity_skew,
+        "lbl_qnt": label_quantity_skew,
+        "dir": label_dirichlet_skew,
+        "pathological": label_pathological_skew,
+        "covariate": covariate_shift
     }
 
 
@@ -690,7 +692,7 @@ class DummyDataSplitter(DataSplitter):
                  **kwargs):
         self.data_container = None
         # self.standardize = False
-        self.distribution = DistributionEnum.IID
+        self.distribution = "iid"
         self.client_split = 0.0
         self.sampling_perc = 1.0
         (self.client_tr_assignments,
@@ -724,4 +726,18 @@ class DummyDataSplitter(DataSplitter):
         return self._num_classes
 
     def assign(self, n_clients: int, batch_size: Optional[int] = None):
+        """This override of the :meth:`DataSplitter.assign` method returns the pre-assigned data.
+        No further processing and computation is done.
+
+        Important:
+           The arguments of this method are not used.
+
+        Args:
+            n_clients (int): The number of clients.
+            batch_size (Optional[int], optional): The batch size. Defaults to None.
+
+        Returns:
+            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]: The clients'
+            training and testing assignments and the server's testing assignment.
+        """
         return (self.client_tr_assignments, self.client_te_assignments), self.server_te

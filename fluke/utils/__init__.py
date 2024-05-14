@@ -26,7 +26,6 @@ sys.path.append("..")
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
 from ..data.datasets import DatasetsEnum  # NOQA
-from ..data import DistributionEnum  # NOQA
 
 
 __all__ = [
@@ -595,7 +594,6 @@ class Configuration(DDict):
                     error = True
 
         if not error:
-            self.data.distribution.name = DistributionEnum(self.data.distribution.name)
             self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
             # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
             self.logger.name = LogEnum(self.logger.name)

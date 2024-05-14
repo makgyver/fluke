@@ -1,3 +1,6 @@
+"""
+The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
+"""
 from __future__ import annotations
 from rich.progress import track
 import numpy as np

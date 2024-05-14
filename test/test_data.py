@@ -7,7 +7,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataContainer, FastDataLoader, DataSplitter, DistributionEnum  # NOQA
+from fluke.data import DataContainer, FastDataLoader, DataSplitter  # NOQA
 from fluke.data.datasets import DatasetsEnum  # NOQA
 from fluke import DDict  # NOQA
 
@@ -137,7 +137,7 @@ def test_splitter():
             "name": DatasetsEnum.MNIST,
         },
         distribution={
-            "name": DistributionEnum.IID,
+            "name": "iid",
         },
         sampling_perc=0.1,
         server_test=True,
@@ -150,7 +150,7 @@ def test_splitter():
     assert splitter.sampling_perc == 0.1
     assert splitter.server_split == 0.2
     assert not splitter.keep_test
-    assert splitter.distribution == DistributionEnum.IID
+    assert splitter.distribution == "iid"
 
     # OK uniform
     (ctr, cte), ste = splitter.assign(10, batch_size=10)
@@ -172,23 +172,23 @@ def test_splitter():
     n_clients = 100
 
     # OK
-    splitter.distribution = DistributionEnum.LABEL_DIRICHLET_SKEWED
+    splitter.distribution = "dir"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # splitter.distribution = DistributionEnum.COVARIATE_SHIFT
     # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK
-    splitter.distribution = DistributionEnum.CLASSWISE_QUANTITY_SKEWED
+    splitter.distribution = "classwise_qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.LABEL_PATHOLOGICAL_SKEWED
+    splitter.distribution = "pathological"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.LABEL_QUANTITY_SKEWED
+    splitter.distribution = "lbl_qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.QUANTITY_SKEWED
+    splitter.distribution = "qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # freq = []
@@ -218,7 +218,7 @@ def test_splitter():
             "name": DatasetsEnum.MNIST,
         },
         distribution={
-            "name": DistributionEnum.IID,
+            "name": "iid",
         },
         sampling_perc=0.1,
         keep_test=True,

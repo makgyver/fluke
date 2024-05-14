@@ -37,7 +37,7 @@ def test_centralized_fl():
     fl = CentralizedFL(2, splitter, hparams)
 
     assert fl.n_clients == 2
-    assert fl.hyperparameters == hparams
+    assert fl.hyper_params == hparams
     assert len(fl.clients) == 2
     assert isinstance(fl.clients[0], Client)
     assert isinstance(fl.server, Server)
@@ -150,7 +150,7 @@ def test_centralized_fl():
     fl = PersonalizedFL(2, splitter, hparams)
 
     assert fl.n_clients == 2
-    assert fl.hyperparameters == hparams
+    assert fl.hyper_params == hparams
     assert len(fl.clients) == 2
     assert isinstance(fl.clients[0], PFLClient)
     assert isinstance(fl.server, Server)
