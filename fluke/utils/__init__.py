@@ -25,7 +25,7 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
-from ..data.datasets import DatasetsEnum  # NOQA
+# from ..data.datasets import DatasetsEnum  # NOQA
 
 
 __all__ = [
@@ -608,8 +608,8 @@ class Configuration(DDict):
                     rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
                     error = True
 
-        if not error:
-            self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
+        # if not error:
+        #     self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
             # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
             # self.logger.name = LogEnum(self.logger.name)
 
@@ -617,8 +617,8 @@ class Configuration(DDict):
             raise ValueError("Configuration validation failed.")
 
     def __str__(self) -> str:
-        return f"{self.method.name}_data({self.data.dataset.name.value}, " + \
-               f"{self.data.distribution.name.value}" + \
+        return f"{self.method.name}_data({self.data.dataset.name}, " + \
+               f"{self.data.distribution.name}" + \
                f"{',std' if self.data.standardize else ''})" + \
                f"_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}," + \
                f"E{self.protocol.eligible_perc})" + \

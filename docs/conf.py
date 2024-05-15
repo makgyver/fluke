@@ -49,7 +49,8 @@ intersphinx_mapping = {
     'numpy': ('http://docs.scipy.org/doc/numpy', None),
     # 'scipy': ('http://docs.scipy.org/doc/scipy/reference', None),
     # 'matplotlib': ('http://matplotlib.org/stable', None),
-    'torch': ("https://pytorch.org/docs/master/", None)
+    'torch': ("https://pytorch.org/docs/master/", None),
+    'torchvision': ("https://pytorch.org/vision/stable/", None)
 }
 
 # -- Options for HTML output -------------------------------------------------

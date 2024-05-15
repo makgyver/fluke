@@ -8,8 +8,8 @@ from torchvision.datasets import VisionDataset
 from datasets import load_dataset
 from rich.progress import track
 from numpy.random import permutation
-from typing import Optional
-from enum import Enum
+from typing import Optional, Callable
+# from enum import Enum
 import string
 import torch
 import json
@@ -21,7 +21,7 @@ sys.path.append("..")
 from . import DataContainer, FastDataLoader, support  # NOQA
 
 
-def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:
+def _apply_transforms(dataset: VisionDataset, transforms: Optional[Callable]) -> VisionDataset:
     if transforms is not None:
         new_data = []
         for i in range(len(dataset)):
@@ -35,23 +35,24 @@ def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) ->
 
 class Datasets:
     """Static class for loading datasets.
-    Each dataset is loaded as a ``DataContainer`` object.
+    Each dataset is loaded as a :class:`fluke.data.DataContainer` object.
     """
 
     @classmethod
     def MNIST(cls,
               path: str = "../data",
-              transforms: Optional[callable] = None,
+              transforms: Optional[Callable] = None,
               channel_dim: bool = False) -> DataContainer:
         """Load the MNIST dataset.
         The dataset is split into training and testing sets according to the default split of the
-        ``torchvision.datasets.MNIST`` class. If no transformations are provided, the data is
+        :class:`torchvision.datasets.MNIST` class. If no transformations are provided, the data is
         normalized to the range [0, 1].
         An example of the dataset is a 28x28 image, i.e., a tensor of shape (28, 28).
+        The dataset has 10 classes, corresponding to the digits 0-9.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to "../data".
-            transforms (callable, optional): The transformations to apply to the data. Defaults to
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
                 shape of the an example becomes (1, 28, 28). Defaults to ``False``.
@@ -87,15 +88,16 @@ class Datasets:
     @classmethod
     def MNISTM(cls,
                path: str = "../data",
-               transforms: Optional[callable] = None) -> DataContainer:
+               transforms: Optional[Callable] = None) -> DataContainer:
         """Load the MNIST-M dataset. MNIST-M is a dataset where the MNIST digits are placed on
         random color patches. The dataset is split into training and testing sets according to the
         default split of the data at https://github.com/liyxi/mnist-m/releases/download/data/.
         If no transformations are provided, the data is normalized to the range [0, 1].
+        The dataset has 10 classes, corresponding to the digits 0-9.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to "../data".
-            transforms (callable, optional): The transformations to apply to the data. Defaults to
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
 
         Returns:
@@ -132,19 +134,21 @@ class Datasets:
     @classmethod
     def EMNIST(cls,
                path: str = "../data",
-               transforms: Optional[callable] = None) -> DataContainer:
+               transforms: Optional[Callable] = None) -> DataContainer:
         """Load the Extended MNIST (EMNIST) dataset. The dataset is split into training and testing
         sets according to the default split of the data at
-        https://www.westernsydney.edu.au/bens/home/reproducible_research/emnist.
-        If no transformations are provided, the data is normalized to the range [0, 1].
+        https://www.westernsydney.edu.au/bens/home/reproducible_research/emnist as provided by
+        the :class:`torchvision.datasets.EMNIST` class.
+        If no transformations are provided, the data is normalized to the range [0, 1]. The dataset
+        has 47 classes, corresponding to the digits 0-9 and the uppercase and lowercase letters.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to "../data".
-            transforms (callable, optional): The transformations to apply to the data. Defaults to
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
 
         Returns:
-            DataContainer: _description_
+            DataContainer: The EMNIST dataset.
         """
 
         train_data = datasets.EMNIST(
@@ -177,8 +181,21 @@ class Datasets:
     @classmethod
     def SVHN(cls,
              path: str = "../data",
-             transforms: Optional[callable] = None) -> DataContainer:
+             transforms: Optional[Callable] = None) -> DataContainer:
+        """
+        Load the Street View House Numbers (SVHN) dataset. The dataset is split into training and
+        testing sets according to the default split of the :class:`torchvision.datasets.SVHN` class.
+        If no transformations are provided, the data is normalized to the range [0, 1]. The dataset
+        contains 10 classes, corresponding to the digits 0-9.
 
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The SVHN dataset.
+        """
         train_data = datasets.SVHN(
             root=path,
             split="train",
@@ -211,7 +228,7 @@ class Datasets:
     @classmethod
     def CIFAR10(cls,
                 path: str = "../data",
-                transforms: Optional[callable] = None) -> DataContainer:
+                transforms: Optional[Callable] = None) -> DataContainer:
 
         train_data = datasets.CIFAR10(
             root=path,
@@ -244,7 +261,7 @@ class Datasets:
     @classmethod
     def CINIC10(cls,
                 path: str = "../data",
-                transforms: Optional[callable] = None) -> DataContainer:
+                transforms: Optional[Callable] = None) -> DataContainer:
 
         train_data = support.CINIC10(
             root=path,
@@ -270,7 +287,7 @@ class Datasets:
     @classmethod
     def CIFAR100(cls,
                  path: str = "../data",
-                 transforms: Optional[callable] = None) -> DataContainer:
+                 transforms: Optional[Callable] = None) -> DataContainer:
 
         train_data = datasets.CIFAR100(
             root=path,
@@ -303,7 +320,7 @@ class Datasets:
     @classmethod
     def FASHION_MNIST(cls,
                       path: str = "../data",
-                      transforms: Optional[callable] = None) -> DataContainer:
+                      transforms: Optional[Callable] = None) -> DataContainer:
 
         train_data = datasets.FashionMNIST(
             root=path,
@@ -329,7 +346,7 @@ class Datasets:
     @classmethod
     def TINY_IMAGENET(cls,
                       path: str = "../data",
-                      transforms: Optional[callable] = None) -> DataContainer:
+                      transforms: Optional[Callable] = None) -> DataContainer:
 
         tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet',
                                            split='train',
@@ -558,48 +575,79 @@ class Datasets:
         client_te_assignments = [client_te_assignments[i] for i in perm]
         return client_tr_assignments, client_te_assignments, None
 
-
-class DatasetsEnum(Enum):
-    MNIST = "mnist"
-    MNISTM = "mnistm"
-    SVHN = "svhn"
-    FEMNIST = "femnist"
-    EMNIST = "emnist"
-    CIFAR10 = "cifar10"
-    CIFAR100 = "cifar100"
-    TINY_IMAGENET = "tiny_imagenet"
-    SHAKESPEARE = "shakespeare"
-    FASHION_MNIST = "fashion_mnist"
-    CINIC10 = "cinic10"
-
     @classmethod
-    def contains(cls, member: object) -> bool:
-        if isinstance(member, str):
-            return member in cls._value2member_map_.keys()
-        elif isinstance(member, DatasetsEnum):
-            return member.value in cls._member_names_
+    def get(cls, dataset_name: str, **kwargs) -> DataContainer | tuple:
+        """Get a dataset by name initialized with the provided arguments.
 
-    def klass(self):
-        DATASET_MAP = {
-            "mnist": Datasets.MNIST,
-            "svhn": Datasets.SVHN,
-            "mnistm": Datasets.MNISTM,
-            "femnist": Datasets.FEMNIST,
-            "emnist": Datasets.EMNIST,
-            "cifar10": Datasets.CIFAR10,
-            "cifar100": Datasets.CIFAR100,
-            "tiny_imagenet": Datasets.TINY_IMAGENET,
-            "shakespeare": Datasets.SHAKESPEARE,
-            "fashion_mnist": Datasets.FASHION_MNIST,
-            "cinic10": Datasets.CINIC10
-        }
-        return DATASET_MAP[self.value]
+        Args:
+            dataset_name (str): The name of the dataset to load.
+            **kwargs: Additional arguments to pass to construct the dataset.
 
-    def splitter(self):
-        from . import DataSplitter, DummyDataSplitter
+        Returns:
+            DataContainer: The ``DataContainer`` object containing the dataset.
+        """
+        if dataset_name not in Datasets._DATASET_MAP:
+            raise ValueError(f"Dataset {dataset_name} not found. The supported datasets are: " +
+                             ", ".join(Datasets._DATASET_MAP.keys()) + ".")
 
-        # LEAF datasets are already divided into clients
-        if self.value == "femnist" or self.value == "shakespeare":
-            return DummyDataSplitter
-        else:
-            return DataSplitter
+        return Datasets._DATASET_MAP[dataset_name](**kwargs)
+
+
+Datasets._DATASET_MAP = {
+    "mnist": Datasets.MNIST,
+    "svhn": Datasets.SVHN,
+    "mnistm": Datasets.MNISTM,
+    "femnist": Datasets.FEMNIST,
+    "emnist": Datasets.EMNIST,
+    "cifar10": Datasets.CIFAR10,
+    "cifar100": Datasets.CIFAR100,
+    "tiny_imagenet": Datasets.TINY_IMAGENET,
+    "shakespeare": Datasets.SHAKESPEARE,
+    "fashion_mnist": Datasets.FASHION_MNIST,
+    "cinic10": Datasets.CINIC10
+}
+
+# class DatasetsEnum(Enum):
+#     MNIST = "mnist"
+#     MNISTM = "mnistm"
+#     SVHN = "svhn"
+#     FEMNIST = "femnist"
+#     EMNIST = "emnist"
+#     CIFAR10 = "cifar10"
+#     CIFAR100 = "cifar100"
+#     TINY_IMAGENET = "tiny_imagenet"
+#     SHAKESPEARE = "shakespeare"
+#     FASHION_MNIST = "fashion_mnist"
+#     CINIC10 = "cinic10"
+
+#     @classmethod
+#     def contains(cls, member: object) -> bool:
+#         if isinstance(member, str):
+#             return member in cls._value2member_map_.keys()
+#         elif isinstance(member, DatasetsEnum):
+#             return member.value in cls._member_names_
+
+#     def klass(self):
+#         DATASET_MAP = {
+#             "mnist": Datasets.MNIST,
+#             "svhn": Datasets.SVHN,
+#             "mnistm": Datasets.MNISTM,
+#             "femnist": Datasets.FEMNIST,
+#             "emnist": Datasets.EMNIST,
+#             "cifar10": Datasets.CIFAR10,
+#             "cifar100": Datasets.CIFAR100,
+#             "tiny_imagenet": Datasets.TINY_IMAGENET,
+#             "shakespeare": Datasets.SHAKESPEARE,
+#             "fashion_mnist": Datasets.FASHION_MNIST,
+#             "cinic10": Datasets.CINIC10
+#         }
+#         return DATASET_MAP[self.value]
+
+#     def splitter(self):
+#         from . import DataSplitter, DummyDataSplitter
+
+#         # LEAF datasets are already divided into clients
+#         if self.value == "femnist" or self.value == "shakespeare":
+#             return DummyDataSplitter
+#         else:
+#             return DataSplitter

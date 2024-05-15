@@ -65,8 +65,20 @@ Classes
 
 ```{eval-rst}
 
+.. currentmodule:: fluke.data.FastDataLoader
+
+.. autosummary::
+   :nosignatures:
+
+   __getitem__
+   set_sample_size
+
+```
+
+```{eval-rst}
+
 .. autoclass:: fluke.data.FastDataLoader
-   :members:
+   :members: __getitem__, set_sample_size
 
 ```
 
@@ -76,6 +88,25 @@ Classes
 {bdg-primary}`class` ``fluke.data.DataSplitter``
 
 </h3>
+
+```{eval-rst}
+
+.. currentmodule:: fluke.data.DataSplitter
+
+.. autosummary::
+   :nosignatures:
+
+   num_classes
+   assign
+   iid
+   quantity_skew
+   classwise_quantity_skew
+   label_quantity_skew
+   label_dirichlet_skew
+   label_pathological_skew
+   covariate_shift
+
+```
 
 ```{eval-rst}
 

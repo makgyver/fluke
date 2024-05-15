@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
-from typing import Union, TYPE_CHECKING, Sequence
+from typing import Sequence
 from rich.progress import track
 import rich
 import torch
@@ -18,9 +18,7 @@ sys.path.append("..")
 
 
 from .. import DDict  # NOQA
-
-if TYPE_CHECKING:
-    from .datasets import DatasetsEnum  # NOQA
+# from .datasets import Datasets  # NOQA
 
 __all__ = [
     'datasets',
@@ -223,46 +221,6 @@ class FastDataLoader:
 
 class DataSplitter:
     """Utility class for splitting the data across clients."""
-    @classmethod
-    def from_config(cls, config: DDict) -> DataSplitter:
-        """Create a DataSplitter from a configuration dictionary. The expected configuration
-        dictionary should have the following structure:
-
-        .. code-block:: python
-
-            config = DDict({
-                'dataset': DDict({
-                    'name': 'CIFAR10'
-                    # dataset-specific parameters
-                }),
-                'distribution': DDict({
-                    'name': 'iid'
-                    # distribution-specific parameters
-                }),
-                'client_split': 0.0,
-                'sampling_perc': 1.0,
-                'server_test': True,
-                'keep_test': True,
-                'server_split': 0.0,
-                'uniform_test': False
-            })
-
-        See Also:
-            - :class:`fluke.DDict`
-            - :mod:`fluke.data.datasets`
-
-
-        Args:
-            config (DDict): The configuration dictionary.
-
-        Returns:
-            DataSplitter: The ``DataSplitter`` object.
-        """
-        return config.dataset.name.splitter()(dataset=config.dataset.name,
-                                              builder_args=config.dataset.exclude('name'),
-                                              distribution=config.distribution.name,
-                                              **config.exclude('dataset', 'distribution'),
-                                              dist_args=config.distribution.exclude('name'))
 
     def _safe_train_test_split(self,
                                X: torch.Tensor,
@@ -271,7 +229,7 @@ class DataSplitter:
                                client_id: int | None = None) -> tuple[torch.Tensor, torch.Tensor]:
         try:
             if test_size == 0.0:
-                return X, y, None, None
+                return X, None, y, None
             else:
                 return train_test_split(X, y, test_size=test_size, stratify=y)
         except ValueError:
@@ -283,7 +241,7 @@ class DataSplitter:
             return train_test_split(X, y, test_size=test_size)
 
     def __init__(self,
-                 dataset: Union[DatasetsEnum, DataContainer],
+                 dataset: DataContainer,
                  distribution: str = "iid",
                  client_split: float = 0.0,
                  sampling_perc: float = 1.0,
@@ -291,12 +249,11 @@ class DataSplitter:
                  keep_test: bool = True,
                  server_split: float = 0.0,
                  uniform_test: bool = False,
-                 builder_args: DDict = None,
                  dist_args: DDict = None):
         """Initialize the ``DataSplitter``.
 
         Args:
-            dataset (Union[DatasetsEnum, DataContainer]): The dataset.
+            dataset (DataContainer or str): The dataset.
             distribution (str, optional): The data distribution function. Defaults to
                 ``"iid"``.
             client_split (float, optional): The size of the client's test set. Defaults to 0.0.
@@ -326,8 +283,7 @@ class DataSplitter:
         if not server_test and client_split == 0.0:
             raise AssertionError("Either client_split > 0 or server_test = True must be true.")
 
-        self.data_container = dataset if isinstance(
-            dataset, DataContainer) else dataset.klass()(**builder_args if builder_args else {})
+        self.data_container = dataset
         self.distribution = distribution
         self.client_split = client_split
         self.sampling_perc = sampling_perc
@@ -371,8 +327,9 @@ class DataSplitter:
         4. ``server_test = False`` and ``keep_test = False``: The server does not have a test set.
            The clients have a training set and, if ``client_split > 0``, a test set.
 
-        In all cases, the training and test set are distributed across the clients according to the
-        provided distribution. The only exception is done for the test set in scenario 3.
+        If ``uniform_test = False``, the training and test set are distributed across the clients
+        according to the provided distribution. The only exception is done for the test set in
+        scenario 3. The test set is IID distributed across clients if ``uniform_test = True``.
 
         Args:
             n_clients (int): The number of clients.
@@ -413,7 +370,7 @@ class DataSplitter:
         # Clients have test set
         if client_Xte is not None:
             if self.uniform_test:
-                assignments_te = self.uniform(Xte, yte, n_clients)
+                assignments_te = self.iid(client_Xte, client_Yte, n_clients)
             else:
                 assignments_te = self._iidness_functions[self.distribution](
                     self, client_Xte, client_Yte, n_clients, **self.dist_args)
@@ -453,10 +410,10 @@ class DataSplitter:
             else None
         return (client_tr_assignments, client_te_assignments), server_te
 
-    def uniform(self,
-                X: torch.Tensor,
-                y: torch.Tensor,
-                n: int) -> list[torch.Tensor]:
+    def iid(self,
+            X: torch.Tensor,
+            y: torch.Tensor,
+            n: int) -> list[torch.Tensor]:
         """Distribute the examples uniformly across the users.
 
         Args:
@@ -733,7 +690,7 @@ class DataSplitter:
         return [np.where(assignment == i)[0] for i in range(n)]
 
     _iidness_functions = {
-        "iid": uniform,
+        "iid": iid,
         "qnt": quantity_skew,
         "classwise_qnt": classwise_quantity_skew,
         "lbl_qnt": label_quantity_skew,
@@ -751,7 +708,7 @@ class DummyDataSplitter(DataSplitter):
     """
 
     def __init__(self,
-                 dataset: DatasetsEnum,
+                 dataset: tuple[FastDataLoader, Optional[FastDataLoader], Optional[FastDataLoader]],
                  #  num_features: int,
                  #  num_classes: int,
                  builder_args: DDict,
@@ -763,7 +720,7 @@ class DummyDataSplitter(DataSplitter):
         self.sampling_perc = 1.0
         (self.client_tr_assignments,
          self.client_te_assignments,
-         self.server_te) = dataset.klass()(**builder_args)
+         self.server_te) = dataset
         # self._num_features = num_features
         self._num_classes = self._compute_num_classes()
 

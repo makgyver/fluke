@@ -13,6 +13,7 @@ from . import GlobalSettings  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model, get_logger)  # NOQA
 from .data import DataSplitter, FastDataLoader  # NOQA
+from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 
 app = typer.Typer()
@@ -80,7 +81,11 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_splitter = DataSplitter.from_config(cfg.data)
+    data_container = Datasets.get(cfg.data.dataset.name, **cfg.data.dataset.exclude('name'))
+    data_splitter = DataSplitter(dataset=data_container,
+                                 distribution=cfg.data.distribution.name,
+                                 dist_args=cfg.data.distribution.exclude("name"),
+                                 **cfg.data.exclude('dataset', 'distribution'))
 
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
     fl_algo = fl_algo_class(cfg.protocol.n_clients,
@@ -100,7 +105,12 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_splitter = DataSplitter.from_config(cfg.data)
+    print(cfg)
+    data_container = Datasets.get(cfg.data.dataset.name, **cfg.data.dataset.exclude('name'))
+    data_splitter = DataSplitter(dataset=data_container,
+                                 distribution=cfg.data.distribution.name,
+                                 dist_args=cfg.data.distribution.exclude("name"),
+                                 **cfg.data.exclude('dataset', 'distribution'))
 
     device = GlobalSettings().get_device()
 
