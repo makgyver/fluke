@@ -359,8 +359,8 @@ class DataSplitter:
             else:
                 server_X, server_Y = None, None
                 client_X, client_Y = X, Y
-                client_Xtr, client_Xte, client_Ytr, client_Yte = self._safe_train_test_split(
-                    client_X, client_Y, test_size=self.client_split)
+            client_Xtr, client_Xte, client_Ytr, client_Yte = self._safe_train_test_split(
+                client_X, client_Y, test_size=self.client_split)
 
         else:  # keep_test and not server_test
             server_X, server_Y = None, None
