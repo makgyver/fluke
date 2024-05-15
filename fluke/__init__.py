@@ -35,6 +35,7 @@ class Singleton(type):
 
     Example:
         .. code-block:: python
+            :linenos:
 
             class MyClass(metaclass=Singleton):
                 pass
@@ -56,6 +57,7 @@ class DDict(dict):
 
     Example:
         .. code-block:: python
+            :linenos:
 
             d = DDict(a=1, b=2, c={'d': 3, 'e': 4})
             print(d.a)  # 1
@@ -78,6 +80,7 @@ class DDict(dict):
 
         Example:
             .. code-block:: python
+                :linenos:
 
                 d = DDict(a=1)
                 print(d) # {'a': 1}
@@ -102,6 +105,7 @@ class DDict(dict):
 
         Example:
             .. code-block:: python
+                :linenos:
 
                 d = DDict(a=1, b=2, c=3)
                 e = d.exclude('b', 'c')
@@ -117,6 +121,7 @@ class ObserverSubject():
 
     Example:
         .. code-block:: python
+            :linenos:
 
             class MySubject(ObserverSubject):
                 def __init__(self):

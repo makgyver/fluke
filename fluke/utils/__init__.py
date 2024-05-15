@@ -427,6 +427,7 @@ def get_full_classname(classtype: type) -> str:
         Let ``A`` be a class defined in the module ``fluke.utils``
 
         .. code-block:: python
+            :linenos:
 
             # This is the content of the file fluke/utils.py
             class A:
@@ -437,6 +438,7 @@ def get_full_classname(classtype: type) -> str:
         If the class is defined in the ``__main__`` module, then:
 
         .. code-block:: python
+            :linenos:
 
             if __name__ == "__main__":
                 class B:

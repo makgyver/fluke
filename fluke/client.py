@@ -59,6 +59,7 @@ class Client():
         For example:
 
         .. code-block:: python
+            :linenos:
 
             class MyClient(Client):
                 # We omit the type hints for brevity

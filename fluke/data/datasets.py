@@ -39,6 +39,29 @@ class Datasets:
     """
 
     @classmethod
+    def get(cls, dataset_name: str, **kwargs) -> DataContainer | tuple:
+        """Get a dataset by name initialized with the provided arguments.
+        Supported datasets are: ``mnist``, ``mnistm``, ``svhn``, ``femnist``, ``emnist``,
+        ``cifar10``, ``cifar100``, ``tiny_imagenet``, ``shakespeare``, ``fashion_mnist``, and
+        ``cinic10``.
+
+        Args:
+            dataset_name (str): The name of the dataset to load.
+            **kwargs: Additional arguments to pass to construct the dataset.
+
+        Returns:
+            DataContainer: The ``DataContainer`` object containing the dataset.
+
+        Raises:
+            ValueError: If the dataset is not supported or the name is wrong.
+        """
+        if dataset_name not in Datasets._DATASET_MAP:
+            raise ValueError(f"Dataset {dataset_name} not found. The supported datasets are: " +
+                             ", ".join(Datasets._DATASET_MAP.keys()) + ".")
+
+        return Datasets._DATASET_MAP[dataset_name](**kwargs)
+
+    @classmethod
     def MNIST(cls,
               path: str = "../data",
               transforms: Optional[Callable] = None,
@@ -229,7 +252,23 @@ class Datasets:
     def CIFAR10(cls,
                 path: str = "../data",
                 transforms: Optional[Callable] = None) -> DataContainer:
+        """
+        Load the CIFAR-10 dataset. The dataset is split into training and testing sets according to
+        the default split of the :class:`torchvision.datasets.CIFAR10` class.
+        If no transformations are provided, the data is normalized to the range [0, 1]. The dataset
+        contains 10 classes, corresponding to the following classes: ``airplane``, ``automobile``,
+        ``bird``, ``cat``, ``deer``, ``dog``, ``frog``, ``horse``, ``ship``, and ``truck``.
+        The images shape is (3, 32, 32).
 
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The CIFAR-10 dataset.
+        """
         train_data = datasets.CIFAR10(
             root=path,
             train=True,
@@ -262,6 +301,22 @@ class Datasets:
     def CINIC10(cls,
                 path: str = "../data",
                 transforms: Optional[Callable] = None) -> DataContainer:
+        """
+        Load the CINIC-10 dataset. `CINIC-10 <http://dx.doi.org/10.7488/ds/2448>`_ is an
+        augmented extension of CIFAR-10. It contains the images from CIFAR-10
+        (60,000 images, 32x32 RGB pixels) and a selection of ImageNet database images
+        (210,000 images downsampled to 32x32). It was compiled as a 'bridge' between CIFAR-10 and
+        ImageNet, for benchmarking machine learning applications. It is split into three equal
+        subsets - train, validation, and test - each of which contain 90,000 images.
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The CINIC-10 dataset.
+        """
 
         train_data = support.CINIC10(
             root=path,
@@ -288,7 +343,21 @@ class Datasets:
     def CIFAR100(cls,
                  path: str = "../data",
                  transforms: Optional[Callable] = None) -> DataContainer:
+        """
+        Load the CIFAR-100 dataset. The dataset is split into training and testing sets according to
+        the default split of the :class:`torchvision.datasets.CIFAR100` class.
+        If no transformations are provided, the data is normalized to the range [0, 1]. The dataset
+        contains 100 classes, corresponding to different type of objects. The images shape is
+        (3, 32, 32).
 
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The CIFAR-100 dataset.
+        """
         train_data = datasets.CIFAR100(
             root=path,
             train=True,
@@ -321,7 +390,20 @@ class Datasets:
     def FASHION_MNIST(cls,
                       path: str = "../data",
                       transforms: Optional[Callable] = None) -> DataContainer:
+        """
+        Load the Fashion MNIST dataset. The dataset is split into training and testing sets
+        according to the default split of the :class:`torchvision.datasets.FashionMNIST` class.
+        The dataset contains 10 classes, corresponding to different types of clothing.
+        The images shape is (28, 28).
 
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The CIFAR-100 dataset.
+        """
         train_data = datasets.FashionMNIST(
             root=path,
             train=True,
@@ -412,7 +494,54 @@ class Datasets:
                 path: str = "./data",
                 batch_size: int = 10,
                 filter: str = "all"):
+        """
+        Load the Federated EMNIST (FEMNIST) dataset.
+        This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
+        FEMNIST contains images of handwritten digits of size 28 by 28 pixels (with option to make
+        them all 128 by 128 pixels) taken from 3500 users.
+        The dataset has 62 classes corresponding to different characters.
+        The label-class correspondence is as follows:
 
+        .. code-block:: rst
+
+            classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+            labels : 01234567890123456789012345678901234567890123456789012345678901
+                               10        20        30        40        50        60
+
+        Important:
+            Differently from the other datasets (but :meth:`SHAKESPEARE`), the FEMNIST dataset can
+            not be downloaded directly from the ``fluke`` but it must be downloaded from the
+            `Leaf project <https://leaf.cmu.edu/>`_ and stored in the ``path`` folder.
+            The datasets must also be created according to the instructions provided by the Leaf
+            project. The expected folder structure is:
+
+            .. code-block:: bash
+
+                path
+                ├── FEMNIST
+                │   ├── train
+                │   │   ├── user_data_0.json
+                │   │   ├── user_data_1.json
+                │   │   └── ...
+                │   └── test
+                │       ├── user_data_0.json
+                │       ├── user_data_1.json
+                │       └── ...
+
+            where in each ``user_data_X.json`` file there is a dictionary with the keys
+            ``user_data`` containing the data of the user.
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"./data"``.
+            batch_size (int, optional): The batch size. Defaults to ``10``.
+            filter (str, optional): The filter for the selection of a specific portion of the
+                dataset. The options are: ``all``, ``uppercase``, ``lowercase``, and ``digits``.
+                Defaults to ``"all"``.
+
+        Returns:
+            tuple: A tuple containing the training and testing data loaders for the clients. The
+                server data loader is ``None``.
+        """
         def _filter_femnist(udata, filter):
             # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
             # labels : 01234567890123456789012345678901234567890123456789012345678901
@@ -498,7 +627,43 @@ class Datasets:
     def SHAKESPEARE(cls,
                     path: str = "./data",
                     batch_size: int = 10):
+        """Load the Federated Shakespeare dataset.
+        This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
+        Shakespeare is a text dataset containing dialogues from Shakespeare's plays.
+        Dialogues are taken from 660 users and the task is to predict the next character in a
+        dialogue (which is solved as a classification problem with 100 classes).
 
+        Important:
+            Differently from the other datasets (but :meth:`FEMNIST`), the ``SHAKESPEARE`` dataset
+            can not be downloaded directly from the ``fluke`` but it must be downloaded from the
+            `Leaf project <https://leaf.cmu.edu/>`_ and stored in the ``path`` folder.
+            The datasets must also be created according to the instructions provided by the Leaf
+            project. The expected folder structure is:
+
+            .. code-block:: bash
+
+                path
+                ├── shakespeare
+                │   ├── train
+                │   │   ├── user_data_0.json
+                │   │   ├── user_data_1.json
+                │   │   └── ...
+                │   └── test
+                │       ├── user_data_0.json
+                │       ├── user_data_1.json
+                │       └── ...
+
+            where in each ``user_data_X.json`` file there is a dictionary with the keys
+            ``user_data`` containing the data of the user.
+
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"./data"``.
+            batch_size (int, optional): The batch size. Defaults to ``10``.
+
+        Returns:
+            tuple: A tuple containing the training and testing data loaders for the clients. The
+                server data loader is ``None``.
+        """
         shake_path = os.path.join(path, "shakespeare")
         train_dir = os.path.join(shake_path, 'train')
         test_dir = os.path.join(shake_path, 'test')
@@ -574,23 +739,6 @@ class Datasets:
         client_tr_assignments = [client_tr_assignments[i] for i in perm]
         client_te_assignments = [client_te_assignments[i] for i in perm]
         return client_tr_assignments, client_te_assignments, None
-
-    @classmethod
-    def get(cls, dataset_name: str, **kwargs) -> DataContainer | tuple:
-        """Get a dataset by name initialized with the provided arguments.
-
-        Args:
-            dataset_name (str): The name of the dataset to load.
-            **kwargs: Additional arguments to pass to construct the dataset.
-
-        Returns:
-            DataContainer: The ``DataContainer`` object containing the dataset.
-        """
-        if dataset_name not in Datasets._DATASET_MAP:
-            raise ValueError(f"Dataset {dataset_name} not found. The supported datasets are: " +
-                             ", ".join(Datasets._DATASET_MAP.keys()) + ".")
-
-        return Datasets._DATASET_MAP[dataset_name](**kwargs)
 
 
 Datasets._DATASET_MAP = {

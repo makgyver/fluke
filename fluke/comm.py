@@ -29,6 +29,7 @@ class Message:
         to the server with the content "Hello". The client can create a message as follows:
 
         .. code-block:: python
+            :linenos:
 
             message = Message(payload="Hello", msg_type="greeting", sender=client)
             # Then through a channel (of type Channel) the message can be sent to the server
@@ -115,6 +116,7 @@ class Message:
         Example:
 
             .. code-block:: python
+                :linenos:
 
                 message = Message("Hello", "greeting", client)
                 print(message.get_size())  # 5
@@ -166,6 +168,7 @@ class Channel(ObserverSubject):
         Let us consider a simple example where a ``client`` sends a message to the ``server``.
 
         .. code-block:: python
+            :linenos:
 
             channel = Channel()
             channel.send(Message("Hello", "greeting", server), client)
@@ -211,6 +214,7 @@ class Channel(ObserverSubject):
             Sending a string message from the ``server`` to a ``client``:
 
             .. code-block:: python
+                :linenos:
 
                 channel = Channel()
                 channel.send(Message("Hello", "greeting", server), client)
@@ -241,6 +245,7 @@ class Channel(ObserverSubject):
             Receiving a message from the ``server`` with message type ``greeting``:
 
             .. code-block:: python
+                :linenos:
 
                 channel = Channel()
                 message = channel.receive(client, server, "greeting")

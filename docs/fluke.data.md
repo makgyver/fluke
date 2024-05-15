@@ -21,7 +21,6 @@ TODO
    :nosignatures:
 
    datasets
-   support
 
 ```
 

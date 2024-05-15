@@ -42,5 +42,6 @@
 ```{eval-rst}
 
 .. autoclass:: fluke.data.datasets.Datasets
+   :member-order: bysource
    :members: get, MNIST, MNISTM, EMNIST, CIFAR10, CIFAR100, SVHN, CINIC10, FASHION_MNIST, TINY_IMAGENET, FEMNIST, SHAKESPEARE
 ```

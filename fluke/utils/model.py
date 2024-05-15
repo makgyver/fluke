@@ -47,6 +47,7 @@ class MMMixin:
         For example:
 
         .. code-block:: python
+            :linenos:
 
             # C is a class that extends torch.nn.Module
             class M(MMMixin, C):
