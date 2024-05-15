@@ -69,7 +69,7 @@ def test_client():
     client.set_server(server)
     assert client.server == server
     assert client.channel == server.channel
-    server._broadcast_model([client])
+    server.broadcast_model([client])
 
     ev0 = client.evaluate()
     client.fit()

@@ -99,14 +99,14 @@ def test_server():
 
     for c in clients:
         c.send_model()
-    cmodels = server._get_client_models(clients, state_dict=False)
+    cmodels = server.get_client_models(clients, state_dict=False)
     assert len(cmodels) == 2
     assert isinstance(cmodels[0], Model)
 
     server.test_data = None
     assert not server.evaluate()
 
-    server._broadcast_model(clients)
+    server.broadcast_model(clients)
 
     for c in clients:
         m = c.channel.receive(c, server, "model")

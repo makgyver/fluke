@@ -46,11 +46,9 @@ class Client():
         scheduler (torch.optim.lr_scheduler.LRScheduler): The learning rate scheduler.
         device (torch.device): The device where the client trains the model. By default, it is the
             device defined in :class:`fluke.GlobalSettings`.
-        server (Server): The server to which the client is connected. This reference must only be
-            used to send messages through the channel.
 
     Attention:
-        **The client should not directly call methods on the server**. The communication between the
+        **The client should not directly call methods of the server**. The communication between the
         client and the server must be done through the :attr:`channel`.
 
     Caution:
@@ -126,7 +124,8 @@ class Client():
 
     @property
     def server(self) -> Server:
-        """The server to which the client is connected.
+        """The server to which the client is connected. This reference must only be
+        used to send messages through the channel.
 
         Returns:
             Server: The server.

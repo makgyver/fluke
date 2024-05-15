@@ -154,17 +154,17 @@ class FedProtoServer(Server):
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # This funciton broadcasts the prototypes to the clients
         self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
 
-    def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
+    def get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_protos = self._get_client_models(eligible)
+        clients_protos = self.get_client_models(eligible)
 
         # Group by label
         label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]

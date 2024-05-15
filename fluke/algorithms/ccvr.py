@@ -152,12 +152,12 @@ class CCVRServer(Server):
             optimizer.step()
         self.model.to("cpu")
 
-    def _finalize(self) -> None:
-        self._broadcast_model(self.clients)
+    def finalize(self) -> None:
+        self.broadcast_model(self.clients)
         classes_mean, classes_cov = self._compute_mean_cov()
         Z, y = self._generate_virtual_repr(classes_mean, classes_cov)
         self._calibrate(Z, y)
-        super()._finalize()
+        super().finalize()
 
 
 class CCVR(CentralizedFL):

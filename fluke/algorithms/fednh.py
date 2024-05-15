@@ -152,9 +152,9 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_models = self._get_client_models(eligible, state_dict=False)
+        clients_models = self.get_client_models(eligible, state_dict=False)
         clients_protos = [cmodel.prototypes.data for cmodel in clients_models]
 
         # Group by label

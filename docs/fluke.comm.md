@@ -30,8 +30,24 @@ TODO
 </h2>
 
 ```{eval-rst}
+
+.. currentmodule:: fluke.comm.Message
+
+.. autosummary:: 
+   :nosignatures:
+
+   payload
+   msg_type
+   sender
+   get_size
+   clone
+
+```
+
+```{eval-rst}
 .. autoclass:: fluke.comm.Message
-   :members: get_size, clone
+   :member-order: bysource
+   :members: payload, msg_type, sender, get_size, clone
 
 ```
 
@@ -41,6 +57,22 @@ TODO
 {bdg-primary}`class` ``fluke.comm.Channel``
 
 </h2>
+
+```{eval-rst}
+
+.. currentmodule:: fluke.comm.Channel
+
+.. autosummary:: 
+   :nosignatures:
+
+   buffer
+   __getitem__
+   send
+   receive
+   broadcast
+   clear
+
+```
 
 ```{eval-rst}
 

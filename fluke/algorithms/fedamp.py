@@ -97,8 +97,8 @@ class FedAMPServer(Server):
         return empty_model
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
-        clients_model = self._get_client_models(eligible, state_dict=False)
+    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
+        clients_model = self.get_client_models(eligible, state_dict=False)
         clients_model = [client for client in clients_model]
 
         for i, client in enumerate(eligible):
@@ -123,7 +123,7 @@ class FedAMPServer(Server):
 
             self.channel.send(Message(ui_model, "model", self), client)
 
-    def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate
         pass
 

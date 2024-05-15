@@ -25,9 +25,9 @@ class FedAVGMServer(Server):
         self.hyper_params.update(momentum=momentum)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible)
+        clients_sd = self.get_client_models(eligible)
         clients_diff = [diff_model(self.model.state_dict(), client_model)
                         for client_model in clients_sd]
         weights = self._get_client_weights(eligible)

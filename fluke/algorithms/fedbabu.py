@@ -92,7 +92,7 @@ class FedBABUServer(Server):
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)
 
-    def _finalize(self) -> None:
+    def finalize(self) -> None:
 
         with Progress() as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))

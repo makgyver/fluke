@@ -134,7 +134,7 @@ class FedDynServer(Server):
         self.alpha = alpha
         self.cld_mdl = deepcopy(self.model)
 
-    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+    def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.cld_mdl), "model", self), eligible)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
@@ -156,9 +156,9 @@ class FedDynServer(Server):
         return super().fit(n_rounds, eligible_perc)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible, state_dict=False)
+        clients_sd = self.get_client_models(eligible, state_dict=False)
         weights = self._get_client_weights(eligible)
 
         for key in self.model.state_dict().keys():

@@ -108,7 +108,12 @@ class Server(ObserverSubject):
         """
         return self.model is not None
 
-    def _broadcast_model(self, eligible: Sequence[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
+        """Broadcast the global model to the clients.
+
+        Args:
+            eligible (Sequence[Client]): The clients that will receive the global model.
+        """
         self._channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
@@ -135,14 +140,14 @@ class Server(ObserverSubject):
             total_rounds = self.rounds + n_rounds
             for round in range(self.rounds, total_rounds):
                 self._notify_start_round(round + 1, self.model)
-                eligible = self._get_eligible_clients(eligible_perc)
+                eligible = self.get_eligible_clients(eligible_perc)
                 self._notify_selected_clients(round + 1, eligible)
-                self._broadcast_model(eligible)
+                self.broadcast_model(eligible)
                 for c, client in enumerate(eligible):
                     client.fit()
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
-                self._aggregate(eligible)
+                self.aggregate(eligible)
 
                 client_evals, evals = [], {}
                 if (round + 1) % self._eval_every == 0:
@@ -157,7 +162,7 @@ class Server(ObserverSubject):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
-        self._finalize()
+        self.finalize()
 
     def evaluate(self) -> dict[str, float]:
         """Evaluate the global federated model on the ``test_set``.
@@ -178,14 +183,14 @@ class Server(ObserverSubject):
                                                                    self.test_data)
         return {}
 
-    def _finalize(self) -> None:
+    def finalize(self) -> None:
         """Finalize the federated learning process.
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
         client_evals = []
         client_to_eval = [client for client in self.clients if client.index in self._participants]
-        self._broadcast_model(client_to_eval)
+        self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation..."):
             client.finalize()
             client_eval = client.evaluate()
@@ -193,7 +198,7 @@ class Server(ObserverSubject):
                 client_evals.append(client_eval)
         self._notify_finalize(client_evals)
 
-    def _get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
+    def get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
         """Get the clients that will participate in the current round.
 
         Args:
@@ -211,7 +216,7 @@ class Server(ObserverSubject):
         self._participants.update([c.index for c in selected])
         return selected
 
-    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
+    def get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
         """Retrieve the models of the clients.
         This method assumes that the clients have already sent their models to the server.
 
@@ -235,7 +240,7 @@ class Server(ObserverSubject):
         If the hyperparameter ``weighted`` is True, the clients are weighted by their number of
         samples. Otherwise, all clients have the same weight.
 
-        Note:
+        Caution:
             The computation of the weights do not adhere to the "best-practices" of ``fluke``
             because the server should not have direct access to the number of samples of the
             clients. Thus, the computation of the weights should be done communicating with the
@@ -257,7 +262,7 @@ class Server(ObserverSubject):
             return [1. / len(eligible)] * len(eligible)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[Client]) -> None:
+    def aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
@@ -267,7 +272,7 @@ class Server(ObserverSubject):
             eligible (Sequence[Client]): The clients that will participate in the aggregation.
         """
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible)
+        clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):

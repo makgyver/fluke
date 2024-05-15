@@ -46,8 +46,8 @@ class FedNovaClient(Client):
 class FedNovaServer(Server):
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
-        clients_sd = self._get_client_models(eligible)
+    def aggregate(self, eligible: Iterable[Client]) -> None:
+        clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         a_i = [
             self.channel.receive(self, client, "local_a").payload

@@ -27,13 +27,16 @@ TODO
    :nosignatures:
 
    fit
-   _finalize
-   _get_eligible_clients
-   _aggregate
+   broadcast_model
+   get_eligible_clients
+   get_client_models
+   _get_client_weights
+   aggregate
+   finalize
 
 .. currentmodule:: fluke.server
 
 .. autoclass:: Server
-   :members: fit, _finalize, _get_eligible_clients, _aggregate
+   :members: fit, broadcast_model, get_eligible_clients, get_client_models, _get_client_weights, aggregate, finalize
 
 ```

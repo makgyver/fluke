@@ -99,9 +99,9 @@ class PFedMeServer(Server):
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[Client]) -> None:
+    def aggregate(self, eligible: Sequence[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible)
+        clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):

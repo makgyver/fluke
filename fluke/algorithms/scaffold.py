@@ -120,11 +120,11 @@ class SCAFFOLDServer(Server):
                         for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update(global_step=global_step)
 
-    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+    def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
 

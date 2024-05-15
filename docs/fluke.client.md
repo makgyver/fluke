@@ -45,6 +45,11 @@ Classes included in ``fluke.client``
 .. autosummary:: 
    :nosignatures:
 
+   index
+   n_examples
+   channel
+   server
+   set_server
    fit
    receive_model
    send_model
@@ -56,7 +61,7 @@ Classes included in ``fluke.client``
 
 .. autoclass:: fluke.client.Client
    :member-order: bysource
-   :members: index, n_examples, channel, fit, receive_model, send_model, evaluate, finalize
+   :members: index, n_examples, channel, server, set_server, fit, receive_model, send_model, evaluate, finalize
 
 ```
 
