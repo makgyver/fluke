@@ -168,9 +168,9 @@ Functions included in ``fluke.utils``
 ```{eval-rst}
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :hidden:
 
-   model
+   fluke.utils.model
 
 ```

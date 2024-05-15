@@ -105,7 +105,7 @@ Classes
    :maxdepth: 2
    :hidden:
 
-   datasets
-   support
+   fluke.data.datasets
+   fluke.data.support
 
 ```
