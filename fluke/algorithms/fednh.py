@@ -15,7 +15,6 @@ from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..server import Server  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..comm import Message  # NOQA
 
 
 class ProtoNet(Module):

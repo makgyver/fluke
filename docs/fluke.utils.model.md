@@ -84,6 +84,7 @@ Functions included in ``fluke.utils.model``
 
 .. autoclass:: fluke.utils.model.LinesLinear
    :members:
+   :show-inheritance:
 
 ```
 
@@ -97,6 +98,7 @@ Functions included in ``fluke.utils.model``
 
 .. autoclass:: fluke.utils.model.LinesConv2d
    :members:
+   :show-inheritance:
 
 ```
 
@@ -110,6 +112,7 @@ Functions included in ``fluke.utils.model``
 
 .. autoclass:: fluke.utils.model.LinesLSTM
    :members:
+   :show-inheritance:
 
 ```
 
@@ -123,6 +126,7 @@ Functions included in ``fluke.utils.model``
 
 .. autoclass:: fluke.utils.model.LinesEmbedding
    :members:
+   :show-inheritance:
 
 ```
 
@@ -137,6 +141,7 @@ Functions included in ``fluke.utils.model``
 
 .. autoclass:: fluke.utils.model.LinesBN2d
    :members:
+   :show-inheritance:
 
 ```
 
