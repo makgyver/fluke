@@ -1,4 +1,4 @@
-# **``fluke``** API overview
+# API overview
 
 TODO
 
@@ -35,6 +35,20 @@ TODO
    FastDataLoader
    DataSplitter
    DummyDataSplitter
+
+```
+
+**Submodules**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.data
+
+.. autosummary::
+   :nosignatures:
+   
+   datasets
+   support
 
 ```
 
@@ -126,6 +140,7 @@ TODO
    Log
    WandBLog
    ServerObserver
+
 ```
 
 **Functions**
@@ -137,22 +152,26 @@ TODO
 
    import_module_from_str
    get_class_from_str
+   get_logger
    get_loss
    get_model
    get_scheduler
    clear_cache
    get_full_classname
+
 ```
 
-**Enums**
+**Submodules**
 
 ```{eval-rst}
+
 .. currentmodule:: fluke.utils
 
 .. autosummary::
    :nosignatures:
    
-   LogEnum
+   model
+
 ```
 
 ## [`fluke.evaluation`](fluke.evaluation.md)
@@ -167,4 +186,58 @@ TODO
    
    Evaluator
    ClassificationEval
+
+```
+
+## [`fluke.algorithms`](fluke.algorithms.md)
+
+**Classes**
+
+```{eval-rst}
+.. currentmodule:: fluke.algorithms
+
+.. autosummary::
+   :nosignatures:
+   
+   CentralizedFL
+   PersonalizedFL
+
+```
+
+**Submodules**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.algorithms
+
+.. autosummary::
+   :nosignatures:
+
+   apfl
+   ccvr
+   ditto
+   fedamp
+   fedavg
+   fedavgm
+   fedbabu
+   fedbn
+   feddyn
+   fedexp
+   fedhp
+   fedlc
+   fednh
+   fednova
+   fedopt
+   fedper
+   fedproto
+   fedprox
+   fedrep
+   fedsgd
+   lg_fedavg
+   moon
+   per_fedavg
+   pfedme
+   scaffold
+   superfed
+
 ```

@@ -11,7 +11,7 @@ sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model, get_logger)  # NOQA
 from .data import DataSplitter, FastDataLoader  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 
@@ -87,7 +87,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
                             data_splitter,
                             cfg.method.hyperparameters)
 
-    log = cfg.logger.name.logger(name=str(cfg), **cfg.logger.exclude('name'))
+    log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))

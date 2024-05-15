@@ -8,7 +8,7 @@ from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
 import torch
 from typing import Any, Sequence
-from enum import Enum
+# from enum import Enum
 import psutil
 import pandas as pd
 import numpy as np
@@ -32,7 +32,6 @@ __all__ = [
     'model',
     'Configuration',
     'Log',
-    'LogEnum',
     'OptimizerConfigurator',
     'ServerObserver',
     'WandBLog',
@@ -194,27 +193,6 @@ class OptimizerConfigurator:
         return to_str
 
 
-class LogEnum(Enum):
-    """Log enumerator."""
-    LOCAL = "local"  # : Local logging
-    WANDB = "wandb"  # : Weights and Biases logging
-
-    def logger(self,
-               **wandb_config) -> Log:
-        """Returns a new logger according to the value of the enumerator.
-
-        Args:
-            **wandb_config (dict): The configuration for Weights and Biases.
-
-        Returns:
-            Log: The logger.
-        """
-        if self == LogEnum.LOCAL:
-            return Log()
-        else:
-            return WandBLog(**wandb_config)
-
-
 class Log(ServerObserver, ChannelObserver):
     """Basic logger.
     This class is used to log the performance of the global model and the communication costs during
@@ -227,7 +205,7 @@ class Log(ServerObserver, ChannelObserver):
         current_round (int): The current round.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.history: dict = {}
         self.client_history: dict = {}
         self.comm_costs: dict = {0: 0}
@@ -469,6 +447,21 @@ def get_full_classname(classtype: type) -> str:
     return f"{classtype.__module__}.{classtype.__name__}"
 
 
+def get_logger(lname: str, **kwargs) -> Log | WandBLog:
+    """Get a logger from its name.
+    This function is used to get a logger from its name. It is used to dynamically import loggers.
+    The supported loggers are the ones defined in the ``fluke.utils`` module.
+
+    Args:
+        lname (str): The name of the logger.
+        **kwargs: The keyword arguments to pass to the logger's constructor.
+
+    Returns:
+        Log | WandBLog: The logger.
+    """
+    return get_class_from_str("fluke.utils", lname)(**kwargs)
+
+
 def get_optimizer(oname: str) -> type[Optimizer]:
     """Get an optimizer from its name.
     This function is used to get an optimizer from its name. It is used to dynamically import
@@ -618,7 +611,7 @@ class Configuration(DDict):
         if not error:
             self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
             # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
-            self.logger.name = LogEnum(self.logger.name)
+            # self.logger.name = LogEnum(self.logger.name)
 
         if error:
             raise ValueError("Configuration validation failed.")
