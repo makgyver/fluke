@@ -1,3 +1,6 @@
+"""
+This module contains the :class:`Datasets` for loading the supported datasets.
+"""
 from __future__ import annotations
 from torchvision.transforms import ToTensor, Lambda
 from torchvision import datasets

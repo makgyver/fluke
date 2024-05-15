@@ -1,3 +1,4 @@
+"""This module contains utility classes for loading datasets."""
 from rich.progress import track
 from typing import Any
 from torchvision.datasets.utils import download_and_extract_archive

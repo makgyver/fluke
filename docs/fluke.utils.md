@@ -62,6 +62,7 @@ Functions included in ``fluke.utils``
    get_class_from_str
    get_class_from_qualified_name
    get_full_classname
+   get_logger
    get_loss
    get_model
    get_scheduler
@@ -150,6 +151,8 @@ Functions included in ``fluke.utils``
 .. autofunction:: fluke.utils.get_class_from_qualified_name
 
 .. autofunction:: fluke.utils.get_full_classname
+
+.. autofunction:: fluke.utils.get_logger
 
 .. autofunction:: fluke.utils.get_loss
 

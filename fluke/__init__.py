@@ -2,7 +2,6 @@
 The ``fluke`` module is the entry module of the ``fluke`` framework. Here are defined generic
 classes used by the other modules.
 """
-
 import re
 import torch
 import random
@@ -76,6 +75,15 @@ class DDict(dict):
 
         Args:
             **kwargs: The key-value pairs.
+
+        Example:
+            .. code-block:: python
+
+                d = DDict(a=1)
+                print(d) # {'a': 1}
+                d.update(b=2, c=3)
+                print(d) # {'a': 1, 'b': 2, 'c': 3}
+
         """
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -173,8 +181,8 @@ class GlobalSettings(metaclass=Singleton):
     This class is a singleton that holds the global settings for ``fluke``. The settings include:
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
-    - The seed for reproducibility;
-    - The progress bars for the federated learning process, clients and server;
+    - The ``seed`` for reproducibility;
+    - The progress bars for the federated learning process, clients and the server;
     - The live renderer, which is used to render the progress bars.
 
     """
@@ -223,12 +231,17 @@ class GlobalSettings(metaclass=Singleton):
         torch.backends.cudnn.deterministic = True
 
     def auto_device(self) -> torch.device:
-        """Set device to ``cuda`` if available, otherwise ``cpu``.
+        """Set device to ``cuda`` or ``mps`` if available, otherwise ``cpu``.
 
         Returns:
             torch.device: The device.
         """
-        self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            self._device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self._device = torch.device('mps')
+        else:
+            self._device = torch.device('cpu')
         return self._device
 
     def set_device(self, device: str) -> torch.device:
@@ -262,9 +275,9 @@ class GlobalSettings(metaclass=Singleton):
         """Get the progress bar.
         The possible progress bar types are:
 
-        - FL: The progress bar for the federated learning process.
-        - clients: The progress bar for the clients.
-        - server: The progress bar for the server.
+        - ``FL``: The progress bar for the federated learning process.
+        - ``clients``: The progress bar for the clients.
+        - ``server``: The progress bar for the server.
 
         Args:
             progress_type (str): The type of progress bar.

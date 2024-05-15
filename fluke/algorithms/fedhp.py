@@ -36,7 +36,7 @@ class ProtoNet(nn.Module):
         return embeddings, dists
 
 
-class FedHyperProtoModel(nn.Module):
+class FedHPModel(nn.Module):
     def __init__(self,
                  model: nn.Module):
         super().__init__()
@@ -63,7 +63,7 @@ class SeparationLoss(nn.Module):
         return M.max(dim=1)[0].mean()
 
 
-class FedHyperProtoClient(PFLClient):
+class FedHPClient(PFLClient):
 
     def __init__(self,
                  index: int,
@@ -117,7 +117,7 @@ class FedHyperProtoClient(PFLClient):
 
     def evaluate(self) -> dict[str, float]:
         if self.test_set is not None and self.initial_prototypes is not None:
-            model = FedHyperProtoModel(self.model)
+            model = FedHPModel(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos,
                                       self.device).evaluate(model,
@@ -128,7 +128,7 @@ class FedHyperProtoClient(PFLClient):
         self.fit()
 
 
-class FedHyperProtoServer(Server):
+class FedHPServer(Server):
 
     def __init__(self,
                  model: nn.Module,
@@ -178,13 +178,13 @@ class FedHyperProtoServer(Server):
     #     return [self.channel.receive(self, client, "model").payload for client in eligible]
 
 
-class FedHyperProto(PersonalizedFL):
+class FedHP(PersonalizedFL):
 
     def get_client_class(self) -> PFLClient:
-        return FedHyperProtoClient
+        return FedHPClient
 
     def get_server_class(self) -> Server:
-        return FedHyperProtoServer
+        return FedHPServer
 
     def get_optimizer_class(self) -> Optimizer:
         return torch.optim.Adam
