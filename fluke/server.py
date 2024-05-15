@@ -172,7 +172,8 @@ class Server(ObserverSubject):
         """
         if self.test_data is not None:
             return ClassificationEval(self.clients[0].hyper_params.loss_fn,
-                                      self.model.output_size,
+                                      #   self.model.output_size,
+                                      self.test_data.num_labels,
                                       device=self.device).evaluate(self.model,
                                                                    self.test_data)
         return {}

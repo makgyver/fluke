@@ -22,9 +22,12 @@ __all__ = [
     "diff_model",
     "merge_models",
     "set_lambda_model",
+    "get_output_shape",
     "get_local_model_dict",
     "get_global_model_dict",
-    "mix_networks"
+    "mix_networks",
+    "batch_norm_to_group_norm",
+    "safe_load_state_dict"
 ]
 
 STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
@@ -363,11 +366,16 @@ def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMM
     """Mix two networks using a linear interpolation.
     This method takes two models and a lambda value and returns a new model that is a linear
     interpolation of the two input models. It transparenly handles the interpolation of the
-    different layers of the models. The returned model implements the `MMMixin` class and has all
-    the layers swapped with the corresponding interpolated layers.
+    different layers of the models. The returned model implements the :class:`MMMixin` class and
+    has all the layers swapped with the corresponding interpolated layers.
 
     See Also:
-        `MMMixin`, `LinesLinear`, `LinesConv`, `LinesBN`, `LinesEmbedding`, `LinesLSTM`.
+        - :class:`MMMixin`
+        - :class:`LinesLinear`
+        - :class:`LinesConv2d`
+        - :class:`LinesBN2d`
+        - :class:`LinesEmbedding`
+        - :class:`LinesLSTM`
 
     Args:
         global_model (Module): The global model.
@@ -375,7 +383,7 @@ def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMM
         lamda (float): The interpolation constant.
 
     Returns:
-        Module: The merged/interpolated model that implements the `MMMixin` class.
+        Module: The merged/interpolated model that implements the ``MMMixin`` class.
     """
     merged_net = deepcopy(global_model)
     layers = _recursive_mix_networks(merged_net, global_model, local_model)
@@ -448,6 +456,19 @@ def get_global_model_dict(model: MMMixin) -> OrderedDict:
         OrderedDict: the global model state dictionary.
     """
     return OrderedDict({k: deepcopy(v) for k, v in model.state_dict().items() if "_local" not in k})
+
+
+def get_output_shape(model: Module, input_dim: tuple[int, ...]):
+    """Get the output shape of a model given the shape of the input.
+
+    Args:
+        model (Module): The model to get the output shape.
+        input_dim (tuple[int, ...]): The expected input shape of the model.
+
+    Returns:
+        tuple[int, ...]: The output shape of the model.
+    """
+    return model(torch.rand(*(input_dim))).data.shape
 
 
 def diff_model(model_dict1: dict, model_dict2: dict):

@@ -97,3 +97,15 @@ Classes
    :show-inheritance:
 
 ```
+
+
+```{eval-rst}
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   datasets
+   support
+
+```

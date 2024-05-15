@@ -20,7 +20,7 @@ __all__ = [
 
 class Evaluator(ABC):
     """This class is the base class for all evaluators in ``fluke``.
-    An evaluator object should be used to perform the evaluation of a federated model.
+    An evaluator object should be used to perform the evaluation of a (federated) model.
 
     Attributes:
         loss_fn (Callable, optional): The loss function to use for evaluation.
@@ -53,21 +53,21 @@ class Evaluator(ABC):
 
 
 class ClassificationEval(Evaluator):
-    """Evaluate a pytorch model for classification.
+    """Evaluate a PyTorch model for classification.
     The metrics computed are ``accuracy``, ``precision``, ``recall``, ``f1`` and the loss according
     to the provided loss function ``loss_fn``. Metrics are computed both in a micro and macro
     fashion.
 
     Args:
-        loss_fn (Callable): The loss function to use for evaluation.
+        loss_fn (Callable or None): The loss function to use for evaluation.
         n_classes (int): The number of classes.
         device (torch.device, optional): The device where the evaluation is performed.
             If ``None``, the device is the one set in the ``GlobalSettings``.
 
     Attributes:
         n_classes (int): The number of classes.
-        device (Optional[torch.device]): The device where the evaluation is performed. If `None`,
-            the device is the one set in the `GlobalSettings`.
+        device (Optional[torch.device]): The device where the evaluation is performed. If ``None``,
+            the device is the one set in the :class:`fluke.GlobalSettings`.
     """
 
     def __init__(self,

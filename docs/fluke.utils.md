@@ -163,3 +163,14 @@ Functions included in ``fluke.utils``
 .. autofunction:: fluke.utils.import_module_from_str
 
 ```
+
+
+```{eval-rst}
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   model
+
+```

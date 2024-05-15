@@ -212,7 +212,8 @@ class Client():
         """
         if self.test_set is not None and self.model is not None:
             return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.model.output_size,
+                                      #   self.model.output_size,
+                                      self.train_set.num_labels,
                                       self.device).evaluate(self.model,
                                                             self.test_set)
         return {}
@@ -277,7 +278,8 @@ class PFLClient(Client):
         """
         if self.test_set is not None and self.personalized_model is not None:
             evaluator = ClassificationEval(self.hyper_params.loss_fn,
-                                           self.personalized_model.output_size,
+                                           #    self.personalized_model.output_size,
+                                           self.train_set.num_labels,
                                            self.device)
             return evaluator.evaluate(self.personalized_model, self.test_set)
 
