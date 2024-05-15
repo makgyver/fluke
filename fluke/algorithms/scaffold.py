@@ -51,7 +51,7 @@ class SCAFFOLDClient(Client):
         self.delta_y = None
         self.server_control = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
             self.model = model
@@ -67,7 +67,7 @@ class SCAFFOLDClient(Client):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         server_model = deepcopy(self.model)
         self.model.to(self.device)
         self.model.train()
@@ -102,9 +102,9 @@ class SCAFFOLDClient(Client):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
-    def _send_model(self):
+    def send_model(self):
         self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 

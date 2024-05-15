@@ -23,6 +23,19 @@ class Message:
     type is immutable. The message contains a payload, a type and a sender. The payload can be of
     any type. The type is a string that describes the content of the message. The sender is the
     object that sends the message.
+
+    Example:
+        Let us consider a simple example where a client wants to send preparea  message to be sent
+        to the server with the content "Hello". The client can create a message as follows:
+
+        .. code-block:: python
+
+            message = Message(payload="Hello", msg_type="greeting", sender=client)
+            # Then through a channel (of type Channel) the message can be sent to the server
+            # channel.send(message, server)
+
+    See Also:
+        :class:`Channel`
     """
 
     def __init__(self,
@@ -98,6 +111,19 @@ class Message:
 
         Returns:
             int: The size of the message in bytes.
+
+        Example:
+
+            .. code-block:: python
+
+                message = Message("Hello", "greeting", client)
+                print(message.get_size())  # 5
+
+                message = Message(torch.randn(10, 10), "tensor", client)
+                print(message.get_size())  # 100
+
+                message = Message(None, "ack", client)
+                print(message.get_size())  # 1
         """
         return self.__get_size(self.payload)
 
@@ -115,7 +141,7 @@ class ChannelObserver():
     process.
 
     See Also:
-        ``ServerObserver``, ``ObserverSubject``
+        :class:`fluke.utils.ServerObserver`, :class:`fluke.ObserverSubject`
 
     """
 
@@ -134,6 +160,17 @@ class Channel(ObserverSubject):
     parties.
     The Channel class implements the Observer pattern. It notifies the observers when a message is
     received. Clients and server are supposed to use a channel to communicate with each other.
+
+    Example:
+
+        Let us consider a simple example where a ``client`` sends a message to the ``server``.
+
+        .. code-block:: python
+
+            channel = Channel()
+            channel.send(Message("Hello", "greeting", server), client)
+            mag: Message = channel.receive(server, client, "greeting")
+            print(msg.payload) # Hello
     """
 
     def __init__(self):
@@ -199,6 +236,14 @@ class Channel(ObserverSubject):
         Raises:
             ValueError: message not found in the message box of the receiver with the
                 given sender and message type.
+
+        Example:
+            Receiving a message from the ``server`` with message type ``greeting``:
+
+            .. code-block:: python
+
+                channel = Channel()
+                message = channel.receive(client, server, "greeting")
         """
         if sender is None and msg_type is None:
             msg = self._buffer[mbox].pop()
@@ -227,7 +272,7 @@ class Channel(ObserverSubject):
     def clear(self, mbox: Any) -> None:
         """Clear the message box of the given receiver.
 
-        Note:
+        Caution:
             Any unread message will be lost after calling this method.
             Lost messages are not considered in the communication protocol thus they are not
             accounted for in the communication cost.

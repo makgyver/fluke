@@ -72,7 +72,7 @@ class CCVRServer(Server):
     def _compute_mean_cov(self):
         means, covs, ns = [], [], []
         for client in self.clients:
-            client._receive_model()
+            client.receive_model()
             client.compute_mean_cov()
             mean, cov, n = self.channel.receive(self, client, msg_type="mean_cov").payload
             means.append(mean)

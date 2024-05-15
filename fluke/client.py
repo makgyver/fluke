@@ -44,8 +44,29 @@ class Client():
             the optimizer and the learning rate scheduler.
         optimizer (torch.optim.Optimizer): The optimizer.
         scheduler (torch.optim.lr_scheduler.LRScheduler): The learning rate scheduler.
-        device (torch.device): The device where the client trains the model.
-        server (Server): The server.
+        device (torch.device): The device where the client trains the model. By default, it is the
+            device defined in :class:`fluke.GlobalSettings`.
+        server (Server): The server to which the client is connected. This reference must only be
+            used to send messages through the channel.
+
+    Attention:
+        **The client should not directly call methods on the server**. The communication between the
+        client and the server must be done through the :attr:`channel`.
+
+    Caution:
+        When inheriting from this class, make sure to put all the specific hyper-parameters in the
+        :attr:`hyper_params` attribute. In this way ``fluke`` can properly handle the
+        hyper-parameters of the client in the federated learning process.
+
+        For example:
+
+        .. code-block:: python
+
+            class MyClient(Client):
+                # We omit the type hints for brevity
+                def __init__(self, index, train_set, test_set, optimizer_cfg, loss_fn, my_param):
+                    super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn)
+                    self.hyper_params.update(my_param=my_param) # This is important
     """
 
     def __init__(self,
@@ -74,7 +95,8 @@ class Client():
 
     @property
     def index(self) -> int:
-        """The client identifier.
+        """The client identifier. This might be useful to identify the client in the federated
+        learning process for logging or debugging purposes.
 
         Returns:
             int: The client identifier.
@@ -93,6 +115,9 @@ class Client():
     @property
     def channel(self) -> Channel:
         """The communication channel.
+
+        Attention:
+            Use this channel to communicate with the server.
 
         Returns:
             Channel: The communication channel.
@@ -118,11 +143,11 @@ class Client():
         self._server = server
         self._channel = server.channel
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         """Receive the global model from the server. This method is responsible for receiving the
         global model from the server and updating the local model accordingly. The model is received
-        as a ``Message`` with  ``msg_type`` "model" from the inbox of the client iself.
-        The method uses the channel to receive the message.
+        as a payload of a :class:`fluke.comm.Message` with  ``msg_type="model"`` from the inbox
+        of the client itself. The method uses the channel to receive the message.
         """
         msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:
@@ -131,7 +156,7 @@ class Client():
             safe_load_state_dict(self.model, msg.payload.state_dict())
             # self.model.load_state_dict(msg.payload.state_dict())
 
-    def _send_model(self) -> None:
+    def send_model(self) -> None:
         """Send the current model to the server. The model is sent as a ``Message`` with
         ``msg_type`` "model" to the server. The method uses the channel to send the message.
         """
@@ -151,7 +176,7 @@ class Client():
         """
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -171,11 +196,11 @@ class Client():
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
-        """Evaluate the local model on the client's ``test_set``. If the test set is not set or the
-        client has not received the global model from the server, the method returns an empty
+        """Evaluate the local model on the client's :attr:`test_set`. If the test set is not set or
+        the client has not received the global model from the server, the method returns an empty
         dictionary.
 
         Warning:
@@ -195,9 +220,13 @@ class Client():
     def finalize(self) -> None:
         """Finalize the client. This method is called at the end of the federated learning process.
         The default behavior is to receive the global model from the server that is then potentially
-        used to evaluate the performance of the client's model on the local test set.
+        used to evaluate the performance of the model on the local test set.
+
+        Attention:
+            When inheriting from this class, make sure to override this method if this behavior is
+            not desired.
         """
-        self._receive_model()
+        self.receive_model()
 
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])

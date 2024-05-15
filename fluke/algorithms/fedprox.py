@@ -31,7 +31,7 @@ class FedProxClient(Client):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         W = deepcopy(self.model)
         self.model.to(self.device)
         self.model.train()
@@ -51,7 +51,7 @@ class FedProxClient(Client):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class FedProx(CentralizedFL):

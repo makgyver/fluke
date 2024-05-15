@@ -34,7 +34,7 @@ class APFLClient(PFLClient):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
 
         self.model.train()
         self.personalized_model.train()
@@ -78,10 +78,10 @@ class APFLClient(PFLClient):
         self.personalized_model = merge_models(
             self.model, self.internal_model, self.hyper_params.lam)
 
-        self._send_model()
+        self.send_model()
 
     # def get_model(self):
-    #     return self._send_model()
+    #     return self.send_model()
 
 
 class APFLServer(Server):

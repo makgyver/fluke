@@ -93,7 +93,7 @@ class FedNHClient(PFLClient):
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -119,7 +119,7 @@ class FedNHClient(PFLClient):
             protos[label] = self.model(Xlbl)[0].detach().data
 
         self._update_protos(protos)
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
         if self.test_set is not None and self.model is not None:

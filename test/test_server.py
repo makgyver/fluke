@@ -98,7 +98,7 @@ def test_server():
         pytest.fail("Unexpected exception!")
 
     for c in clients:
-        c._send_model()
+        c.send_model()
     cmodels = server._get_client_models(clients, state_dict=False)
     assert len(cmodels) == 2
     assert isinstance(cmodels[0], Model)

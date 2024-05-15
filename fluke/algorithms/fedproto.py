@@ -68,11 +68,11 @@ class FedProtoClient(PFLClient):
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
         self.global_protos = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.global_protos = msg.payload
 
-    def _send_model(self):
+    def send_model(self):
         self.channel.send(Message(self.prototypes, "model", self), self.server)
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
@@ -82,7 +82,7 @@ class FedProtoClient(PFLClient):
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -126,7 +126,7 @@ class FedProtoClient(PFLClient):
         self.model.to("cpu")
         clear_cache()
         self._update_protos(protos)
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
         if self.test_set is not None and self.prototypes[0] is not None:

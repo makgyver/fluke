@@ -84,7 +84,7 @@ def test_client():
     client.test_set = None  # THIS IS NOT ALLOWED
     assert client.evaluate() == {}
 
-    client._send_model()
+    client.send_model()
 
     m = server.channel.receive(server, client, "model")
     assert id(m) != id(client.model)

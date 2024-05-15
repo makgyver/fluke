@@ -90,7 +90,7 @@ class FedHPClient(PFLClient):
                        else self.hyper_params.local_epochs)
         if self.initial_prototypes is None:
             self._receive_protos()
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -113,7 +113,7 @@ class FedHPClient(PFLClient):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
         if self.test_set is not None and self.initial_prototypes is not None:

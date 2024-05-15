@@ -39,14 +39,14 @@ class FedAMPClient(PFLClient):
             proximal_term += torch.norm(w - w_t)**2
         return (self.hyper_params.lam / (2 * self._alpha())) * proximal_term
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         try:
-            self._receive_model()
+            self.receive_model()
         except ValueError:
             pass
         self.model.to(self.device)
@@ -69,7 +69,7 @@ class FedAMPClient(PFLClient):
         self.model.to("cpu")
         self.personalized_model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class FedAMPServer(Server):

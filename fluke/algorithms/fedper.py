@@ -29,10 +29,10 @@ class FedPerClient(PFLClient):
         super().__init__(index, EncoderGlobalHeadLocalNet(model),
                          train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
 
-    def _send_model(self):
+    def send_model(self):
         self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")

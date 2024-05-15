@@ -97,7 +97,7 @@ class PerFedAVGClient(Client):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         if self.optimizer is None:
             self.optimizer, _ = self.optimizer_cfg(self.model)
@@ -138,7 +138,7 @@ class PerFedAVGClient(Client):
             else:
                 raise ValueError(f"Invalid mode: {self.hyper_params.mode}")
 
-        self._send_model()
+        self.send_model()
 
 
 class PerFedAVG(CentralizedFL):

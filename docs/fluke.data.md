@@ -33,13 +33,15 @@ Classes
 
 ```{eval-rst}
 
+.. currentmodule:: fluke.data
+
 .. autosummary:: 
    :nosignatures:
 
-   fluke.data.DataContainer
-   fluke.data.FastDataLoader
-   fluke.data.DataSplitter
-   fluke.data.DummyDataSplitter
+   DataContainer
+   FastDataLoader
+   DataSplitter
+   DummyDataSplitter
 ```
 
 <h3>

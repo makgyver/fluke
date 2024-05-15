@@ -57,7 +57,7 @@ class DataContainer:
     def standardize(self):
         """Standardize the data.
         The data is standardized using the ``StandardScaler`` from ``sklearn``. The method modifies
-        the ``train`` and ``test`` attributes.
+        the :attr:`train` and :attr:`test` attributes.
         """
         data_train, data_test = self.train[0], self.test[0]
         scaler = StandardScaler()
@@ -72,6 +72,12 @@ class FastDataLoader:
     TensorDataset + DataLoader because dataloader grabs individual indices of
     the dataset and calls cat (slow).
 
+    Important:
+        This type of data loader does not support the application of different transformations
+        to the data at each iteration. If you need to apply different transformations to the data
+        at each iteration, you should use the standard PyTorch ``DataLoader``.
+
+
     Note:
         This implementation is based on the following discussion:
         https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
@@ -82,21 +88,27 @@ class FastDataLoader:
         shuffle (bool): whether the data should be shuffled.
         percentage (float): the percentage of the data to be used.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-            layers, you might want to set this to `True`.
+            layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
 
+    Caution:
+        When sampling a percentage of the data (i.e., ``percentage < 1``), the data is sampled at
+        each epoch. This means that the data varies at each epoch. If you want to keep the data
+        constant across epochs, you should sample the data once and pass the sampled
+        data to the :class:`FastDataLoader` and set the ``percentage`` parameter to ``1.0``.
+
     Attributes:
-        tensors (Sequence[torch.Tensor]): tensors of the dataset. Ideally, the first tensor should
+        tensors (Sequence[torch.Tensor]): Tensors of the dataset. Ideally, the first tensor should
             be the input data, and the second tensor should be the labels. However, this is not
             enforced and the user is responsible for ensuring that the tensors are used correctly.
         batch_size (int): batch size.
-        shuffle (bool): whether the data should be shuffled at each epoch. If `True`, the data is
+        shuffle (bool): whether the data should be shuffled at each epoch. If ``True``, the data is
             shuffled at each iteration.
         percentage (float): the percentage of the data to be used. If `1.0`, all the data is used.
             Otherwise, the data is sampled according to the given percentage. **Note that the
             sampled data varies at each epoch.**
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-            layers, you might want to set this to `True`.
+            layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
         size (int): the size of the dataset according to the percentage of the data to be used.
         max_size (int): the total size of the dataset.
@@ -213,13 +225,38 @@ class DataSplitter:
     """Utility class for splitting the data across clients."""
     @classmethod
     def from_config(cls, config: DDict) -> DataSplitter:
-        """Create a DataSplitter from a configuration dictionary.
+        """Create a DataSplitter from a configuration dictionary. The expected configuration
+        dictionary should have the following structure:
+
+        .. code-block:: python
+
+            config = DDict({
+                'dataset': DDict({
+                    'name': 'CIFAR10'
+                    # dataset-specific parameters
+                }),
+                'distribution': DDict({
+                    'name': 'iid'
+                    # distribution-specific parameters
+                }),
+                'client_split': 0.0,
+                'sampling_perc': 1.0,
+                'server_test': True,
+                'keep_test': True,
+                'server_split': 0.0,
+                'uniform_test': False
+            })
+
+        See Also:
+            - :class:`fluke.DDict`
+            - :mod:`fluke.data.datasets`
+
 
         Args:
             config (DDict): The configuration dictionary.
 
         Returns:
-            DataSplitter: The `DataSplitter` object.
+            DataSplitter: The ``DataSplitter`` object.
         """
         return config.dataset.name.splitter()(dataset=config.dataset.name,
                                               builder_args=config.dataset.exclude('name'),
@@ -314,14 +351,32 @@ class DataSplitter:
 
     def assign(self,
                n_clients: int,
-               batch_size: Optional[int] = None) -> tuple[tuple[FastDataLoader,
-                                                                Optional[FastDataLoader]],
-                                                          FastDataLoader]:
-        """Assign the data to the clients according to the distribution.
+               batch_size: int = 32) -> tuple[tuple[FastDataLoader,
+                                                    Optional[FastDataLoader]],
+                                              FastDataLoader]:
+        """Assign the data to the clients and the server according to the configuration.
+        Specifically, we can have the following scenarios:
+
+        1. ``server_test = True`` and ``keep_test = True``: The server has a test set that
+           corresponds to the test set of the dataset. The clients have a training set and,
+           if ``client_split > 0``, a test set.
+        2. ``server_test = True`` and ``keep_test = False``: The server has a test set that
+           is sampled from the test set of whole dataset (training set and test set are merged). The
+           sampling is done according to the ``server_split`` parameter. The clients have a training
+           set and, if ``client_split > 0``, a test set.
+        3. ``server_test = False`` and ``keep_test = True``: The server does not have a test set.
+           The clients have a training set and a test set that corresponds to the test set of the
+           dataset distributed uniformly across the clients. In this case the ``client_split`` is
+           ignored.
+        4. ``server_test = False`` and ``keep_test = False``: The server does not have a test set.
+           The clients have a training set and, if ``client_split > 0``, a test set.
+
+        In all cases, the training and test set are distributed across the clients according to the
+        provided distribution. The only exception is done for the test set in scenario 3.
 
         Args:
             n_clients (int): The number of clients.
-            batch_size (Optional[int], optional): The batch size. Defaults to None.
+            batch_size (Optional[int], optional): The batch size. Defaults to 32.
 
         Returns:
             tuple[tuple[FastDataLoader, Optional[FastDataLoader]],
@@ -466,15 +521,16 @@ class DataSplitter:
                                 n: int,
                                 min_quantity: int = 2,
                                 alpha: float = 4.) -> list[torch.Tensor]:
-        """Class-wise quantity skewed data distribution.
+        """Class-wise quantity skewed data distribution. This type of skewness is similar to the
+        quantity skewness, but it is applied to each class separately.
+        This method distribute the examples of each class across the users according to the
+        following probability density function:
+        :math:`P(x; a) = a x^{a-1}` where :math:`x` is the id of a client :math:`(x \in [0, n-1])`,
+        and ``a = alpha > 0`` with
 
-        Distribute the examples of each class across the users according to the following
-        probability density function:
-        $P(x; a) = a x^{a-1}$
-        where x is the id of a client (x in [0, n-1]), and a = ``alpha`` > 0 with
-        - alpha = 1  => examples are equidistributed across clients;
-        - alpha = 2  => the examples are "linearly" distributed across users;
-        - alpha >= 3 => the examples are power law distributed;
+        - ``alpha = 1``: examples are equidistributed across clients;
+        - ``alpha = 2``: the examples are "linearly" distributed across users;
+        - ``alpha >= 3``: the examples are power law distributed;
 
         Args:
             X (torch.Tensor): The examples.
@@ -485,7 +541,8 @@ class DataSplitter:
 
         Returns:
             list[torch.Tensor]: The examples' ids assignment.
-        """
+        """  # noqa: W605
+        # The abow comment is to avoid flake8 error W605 (invalid escape sequence)
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
 
@@ -515,7 +572,9 @@ class DataSplitter:
                             n: int,
                             class_per_client: int = 2) -> list[torch.Tensor]:
         """
-        Suppose each party only has data samples of ``class_per_client`` (i.e., k) different labels.
+        This method distribute the data across client according to a specific type of skewness of
+        the lables. Specifically:
+        suppose each party only has data samples of ``class_per_client`` different labels.
         We first randomly assign k different label IDs to each party. Then, for the samples of each
         label, we randomly and equally divide them into the parties which own the label.
         In this way, the number of labels in each party is fixed, and there is no overlap between
@@ -554,10 +613,11 @@ class DataSplitter:
                              n: int,
                              beta: float = .1,
                              min_ex_class: int = 2) -> list[torch.Tensor]:
-        """
-        The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances
-        of class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
-        concentration parameter (beta > 0).
+        r"""
+        The method samples :math:`p_k \sim \text{Dir}_n(\beta)` and allocates a :math:`p_{k,j}`
+        proportion of the instances of class :math:`k` to party :math:`j`. Here
+        :math:`\text{Dir}(\cdot)` denotes the Dirichlet distribution and beta is a concentration
+        parameter :math:`(\beta > 0)`.
         See: https://arxiv.org/pdf/2102.02079.pdf
 
         Args:
@@ -591,10 +651,10 @@ class DataSplitter:
                                 n: int,
                                 shards_per_client: int = 2) -> list[torch.Tensor]:
         """
-        The function first sort the data by label, divide it into `n * shards_per_client` shards,
-        and assign each of n clients `shards_per_client` shards. This is a pathological non-IID
-        partition of the data, as most clients will only have examples of a limited number of
-        classes.
+        The method first sort the data by label, divide it into ``n * shards_per_client`` shards,
+        and assign each of ``n`` clients ``shards_per_client`` shards. This is a pathological
+        non-IID partition of the data, as most clients will only have examples of a limited number
+        of classes.
         See: http://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
 
         Args:
@@ -626,9 +686,13 @@ class DataSplitter:
                         n: int,
                         modes: int = 2) -> list[torch.Tensor]:
         """
-        The function first extracts the first principal component (through PCA) and then divides it
-        in `modes` percentiles. To each user, only examples from a single mode are selected
+        This method first extracts the first principal component (through PCA) and then divides it
+        in ``modes`` percentiles. To each user, only examples from a single mode are selected
         (uniformly).
+
+        Attention:
+            This type of skewness is not present in the literature and this method may also
+            be not very efficient.
 
         Args:
             X (torch.Tensor): The examples.
@@ -681,7 +745,9 @@ class DataSplitter:
 
 class DummyDataSplitter(DataSplitter):
     """
-    This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST).
+    This data splitter assumes that the data is already pre-assigned to the clients.
+    This must be used in the case you start with a pre-divided datasets that you want to use as
+    is (e.g., FEMNIST and Shakespeare).
     """
 
     def __init__(self,

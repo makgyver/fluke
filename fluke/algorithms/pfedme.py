@@ -47,7 +47,7 @@ class PFedMeClient(PFLClient):
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(k=k)
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
             self.personalized_model = model
@@ -57,7 +57,7 @@ class PFedMeClient(PFLClient):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.personalized_model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
@@ -81,9 +81,9 @@ class PFedMeClient(PFLClient):
 
             self.scheduler.step()
         self.personalized_model.load_state_dict(self.model.state_dict())
-        self._send_model()
+        self.send_model()
 
-    def _send_model(self):
+    def send_model(self):
         self.channel.send(Message(self.model, "model", self), self.server)
 
 

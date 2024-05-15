@@ -59,7 +59,7 @@ class FedDynClient(Client):
             "weight_decay"] if "weight_decay" in self.optimizer_cfg.optimizer_kwargs else 0
         self.prev_grads = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model, cld_mdl = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
             self.model = model
@@ -75,7 +75,7 @@ class FedDynClient(Client):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -119,7 +119,7 @@ class FedDynClient(Client):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class FedDynServer(Server):

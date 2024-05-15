@@ -12,7 +12,7 @@ from ..comm import Message  # NOQA
 
 class FedBNClient(Client):
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         global_model = msg.payload
         if self.model is None:

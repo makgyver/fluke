@@ -31,7 +31,7 @@ class MOONClient(Client):
         self.prev_model = None
         self.server_model = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
             # one of these deepcopy is not needed
@@ -44,7 +44,7 @@ class MOONClient(Client):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         cos = CosineSimilarity(dim=-1).to(self.device)
         self.model.to(self.device)
         self.prev_model.to(self.device)
@@ -79,7 +79,7 @@ class MOONClient(Client):
         self.server_model.to("cpu")
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class MOON(CentralizedFL):

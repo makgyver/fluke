@@ -35,11 +35,11 @@ class FedBABUClient(PFLClient):
         )
         self.model = self.personalized_model
 
-    def _send_model(self):
+    def send_model(self):
         self.channel.send(Message(self.personalized_model.get_encoder(),
                           "model", self), self.server)
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         safe_load_state_dict(self.personalized_model.get_encoder(),
                              msg.payload.state_dict())

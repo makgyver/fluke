@@ -42,7 +42,7 @@ class DittoClient(PFLClient):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
 
         w_prev = deepcopy(self.model)
 
@@ -88,7 +88,7 @@ class DittoClient(PFLClient):
         self.personalized_model.to("cpu")
         w_prev.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class Ditto(PersonalizedFL):

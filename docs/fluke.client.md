@@ -46,8 +46,8 @@ Classes included in ``fluke.client``
    :nosignatures:
 
    fit
-   _receive_model
-   _send_model
+   receive_model
+   send_model
    evaluate
    finalize
 ```
@@ -56,7 +56,7 @@ Classes included in ``fluke.client``
 
 .. autoclass:: fluke.client.Client
    :member-order: bysource
-   :members: index, n_examples, channel, fit, _receive_model, _send_model, evaluate, finalize
+   :members: index, n_examples, channel, fit, receive_model, send_model, evaluate, finalize
 
 ```
 
