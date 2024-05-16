@@ -106,7 +106,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    print(cfg)
+
     data_container = Datasets.get(**cfg.data.dataset)
     data_splitter = DataSplitter(dataset=data_container,
                                  distribution=cfg.data.distribution.name,
@@ -121,7 +121,11 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     criterion = get_loss(hp.client.loss)
     client_evals = []
-    progress = track(enumerate(zip(clients_tr_data, clients_te_data)), total=len(clients_tr_data))
+    epochs = max(200, int(cfg.protocol.n_rounds *
+                          hp.client.local_epochs * cfg.protocol.eligible_perc))
+    progress = track(enumerate(zip(clients_tr_data, clients_te_data)),
+                     total=len(clients_tr_data),
+                     description="Clients training...")
     for i, (train_loader, test_loader) in progress:
         rich.print(f"Client [{i}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
@@ -133,8 +137,6 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                                        data_splitter.data_container.num_classes,
                                        device)
         model.to(device)
-        epochs = max(200, int(cfg.protocol.n_rounds *
-                     hp.client.local_epochs * cfg.protocol.eligible_perc))
         for _ in range(epochs):
             model.train()
             loss = None
