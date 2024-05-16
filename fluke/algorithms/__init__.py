@@ -148,7 +148,7 @@ class CentralizedFL():
             config.optimizer.name = self.get_optimizer_class()
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
-        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss
+        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
         self.clients = [
             self.get_client_class()(
                 index=i,
@@ -226,7 +226,7 @@ class PersonalizedFL(CentralizedFL):
             config.optimizer.name = self.get_optimizer_class()
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
-        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss
+        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
         self.clients = [
             self.get_client_class()(
                 index=i,

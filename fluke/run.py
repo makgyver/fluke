@@ -2,6 +2,7 @@ from rich.pretty import Pretty
 from rich.panel import Panel
 from rich.progress import track
 import rich
+from typing import Any
 import typer
 import pandas as pd
 import numpy as np
@@ -24,7 +25,7 @@ CONFIG_FNAME = ""
 
 @app.command()
 def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
-                epochs: int = typer.Option(0, help='Number of epochs to run')):
+                epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -77,7 +78,8 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
 
 @app.command()
-def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+def federation(alg_cfg: str = typer.Argument(...,
+                                             help='Config file for the algorithm to run')) -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -101,7 +103,9 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
 
 
 @app.command()
-def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run')):
+def clients_only(alg_cfg: str = typer.Argument(...,
+                                               help='Config file for \
+                                                the algorithm to run')) -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -161,10 +165,10 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
 
 @app.callback()
-def run(config: str = typer.Option(CONFIG_FNAME, help="Configuration file")):
+def run(config: str = typer.Option(CONFIG_FNAME, help="Configuration file")) -> None:
     global CONFIG_FNAME
     CONFIG_FNAME = config
 
 
-if __name__ == '__main__':
-    app()
+def main() -> Any:
+    return app()
