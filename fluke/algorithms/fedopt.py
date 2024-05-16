@@ -2,7 +2,6 @@ from torch.nn import Module
 import torch
 from collections import OrderedDict
 from typing import Iterable
-from enum import Enum
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -12,15 +11,6 @@ from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-
-
-class FedOptMode(Enum):
-    FedAdam = "adam"
-    FedYogi = "yogi"
-    FedAdagrad = "adagrad"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class FedOptServer(Server):
@@ -36,7 +26,8 @@ class FedOptServer(Server):
                  tau: float = 0.0001,
                  weighted: bool = True):
         super().__init__(model, test_data, clients, eval_every, weighted)
-        # assert mode in FedOptMode, "mode must be one of FedOptMode"
+        assert mode in {"adam", "yogi", "adagrad"}, \
+            "'mode' must be one of {'adam', 'yogi', 'adagrad'}"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
 
@@ -80,13 +71,13 @@ class FedOptServer(Server):
                 self.m[key] + (1 - self.hyper_params.beta1) * diff
 
             diff_2 = diff ** 2
-            if self.hyper_params.mode == FedOptMode.FedAdam:
+            if self.hyper_params.mode == "adam":
                 self.v[key] = self.hyper_params.beta2 * self.v[key] + \
                     (1 - self.hyper_params.beta2) * diff_2
-            elif self.hyper_params.mode == FedOptMode.FedYogi:
+            elif self.hyper_params.mode == "yogi":
                 self.v[key] -= (1 - self.hyper_params.beta2) * \
                     diff_2 * torch.sign(self.v[key] - diff_2)
-            elif self.hyper_params.mode == FedOptMode.FedAdagrad:
+            elif self.hyper_params.mode == "adagrad":
                 self.v[key] += diff_2
 
             update = self.m[key] + self.hyper_params.lr * self.m[key] / \

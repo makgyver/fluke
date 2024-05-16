@@ -5,12 +5,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
-from typing import Sequence
+from typing import Sequence, Optional
 from rich.progress import track
 import rich
 import torch
 from sklearn.model_selection import train_test_split
-from pyparsing import Optional
 import sys
 
 sys.path.append(".")
