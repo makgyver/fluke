@@ -1,12 +1,5 @@
-numpy
-pandas
-scikit-learn
-scipy
-torch
-torchmetrics
-torchvision
-rich
-typer
-wandb
-datasets
-psutil
+myst-parser
+sphinx-design
+sphinx-tags
+sphinx-copybutton
+sphinx-inline-tabs
