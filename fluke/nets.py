@@ -49,7 +49,13 @@ __all__ = [
     'ResNet18GN',
     'MoonCNN_E',
     'MoonCNN_D',
-    'MoonCNN'
+    'MoonCNN',
+    'LeNet5_E',
+    'LeNet5_D',
+    'LeNet5',
+    'Shakespeare_LSTM_E',
+    'Shakespeare_LSTM_D',
+    'Shakespeare_LSTM',
 ]
 
 
@@ -137,7 +143,7 @@ class GlobalLocalNet(nn.Module):
         Returns:
             nn.Module: The local subnetwork
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_global(self) -> nn.Module:
@@ -146,7 +152,7 @@ class GlobalLocalNet(nn.Module):
         Returns:
             nn.Module: The global subnetwork
         """
-        pass
+        raise NotImplementedError
 
     def forward_local(self, x) -> torch.Tensor:
         return self.get_local()(x)
@@ -171,7 +177,7 @@ class EncoderGlobalHeadLocalNet(GlobalLocalNet):
 
     def __init__(self, model: EncoderHeadNet):
         assert isinstance(model, EncoderHeadNet), "model must be an EncoderHeadNet."
-        super(HeadGlobalEncoderLocalNet, self).__init__()
+        super(EncoderGlobalHeadLocalNet, self).__init__()
         self.model = model
 
     def get_local(self) -> nn.Module:
@@ -1117,7 +1123,7 @@ class Shakespeare_LSTM_D(nn.Module):
         super(Shakespeare_LSTM_D, self).__init__()
         self.output_size = len(string.printable)
         self.classifier = VGG9_D._linear_layer(
-            256, self.output_size, bias=False, seed=GlobalSettings.get_seed())
+            256, self.output_size, bias=False, seed=GlobalSettings().get_seed())
 
     def forward(self, x) -> torch.Tensor:
         return self.classifier(x)
