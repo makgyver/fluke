@@ -329,24 +329,6 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.error(error)
 
-    def _notify_send(self, msg: Message) -> None:
-        """Notify the observers that a message has been sent.
-
-        Args:
-            msg (Message): The message sent.
-        """
-        for observer in self._observers:
-            observer.send(msg)
-
-    def _notify_receive(self, msg: Message) -> None:
-        """Notify the observers that a message has been received.
-
-        Args:
-            msg (Message): The message received.
-        """
-        for observer in self._observers:
-            observer.receive(msg)
-
     def _notify_finalize(self, client_evals: Sequence[Any]) -> None:
         """Notify the observers that the federated learning process has ended.
 

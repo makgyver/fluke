@@ -26,7 +26,7 @@ def test_server():
                       evals,
                       client_evals):
             assert round == 1
-            assert len(client_evals) == 0
+            assert len(client_evals) == 1
             assert "accuracy" in evals
 
         def selected_clients(self, round, clients):
@@ -37,7 +37,7 @@ def test_server():
             assert error == "error"
 
         def finished(self,  client_evals):
-            assert len(client_evals) == 0
+            assert len(client_evals) == 1
 
     class Model(Linear):
         def __init__(self):
@@ -60,7 +60,7 @@ def test_server():
     cfg = OptimizerConfigurator(optimizer_cfg=DDict(name=torch.optim.SGD, lr=0.1, momentum=0.9))
     clients = [Client(index=i,
                       train_set=ftdl_client[i],
-                      test_set=None,
+                      test_set=ftdl_client[i] if i == 0 else None,
                       optimizer_cfg=cfg,
                       loss_fn=torch.nn.CrossEntropyLoss(),
                       local_epochs=3)
@@ -78,6 +78,8 @@ def test_server():
     assert server.hyper_params.weighted
     assert server.channel == clients[0].channel
     assert server.rounds == 0
+    assert server.has_test
+    assert server.has_model
 
     obs = Observer()
     server.attach(obs)
@@ -113,6 +115,10 @@ def test_server():
         assert id(m) != id(server.model)
         assert m is not server.model
 
+    assert str(server) == "Server(weighted=False)"
+    assert str(server) == repr(server)
+
 
 if __name__ == "__main__":
     test_server()
+    # 98% coverage for server.py

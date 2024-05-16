@@ -158,7 +158,7 @@ class OptimizerConfigurator:
         if "name" not in self.scheduler_cfg:
             self.scheduler = get_scheduler("StepLR")
         elif isinstance(self.scheduler_cfg.name, str):
-            self.scheduler: type[LRScheduler] = get_scheduler(self.scheduler_kwargs.name)
+            self.scheduler: type[LRScheduler] = get_scheduler(self.scheduler_cfg.name)
         elif inspect.isclass(self.scheduler_cfg.name) and \
                 issubclass(self.scheduler_cfg.name, LRScheduler):
             self.scheduler = self.scheduler_cfg.name
