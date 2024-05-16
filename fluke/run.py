@@ -29,15 +29,17 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_container = cfg.data.dataset.name.klass()(**cfg.data.dataset.exclude('name'))
+    data_container = Datasets.get(**cfg.data.dataset)
 
     device = GlobalSettings().get_device()
 
     train_loader = FastDataLoader(*data_container.train,
                                   batch_size=cfg.method.hyperparameters.client.batch_size,
+                                  num_labels=data_container.num_classes,
                                   shuffle=True)
     test_loader = FastDataLoader(*data_container.test,
-                                 batch_size=1,
+                                 batch_size=10,
+                                 num_labels=data_container.num_classes,
                                  shuffle=False)
 
     # , **cfg.method.hyperparameters.net_args)
@@ -48,8 +50,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
                                           scheduler_cfg=sch_args)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
-    evaluator = ClassificationEval(
-        criterion, data_container.num_classes, cfg.exp.average, device=device)
+    evaluator = ClassificationEval(criterion, data_container.num_classes, device)
     history = []
 
     model.to(device)
@@ -130,10 +131,11 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(criterion,
                                        data_splitter.data_container.num_classes,
-                                       cfg.exp.average,
-                                       device=device)
+                                       device)
         model.to(device)
-        for _ in range(200):
+        epochs = max(200, int(cfg.protocol.n_rounds *
+                     hp.client.local_epochs * cfg.protocol.eligible_perc))
+        for _ in range(epochs):
             model.train()
             loss = None
             for _, (X, y) in enumerate(train_loader):
