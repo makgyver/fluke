@@ -10,7 +10,7 @@ exp:
   device: cpu
   seed: 42
 logger:
-  name: local
+  name: Log
 protocol:
   eligible_perc: 0.1
   n_clients: 100
