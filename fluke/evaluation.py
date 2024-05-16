@@ -37,7 +37,7 @@ class Evaluator(ABC):
             model (Module): The model to evaluate.
             eval_data_loader (FastDataLoader): The data loader to use for evaluation.
         """
-        pass
+        raise NotImplementedError
 
     def __call__(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
         """Evaluate the model.
@@ -139,8 +139,6 @@ class ClassificationEval(Evaluator):
                 macro_f1.update(y_hat.cpu(), y.cpu())
 
             cnt += len(data_loader)
-            if cnt == 0:
-                return {}
             accs.append(accuracy.compute().item())
             micro_precs.append(micro_precision.compute().item())
             micro_recs.append(micro_recall.compute().item())
@@ -165,7 +163,7 @@ class ClassificationEval(Evaluator):
         }
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(n_classes={self.n_classes},average={self.average}," + \
+        return f"{self.__class__.__name__}(n_classes={self.n_classes}," + \
                f"device={self.device})[accuracy,precision,recall,f1," + \
                f"{self.loss_fn.__class__.__name__}]"
 

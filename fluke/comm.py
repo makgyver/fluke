@@ -129,6 +129,10 @@ class Message:
         """
         return self.__get_size(self.payload)
 
+    def __eq__(self, other: Message) -> bool:
+        return self.payload == other.payload and self.msg_type == other.msg_type and \
+            self.sender == other.sender
+
     def __str__(self) -> str:
         return f"Message(type={self.msg_type},from={self.sender},payload={self.payload}," + \
             f"size={self.get_size()})"

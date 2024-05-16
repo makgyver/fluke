@@ -20,6 +20,10 @@ def test_client():
             super().__init__(10, 2)
             self.output_size = 2
 
+            # initialize weights to 0
+            self.weight.data.fill_(0)
+            self.bias.data.fill_(0)
+
     # function that taken a 10-dimensional input returns a 0 if the
     # sum of the first 7 elements is less than 2.5
     def target_function(x):
@@ -84,11 +88,27 @@ def test_client():
     client.test_set = None  # THIS IS NOT ALLOWED
     assert client.evaluate() == {}
 
+    server.broadcast_model([client])
+    client.receive_model()
+    assert client.model.weight.data.sum() == 0
+    assert client.model.bias.data.sum() == 0
+
     client.send_model()
 
     m = server.channel.receive(server, client, "model")
     assert id(m) != id(client.model)
     assert m is not client.model
+
+    server.broadcast_model([client])
+    client.fit()
+    server.broadcast_model([client])
+    client.finalize()
+    assert client.model.weight.data.sum() == 0
+    assert client.model.bias.data.sum() == 0
+
+    assert str(client) == "Client[0](optim=OptCfg(SGD,lr=0.1,StepLR(step_size=1,gamma=0.1))," + \
+        "batch_size=10,loss_fn=CrossEntropyLoss(),local_epochs=10)"
+    assert str(client) == repr(client)
 
 
 def test_pflclient():
@@ -116,7 +136,7 @@ def test_pflclient():
         index=0,
         model=Model(),
         train_set=train_set,
-        test_set=None,
+        test_set=train_set,
         optimizer_cfg=OptimizerConfigurator(
             optimizer_cfg=DDict(name=SGD, lr=0.1),
             scheduler_cfg=DDict(step_size=1, gamma=0.1)
@@ -138,3 +158,4 @@ def test_pflclient():
 
 if __name__ == "__main__":
     test_client()
+    # 100% coverage for client.py

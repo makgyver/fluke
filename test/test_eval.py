@@ -4,7 +4,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from fluke.data import FastDataLoader  # NOQA
-from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.evaluation import Evaluator, ClassificationEval  # NOQA
 
 
 def test_classification_eval():
@@ -66,6 +66,11 @@ def test_classification_eval():
 
     assert clf_eval.evaluate(None, None) == {}
 
+    assert str(clf_eval) == "ClassificationEval(n_classes=3,device=cpu)" + \
+        "[accuracy,precision,recall,f1,CrossEntropyLoss]"
+    assert repr(clf_eval) == str(clf_eval)
+
 
 if __name__ == "__main__":
     test_classification_eval()
+    # 97% coverage for fluke/evaluation.py

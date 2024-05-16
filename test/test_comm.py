@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import warnings
+import pytest
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -44,6 +45,10 @@ def test_message():
     msg = Message(payload=A(), msg_type="type_test", sender=None)
     assert msg.get_size() == 0
 
+    msg = Message(payload="prova", msg_type="type_test", sender=None)
+    assert str(msg) == "Message(type=type_test,from=None,payload=prova,size=5)"
+    assert msg.__repr__() == "Message(type=type_test,from=None,payload=prova,size=5)"
+
 
 def test_channel():
     class Observer(ChannelObserver):
@@ -51,26 +56,29 @@ def test_channel():
             self.msg = msg
 
     channel = Channel()
-    assert not channel._buffer
+    assert not channel.buffer
     obs = Observer()
     channel.attach(obs)
-    channel.send(Message("a", "type_test", "sender"), "pippo")
-    assert len(channel._buffer) == 1
+    msg = Message("a", "type_test", "sender")
+    channel.send(msg, "pippo")
+    assert len(channel.buffer) == 1
     assert "pippo" in channel._buffer
+    assert len(channel["pippo"]) == 1
+    assert channel["pippo"][0] == msg
     msg = channel.receive("pippo")
     assert msg.payload == "a"
     assert msg.msg_type == "type_test"
     assert msg.sender == "sender"
-    assert not channel._buffer["pippo"]
+    assert not channel.buffer["pippo"]
     channel.send(Message("a", "type_test", "sender"), "pippo")
     channel.clear("pippo")
-    assert not channel._buffer["pippo"]
+    assert not channel.buffer["pippo"]
     assert obs.msg == msg
 
     channel.broadcast(Message("a", "type_test", "sender"), ["pippo", "pluto"])
     assert len(channel._buffer) == 2
-    assert "pippo" in channel._buffer
-    assert "pluto" in channel._buffer
+    assert "pippo" in channel.buffer
+    assert "pluto" in channel.buffer
 
     channel.send(Message("b", "type_test", "sender"), "pippo")
     msg = channel.receive("pippo", "sender", "type_test")
@@ -78,7 +86,11 @@ def test_channel():
     msg = channel.receive("pippo", "sender", "type_test")
     assert msg.payload == "b"
 
+    with pytest.raises(ValueError):
+        channel.receive("pippo", "sender", "type_test")
+
 
 if __name__ == "__main__":
     test_message()
     test_channel()
+    # 99% coverage comm.py
