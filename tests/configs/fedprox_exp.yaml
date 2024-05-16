@@ -2,6 +2,7 @@ data:
   client_split: 0.2
   dataset:
     name: mnist
+    path: ./data
   distribution:
     name: iid
   sampling_perc: 1

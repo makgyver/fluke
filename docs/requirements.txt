@@ -1,0 +1,12 @@
+numpy
+pandas
+scikit-learn
+scipy
+torch
+torchmetrics
+torchvision
+rich
+typer
+wandb
+datasets
+psutil

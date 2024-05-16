@@ -3,6 +3,7 @@ data:
   dataset:
     name: mnist
     channel_dim: true
+    path: ./data
   distribution:
     name: iid
   sampling_perc: 1

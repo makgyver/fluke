@@ -22,7 +22,7 @@ def test_centralized_fl():
         model=MNIST_2NN(),
         client=DDict(batch_size=32,
                      local_epochs=1,
-                     loss=CrossEntropyLoss(),
+                     loss=CrossEntropyLoss,
                      optimizer=DDict(
                          lr=0.1,
                          momentum=0.9),
@@ -135,7 +135,7 @@ def test_centralized_fl():
         client=DDict(batch_size=32,
                      local_epochs=1,
                      model=MNIST_2NN(),
-                     loss=CrossEntropyLoss(),
+                     loss=CrossEntropyLoss,
                      optimizer=DDict(
                          lr=0.1,
                          momentum=0.9),
@@ -164,7 +164,12 @@ def _test_algo(exp_config, alg_config):
     cfg = Configuration(exp_config, alg_config)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    splitter = DataSplitter.from_config(cfg.data)
+    dataset = Datasets.get(**cfg.data.dataset)
+    splitter = DataSplitter(dataset,
+                            distribution=cfg.data.distribution.name,
+                            dist_args=cfg.data.distribution.exclude("name"),
+                            **cfg.data.exclude('dataset', 'distribution'))
+
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
     algo = fl_algo_class(cfg.protocol.n_clients,
                          splitter,
@@ -179,32 +184,32 @@ def _test_algo(exp_config, alg_config):
 
 
 def test_fedavg():
-    fedavg, log = _test_algo("./configs/fedavg_exp.yaml", "./configs/fedavg.yaml")
+    fedavg, log = _test_algo("./tests/configs/fedavg_exp.yaml", "./tests/configs/fedavg.yaml")
     # assert log.history[log.current_round]["accuracy"] >= 0.9642
 
 
 def test_fedavgm():
-    fedavgm, log = _test_algo("./configs/fedavgm_exp.yaml", "./configs/fedavgm.yaml")
+    fedavgm, log = _test_algo("./tests/configs/fedavgm_exp.yaml", "./tests/configs/fedavgm.yaml")
 
 
 def test_fedprox():
-    fedprox, log = _test_algo("./configs/fedprox_exp.yaml", "./configs/fedprox.yaml")
+    fedprox, log = _test_algo("./tests/configs/fedprox_exp.yaml", "./tests/configs/fedprox.yaml")
 
 
 def test_fedsgd():
-    fedsgd, log = _test_algo("./configs/fedsgd_exp.yaml", "./configs/fedsgd.yaml")
+    fedsgd, log = _test_algo("./tests/configs/fedsgd_exp.yaml", "./tests/configs/fedsgd.yaml")
 
 
 def test_fedexp():
-    fedexp, log = _test_algo("./configs/fedexp_exp.yaml", "./configs/fedexp.yaml")
+    fedexp, log = _test_algo("./tests/configs/fedexp_exp.yaml", "./tests/configs/fedexp.yaml")
 
 
 def test_fedproto():
-    fedproto, log = _test_algo("./configs/fedproto_exp.yaml", "./configs/fedproto.yaml")
+    fedproto, log = _test_algo("./tests/configs/fedproto_exp.yaml", "./tests/configs/fedproto.yaml")
 
 
 def test_fedopt():
-    fedopt, log = _test_algo("./configs/fedopt_exp.yaml", "./configs/fedopt.yaml")
+    fedopt, log = _test_algo("./tests/configs/fedopt_exp.yaml", "./tests/configs/fedopt.yaml")
 
 
 if __name__ == "__main__":
