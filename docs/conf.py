@@ -100,5 +100,26 @@ html_theme_options = {
 
             ]
         },
+        {
+            "title": "Help us",
+            "url": "helpus",
+            "children": [
+                {
+                    "title": "Report a bug",
+                    "url": "help/bug",
+                    "summary": "Help us to improve fluke"
+                },
+                {
+                    "title": "Request a feature",
+                    "url": "help/feature",
+                    "summary": "Tell us what you need"
+                },
+                {
+                    "title": "Contribute",
+                    "url": "help/contribute",
+                    "summary": "Join the development team"
+                }
+            ]
+        }
     ]
 }

@@ -429,7 +429,22 @@ class Datasets:
     def TINY_IMAGENET(cls,
                       path: str = "../data",
                       transforms: Optional[Callable] = None) -> DataContainer:
+        """
+        Load the Tiny-ImageNet dataset.
+        This version of the dataset is the one offered by the
+        `Hugging Face <https://huggingface.co/datasets/zh-plus/tiny-imagenet>`_. The dataset is
+        split into training and testing sets according to the default split of the data.
+        The dataset contains 200 classes, corresponding to different types of objects.
+        The images shape is (3, 64, 64).
 
+        Args:
+            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+              ``None``.
+
+        Returns:
+            DataContainer: The Tiny-ImageNet dataset.
+        """
         tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet',
                                            split='train',
                                            cache_dir=path)

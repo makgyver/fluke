@@ -6,6 +6,7 @@
 
 .. automodule:: fluke.data
    :no-members:
+   :exclude-members: support
 
 ```
 
@@ -136,6 +137,5 @@ Classes
    :hidden:
 
    fluke.data.datasets
-   fluke.data.support
 
 ```
