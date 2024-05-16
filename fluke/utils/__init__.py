@@ -131,19 +131,19 @@ class OptimizerConfigurator:
                 and a gamma of 1. Defaults to ``None``.
         """
 
-        if isinstance(optimizer_cfg, dict):
-            self.optimizer_cfg = DDict(**optimizer_cfg)
-        elif isinstance(optimizer_cfg, DDict):
+        if isinstance(optimizer_cfg, DDict):
             self.optimizer_cfg = optimizer_cfg
+        elif isinstance(optimizer_cfg, dict):
+            self.optimizer_cfg = DDict(**optimizer_cfg)
         else:
             raise ValueError("Invalid optimizer configuration.")
 
-        if isinstance(scheduler_cfg, dict):
-            self.scheduler_cfg = DDict(**scheduler_cfg)
-        elif scheduler_cfg is None:
+        if scheduler_cfg is None:
             self.scheduler_cfg = DDict(name="StepLR", step_size=1, gamma=1)
         elif isinstance(scheduler_cfg, DDict):
             self.scheduler_cfg = scheduler_cfg
+        elif isinstance(scheduler_cfg, dict):
+            self.scheduler_cfg = DDict(**scheduler_cfg)
         else:
             raise ValueError("Invalid scheduler configuration.")
 
@@ -191,6 +191,9 @@ class OptimizerConfigurator:
         to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
         to_str += "))"
         return to_str
+
+    def __repr__(self) -> str:
+        return str(self)
 
 
 class Log(ServerObserver, ChannelObserver):
@@ -532,14 +535,12 @@ class Configuration(DDict):
     def _validate(self) -> bool:
 
         EXP_OPT_KEYS = {
-            "average": "micro",
             "device": "cpu",
             "seed": 42
         }
 
         LOG_OPT_KEYS = {
-            "name": "local",
-            "eval_every": 1
+            "name": "Log"
         }
 
         FIRST_LVL_KEYS = ["data", "protocol", "method"]
@@ -552,13 +553,16 @@ class Configuration(DDict):
         DATA_OPT_KEYS = {
             "sampling_perc": 1.0,
             "client_split": 0.0,
-            # "standardize": False
+            "keep_test": True,
+            "server_test": True,
+            "server_split": 0.0,
+            "uniform_test": False
         }
 
         ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]
         HP_REQUIRED_KEYS = ["model", "client", "server"]
         CLIENT_HP_REQUIRED_KEYS = ["loss", "batch_size", "local_epochs", "optimizer"]
-        WANDB_REQUIRED_KEYS = ["project", "entity", ]
+        WANDB_REQUIRED_KEYS = ["project", "entity"]
 
         error = False
         for k in FIRST_LVL_KEYS:
@@ -607,7 +611,7 @@ class Configuration(DDict):
         if 'logger' in self and self.logger.name == "wandb":
             for k in WANDB_REQUIRED_KEYS:
                 if k not in WANDB_REQUIRED_KEYS:
-                    rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
+                    rich.print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
                     error = True
 
         # if not error:
@@ -627,4 +631,4 @@ class Configuration(DDict):
                f"_seed({self.exp.seed})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)

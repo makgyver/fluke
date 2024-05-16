@@ -15,16 +15,37 @@ from fluke.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
 from fluke.comm import Message  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
-           get_class_from_str, get_model, get_class_from_qualified_name,  # NOQA
+           get_class_from_str, get_model, get_class_from_qualified_name, get_logger,  # NOQA
            get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
-           Log, WandBLog)  # NOQA
+           Log, WandBLog, ServerObserver)  # NOQA
 
-from fluke.utils.model import (merge_models, diff_model, mix_networks,  # NOQA
+from fluke.utils.model import (merge_models, diff_model, mix_networks, batch_norm_to_group_norm,  # NOQA
                                   get_local_model_dict, get_global_model_dict, set_lambda_model,   # NOQA
-                                  safe_load_state_dict, STATE_DICT_KEYS_TO_IGNORE)  # NOQA
+                                  safe_load_state_dict, STATE_DICT_KEYS_TO_IGNORE, MMMixin)  # NOQA
 
 
 def test_optimcfg():
+    opt_cfg = OptimizerConfigurator(
+        optimizer_cfg=dict(name=SGD,
+                           lr=0.1,
+                           momentum=0.9),
+        scheduler_cfg=dict(
+            step_size=1,
+            gamma=.1
+        ),
+    )
+
+    assert opt_cfg.optimizer == SGD
+    assert opt_cfg.scheduler_cfg == {
+        "step_size": 1,
+        "gamma": 0.1
+    }
+
+    assert opt_cfg.optimizer_cfg == {
+        "lr": 0.1,
+        "momentum": 0.9
+    }
+
     opt_cfg = OptimizerConfigurator(
         optimizer_cfg=DDict(name=SGD,
                             lr=0.1,
@@ -36,12 +57,9 @@ def test_optimcfg():
     )
 
     assert opt_cfg.optimizer == SGD
-    assert opt_cfg.scheduler_kwargs == {
-        "step_size": 1,
-        "gamma": 0.1
-    }
+    assert opt_cfg.scheduler == StepLR
 
-    assert opt_cfg.optimizer_kwargs == {
+    assert opt_cfg.optimizer_cfg == {
         "lr": 0.1,
         "momentum": 0.9
     }
@@ -55,6 +73,46 @@ def test_optimcfg():
     assert sch.step_size == 1
     assert sch.gamma == 0.1
     assert str(opt_cfg) == "OptCfg(SGD,lr=0.1,momentum=0.9,StepLR(step_size=1,gamma=0.1))"
+    assert str(opt_cfg) == opt_cfg.__repr__()
+
+    with pytest.raises(ValueError):
+        opt_cfg = OptimizerConfigurator(
+            optimizer_cfg=dict(name=1,
+                               lr=0.1,
+                               momentum=0.9))
+    with pytest.raises(ValueError):
+        opt_cfg = OptimizerConfigurator(
+            optimizer_cfg=DDict(name=SGD,
+                                lr=0.1,
+                                momentum=0.9),
+            scheduler_cfg=[DDict(
+                step_size=1,
+                gamma=.1
+            )]
+        )
+
+    with pytest.raises(ValueError):
+        opt_cfg = OptimizerConfigurator(
+            optimizer_cfg=[DDict(name=SGD,
+                                 lr=0.1,
+                                 momentum=0.9)],
+            scheduler_cfg=DDict(
+                step_size=1,
+                gamma=.1
+            )
+        )
+
+    with pytest.raises(ValueError):
+        opt_cfg = OptimizerConfigurator(
+            optimizer_cfg=DDict(name=SGD,
+                                lr=0.1,
+                                momentum=0.9),
+            scheduler_cfg=[DDict(
+                name="Pippo",
+                step_size=1,
+                gamma=.1
+            )]
+        )
 
 
 def test_functions():
@@ -67,6 +125,7 @@ def test_functions():
         full_linear = get_full_classname(Linear)
         loss = get_loss("CrossEntropyLoss")
         scheduler = get_scheduler("StepLR")
+        logger = get_logger("Log")
         clear_cache()
         clear_cache(True)
     except Exception:
@@ -80,6 +139,7 @@ def test_functions():
     assert full_linear == "torch.nn.modules.linear.Linear"
     assert isinstance(loss, CrossEntropyLoss)
     assert scheduler == StepLR
+    assert isinstance(logger, Log)
 
     model3 = torch.nn.Sequential(
         torch.nn.Conv2d(3, 6, 3, 1, 1),
@@ -189,10 +249,12 @@ def test_configuration():
 
 def test_log():
     log = Log()
-    log.init()
+    log.init(test="hello")
 
     try:
+        log.comm_costs[0] = 1  # for testing
         log.start_round(1, None)
+        log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
         log.message_received(Message("test", "test", None))
         log.error("test")
@@ -217,7 +279,9 @@ def test_wandb_log():
     log2 = WandBLog()
     log2.init()
     try:
+        log2.comm_costs[0] = 1  # for testing
         log2.start_round(1, None)
+        log2.comm_costs[0] = 0  # for testing
         log2.selected_clients(1, [1, 2, 3])
         log2.message_received(Message("test", "test", None))
         log2.error("test")
@@ -262,8 +326,20 @@ def test_models():
     assert diffdict["weight"].data[0, 1] == -1.0
     assert diffdict["bias"].data[0] == -1.0
 
+    model = FedBN_CNN()
+    model_gn = batch_norm_to_group_norm(model)
+
+    for n1, p1 in model.named_parameters():
+        for n2, p2 in model_gn.named_parameters():
+            if n1 == n2 and isinstance(p1, torch.nn.BatchNorm2d):
+                assert isinstance(p2, torch.nn.GroupNorm)
+
 
 def test_mixing():
+    mixin = MMMixin()
+    mixin.set_lambda(0.5)
+    assert mixin.get_lambda() == 0.5
+
     model1 = Linear(2, 1)
     model1.weight.data.fill_(1)
     model1.bias.data.fill_(1)
@@ -346,11 +422,23 @@ def test_mixing():
     mixed(x)
 
 
+def test_serverobs():
+    sobs = ServerObserver()
+    sobs.start_round(1, None)
+    sobs.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
+    sobs.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
+    sobs.error("test")
+    sobs.selected_clients(1, [1, 2, 3])
+
+
 if __name__ == "__main__":
-    test_optimcfg()
-    test_functions()
-    test_configuration()
-    test_log()
+    # test_optimcfg()
+    # test_functions()
+    # test_configuration()
+    # test_log()
     # test_wandb_log()
     test_models()
-    test_mixing()
+    # test_mixing()
+
+    # 91% coverage utils.__init__
+    # 95% coverage utils.model
