@@ -31,7 +31,9 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.autosummary',
     'sphinx_design',
-    'sphinx_tags'
+    'sphinx_tags',
+    'sphinx_copybutton',
+    'sphinx_inline_tabs'
     # 'sphinx_autodoc_typehints'
 ]
 
