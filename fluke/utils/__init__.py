@@ -5,13 +5,15 @@ from rich.panel import Panel
 import rich
 from torch.optim import Optimizer
 from torch.nn import Module
+from torch.optim.lr_scheduler import LRScheduler
 import torch
 from typing import Any, Sequence
-from enum import Enum
+# from enum import Enum
 import psutil
 import pandas as pd
 import numpy as np
 import importlib
+import inspect
 import wandb
 import json
 import yaml
@@ -23,15 +25,13 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
-from ..data.datasets import DatasetsEnum  # NOQA
-from ..data import DistributionEnum  # NOQA
+# from ..data.datasets import DatasetsEnum  # NOQA
 
 
 __all__ = [
     'model',
     'Configuration',
     'Log',
-    'LogEnum',
     'OptimizerConfigurator',
     'ServerObserver',
     'WandBLog',
@@ -106,27 +106,67 @@ class OptimizerConfigurator:
 
     Attributes:
         optimizer (type[Optimizer]): The optimizer class.
-        scheduler_kwargs (DDict): The scheduler keyword arguments.
-        optimizer_kwargs (DDict): The optimizer keyword arguments.
+        scheduler (type[LRScheduler]): The learning rate scheduler class.
+        optimizer_cfg (DDict): The optimizer keyword arguments.
+        scheduler_cfg (DDict): The scheduler keyword arguments.
     """
 
     def __init__(self,
-                 optimizer_class: type[Optimizer],
-                 scheduler_kwargs: DDict | dict = None,
-                 **optimizer_kwargs):
-        """Initialize the optimizer configurator. The default scheduler is the StepLR scheduler.
+                 optimizer_cfg: DDict | dict,
+                 scheduler_cfg: DDict | dict = None):
+        """Initialize the optimizer configurator. In both the ``optimizer_cfg`` and the
+        ``scheduler_cfg`` dictionaries, the key "name" is used to specify the optimizer and the
+        scheduler, respectively. If not present, the default optimizer is the ``SGD`` optimizer, and
+        the default scheduler is the ``StepLR`` scheduler. The other keys are the keyword arguments
+        for the optimizer and the scheduler, respectively.
+
+        Note:
+            In the key "name" of the ``optimizer_cfg`` dictionary, you can specify the optimizer
+            class directly, instead of its string name. Same for the scheduler.
 
         Args:
-            optimizer_class (type[Optimizer]): The optimizer class.
-            scheduler_kwargs (dict, optional): The scheduler keyword arguments. Defaults to None.
-            **optimizer_kwargs: The optimizer keyword arguments.
+            optimizer_cfg (dict, DDict): The optimizer class.
+            scheduler_cfg (dict or DDict, optional): The scheduler keyword arguments. If not
+                specified, the default scheduler is the ``StepLR`` scheduler with a step size of 1
+                and a gamma of 1. Defaults to ``None``.
         """
-        self.optimizer: type[Optimizer] = optimizer_class
-        self.scheduler_kwargs: DDict = DDict(**scheduler_kwargs) if scheduler_kwargs is not None \
-            else DDict(name="StepLR", step_size=1, gamma=1)
-        self.scheduler = get_scheduler(
-            self.scheduler_kwargs.name if self.scheduler_kwargs.name else "StepLR")
-        self.optimizer_kwargs: DDict = DDict(**optimizer_kwargs)
+
+        if isinstance(optimizer_cfg, DDict):
+            self.optimizer_cfg = optimizer_cfg
+        elif isinstance(optimizer_cfg, dict):
+            self.optimizer_cfg = DDict(**optimizer_cfg)
+        else:
+            raise ValueError("Invalid optimizer configuration.")
+
+        if scheduler_cfg is None:
+            self.scheduler_cfg = DDict(name="StepLR", step_size=1, gamma=1)
+        elif isinstance(scheduler_cfg, DDict):
+            self.scheduler_cfg = scheduler_cfg
+        elif isinstance(scheduler_cfg, dict):
+            self.scheduler_cfg = DDict(**scheduler_cfg)
+        else:
+            raise ValueError("Invalid scheduler configuration.")
+
+        if isinstance(self.optimizer_cfg.name, str):
+            self.optimizer: type[Optimizer] = get_optimizer(self.optimizer_cfg.name)
+        elif inspect.isclass(self.optimizer_cfg.name) and \
+                issubclass(self.optimizer_cfg.name, Optimizer):
+            self.optimizer = self.optimizer_cfg.name
+        else:
+            raise ValueError("Invalid optimizer name. Must be a string or an optimizer class.")
+
+        if "name" not in self.scheduler_cfg:
+            self.scheduler = get_scheduler("StepLR")
+        elif isinstance(self.scheduler_cfg.name, str):
+            self.scheduler: type[LRScheduler] = get_scheduler(self.scheduler_cfg.name)
+        elif inspect.isclass(self.scheduler_cfg.name) and \
+                issubclass(self.scheduler_cfg.name, LRScheduler):
+            self.scheduler = self.scheduler_cfg.name
+        else:
+            raise ValueError("Invalid scheduler name. Must be a string or a scheduler class.")
+
+        self.scheduler_cfg = self.scheduler_cfg.exclude("name")
+        self.optimizer_cfg = self.optimizer_cfg.exclude("name")
 
     def __call__(self, model: Module, **override_kwargs):
         """Creates the optimizer and the scheduler.
@@ -139,40 +179,21 @@ class OptimizerConfigurator:
             tuple[Optimizer, StepLR]: The optimizer and the scheduler.
         """
         if override_kwargs:
-            self.optimizer_kwargs.update(override_kwargs)
-        optimizer = self.optimizer(model.parameters(), **self.optimizer_kwargs)
-        scheduler = self.scheduler(optimizer, **self.scheduler_kwargs.exclude("name"))
+            self.optimizer_cfg.update(override_kwargs)
+        optimizer = self.optimizer(model.parameters(), **self.optimizer_cfg)
+        scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 
     def __str__(self) -> str:
         strsched = self.scheduler.__name__
-        sch_params = self.scheduler_kwargs.exclude("name")
         to_str = f"OptCfg({self.optimizer.__name__},"
-        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_kwargs.items()])
-        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in sch_params.items()])
+        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
+        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
         to_str += "))"
         return to_str
 
-
-class LogEnum(Enum):
-    """Log enumerator."""
-    LOCAL = "local"  # : Local logging
-    WANDB = "wandb"  # : Weights and Biases logging
-
-    def logger(self,
-               **wandb_config) -> Log:
-        """Returns a new logger according to the value of the enumerator.
-
-        Args:
-            **wandb_config (dict): The configuration for Weights and Biases.
-
-        Returns:
-            Log: The logger.
-        """
-        if self == LogEnum.LOCAL:
-            return Log()
-        else:
-            return WandBLog(**wandb_config)
+    def __repr__(self) -> str:
+        return str(self)
 
 
 class Log(ServerObserver, ChannelObserver):
@@ -187,7 +208,7 @@ class Log(ServerObserver, ChannelObserver):
         current_round (int): The current round.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.history: dict = {}
         self.client_history: dict = {}
         self.comm_costs: dict = {0: 0}
@@ -404,11 +425,63 @@ def get_full_classname(classtype: type) -> str:
 
     Returns:
         str: The fully qualified name of the class.
+
+    Example:
+        Let ``A`` be a class defined in the module ``fluke.utils``
+
+        .. code-block:: python
+            :linenos:
+
+            # This is the content of the file fluke/utils.py
+            class A:
+                pass
+
+            get_full_classname(A) # 'fluke.utils.A'
+
+        If the class is defined in the ``__main__`` module, then:
+
+        .. code-block:: python
+            :linenos:
+
+            if __name__ == "__main__":
+                class B:
+                    pass
+
+                get_full_classname(B) # '__main__.B'
     """
     return f"{classtype.__module__}.{classtype.__name__}"
 
 
-def get_scheduler(sname: str) -> torch.nn.Module:
+def get_logger(lname: str, **kwargs) -> Log | WandBLog:
+    """Get a logger from its name.
+    This function is used to get a logger from its name. It is used to dynamically import loggers.
+    The supported loggers are the ones defined in the ``fluke.utils`` module.
+
+    Args:
+        lname (str): The name of the logger.
+        **kwargs: The keyword arguments to pass to the logger's constructor.
+
+    Returns:
+        Log | WandBLog: The logger.
+    """
+    return get_class_from_str("fluke.utils", lname)(**kwargs)
+
+
+def get_optimizer(oname: str) -> type[Optimizer]:
+    """Get an optimizer from its name.
+    This function is used to get an optimizer from its name. It is used to dynamically import
+    optimizers. The supported optimizers are the ones defined in the ``torch.optim`` module.
+
+    Args:
+        oname (str): The name of the optimizer.
+
+    Returns:
+        type[Optimizer]: The optimizer class.
+    """
+    return get_class_from_str("torch.optim", oname)
+
+
+def get_scheduler(sname: str) -> type[LRScheduler]:
     """Get a learning rate scheduler from its name.
     This function is used to get a learning rate scheduler from its name. It is used to dynamically
     import learning rate schedulers. The supported schedulers are the ones defined in the
@@ -424,7 +497,8 @@ def get_scheduler(sname: str) -> torch.nn.Module:
 
 
 def clear_cache(ipc: bool = False):
-    """Clear the CUDA cache.
+    """Clear the CUDA cache. This function should be used to free the GPU memory after the training
+    process has ended. It is usually used after the local training of the clients.
 
     Args:
         ipc (bool, optional): Whether to force collecting GPU memory after it has been released by
@@ -461,14 +535,12 @@ class Configuration(DDict):
     def _validate(self) -> bool:
 
         EXP_OPT_KEYS = {
-            "average": "micro",
             "device": "cpu",
             "seed": 42
         }
 
         LOG_OPT_KEYS = {
-            "name": "local",
-            "eval_every": 1
+            "name": "Log"
         }
 
         FIRST_LVL_KEYS = ["data", "protocol", "method"]
@@ -481,13 +553,16 @@ class Configuration(DDict):
         DATA_OPT_KEYS = {
             "sampling_perc": 1.0,
             "client_split": 0.0,
-            # "standardize": False
+            "keep_test": True,
+            "server_test": True,
+            "server_split": 0.0,
+            "uniform_test": False
         }
 
         ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]
         HP_REQUIRED_KEYS = ["model", "client", "server"]
         CLIENT_HP_REQUIRED_KEYS = ["loss", "batch_size", "local_epochs", "optimizer"]
-        WANDB_REQUIRED_KEYS = ["project", "entity", ]
+        WANDB_REQUIRED_KEYS = ["project", "entity"]
 
         error = False
         for k in FIRST_LVL_KEYS:
@@ -536,25 +611,24 @@ class Configuration(DDict):
         if 'logger' in self and self.logger.name == "wandb":
             for k in WANDB_REQUIRED_KEYS:
                 if k not in WANDB_REQUIRED_KEYS:
-                    rich.print(f"Error: {k} is required for key 'logger' when using 'wandb'.")
+                    rich.print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
                     error = True
 
-        if not error:
-            self.data.distribution.name = DistributionEnum(self.data.distribution.name)
-            self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
+        # if not error:
+        #     self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
             # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
-            self.logger.name = LogEnum(self.logger.name)
+            # self.logger.name = LogEnum(self.logger.name)
 
         if error:
             raise ValueError("Configuration validation failed.")
 
     def __str__(self) -> str:
-        return f"{self.method.name}_data({self.data.dataset.name.value}, " + \
-               f"{self.data.distribution.name.value}" + \
+        return f"{self.method.name}_data({self.data.dataset.name}, " + \
+               f"{self.data.distribution.name}" + \
                f"{',std' if self.data.standardize else ''})" + \
                f"_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}," + \
                f"E{self.protocol.eligible_perc})" + \
                f"_seed({self.exp.seed})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)

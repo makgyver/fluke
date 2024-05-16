@@ -8,7 +8,7 @@ sys.path.append("..")
 
 from ..utils.model import merge_models  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client, PFLClient  # NOQA
 from ..server import Server  # NOQA
@@ -20,8 +20,8 @@ class APFLClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: torch.nn.Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
@@ -34,7 +34,7 @@ class APFLClient(PFLClient):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
 
         self.model.train()
         self.personalized_model.train()
@@ -78,17 +78,17 @@ class APFLClient(PFLClient):
         self.personalized_model = merge_models(
             self.model, self.internal_model, self.hyper_params.lam)
 
-        self._send_model()
+        self.send_model()
 
     # def get_model(self):
-    #     return self._send_model()
+    #     return self.send_model()
 
 
 class APFLServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
@@ -97,15 +97,12 @@ class APFLServer(Server):
         self.hyper_params.update(tau=tau)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache
             self.channel.clear(self)
-            # for client in eligible:
-            # self.channel.send(Message((client.get_model, {}), "__action__", self), client)
-            # self.channel.pull(self, client, "model", client.model)
         else:
-            super()._aggregate(eligible)
+            super().aggregate(eligible)
 
 
 class APFL(PersonalizedFL):

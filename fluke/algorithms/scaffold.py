@@ -9,7 +9,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
@@ -40,8 +40,8 @@ class SCAFFOLDOptimizer(Optimizer):
 class SCAFFOLDClient(Client):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):
@@ -51,10 +51,10 @@ class SCAFFOLDClient(Client):
         self.delta_y = None
         self.server_control = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.model = deepcopy(model)
+            self.model = model
             self.control = [torch.zeros_like(p.data)
                             for p in self.model.parameters() if p.requires_grad]
             self.delta_y = [torch.zeros_like(p.data)
@@ -62,12 +62,12 @@ class SCAFFOLDClient(Client):
             self.delta_c = [torch.zeros_like(p.data)
                             for p in self.model.parameters() if p.requires_grad]
         else:
-            safe_load_state_dict(self.model, deepcopy(model.state_dict()))
+            safe_load_state_dict(self.model, model.state_dict())
         self.server_control = server_control
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         server_model = deepcopy(self.model)
         self.model.to(self.device)
         self.model.train()
@@ -102,17 +102,16 @@ class SCAFFOLDClient(Client):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
-    def _send_model(self):
-        self.channel.send(
-            Message((deepcopy(self.delta_y), deepcopy(self.delta_c)), "model", self), self.server)
+    def send_model(self):
+        self.channel.send(Message((self.delta_y, self.delta_c), "model", self), self.server)
 
 
 class SCAFFOLDServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  global_step: float = 1.):
@@ -121,11 +120,11 @@ class SCAFFOLDServer(Server):
                         for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update(global_step=global_step)
 
-    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+    def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
         delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
 

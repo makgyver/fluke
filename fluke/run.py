@@ -11,8 +11,9 @@ sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)  # NOQA
-from .data import DataSplitter, FastTensorDataLoader  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model, get_logger)  # NOQA
+from .data import DataSplitter, FastDataLoader  # NOQA
+from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 
 app = typer.Typer()
@@ -28,27 +29,28 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_container = cfg.data.dataset.name.klass()(**cfg.data.dataset.exclude('name'))
+    data_container = Datasets.get(**cfg.data.dataset)
 
     device = GlobalSettings().get_device()
 
-    train_loader = FastTensorDataLoader(*data_container.train,
-                                        batch_size=cfg.method.hyperparameters.client.batch_size,
-                                        shuffle=True)
-    test_loader = FastTensorDataLoader(*data_container.test,
-                                       batch_size=1,
-                                       shuffle=False)
+    train_loader = FastDataLoader(*data_container.train,
+                                  batch_size=cfg.method.hyperparameters.client.batch_size,
+                                  num_labels=data_container.num_classes,
+                                  shuffle=True)
+    test_loader = FastDataLoader(*data_container.test,
+                                 batch_size=10,
+                                 num_labels=data_container.num_classes,
+                                 shuffle=False)
 
     # , **cfg.method.hyperparameters.net_args)
     model = get_model(mname=cfg.method.hyperparameters.model)
     sch_args = cfg.method.hyperparameters.client.scheduler
-    optimizer_cfg = OptimizerConfigurator(torch.optim.SGD,
-                                          **cfg.method.hyperparameters.client.optimizer,
-                                          scheduler_kwargs=sch_args)
+    cfg.method.hyperparameters.client.optimizer.name = torch.optim.SGD
+    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.method.hyperparameters.client.optimizer,
+                                          scheduler_cfg=sch_args)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
-    evaluator = ClassificationEval(
-        criterion, data_container.num_classes, cfg.exp.average, device=device)
+    evaluator = ClassificationEval(criterion, data_container.num_classes, device)
     history = []
 
     model.to(device)
@@ -80,14 +82,18 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_splitter = DataSplitter.from_config(cfg.data)
+    data_container = Datasets.get(**cfg.data.dataset)
+    data_splitter = DataSplitter(dataset=data_container,
+                                 distribution=cfg.data.distribution.name,
+                                 dist_args=cfg.data.distribution.exclude("name"),
+                                 **cfg.data.exclude('dataset', 'distribution'))
 
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
     fl_algo = fl_algo_class(cfg.protocol.n_clients,
                             data_splitter,
                             cfg.method.hyperparameters)
 
-    log = cfg.logger.name.logger(name=str(cfg), **cfg.logger.exclude('name'))
+    log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
@@ -100,7 +106,12 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_splitter = DataSplitter.from_config(cfg.data)
+
+    data_container = Datasets.get(**cfg.data.dataset)
+    data_splitter = DataSplitter(dataset=data_container,
+                                 distribution=cfg.data.distribution.name,
+                                 dist_args=cfg.data.distribution.exclude("name"),
+                                 **cfg.data.exclude('dataset', 'distribution'))
 
     device = GlobalSettings().get_device()
 
@@ -110,20 +121,23 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     criterion = get_loss(hp.client.loss)
     client_evals = []
-    progress = track(enumerate(zip(clients_tr_data, clients_te_data)), total=len(clients_tr_data))
+    epochs = max(200, int(cfg.protocol.n_rounds *
+                          hp.client.local_epochs * cfg.protocol.eligible_perc))
+    progress = track(enumerate(zip(clients_tr_data, clients_te_data)),
+                     total=len(clients_tr_data),
+                     description="Clients training...")
     for i, (train_loader, test_loader) in progress:
         rich.print(f"Client [{i}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
-        optimizer_cfg = OptimizerConfigurator(torch.optim.SGD,
-                                              **hp.client.optimizer,
-                                              scheduler_kwargs=hp.client.scheduler)
+        hp.client.optimizer.name = torch.optim.SGD
+        optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
+                                              scheduler_cfg=hp.client.scheduler)
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(criterion,
                                        data_splitter.data_container.num_classes,
-                                       cfg.exp.average,
-                                       device=device)
+                                       device)
         model.to(device)
-        for _ in range(200):
+        for _ in range(epochs):
             model.train()
             loss = None
             for _, (X, y) in enumerate(train_loader):

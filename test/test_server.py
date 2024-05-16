@@ -8,8 +8,9 @@ sys.path.append("..")
 
 from fluke.server import Server  # NOQA
 from fluke.client import Client  # NOQA
-from fluke.data import FastTensorDataLoader  # NOQA
+from fluke.data import FastDataLoader  # NOQA
 from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
+from fluke import DDict  # NOQA
 
 
 def test_server():
@@ -25,7 +26,7 @@ def test_server():
                       evals,
                       client_evals):
             assert round == 1
-            assert len(client_evals) == 0
+            assert len(client_evals) == 1
             assert "accuracy" in evals
 
         def selected_clients(self, round, clients):
@@ -36,7 +37,7 @@ def test_server():
             assert error == "error"
 
         def finished(self,  client_evals):
-            assert len(client_evals) == 0
+            assert len(client_evals) == 1
 
     class Model(Linear):
         def __init__(self):
@@ -52,14 +53,14 @@ def test_server():
     Xte = torch.rand((100, 10))
     yte = torch.tensor([target_function(x) for x in Xte])
 
-    ftdl_client = [FastTensorDataLoader(Xtr[i], ytr[i], num_labels=2, batch_size=10, shuffle=True)
+    ftdl_client = [FastDataLoader(Xtr[i], ytr[i], num_labels=2, batch_size=10, shuffle=True)
                    for i in range(2)]
-    ftdl_server = FastTensorDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=False)
+    ftdl_server = FastDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=False)
 
-    cfg = OptimizerConfigurator(optimizer_class=torch.optim.SGD, lr=0.1, momentum=0.9)
+    cfg = OptimizerConfigurator(optimizer_cfg=DDict(name=torch.optim.SGD, lr=0.1, momentum=0.9))
     clients = [Client(index=i,
                       train_set=ftdl_client[i],
-                      test_set=None,
+                      test_set=ftdl_client[i] if i == 0 else None,
                       optimizer_cfg=cfg,
                       loss_fn=torch.nn.CrossEntropyLoss(),
                       local_epochs=3)
@@ -77,6 +78,8 @@ def test_server():
     assert server.hyper_params.weighted
     assert server.channel == clients[0].channel
     assert server.rounds == 0
+    assert server.has_test
+    assert server.has_model
 
     obs = Observer()
     server.attach(obs)
@@ -97,14 +100,25 @@ def test_server():
         pytest.fail("Unexpected exception!")
 
     for c in clients:
-        c._send_model()
-    cmodels = server._get_client_models(clients, state_dict=False)
+        c.send_model()
+    cmodels = server.get_client_models(clients, state_dict=False)
     assert len(cmodels) == 2
     assert isinstance(cmodels[0], Model)
 
     server.test_data = None
     assert not server.evaluate()
 
+    server.broadcast_model(clients)
+
+    for c in clients:
+        m = c.channel.receive(c, server, "model")
+        assert id(m) != id(server.model)
+        assert m is not server.model
+
+    assert str(server) == "Server(weighted=False)"
+    assert str(server) == repr(server)
+
 
 if __name__ == "__main__":
     test_server()
+    # 98% coverage for server.py

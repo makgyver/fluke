@@ -10,7 +10,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client, PFLClient  # NOQA
@@ -37,8 +37,8 @@ class PFedMeOptimizer(Optimizer):
 class PFedMeClient(PFLClient):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -47,17 +47,17 @@ class PFedMeClient(PFLClient):
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(k=k)
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.personalized_model = deepcopy(model)
+            self.personalized_model = model
             self.model = deepcopy(self.personalized_model)
         else:
-            safe_load_state_dict(self.personalized_model, deepcopy(model.state_dict()))
+            safe_load_state_dict(self.personalized_model, model.state_dict())
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.personalized_model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
@@ -81,16 +81,16 @@ class PFedMeClient(PFLClient):
 
             self.scheduler.step()
         self.personalized_model.load_state_dict(self.model.state_dict())
-        self._send_model()
+        self.send_model()
 
-    def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+    def send_model(self):
+        self.channel.send(Message(self.model, "model", self), self.server)
 
 
 class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
@@ -99,9 +99,9 @@ class PFedMeServer(Server):
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[Client]) -> None:
+    def aggregate(self, eligible: Sequence[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible)
+        clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):

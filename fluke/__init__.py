@@ -1,14 +1,7 @@
 """
-The ``fluke`` package is the main package of the ``fluke`` framework. Besides the subpackages listed
-below, it also contains the following modules:
-
-- ``Singleton``: A metaclass for creating singleton classes.
-- ``GlobalSettings``: A singleton class for holding the global settings of ``fluke``.
-- ``ObserverSubject``: A class for the observer pattern.
-- ``DDict``: A dictionary that can be accessed with dot notation recursively.
-
+The ``fluke`` module is the entry module of the ``fluke`` framework. Here are defined generic
+classes used by the other modules.
 """
-
 import re
 import torch
 import random
@@ -42,6 +35,7 @@ class Singleton(type):
 
     Example:
         .. code-block:: python
+            :linenos:
 
             class MyClass(metaclass=Singleton):
                 pass
@@ -63,6 +57,7 @@ class DDict(dict):
 
     Example:
         .. code-block:: python
+            :linenos:
 
             d = DDict(a=1, b=2, c={'d': 3, 'e': 4})
             print(d.a)  # 1
@@ -82,6 +77,16 @@ class DDict(dict):
 
         Args:
             **kwargs: The key-value pairs.
+
+        Example:
+            .. code-block:: python
+                :linenos:
+
+                d = DDict(a=1)
+                print(d) # {'a': 1}
+                d.update(b=2, c=3)
+                print(d) # {'a': 1, 'b': 2, 'c': 3}
+
         """
         for k, v in kwargs.items():
             if isinstance(v, dict):
@@ -100,6 +105,7 @@ class DDict(dict):
 
         Example:
             .. code-block:: python
+                :linenos:
 
                 d = DDict(a=1, b=2, c=3)
                 e = d.exclude('b', 'c')
@@ -115,6 +121,7 @@ class ObserverSubject():
 
     Example:
         .. code-block:: python
+            :linenos:
 
             class MySubject(ObserverSubject):
                 def __init__(self):
@@ -147,7 +154,7 @@ class ObserverSubject():
         self._observers: list[Any] = []
 
     def attach(self, observer: Union[Any, Iterable[Any]]):
-        """Attach one ore more observers.
+        """Attach one or more observers.
 
         Args:
             observer (Union[Any, Iterable[Any]]): The observer or a list of observers.
@@ -176,12 +183,11 @@ class ObserverSubject():
 
 class GlobalSettings(metaclass=Singleton):
     """Global settings for ``fluke``.
-
     This class is a singleton that holds the global settings for ``fluke``. The settings include:
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
-    - The seed for reproducibility;
-    - The progress bars for the federated learning process, clients and server;
+    - The ``seed`` for reproducibility;
+    - The progress bars for the federated learning process, clients and the server;
     - The live renderer, which is used to render the progress bars.
 
     """
@@ -230,12 +236,17 @@ class GlobalSettings(metaclass=Singleton):
         torch.backends.cudnn.deterministic = True
 
     def auto_device(self) -> torch.device:
-        """Set device to ``cuda`` if available, otherwise ``cpu``.
+        """Set device to ``cuda`` or ``mps`` if available, otherwise ``cpu``.
 
         Returns:
             torch.device: The device.
         """
-        self._device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            self._device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self._device = torch.device('mps')
+        else:
+            self._device = torch.device('cpu')
         return self._device
 
     def set_device(self, device: str) -> torch.device:
@@ -246,7 +257,7 @@ class GlobalSettings(metaclass=Singleton):
             device (str): The device as string.
 
         Returns:
-            torch.device: The device as torch.device.
+            torch.device: The selected device as torch.device.
         """
         assert device in ['cpu', 'auto', 'mps', 'cuda'] or re.match(r'^cuda:\d+$', device), \
             f"Invalid device {device}."
@@ -267,12 +278,11 @@ class GlobalSettings(metaclass=Singleton):
 
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
-
         The possible progress bar types are:
 
-        - FL: The progress bar for the federated learning process.
-        - clients: The progress bar for the clients.
-        - server: The progress bar for the server.
+        - ``FL``: The progress bar for the federated learning process.
+        - ``clients``: The progress bar for the clients.
+        - ``server``: The progress bar for the server.
 
         Args:
             progress_type (str): The type of progress bar.

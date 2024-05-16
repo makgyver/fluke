@@ -6,7 +6,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
 from . import CentralizedFL  # NOQA
 
@@ -14,8 +14,8 @@ from . import CentralizedFL  # NOQA
 class FedProxClient(Client):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -31,7 +31,7 @@ class FedProxClient(Client):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         W = deepcopy(self.model)
         self.model.to(self.device)
         self.model.train()
@@ -51,7 +51,7 @@ class FedProxClient(Client):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class FedProx(CentralizedFL):

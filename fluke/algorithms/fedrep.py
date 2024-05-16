@@ -1,4 +1,3 @@
-from copy import deepcopy
 import torch
 from typing import Any, Callable, Sequence
 import sys
@@ -10,8 +9,9 @@ from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
+from ..nets import EncoderHeadNet, EncoderGlobalHeadLocalNet  # NOQA
 
 
 # https://arxiv.org/abs/2102.07078
@@ -19,21 +19,22 @@ class FedRepClient(PFLClient):
 
     def __init__(self,
                  index: int,
-                 model: torch.nn.Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 model: EncoderHeadNet,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
                  tau: int = 3):
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index, EncoderGlobalHeadLocalNet(model),
+                         train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.hyper_params.update(tau=tau)
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -79,23 +80,23 @@ class FedRepClient(PFLClient):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
-    def _send_model(self):
-        self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
+    def send_model(self):
+        self.channel.send(Message(self.model.get_global(), "model", self), self.server)
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         if self.model is None:
             self.model = self.personalized_model
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.model.get_global(), deepcopy(msg.payload.state_dict()))
+        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
 class FedRepServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,  # test_data is not used
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
