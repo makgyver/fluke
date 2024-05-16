@@ -1,22 +1,38 @@
 # FLUKE: Federated Learning Utility frameworK for Experimentation 
-Python module to benchmark federated learning algorithms.
 
-## Running the code
+## Install with `pip`
 
-### Install the required python modules:
+Install the package with ``pip`` is as simple as running the following command:
+
 ```bash
+pip install fluke
+```
+
+## Using fluke w/o installation
+
+First, clone the repository:
+```bash
+git clone https://github.com/makgyver/fluke.git
+```
+
+Then, install the required python modules:
+```bash
+cd fluke
 pip install -r requirements.txt
 ```
 
+Finally, you can run the code as described in the next section.
+
 ### Run a federated algorithm
-To run an algorithm in Fluke you need to create two configuration files:
+
+To run an algorithm in ``fluke`` you need to create two configuration files:
 - `EXP_CONFIG`: the experiment configuration file
 - `ALG_CONFIG`: the algorithm configuration file
 
-Some examples of these files can be found in the `configs` folder.
+Some examples of these files can be found in the `configs` folder of the repository.
 
-The `EXP_CONFIG` is a yaml file containing the configurations for the experiment. It contains the 
-following fields:
+The `EXP_CONFIG` is a yaml file containing the configurations for the experiment
+(independentrly from the algorithm). It contains the following fields:
 
 ```yaml
 # Dataset configuration
@@ -27,7 +43,7 @@ data:
     # Currently supported: mnist, svhn, mnistm, femnist, emnist, cifar10, cifar100, tiny_imagenet,
     #                      shakespeare, fashion_mnist, cinic10
     name: mnist
-    # Potential parameters for loading the dataset correctly (see fluke.data.datasets)
+    # Potential parameters for loading the dataset correctly (see the documentation of fluke.data.datasets)
     params: null
   # IID/non-IID data distribution
   distribution:
@@ -40,7 +56,7 @@ data:
     # - path : Pathological skewed data (each client has data from a small subset of the classes).
     # - covshift: Covariate shift skewed data.
     name: iid
-    # Potential parameters of the disribution, e.g., `beta` for `dir`
+    # Potential parameters of the disribution, e.g., `beta` for `dir` (see the documentation of fluke.data.DataSplitter)
     params: null
   # Sampling percentage when loading the dataset
   sampling_perc: 1
@@ -52,15 +68,17 @@ data:
   server_test: true
   # The size of the server split (only used when keep_test=false)
   server_split: 0.0
+  # Whether to use client-side a iid test set regardless of the training data distribution
+  uniform_test: false
 # Generic settings for the experiment
 exp:
-  # The device to load the tensors
+  # The device to load the tensors (auto, cpu, cuda, mps, cuda:0, etc.)
   device: cpu
   # The seed (reproducibility)
   seed: 42
 # Logger configuration
 logger:
-  # `local` is the standard output, `wandb` log everything on weights and bias
+  # `Log` is the standard output, `WandBLog` log everything on weights and bias
   name: local
   # `wand` parameters
   params: null
@@ -92,9 +110,12 @@ hyperparameters:
     loss: CrossEntropyLoss
     # HPs of the optimizer (the type of optimizer depends on the algorithm)
     optimizer:
+      # if omitted, the default optimizer is SGD
+      name: SGD
       lr: 0.8
     # HPs of the scheduler (scheduler name from torch.optim.lr_scheduler)
     scheduler:
+      # if omitted, the default scheduler is StepLR
       name: StepLR
       gamma: 0.995
       step_size: 10
@@ -108,17 +129,30 @@ hyperparameters:
   model: MNIST_2NN
 ```
 
-To run a **federated** algorithm, you need to run the following command:
+If you installed ``fluke`` with pip, you can run the following command to start the experiment:
+```bash
+fluke --config=EXP_CONFIG federation ALG_CONFIG
+```
+
+Otherwise, to run a **federated** algorithm, you need to run the following command:
 ```bash
 python -m fluke.run --config=EXP_CONFIG federate ALG_CONFIG
 ```
 
 To run a **centralized (baseline) algorithm**, you need to run the following command:
 ```bash
+fluke --config=EXP_CONFIG centralized ALG_CONFIG
+```
+or
+```bash
 python -m fluke.run --config=EXP_CONFIG centralized ALG_CONFIG
 ```
 
 Finally, to run the learning process only on clients, you need to run the following command:
+```bash
+fluke --config=EXP_CONFIG clients-only ALG_CONFIG
+```
+or
 ```bash
 python -m fluke.run --config=EXP_CONFIG clients-only ALG_CONFIG
 ```
@@ -134,6 +168,7 @@ To date, the following federated algorithms are implemented:
 - FedBN
 - FedDyn
 - FedExP
+- FedHP
 - FedLC
 - FedNH
 - FedNova
@@ -154,10 +189,9 @@ To date, the following federated algorithms are implemented:
 Inside the `nets.py` file, you can find the definition of some neural networks. 
 
 ## TODO and Work in progress
-- [ ] Add documentation + check typing -- **Work in progress**
+- [ ] Documentation -- **Work in progress**
 - [ ] Unit/Functional/Integration testing -- **Work in progress**
 
 ## Desiderata
 - [ ] Add support to validation
 - [ ] Add support to tensorboard
-- [ ] Set up pypi package

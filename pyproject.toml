@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]  # list of folders that contain the packages (["."] by default)
+include = ["fluke", "fluke.data", "fluke.utils", "fluke.algorithms"]  # package names should match these glob patterns (["*"] by default)
+exclude = []  # exclude packages matching these glob patterns (empty by default)
+namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
+
+[project]
+name = "fluke"
+version = "0.0.1"
+authors = [
+  { name="Mirko Polato", email="mirko.polato@unito.it" },
+]
+description = "Federated Learning Utility framework for Experimentation"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+keywords = ["federated learning", "deep learning", "pytorch"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scipy",
+    "torch",
+    "torchmetrics",
+    "torchvision",
+    "rich",
+    "typer",
+    "wandb",
+    "datasets",
+    "psutil"
+]
+
+[project.scripts]
+fluke = "fluke.run:main"
+
+[project.urls]
+Repository = "https://github.com/makgyver/fluke"
+Issues = "https://github.com/makgyver/fluke/issues"

@@ -10,5 +10,3 @@ typer
 wandb
 datasets
 psutil
-PIL
-yaml
