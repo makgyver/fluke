@@ -711,12 +711,12 @@ class DummyDataSplitter(DataSplitter):
                  dataset: tuple[FastDataLoader, Optional[FastDataLoader], Optional[FastDataLoader]],
                  #  num_features: int,
                  #  num_classes: int,
-                 builder_args: DDict,
+                 builder_args: DDict = None,
                  **kwargs):
         self.data_container = None
         # self.standardize = False
         self.distribution = "iid"
-        self.client_split = 0.0
+        self.client_split = None
         self.sampling_perc = 1.0
         (self.client_tr_assignments,
          self.client_te_assignments,

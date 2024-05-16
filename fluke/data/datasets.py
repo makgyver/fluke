@@ -39,14 +39,14 @@ class Datasets:
     """
 
     @classmethod
-    def get(cls, dataset_name: str, **kwargs) -> DataContainer | tuple:
+    def get(cls, name: str, **kwargs) -> DataContainer | tuple:
         """Get a dataset by name initialized with the provided arguments.
         Supported datasets are: ``mnist``, ``mnistm``, ``svhn``, ``femnist``, ``emnist``,
         ``cifar10``, ``cifar100``, ``tiny_imagenet``, ``shakespeare``, ``fashion_mnist``, and
         ``cinic10``.
 
         Args:
-            dataset_name (str): The name of the dataset to load.
+            name (str): The name of the dataset to load.
             **kwargs: Additional arguments to pass to construct the dataset.
 
         Returns:
@@ -55,11 +55,11 @@ class Datasets:
         Raises:
             ValueError: If the dataset is not supported or the name is wrong.
         """
-        if dataset_name not in Datasets._DATASET_MAP:
-            raise ValueError(f"Dataset {dataset_name} not found. The supported datasets are: " +
+        if name not in Datasets._DATASET_MAP:
+            raise ValueError(f"Dataset {name} not found. The supported datasets are: " +
                              ", ".join(Datasets._DATASET_MAP.keys()) + ".")
 
-        return Datasets._DATASET_MAP[dataset_name](**kwargs)
+        return Datasets._DATASET_MAP[name](**kwargs)
 
     @classmethod
     def MNIST(cls,
@@ -561,19 +561,22 @@ class Datasets:
             # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
             # labels : 01234567890123456789012345678901234567890123456789012345678901
             if filter == "all":
-                return udata
+                return udata, 62
             elif filter == "uppercase":
                 udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 36 and y > 9]
                 udata["y"] = [y - 10 for y in udata["y"] if y < 36 and y > 9]
+                num_classes = 26
             elif filter == "lowercase":
                 udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y > 35]
                 udata["y"] = [y - 36 for y in udata["y"] if y > 35]
+                num_classes = 26
             elif filter == "digits":
                 udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 10]
                 udata["y"] = [y for y in udata["y"] if y < 10]
+                num_classes = 10
             else:
                 raise ValueError(f"Invalid filter: {filter}")
-            return udata
+            return udata, num_classes
 
         femnist_path = os.path.join(path, "FEMNIST")
         train_dir = os.path.join(femnist_path, 'train')
@@ -602,14 +605,14 @@ class Datasets:
         client_tr_assignments = []
         for k in track(sorted(dict_train), "Creating training data loader..."):
             udata = dict_train[k]
-            udata = _filter_femnist(udata, filter)
+            udata, num_classes = _filter_femnist(udata, filter)
             Xtr_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             ytr_client = torch.LongTensor(udata["y"])
             client_tr_assignments.append(
                 FastDataLoader(
                     Xtr_client,
                     ytr_client,
-                    num_labels=62,
+                    num_labels=num_classes,
                     batch_size=batch_size,
                     shuffle=True,
                     percentage=1.0
@@ -619,14 +622,14 @@ class Datasets:
         client_te_assignments = []
         for k in track(sorted(dict_train), "Creating testing data loader..."):
             udata = dict_test[k]
-            udata = _filter_femnist(udata, filter)
+            udata, _ = _filter_femnist(udata, filter)
             Xte_client = torch.FloatTensor(udata["x"]).reshape(-1, 1, 28, 28)
             yte_client = torch.LongTensor(udata["y"])
             client_te_assignments.append(
                 FastDataLoader(
                     Xte_client,
                     yte_client,
-                    num_labels=62,
+                    num_labels=num_classes,
                     batch_size=64,
                     shuffle=True,
                     percentage=1.0

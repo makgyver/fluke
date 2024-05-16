@@ -7,8 +7,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataContainer, FastDataLoader, DataSplitter  # NOQA
-from fluke.data.datasets import DatasetsEnum  # NOQA
+from fluke.data import DataContainer, FastDataLoader, DataSplitter, DummyDataSplitter  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
 from fluke import DDict  # NOQA
 
 
@@ -35,8 +35,9 @@ def test_container():
 
 
 def test_ftdl():
-    loader = FastDataLoader(torch.rand(100, 20),
-                            torch.randint(0, 10, (100,)),
+    X, y = torch.rand(100, 20), torch.randint(0, 10, (100,))
+    loader = FastDataLoader(X,
+                            y,
                             num_labels=10,
                             batch_size=10,
                             shuffle=True,
@@ -44,6 +45,8 @@ def test_ftdl():
                             skip_singleton=True)
 
     assert len(loader) == 10
+    assert torch.allclose(loader[0][0], X[0])
+    assert torch.allclose(loader[0][1], y[0])
 
     for X, y in loader:
         assert X.shape == torch.Size([10, 20])
@@ -134,7 +137,7 @@ def test_splitter():
     cfg = DDict(
         client_split=0.1,
         dataset={
-            "name": DatasetsEnum.MNIST,
+            "name": "mnist",
         },
         distribution={
             "name": "iid",
@@ -145,7 +148,11 @@ def test_splitter():
         keep_test=False
     )
 
-    splitter = DataSplitter.from_config(cfg)
+    data_container = Datasets.get(**cfg.dataset)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     assert splitter.client_split == 0.1
     assert splitter.sampling_perc == 0.1
     assert splitter.server_split == 0.2
@@ -175,8 +182,9 @@ def test_splitter():
     splitter.distribution = "dir"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    # splitter.distribution = DistributionEnum.COVARIATE_SHIFT
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    # OK?
+    splitter.distribution = "covariate"
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK
     splitter.distribution = "classwise_qnt"
@@ -215,7 +223,7 @@ def test_splitter():
     # ERROR: keep_test=False, server_test=True, server_split=0
     cfg = DDict(
         dataset={
-            "name": DatasetsEnum.MNIST,
+            "name": "mnist",
         },
         distribution={
             "name": "iid",
@@ -224,10 +232,14 @@ def test_splitter():
         keep_test=True,
         server_test=True,
         server_split=0.2,
-        client_split=0.1
+        client_split=0.1,
+        uniform_test=True
     )
-
-    splitter = DataSplitter.from_config(cfg)
+    data_container = Datasets.get(**cfg.dataset)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     n_examples = splitter.data_container.train[0].shape[0]
@@ -235,8 +247,19 @@ def test_splitter():
     assert cte[0].size == int(n_examples / 10 * 0.1 * 0.1)
     assert ste.size == 1000
 
+    # cfg.client_split = 0.2
+    # splitter = DataSplitter(dataset=data_container,
+    #                         distribution="dir",
+    #                         dist_args={"beta": 0.3},
+    #                         **cfg.exclude('dataset', 'distribution'))
+
+    # (ctr, cte), ste = splitter.assign(n_clients=500, batch_size=10)
+
     cfg.client_split = 0
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     assert ctr[0].size == int(n_examples / 10 * 0.1)
@@ -245,7 +268,10 @@ def test_splitter():
 
     cfg.server_test = False
     cfg.client_split = 0.1
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     n_examples_te = splitter.data_container.test[0].shape[0]
@@ -254,7 +280,10 @@ def test_splitter():
     assert ste is None
 
     cfg.keep_test = False
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     assert ctr[0].size == int((n_examples + n_examples_te) / 10 * 0.1 * 0.9)
@@ -264,7 +293,10 @@ def test_splitter():
     cfg.client_split = 0
     cfg.server_test = True
     cfg.server_split = 0.2
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     assert ctr[0].size == int((n_examples + n_examples_te) * 0.8 / 10 * 0.1)
@@ -275,15 +307,29 @@ def test_splitter():
     cfg.keep_test = False
     cfg.server_test = False
     with pytest.raises(AssertionError):
-        DataSplitter.from_config(cfg)
+        DataSplitter(data_container, **cfg.exclude("dataset"))
 
     cfg.server_test = True
     cfg.server_split = 0
     with pytest.raises(AssertionError):
-        DataSplitter.from_config(cfg)
+        DataSplitter(data_container, **cfg.exclude("dataset"))
+
+    dummy = DummyDataSplitter((ctr, cte, ste))
+
+    assert dummy.data_container is None
+    assert dummy.distribution == 'iid'
+    assert dummy.client_split is None
+    assert dummy.num_classes() == 10
+
+    (ctr_, cte_), ste_ = dummy.assign(10, batch_size=10)
+    assert ctr_ == ctr
+    assert cte_ == cte
+    assert ste_ == ste
 
 
 if __name__ == "__main__":
     test_container()
     test_ftdl()
     test_splitter()
+
+    # 95% coverage on fluke/data

@@ -81,7 +81,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
-    data_container = Datasets.get(cfg.data.dataset.name, **cfg.data.dataset.exclude('name'))
+    data_container = Datasets.get(**cfg.data.dataset)
     data_splitter = DataSplitter(dataset=data_container,
                                  distribution=cfg.data.distribution.name,
                                  dist_args=cfg.data.distribution.exclude("name"),
@@ -106,7 +106,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
     print(cfg)
-    data_container = Datasets.get(cfg.data.dataset.name, **cfg.data.dataset.exclude('name'))
+    data_container = Datasets.get(**cfg.data.dataset)
     data_splitter = DataSplitter(dataset=data_container,
                                  distribution=cfg.data.distribution.name,
                                  dist_args=cfg.data.distribution.exclude("name"),
