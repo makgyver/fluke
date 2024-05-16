@@ -11,7 +11,7 @@ sys.path.append("..")
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from . import CentralizedFL  # NOQA
 
 
@@ -55,7 +55,7 @@ class CCVRServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
@@ -72,7 +72,7 @@ class CCVRServer(Server):
     def _compute_mean_cov(self):
         means, covs, ns = [], [], []
         for client in self.clients:
-            client._receive_model()
+            client.receive_model()
             client.compute_mean_cov()
             mean, cov, n = self.channel.receive(self, client, msg_type="mean_cov").payload
             means.append(mean)
@@ -137,11 +137,11 @@ class CCVRServer(Server):
         # FIXME: loss, optimizer and scheduler are fixed for now
         optimizer = torch.optim.SGD(self.model.get_head().parameters(), lr=self.hyper_params.lr)
         loss_fn = torch.nn.CrossEntropyLoss()
-        train_set = FastTensorDataLoader(Z_train,
-                                         y_train,
-                                         num_labels=len(set(y_train.cpu().numpy())),
-                                         batch_size=self.hyper_params.batch_size,
-                                         shuffle=True)
+        train_set = FastDataLoader(Z_train,
+                                   y_train,
+                                   num_labels=len(set(y_train.cpu().numpy())),
+                                   batch_size=self.hyper_params.batch_size,
+                                   shuffle=True)
 
         for Z, y in train_set:
             Z, y = Z.to(self.device), y.to(self.device)
@@ -152,12 +152,12 @@ class CCVRServer(Server):
             optimizer.step()
         self.model.to("cpu")
 
-    def _finalize(self) -> None:
-        self._broadcast_model(self.clients)
+    def finalize(self) -> None:
+        self.broadcast_model(self.clients)
         classes_mean, classes_cov = self._compute_mean_cov()
         Z, y = self._generate_virtual_repr(classes_mean, classes_cov)
         self._calibrate(Z, y)
-        super()._finalize()
+        super().finalize()
 
 
 class CCVR(CentralizedFL):

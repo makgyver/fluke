@@ -11,11 +11,10 @@ sys.path.append("..")
 from ..evaluation import ClassificationEval  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..server import Server  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..comm import Message  # NOQA
 
 
 class ProtoNet(Module):
@@ -60,8 +59,8 @@ class FedNHClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,  # Not used
                  local_epochs: int,
@@ -93,7 +92,7 @@ class FedNHClient(PFLClient):
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -119,15 +118,10 @@ class FedNHClient(PFLClient):
             protos[label] = self.model(Xlbl)[0].detach().data
 
         self._update_protos(protos)
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None:
-            if self.model is None:
-                # ask for the prototypes and receive them
-                self.channel.send(Message(self.server, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.model is not None:
             model = ArgMaxModule(self.model)
             return ClassificationEval(None,
                                       self.hyper_params.n_protos,
@@ -143,7 +137,7 @@ class FedNHServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,
@@ -158,9 +152,9 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_models = self._get_client_models(eligible, state_dict=False)
+        clients_models = self.get_client_models(eligible, state_dict=False)
         clients_protos = [cmodel.prototypes.data for cmodel in clients_models]
 
         # Group by label

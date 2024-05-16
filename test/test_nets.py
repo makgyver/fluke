@@ -4,11 +4,18 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+
+# 'EncoderHeadNet',
+# 'GlobalLocalNet',
+# 'HeadGlobalEncoderLocalNet',
+# 'EncoderGlobalHeadLocalNet',
+
+
 from fluke.nets import (MNIST_2NN, MNIST_LR, MNIST_CNN, FEMNIST_CNN,  # NOQA
-                           VGG9, FedavgCNN, LeNet5, MoonCNN, SimpleCNN,  # NOQA
+                           VGG9, FedavgCNN, LeNet5, MoonCNN, CifarConv2,  # NOQA
                            ResNet9, ResNet18, ResNet34, ResNet50, Shakespeare_LSTM,  # NOQA
-                           FedPer_VGG9, LG_FedAvg_VGG9, MNIST_2NN_GlobalD, MNIST_2NN_GlobalE,  # NOQA
-                           FedBN_CNN, ResNet18GN)  # NOQA
+                           FedBN_CNN, ResNet18GN, HeadGlobalEncoderLocalNet,  # NOQA
+                           EncoderGlobalHeadLocalNet)  # NOQA
 
 
 def test_mnist_2nn():
@@ -107,13 +114,13 @@ def test_covnets():
     assert z.shape == (2, 6272)
     assert torch.allclose(y1, y2)
 
-    model = SimpleCNN()
+    model = CifarConv2()
     x = torch.randn(1, 3, 32, 32)
     z = model.forward_encoder(x)
     y1 = model(x)
     y2 = model.forward_head(z)
     assert y1.shape == (1, 10)
-    assert z.shape == (1, 400)
+    assert z.shape == (1, 100)
     assert torch.allclose(y1, y2)
 
     model = ResNet9()
@@ -159,41 +166,14 @@ def test_recurrent():
 
 
 def test_global_local():
-    model = FedPer_VGG9()
-    x = torch.randn(1, 1, 28, 28)
-    y1 = model(x)
-    z = model.forward_global(x)
-    y2 = model.forward_local(z)
-    assert y1.shape == (1, 62)
-    assert z.shape == (1, 512)
-    assert torch.allclose(y1, y2)
+    nn = MNIST_2NN()
+    model = HeadGlobalEncoderLocalNet(nn)
+    assert nn.encoder is model.get_local()
+    assert nn.head is model.get_global()
 
-    model = LG_FedAvg_VGG9()
-    x = torch.randn(1, 1, 28, 28)
-    y1 = model(x)
-    z = model.forward_local(x)
-    y2 = model.forward_global(z)
-    assert y1.shape == (1, 62)
-    assert z.shape == (1, 512)
-    assert torch.allclose(y1, y2)
-
-    model = MNIST_2NN_GlobalD()
-    x = torch.randn(1, 28, 28)
-    y1 = model(x)
-    z = model.forward_local(x)
-    y2 = model.forward_global(z)
-    assert z.shape == (1, 200)
-    assert y1.shape == (1, 10)
-    assert torch.allclose(y1, y2)
-
-    model = MNIST_2NN_GlobalE()
-    x = torch.randn(1, 28, 28)
-    y1 = model(x)
-    z = model.forward_global(x)
-    y2 = model.forward_local(z)
-    assert z.shape == (1, 200)
-    assert y1.shape == (1, 10)
-    assert torch.allclose(y1, y2)
+    model = EncoderGlobalHeadLocalNet(nn)
+    assert nn.encoder is model.get_global()
+    assert nn.head is model.get_local()
 
 
 if __name__ == "__main__":
@@ -202,3 +182,4 @@ if __name__ == "__main__":
     test_covnets()
     test_recurrent()
     test_global_local()
+    # 99% coverage on nets.py

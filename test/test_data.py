@@ -7,8 +7,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataContainer, FastTensorDataLoader, DataSplitter, DistributionEnum  # NOQA
-from fluke.data.datasets import DatasetsEnum  # NOQA
+from fluke.data import DataContainer, FastDataLoader, DataSplitter, DummyDataSplitter  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
 from fluke import DDict  # NOQA
 
 
@@ -35,15 +35,18 @@ def test_container():
 
 
 def test_ftdl():
-    loader = FastTensorDataLoader(torch.rand(100, 20),
-                                  torch.randint(0, 10, (100,)),
-                                  num_labels=10,
-                                  batch_size=10,
-                                  shuffle=True,
-                                  percentage=1,
-                                  skip_singleton=True)
+    X, y = torch.rand(100, 20), torch.randint(0, 10, (100,))
+    loader = FastDataLoader(X,
+                            y,
+                            num_labels=10,
+                            batch_size=10,
+                            shuffle=True,
+                            percentage=1,
+                            skip_singleton=True)
 
     assert len(loader) == 10
+    assert torch.allclose(loader[0][0], X[0])
+    assert torch.allclose(loader[0][1], y[0])
 
     for X, y in loader:
         assert X.shape == torch.Size([10, 20])
@@ -77,13 +80,13 @@ def test_ftdl():
     with pytest.raises(ValueError):
         loader.set_sample_size(1.1)
 
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
-                                  torch.LongTensor([0, 1]),
-                                  num_labels=10,
-                                  batch_size=1,
-                                  shuffle=False,
-                                  percentage=1,
-                                  skip_singleton=True)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                            torch.LongTensor([0, 1]),
+                            num_labels=10,
+                            batch_size=1,
+                            shuffle=False,
+                            percentage=1,
+                            skip_singleton=True)
 
     for X, y in loader:
         assert X == torch.FloatTensor([[1, 2, 3]])
@@ -95,14 +98,14 @@ def test_ftdl():
         assert X == torch.FloatTensor([[4, 5, 6]]) or X == torch.FloatTensor([[1, 2, 3]])
         assert y == torch.tensor([1]) or y == torch.tensor([0])
 
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
-                                  torch.LongTensor([0, 1]),
-                                  num_labels=10,
-                                  batch_size=1,
-                                  shuffle=False,
-                                  percentage=1,
-                                  skip_singleton=False,
-                                  single_batch=True)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                            torch.LongTensor([0, 1]),
+                            num_labels=10,
+                            batch_size=1,
+                            shuffle=False,
+                            percentage=1,
+                            skip_singleton=False,
+                            single_batch=True)
 
     cnt = 0
     for X, y in loader:
@@ -110,22 +113,22 @@ def test_ftdl():
     assert cnt == 1
 
     with pytest.raises(AssertionError):
-        loader = FastTensorDataLoader(torch.rand(100, 20),
-                                      torch.randint(0, 10, (101,)),
-                                      num_labels=10,
-                                      batch_size=10,
-                                      shuffle=True,
-                                      percentage=1,
-                                      skip_singleton=True)
+        loader = FastDataLoader(torch.rand(100, 20),
+                                torch.randint(0, 10, (101,)),
+                                num_labels=10,
+                                batch_size=10,
+                                shuffle=True,
+                                percentage=1,
+                                skip_singleton=True)
 
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
-                                  torch.LongTensor([0, 1]),
-                                  num_labels=10,
-                                  batch_size=0,
-                                  shuffle=False,
-                                  percentage=1,
-                                  skip_singleton=False,
-                                  single_batch=False)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3], [4, 5, 6]]),
+                            torch.LongTensor([0, 1]),
+                            num_labels=10,
+                            batch_size=0,
+                            shuffle=False,
+                            percentage=1,
+                            skip_singleton=False,
+                            single_batch=False)
 
     assert loader.batch_size == 2
 
@@ -134,10 +137,10 @@ def test_splitter():
     cfg = DDict(
         client_split=0.1,
         dataset={
-            "name": DatasetsEnum.MNIST,
+            "name": "mnist",
         },
         distribution={
-            "name": DistributionEnum.IID,
+            "name": "iid",
         },
         sampling_perc=0.1,
         server_test=True,
@@ -145,26 +148,30 @@ def test_splitter():
         keep_test=False
     )
 
-    splitter = DataSplitter.from_config(cfg)
+    data_container = Datasets.get(**cfg.dataset)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     assert splitter.client_split == 0.1
     assert splitter.sampling_perc == 0.1
     assert splitter.server_split == 0.2
     assert not splitter.keep_test
-    assert splitter.distribution == DistributionEnum.IID
+    assert splitter.distribution == "iid"
 
     # OK uniform
     (ctr, cte), ste = splitter.assign(10, batch_size=10)
 
     assert len(ctr) == 10
     assert len(cte) == 10
-    assert isinstance(ctr[0], FastTensorDataLoader)
+    assert isinstance(ctr[0], FastDataLoader)
     x, y = next(iter(ctr[0]))
     assert x.shape == torch.Size([10, 28, 28])
     assert y.shape == torch.Size([10])
     x, y = next(iter(cte[0]))
     assert x.shape == torch.Size([10, 28, 28])
     assert y.shape == torch.Size([10])
-    assert isinstance(ste, FastTensorDataLoader)
+    assert isinstance(ste, FastDataLoader)
     x, y = next(iter(ste))
     assert x.shape == torch.Size([128, 28, 28])
     assert y.shape == torch.Size([128])
@@ -172,23 +179,24 @@ def test_splitter():
     n_clients = 100
 
     # OK
-    splitter.distribution = DistributionEnum.LABEL_DIRICHLET_SKEWED
+    splitter.distribution = "dir"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    # splitter.distribution = DistributionEnum.COVARIATE_SHIFT
-    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    # OK?
+    splitter.distribution = "covariate"
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK
-    splitter.distribution = DistributionEnum.CLASSWISE_QUANTITY_SKEWED
+    splitter.distribution = "classwise_qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.LABEL_PATHOLOGICAL_SKEWED
+    splitter.distribution = "pathological"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.LABEL_QUANTITY_SKEWED
+    splitter.distribution = "lbl_qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    splitter.distribution = DistributionEnum.QUANTITY_SKEWED
+    splitter.distribution = "qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # freq = []
@@ -215,19 +223,23 @@ def test_splitter():
     # ERROR: keep_test=False, server_test=True, server_split=0
     cfg = DDict(
         dataset={
-            "name": DatasetsEnum.MNIST,
+            "name": "mnist",
         },
         distribution={
-            "name": DistributionEnum.IID,
+            "name": "iid",
         },
         sampling_perc=0.1,
         keep_test=True,
         server_test=True,
         server_split=0.2,
-        client_split=0.1
+        client_split=0.1,
+        uniform_test=True
     )
-
-    splitter = DataSplitter.from_config(cfg)
+    data_container = Datasets.get(**cfg.dataset)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     n_examples = splitter.data_container.train[0].shape[0]
@@ -235,8 +247,19 @@ def test_splitter():
     assert cte[0].size == int(n_examples / 10 * 0.1 * 0.1)
     assert ste.size == 1000
 
+    # cfg.client_split = 0.2
+    # splitter = DataSplitter(dataset=data_container,
+    #                         distribution="dir",
+    #                         dist_args={"beta": 0.3},
+    #                         **cfg.exclude('dataset', 'distribution'))
+
+    # (ctr, cte), ste = splitter.assign(n_clients=500, batch_size=10)
+
     cfg.client_split = 0
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     assert ctr[0].size == int(n_examples / 10 * 0.1)
@@ -245,7 +268,10 @@ def test_splitter():
 
     cfg.server_test = False
     cfg.client_split = 0.1
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     n_examples_te = splitter.data_container.test[0].shape[0]
@@ -254,7 +280,10 @@ def test_splitter():
     assert ste is None
 
     cfg.keep_test = False
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     assert ctr[0].size == int((n_examples + n_examples_te) / 10 * 0.1 * 0.9)
@@ -264,7 +293,10 @@ def test_splitter():
     cfg.client_split = 0
     cfg.server_test = True
     cfg.server_split = 0.2
-    splitter = DataSplitter.from_config(cfg)
+    splitter = DataSplitter(dataset=data_container,
+                            distribution=cfg.distribution.name,
+                            dist_args=cfg.distribution.exclude("name"),
+                            **cfg.exclude('dataset', 'distribution'))
     (ctr, cte), ste = splitter.assign(n_clients=10, batch_size=10)
 
     assert ctr[0].size == int((n_examples + n_examples_te) * 0.8 / 10 * 0.1)
@@ -275,15 +307,29 @@ def test_splitter():
     cfg.keep_test = False
     cfg.server_test = False
     with pytest.raises(AssertionError):
-        DataSplitter.from_config(cfg)
+        DataSplitter(data_container, **cfg.exclude("dataset"))
 
     cfg.server_test = True
     cfg.server_split = 0
     with pytest.raises(AssertionError):
-        DataSplitter.from_config(cfg)
+        DataSplitter(data_container, **cfg.exclude("dataset"))
+
+    dummy = DummyDataSplitter((ctr, cte, ste))
+
+    assert dummy.data_container is None
+    assert dummy.distribution == 'iid'
+    assert dummy.client_split is None
+    assert dummy.num_classes() == 10
+
+    (ctr_, cte_), ste_ = dummy.assign(10, batch_size=10)
+    assert ctr_ == ctr
+    assert cte_ == cte
+    assert ste_ == ste
 
 
 if __name__ == "__main__":
     test_container()
     test_ftdl()
     test_splitter()
+
+    # 95% coverage on fluke/data

@@ -10,7 +10,7 @@ sys.path.append("..")
 
 from ..evaluation import ClassificationEval  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..server import Server  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
@@ -52,8 +52,8 @@ class FedProtoClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -68,12 +68,12 @@ class FedProtoClient(PFLClient):
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
         self.global_protos = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        self.global_protos = deepcopy(msg.payload)
+        self.global_protos = msg.payload
 
-    def _send_model(self):
-        self.channel.send(Message(deepcopy(self.prototypes), "model", self), self.server)
+    def send_model(self):
+        self.channel.send(Message(self.prototypes, "model", self), self.server)
 
     def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
         for label, prts in protos.items():
@@ -82,7 +82,7 @@ class FedProtoClient(PFLClient):
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -126,15 +126,10 @@ class FedProtoClient(PFLClient):
         self.model.to("cpu")
         clear_cache()
         self._update_protos(protos)
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None:
-            if self.prototypes[0] is None:
-                # ask for the prototypes and receive them
-                self.channel.send(Message(self.server.prototypes, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.prototypes[0] is not None:
             model = FedProtoModel(self.model, self.prototypes, self.device)
             return ClassificationEval(self.hyper_params.loss_fn,
                                       self.hyper_params.n_protos,
@@ -150,7 +145,7 @@ class FedProtoServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,
@@ -159,17 +154,17 @@ class FedProtoServer(Server):
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # This funciton broadcasts the prototypes to the clients
         self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
 
-    def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
+    def get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_protos = self._get_client_models(eligible)
+        clients_protos = self.get_client_models(eligible)
 
         # Group by label
         label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]

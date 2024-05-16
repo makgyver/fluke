@@ -1,16 +1,16 @@
+"""This module contains the data utilities for ``fluke``."""
 from __future__ import annotations
 from scipy.stats.mstats import mquantiles
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
-from typing import Union, TYPE_CHECKING, Sequence
+from typing import Sequence
 from rich.progress import track
 import rich
 import torch
 from sklearn.model_selection import train_test_split
 from pyparsing import Optional
-from enum import Enum
 import sys
 
 sys.path.append(".")
@@ -18,16 +18,13 @@ sys.path.append("..")
 
 
 from .. import DDict  # NOQA
-
-if TYPE_CHECKING:
-    from .datasets import DatasetsEnum  # NOQA
+# from .datasets import Datasets  # NOQA
 
 __all__ = [
     'datasets',
     'support',
     'DataContainer',
-    'FastTensorDataLoader',
-    'DistributionEnum',
+    'FastDataLoader',
     'DataSplitter',
     'DummyDataSplitter'
 ]
@@ -58,7 +55,7 @@ class DataContainer:
     def standardize(self):
         """Standardize the data.
         The data is standardized using the ``StandardScaler`` from ``sklearn``. The method modifies
-        the ``train`` and ``test`` attributes.
+        the :attr:`train` and :attr:`test` attributes.
         """
         data_train, data_test = self.train[0], self.test[0]
         scaler = StandardScaler()
@@ -67,40 +64,55 @@ class DataContainer:
         self.test = (torch.FloatTensor(scaler.transform(data_test)), self.test[1])
 
 
-class FastTensorDataLoader:
+class FastDataLoader:
     """
     A DataLoader-like object for a set of tensors that can be much faster than
     TensorDataset + DataLoader because dataloader grabs individual indices of
     the dataset and calls cat (slow).
+
+    Important:
+        This type of data loader does not support the application of different transformations
+        to the data at each iteration. If you need to apply different transformations to the data
+        at each iteration, you should use the standard PyTorch ``DataLoader``.
+
 
     Note:
         This implementation is based on the following discussion:
         https://discuss.pytorch.org/t/dataloader-much-slower-than-manual-batching/27014/6
 
     Args:
-        *tensors (Tensor): tensors to be loaded.
+        *tensors (Sequence[torch.Tensor]): tensors to be loaded.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled.
         percentage (float): the percentage of the data to be used.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-          layers, you might want to set this to `True`.
+            layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
 
+    Caution:
+        When sampling a percentage of the data (i.e., ``percentage < 1``), the data is sampled at
+        each epoch. This means that the data varies at each epoch. If you want to keep the data
+        constant across epochs, you should sample the data once and pass the sampled
+        data to the :class:`FastDataLoader` and set the ``percentage`` parameter to ``1.0``.
+
     Attributes:
-        tensors (Sequence[Tensor]): tensors of the dataset. Ideally, the first tensor should be the
-            input data, and the second tensor should be the labels. However, this is not enforced
-            and the user is responsible for ensuring that the tensors are used correctly.
+        tensors (Sequence[torch.Tensor]): Tensors of the dataset. Ideally, the first tensor should
+            be the input data, and the second tensor should be the labels. However, this is not
+            enforced and the user is responsible for ensuring that the tensors are used correctly.
         batch_size (int): batch size.
-        shuffle (bool): whether the data should be shuffled at each epoch. If `True`, the data is
+        shuffle (bool): whether the data should be shuffled at each epoch. If ``True``, the data is
             shuffled at each iteration.
         percentage (float): the percentage of the data to be used. If `1.0`, all the data is used.
             Otherwise, the data is sampled according to the given percentage. **Note that the
             sampled data varies at each epoch.**
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-          layers, you might want to set this to `True`.
+            layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
         size (int): the size of the dataset according to the percentage of the data to be used.
         max_size (int): the total size of the dataset.
+
+    Raises:
+        AssertionError: if the tensors do not have the same size along the first dimension.
     """
 
     def __init__(self,
@@ -189,78 +201,79 @@ class FastTensorDataLoader:
         return self.n_batches
 
 
-class DistributionEnum(Enum):
-    """Enum for data distribution across clients."""
-    IID = "iid"  # : Independent and Identically Distributed data.
-    QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
-    CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
-    LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
-    LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
-    # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
-    LABEL_PATHOLOGICAL_SKEWED = "path"
-    COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
+# class DistributionEnum(Enum):
+#     """Enum for data distribution across clients."""
+#     IID = "iid"  # : Independent and Identically Distributed data.
+#     QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
+#     CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
+#     LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
+#     LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
+#     # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
+#     LABEL_PATHOLOGICAL_SKEWED = "path"
+#     COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
 
-    def __hash__(self) -> int:
-        return self.value.__hash__()
+#     def __hash__(self) -> int:
+#         return self.value.__hash__()
 
-    def __eq__(self, other) -> bool:
-        return self.value == other.value
+#     def __eq__(self, other) -> bool:
+#         return self.value == other.value
 
 
 class DataSplitter:
-    """Utility class for splitting the data across clients.
-
-    Args:
-        dataset (DatasetsEnum or DataContainer): The dataset.
-        standardize (bool, optional): Whether to standardize the data. Defaults to False.
-        distribution (DistributionEnum, optional): The distribution of the data across clients.
-          Defaults to DistributionEnum.IID.
-        client_split (float, optional): The percentage of data to be used for validation.
-          Defaults to 0.0.
-        sampling_perc (float, optional): The percentage of data to be used. Defaults to 1.0.
-        builder_args (DDict, optional): The arguments for the dataset builder. Defaults to {}.
-        **kwargs: Additional arguments.
-    """
-    @classmethod
-    def from_config(cls, config: DDict) -> DataSplitter:
-        """Create a DataSplitter from a configuration dictionary.
-
-        Args:
-            config (DDict): The configuration dictionary.
-
-        Returns:
-            DataSplitter: The `DataSplitter` object.
-        """
-        return config.dataset.name.splitter()(dataset=config.dataset.name,
-                                              builder_args=config.dataset.exclude('name'),
-                                              distribution=config.distribution.name,
-                                              **config.exclude('dataset', 'distribution'),
-                                              dist_args=config.distribution.exclude('name'))
+    """Utility class for splitting the data across clients."""
 
     def _safe_train_test_split(self,
-                               client_id: int,
                                X: torch.Tensor,
                                y: torch.Tensor,
-                               test_size: float):
+                               test_size: float,
+                               client_id: int | None = None) -> tuple[torch.Tensor, torch.Tensor]:
         try:
-            return train_test_split(X, y, test_size=test_size, stratify=y)
+            if test_size == 0.0:
+                return X, None, y, None
+            else:
+                return train_test_split(X, y, test_size=test_size, stratify=y)
         except ValueError:
+            client_str = f"[Client {client_id}]" if client_id is not None else ""
             rich.print(
-                f"[bold red]Warning [Client {client_id}]: [/bold red] Stratified split failed. " +
+                f"[bold red]Warning{client_str}: [/bold red] Stratified split failed. " +
                 "Falling back to random split."
             )
             return train_test_split(X, y, test_size=test_size)
 
     def __init__(self,
-                 dataset: Union[DatasetsEnum, DataContainer],
-                 distribution: DistributionEnum = DistributionEnum.IID,
+                 dataset: DataContainer,
+                 distribution: str = "iid",
                  client_split: float = 0.0,
                  sampling_perc: float = 1.0,
                  server_test: bool = True,
                  keep_test: bool = True,
                  server_split: float = 0.0,
-                 builder_args: DDict = None,
+                 uniform_test: bool = False,
                  dist_args: DDict = None):
+        """Initialize the ``DataSplitter``.
+
+        Args:
+            dataset (DataContainer or str): The dataset.
+            distribution (str, optional): The data distribution function. Defaults to
+                ``"iid"``.
+            client_split (float, optional): The size of the client's test set. Defaults to 0.0.
+            sampling_perc (float, optional): The percentage of the data to be used. Defaults to 1.0.
+            server_test (bool, optional): Whether to keep a server test set. Defaults to True.
+            keep_test (bool, optional): Whether to keep the test set provided by the dataset.
+                Defaults to True.
+            server_split (float, optional): The size of the server's test set. Defaults to 0.0. This
+                parameter is used only if ``server_test`` is ``True`` and ``keep_test`` is
+                ``False``.
+            uniform_test (bool, optional): Whether to distribute the test set in a IID across the
+                clients. If ``False``, the test set is distributed according to the distribution
+                function. Defaults to False.
+            builder_args (DDict, optional): The arguments for the dataset class. Defaults to None.
+            dist_args (DDict, optional): The arguments for the distribution function. Defaults to
+                None.
+
+        Raises:
+            AssertionError: If the parameters are not in the correct range or configuration.
+        """
         assert 0 <= client_split <= 1, "client_split must be between 0 and 1."
         assert 0 <= sampling_perc <= 1, "sampling_perc must be between 0 and 1."
         assert 0 <= server_split <= 1, "server_split must be between 0 and 1."
@@ -270,14 +283,14 @@ class DataSplitter:
         if not server_test and client_split == 0.0:
             raise AssertionError("Either client_split > 0 or server_test = True must be true.")
 
-        self.data_container = dataset if isinstance(
-            dataset, DataContainer) else dataset.klass()(**builder_args if builder_args else {})
+        self.data_container = dataset
         self.distribution = distribution
         self.client_split = client_split
         self.sampling_perc = sampling_perc
         self.keep_test = keep_test
         self.server_test = server_test
         self.server_split = server_split
+        self.uniform_test = uniform_test
         self.dist_args = dist_args if dist_args is not None else DDict()
 
     # def num_features(self) -> int:
@@ -294,26 +307,45 @@ class DataSplitter:
 
     def assign(self,
                n_clients: int,
-               batch_size: Optional[int] = None) -> tuple[tuple[FastTensorDataLoader,
-                                                                Optional[FastTensorDataLoader]],
-                                                          FastTensorDataLoader]:
-        """Assign the data to the clients according to the distribution.
+               batch_size: int = 32) -> tuple[tuple[FastDataLoader,
+                                                    Optional[FastDataLoader]],
+                                              FastDataLoader]:
+        """Assign the data to the clients and the server according to the configuration.
+        Specifically, we can have the following scenarios:
+
+        1. ``server_test = True`` and ``keep_test = True``: The server has a test set that
+           corresponds to the test set of the dataset. The clients have a training set and,
+           if ``client_split > 0``, a test set.
+        2. ``server_test = True`` and ``keep_test = False``: The server has a test set that
+           is sampled from the test set of whole dataset (training set and test set are merged). The
+           sampling is done according to the ``server_split`` parameter. The clients have a training
+           set and, if ``client_split > 0``, a test set.
+        3. ``server_test = False`` and ``keep_test = True``: The server does not have a test set.
+           The clients have a training set and a test set that corresponds to the test set of the
+           dataset distributed uniformly across the clients. In this case the ``client_split`` is
+           ignored.
+        4. ``server_test = False`` and ``keep_test = False``: The server does not have a test set.
+           The clients have a training set and, if ``client_split > 0``, a test set.
+
+        If ``uniform_test = False``, the training and test set are distributed across the clients
+        according to the provided distribution. The only exception is done for the test set in
+        scenario 3. The test set is IID distributed across clients if ``uniform_test = True``.
 
         Args:
             n_clients (int): The number of clients.
-            batch_size (Optional[int], optional): The batch size. Defaults to None.
+            batch_size (Optional[int], optional): The batch size. Defaults to 32.
 
         Returns:
-            tuple[tuple[FastTensorDataLoader, Optional[FastTensorDataLoader]],
-                  FastTensorDataLoader]: The clients' training and testing assignments and the
+            tuple[tuple[FastDataLoader, Optional[FastDataLoader]],
+                  FastDataLoader]: The clients' training and testing assignments and the
                   server's testing assignment.
         """
-        if self.keep_test:
-            Xtr, Ytr = self.data_container.train
-            if not self.server_test:
-                Xte, Yte = self.data_container.test
-                te_assignments = self.uniform(Xte, Yte, n_clients)
-        else:
+        if self.server_test and self.keep_test:
+            server_X, server_Y = self.data_container.test
+            client_X, client_Y = self.data_container.train
+            client_Xtr, client_Xte, client_Ytr, client_Yte = self._safe_train_test_split(
+                client_X, client_Y, test_size=self.client_split)
+        elif not self.keep_test:
             Xtr, ytr = self.data_container.train
             Xte, yte = self.data_container.test
             # Merge and shuffle the data
@@ -322,65 +354,66 @@ class DataSplitter:
             X, Y = X[idx], Y[idx]
             # Split the data
             if self.server_test:
-                Xtr, Xte, Ytr, Yte = train_test_split(X, Y, test_size=self.server_split)
+                client_X, server_X, client_Y, server_Y = train_test_split(
+                    X, Y, test_size=self.server_split)
             else:
-                Xtr, Xte, Ytr, Yte = X, None, Y, None
-            self.data_container = DataContainer(Xtr, Ytr, Xte, Yte, self.num_classes)
-            Xtr, Ytr = self.data_container.train
+                server_X, server_Y = None, None
+                client_X, client_Y = X, Y
+            client_Xtr, client_Xte, client_Ytr, client_Yte = self._safe_train_test_split(
+                client_X, client_Y, test_size=self.client_split)
 
-        tr_assignments = self._iidness_functions[self.distribution](
-            self, Xtr, Ytr, n_clients, **self.dist_args)
+        else:  # keep_test and not server_test
+            server_X, server_Y = None, None
+            client_Xtr, client_Ytr = self.data_container.train
+            client_Xte, client_Yte = self.data_container.test
+
+        # Clients have test set
+        if client_Xte is not None:
+            if self.uniform_test:
+                assignments_te = self.iid(client_Xte, client_Yte, n_clients)
+            else:
+                assignments_te = self._iidness_functions[self.distribution](
+                    self, client_Xte, client_Yte, n_clients, **self.dist_args)
+        else:  # otherwise
+            assignments_te = None
+
+        assignments_tr = self._iidness_functions[self.distribution](
+            self, client_Xtr, client_Ytr, n_clients, **self.dist_args)
 
         client_tr_assignments = []
         client_te_assignments = []
         for c in range(n_clients):
-            client_X = Xtr[tr_assignments[c]]
-            client_y = Ytr[tr_assignments[c]]
-            if self.client_split > 0.0 or (not self.server_test and self.keep_test):
-                if (not self.server_test and self.keep_test):
-                    Xtr_client, Ytr_client = client_X, client_y
-                    Xte_client, Yte_client = Xte[te_assignments[c]], Yte[te_assignments[c]]
-                else:
-                    (Xtr_client,
-                     Xte_client,
-                     Ytr_client,
-                     Yte_client) = self._safe_train_test_split(c,
-                                                               client_X,
-                                                               client_y,
-                                                               test_size=self.client_split)
-                client_tr_assignments.append(FastTensorDataLoader(Xtr_client,
-                                                                  Ytr_client,
-                                                                  num_labels=self.num_classes,
-                                                                  batch_size=batch_size,
-                                                                  shuffle=True,
-                                                                  percentage=self.sampling_perc))
-                client_te_assignments.append(FastTensorDataLoader(Xte_client,
-                                                                  Yte_client,
-                                                                  num_labels=self.num_classes,
-                                                                  batch_size=batch_size,
-                                                                  shuffle=True,
-                                                                  percentage=self.sampling_perc))
+            Xtr_client, Ytr_client = client_Xtr[assignments_tr[c]], client_Ytr[assignments_tr[c]]
+            client_tr_assignments.append(FastDataLoader(Xtr_client,
+                                                        Ytr_client,
+                                                        num_labels=self.num_classes,
+                                                        batch_size=batch_size,
+                                                        shuffle=True,
+                                                        percentage=self.sampling_perc))
+            if assignments_te is not None:
+                Xte_client = client_Xte[assignments_te[c]]
+                Yte_client = client_Yte[assignments_te[c]]
+                client_te_assignments.append(FastDataLoader(Xte_client,
+                                                            Yte_client,
+                                                            num_labels=self.num_classes,
+                                                            batch_size=batch_size,
+                                                            shuffle=True,
+                                                            percentage=self.sampling_perc))
             else:
-                client_tr_assignments.append(FastTensorDataLoader(client_X,
-                                                                  client_y,
-                                                                  num_labels=self.num_classes,
-                                                                  batch_size=batch_size,
-                                                                  shuffle=True,
-                                                                  percentage=self.sampling_perc))
                 client_te_assignments.append(None)
 
-        server_te = FastTensorDataLoader(*self.data_container.test,
-                                         num_labels=self.num_classes,
-                                         batch_size=128,
-                                         shuffle=True,
-                                         percentage=self.sampling_perc) if self.server_test \
+        server_te = FastDataLoader(server_X, server_Y,
+                                   num_labels=self.num_classes,
+                                   batch_size=128,
+                                   shuffle=True,
+                                   percentage=self.sampling_perc) if self.server_test \
             else None
         return (client_tr_assignments, client_te_assignments), server_te
 
-    def uniform(self,
-                X: torch.Tensor,
-                y: torch.Tensor,
-                n: int) -> list[torch.Tensor]:
+    def iid(self,
+            X: torch.Tensor,
+            y: torch.Tensor,
+            n: int) -> list[torch.Tensor]:
         """Distribute the examples uniformly across the users.
 
         Args:
@@ -407,16 +440,16 @@ class DataSplitter:
                       n: int,
                       min_quantity: int = 2,
                       alpha: float = 4.) -> list[torch.Tensor]:
-        """
+        r"""
         Distribute the examples across the users according to the following probability density
         function: :math:`P(x; a) = a x^{a-1}`
         where :math:`x` is the id of a client (:math:`x \in [0, n-1]`), and ``a = alpha > 0`` with
 
-        - ``alpha = 1``  => examples are equidistributed across clients;
-        - ``alpha = 2``  => the examples are "linearly" distributed across users;
-        - ``alpha >= 3`` => the examples are power law distributed;
-        - ``alpha``:math:`\to \infty` => all users but one have ``min_quantity`` examples,
-            and the remaining user all the rest.
+        - ``alpha = 1``: examples are equidistributed across clients;
+        - ``alpha = 2``: the examples are "linearly" distributed across users;
+        - ``alpha >= 3``: the examples are power law distributed;
+        - ``alpha`` :math:`\rightarrow \infty`: all users but one have ``min_quantity`` examples,
+          and the remaining user all the rest.
 
         Each client is guaranteed to have at least ``min_quantity`` examples.
 
@@ -445,15 +478,16 @@ class DataSplitter:
                                 n: int,
                                 min_quantity: int = 2,
                                 alpha: float = 4.) -> list[torch.Tensor]:
-        """Class-wise quantity skewed data distribution.
+        """Class-wise quantity skewed data distribution. This type of skewness is similar to the
+        quantity skewness, but it is applied to each class separately.
+        This method distribute the examples of each class across the users according to the
+        following probability density function:
+        :math:`P(x; a) = a x^{a-1}` where :math:`x` is the id of a client :math:`(x \in [0, n-1])`,
+        and ``a = alpha > 0`` with
 
-        Distribute the examples of each class across the users according to the following
-        probability density function:
-        $P(x; a) = a x^{a-1}$
-        where x is the id of a client (x in [0, n-1]), and a = `alpha` > 0 with
-        - alpha = 1  => examples are equidistributed across clients;
-        - alpha = 2  => the examples are "linearly" distributed across users;
-        - alpha >= 3 => the examples are power law distributed;
+        - ``alpha = 1``: examples are equidistributed across clients;
+        - ``alpha = 2``: the examples are "linearly" distributed across users;
+        - ``alpha >= 3``: the examples are power law distributed;
 
         Args:
             X (torch.Tensor): The examples.
@@ -464,7 +498,8 @@ class DataSplitter:
 
         Returns:
             list[torch.Tensor]: The examples' ids assignment.
-        """
+        """  # noqa: W605
+        # The abow comment is to avoid flake8 error W605 (invalid escape sequence)
         assert min_quantity*n <= X.shape[0], "# of instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
 
@@ -494,7 +529,9 @@ class DataSplitter:
                             n: int,
                             class_per_client: int = 2) -> list[torch.Tensor]:
         """
-        Suppose each party only has data samples of `class_per_client` (i.e., k) different labels.
+        This method distribute the data across client according to a specific type of skewness of
+        the lables. Specifically:
+        suppose each party only has data samples of ``class_per_client`` different labels.
         We first randomly assign k different label IDs to each party. Then, for the samples of each
         label, we randomly and equally divide them into the parties which own the label.
         In this way, the number of labels in each party is fixed, and there is no overlap between
@@ -533,10 +570,11 @@ class DataSplitter:
                              n: int,
                              beta: float = .1,
                              min_ex_class: int = 2) -> list[torch.Tensor]:
-        """
-        The function samples p_k ~ Dir_n (beta) and allocate a p_{k,j} proportion of the instances
-        of class k to party j. Here Dir(_) denotes the Dirichlet distribution and beta is a
-        concentration parameter (beta > 0).
+        r"""
+        The method samples :math:`p_k \sim \text{Dir}_n(\beta)` and allocates a :math:`p_{k,j}`
+        proportion of the instances of class :math:`k` to party :math:`j`. Here
+        :math:`\text{Dir}(\cdot)` denotes the Dirichlet distribution and beta is a concentration
+        parameter :math:`(\beta > 0)`.
         See: https://arxiv.org/pdf/2102.02079.pdf
 
         Args:
@@ -570,10 +608,10 @@ class DataSplitter:
                                 n: int,
                                 shards_per_client: int = 2) -> list[torch.Tensor]:
         """
-        The function first sort the data by label, divide it into `n * shards_per_client` shards,
-        and assign each of n clients `shards_per_client` shards. This is a pathological non-IID
-        partition of the data, as most clients will only have examples of a limited number of
-        classes.
+        The method first sort the data by label, divide it into ``n * shards_per_client`` shards,
+        and assign each of ``n`` clients ``shards_per_client`` shards. This is a pathological
+        non-IID partition of the data, as most clients will only have examples of a limited number
+        of classes.
         See: http://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
 
         Args:
@@ -605,9 +643,13 @@ class DataSplitter:
                         n: int,
                         modes: int = 2) -> list[torch.Tensor]:
         """
-        The function first extracts the first principal component (through PCA) and then divides it
-        in `modes` percentiles. To each user, only examples from a single mode are selected
+        This method first extracts the first principal component (through PCA) and then divides it
+        in ``modes`` percentiles. To each user, only examples from a single mode are selected
         (uniformly).
+
+        Attention:
+            This type of skewness is not present in the literature and this method may also
+            be not very efficient.
 
         Args:
             X (torch.Tensor): The examples.
@@ -648,35 +690,37 @@ class DataSplitter:
         return [np.where(assignment == i)[0] for i in range(n)]
 
     _iidness_functions = {
-        DistributionEnum.IID: uniform,
-        DistributionEnum.QUANTITY_SKEWED: quantity_skew,
-        DistributionEnum.CLASSWISE_QUANTITY_SKEWED: classwise_quantity_skew,
-        DistributionEnum.LABEL_QUANTITY_SKEWED: label_quantity_skew,
-        DistributionEnum.LABEL_DIRICHLET_SKEWED: label_dirichlet_skew,
-        DistributionEnum.LABEL_PATHOLOGICAL_SKEWED: label_pathological_skew,
-        DistributionEnum.COVARIATE_SHIFT: covariate_shift
+        "iid": iid,
+        "qnt": quantity_skew,
+        "classwise_qnt": classwise_quantity_skew,
+        "lbl_qnt": label_quantity_skew,
+        "dir": label_dirichlet_skew,
+        "pathological": label_pathological_skew,
+        "covariate": covariate_shift
     }
 
 
 class DummyDataSplitter(DataSplitter):
     """
-    This data splitter assumes that the data is already pre-assigned to the clients (e.g., FEMNIST).
+    This data splitter assumes that the data is already pre-assigned to the clients.
+    This must be used in the case you start with a pre-divided datasets that you want to use as
+    is (e.g., FEMNIST and Shakespeare).
     """
 
     def __init__(self,
-                 dataset: DatasetsEnum,
+                 dataset: tuple[FastDataLoader, Optional[FastDataLoader], Optional[FastDataLoader]],
                  #  num_features: int,
                  #  num_classes: int,
-                 builder_args: DDict,
+                 builder_args: DDict = None,
                  **kwargs):
         self.data_container = None
         # self.standardize = False
-        self.distribution = DistributionEnum.IID
-        self.client_split = 0.0
+        self.distribution = "iid"
+        self.client_split = None
         self.sampling_perc = 1.0
         (self.client_tr_assignments,
          self.client_te_assignments,
-         self.server_te) = dataset.klass()(**builder_args)
+         self.server_te) = dataset
         # self._num_features = num_features
         self._num_classes = self._compute_num_classes()
 
@@ -705,4 +749,18 @@ class DummyDataSplitter(DataSplitter):
         return self._num_classes
 
     def assign(self, n_clients: int, batch_size: Optional[int] = None):
+        """This override of the :meth:`DataSplitter.assign` method returns the pre-assigned data.
+        No further processing and computation is done.
+
+        Important:
+           The arguments of this method are not used.
+
+        Args:
+            n_clients (int): The number of clients.
+            batch_size (Optional[int], optional): The batch size. Defaults to None.
+
+        Returns:
+            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]: The clients'
+            training and testing assignments and the server's testing assignment.
+        """
         return (self.client_tr_assignments, self.client_te_assignments), self.server_te

@@ -22,9 +22,12 @@ __all__ = [
     "diff_model",
     "merge_models",
     "set_lambda_model",
+    "get_output_shape",
     "get_local_model_dict",
     "get_global_model_dict",
-    "mix_networks"
+    "mix_networks",
+    "batch_norm_to_group_norm",
+    "safe_load_state_dict"
 ]
 
 STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
@@ -33,7 +36,27 @@ STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
 class MMMixin:
     """Mixin class for model interpolation.
     This class provides the necessary methods to interpolate between two models. This mixin class
-    must be used as a parent class for the pytorch modules that need to be interpolated.
+    must be used as a parent class for the PyTorch modules that need to be interpolated.
+
+    Tip:
+        Ideally, when using this mixin to implement a new class ``M``, this should be mixed with
+        a class ``C`` that extends :class:`torch.nn.Module` and the interpolation of the parameters
+        should happen between the parameters in ``C`` and a new set of parameters defined in ``A``.
+        This type of multiple inheritance must have as first parent the class :class:`MMMixin` and
+        as second parent a class that extends :class:`torch.nn.Module`.
+        For example:
+
+        .. code-block:: python
+            :linenos:
+
+            # C is a class that extends torch.nn.Module
+            class M(MMMixin, C):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
+
+        In this case, the default implementation of the method :meth:`get_weight` will work and
+        will interpolate between the ``weight`` and the ``weight_local`` attribute of the module.
 
     Attributes:
         lam (float): The interpolation constant.
@@ -62,7 +85,7 @@ class MMMixin:
     # @abstractmethod
     def get_weight(self) -> torch.Tensor:
         """Get the interpolated weights of the layer or module according to the interpolation
-        constant ``lam``. The default implementation assumes that the layer or module has a
+        constant :attr:`lam`. The default implementation assumes that the layer or module has a
         ``weight`` attribute and a ``weight_local`` attribute that are both tensors of the same
         shape. The interpolated weights are computed as:
         ``w = (1 - self.lam) * self.weight + self.lam * self.weight_local``.
@@ -80,8 +103,8 @@ class LinesLinear(MMMixin, nn.Linear):
     weights.
 
     Note:
-        The global weights are the "default" weights of the ``nn.Linear`` layer, while the local
-        ones are in the submodule ``weight_local`` (and ``bias_local``).
+        The global weights are the "default" weights of the :class:`torch.nn.Linear` layer,
+        while the local ones are in the submodule ``weight_local`` (and ``bias_local``).
 
     Attributes:
         weight_local (torch.Tensor): The local weights.
@@ -114,8 +137,8 @@ class LinesConv2d(MMMixin, nn.Conv2d):
     weights.
 
     Note:
-        The global weights are the "default" weights of the ``nn.Conv2d`` layer, while the local
-        ones are in the submodule ``weight_local`` (and ``bias_local``).
+        The global weights are the "default" weights of the :class:`torch.nn.Conv2d` layer, while
+        the local ones are in the submodule ``weight_local`` (and ``bias_local``).
 
     Attributes:
         weight_local (torch.Tensor): The local weights.
@@ -154,9 +177,10 @@ class LinesLSTM(MMMixin, nn.LSTM):
     weights.
 
     Note:
-        The global weights are the "default" weights of the ``nn.LSTM`` layer, while the local
-        ones are in the submodules ``weight_hh_l{layer}_local`` and ``weight_ih_l{layer}_local``,
-        where ``layer`` is the layer number. Similar considerations apply to the biases.
+        The global weights are the "default" weights of the :class:`torch.nn.LSTM` layer, while the
+        local ones are in the submodules ``weight_hh_l{layer}_local`` and
+        ``weight_ih_l{layer}_local``, where ``layer`` is the layer number. Similar considerations
+        apply to the biases.
 
     Attributes:
         weight_hh_l{layer}_local (torch.Tensor): The local hidden-hidden weights of layer ``layer``.
@@ -222,8 +246,8 @@ class LinesEmbedding(MMMixin, nn.Embedding):
     weights.
 
     Note:
-        The global weights are the "default" weights of the ``nn.Embedding`` layer, while the local
-        ones are in the submodule ``weight_local``.
+        The global weights are the "default" weights of the class:`torch.nn.Embedding` layer,
+        while the local ones are in the submodule ``weight_local``.
 
     Attributes:
         weight_local (torch.Tensor): The local weights.
@@ -300,7 +324,7 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
         )
 
 
-def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module):
+def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module) -> dict:
     layers = {}
     if next(merged_net.named_children(), None) is None:
         named_modules = merged_net.named_modules()
@@ -363,19 +387,24 @@ def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMM
     """Mix two networks using a linear interpolation.
     This method takes two models and a lambda value and returns a new model that is a linear
     interpolation of the two input models. It transparenly handles the interpolation of the
-    different layers of the models. The returned model implements the `MMMixin` class and has all
-    the layers swapped with the corresponding interpolated layers.
+    different layers of the models. The returned model implements the :class:`MMMixin` class and
+    has all the layers swapped with the corresponding interpolated layers.
 
     See Also:
-        `MMMixin`, `LinesLinear`, `LinesConv`, `LinesBN`, `LinesEmbedding`, `LinesLSTM`.
+        - :class:`MMMixin`
+        - :class:`LinesLinear`
+        - :class:`LinesConv2d`
+        - :class:`LinesBN2d`
+        - :class:`LinesEmbedding`
+        - :class:`LinesLSTM`
 
     Args:
-        global_model (Module): The global model.
-        local_model (Module): The local model.
+        global_model (torch.nn.Module): The global model.
+        local_model (torch.nn.Module): The local model.
         lamda (float): The interpolation constant.
 
     Returns:
-        Module: The merged/interpolated model that implements the `MMMixin` class.
+        Module: The merged/interpolated model that implements the ``MMMixin`` class.
     """
     merged_net = deepcopy(global_model)
     layers = _recursive_mix_networks(merged_net, global_model, local_model)
@@ -387,7 +416,7 @@ def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMM
     return merged_net
 
 
-def _set_lambda(module: MMMixin, lam: float, layerwise: bool = False):
+def _set_lambda(module: MMMixin, lam: float, layerwise: bool = False) -> None:
     """Set model interpolation constant.
 
     Args:
@@ -413,7 +442,7 @@ def set_lambda_model(model: MMMixin, lam: float, layerwise: bool = False) -> Non
 
     Warning:
         This function performs an inplace operation on the model, and
-        it assumes that the model has been built using the `MMMixin` classes.
+        it assumes that the model has been built using the :class:`MMMixin` classes.
 
     Args:
         model (torch.nn.Module): model
@@ -434,7 +463,7 @@ def get_local_model_dict(model: MMMixin) -> OrderedDict:
     Returns:
         OrderedDict: the local model state dictionary.
     """
-    return OrderedDict({k.replace("_local", ""): v
+    return OrderedDict({k.replace("_local", ""): deepcopy(v)
                         for k, v in model.state_dict().items() if "_local" in k})
 
 
@@ -447,10 +476,23 @@ def get_global_model_dict(model: MMMixin) -> OrderedDict:
     Returns:
         OrderedDict: the global model state dictionary.
     """
-    return OrderedDict({k: v for k, v in model.state_dict().items() if "_local" not in k})
+    return OrderedDict({k: deepcopy(v) for k, v in model.state_dict().items() if "_local" not in k})
 
 
-def diff_model(model_dict1: dict, model_dict2: dict):
+def get_output_shape(model: Module, input_dim: tuple[int, ...]) -> tuple[int, ...]:
+    """Get the output shape of a model given the shape of the input.
+
+    Args:
+        model (torch.nn.Module): The model to get the output shape.
+        input_dim (tuple[int, ...]): The expected input shape of the model.
+
+    Returns:
+        tuple[int, ...]: The output shape of the model.
+    """
+    return model(torch.rand(*(input_dim))).data.shape
+
+
+def diff_model(model_dict1: dict, model_dict2: dict) -> OrderedDict:
     """Compute the difference between two model state dictionaries.
     The difference is computed at the level of the parameters.
 
@@ -468,14 +510,14 @@ def diff_model(model_dict1: dict, model_dict2: dict):
     return OrderedDict({key: model_dict1[key] - model_dict2[key] for key in model_dict1.keys()})
 
 
-def merge_models(model_1: Module, model_2: Module, lam: float):
+def merge_models(model_1: Module, model_2: Module, lam: float) -> Module:
     """Merge two models using a linear interpolation.
     The interpolation is done at the level of the parameters using the formula:
     ``merged_model = (1 - lam) * model_1 + lam * model_2``.
 
     Args:
-        model_1 (Module): The first model.
-        model_2 (Module): The second model.
+        model_1 (torch.nn.Module): The first model.
+        model_2 (torch.nn.Module): The second model.
         lam (float): The interpolation constant.
 
     Returns:
@@ -488,14 +530,17 @@ def merge_models(model_1: Module, model_2: Module, lam: float):
     return merged_model
 
 
-def safe_load_state_dict(model1: Module, model2_state_dict: dict):
+def safe_load_state_dict(model1: Module, model2_state_dict: dict) -> None:
     """Load a state dictionary into a model.
     This function is a safe version of ``model.load_state_dict`` that handles the case in which the
     state dictionary has keys that match with ``STATE_DICT_KEYS_TO_IGNORE`` and thus have to be
     ignored.
 
+    Caution:
+        This function performs an inplace operation on ``model1``.
+
     Args:
-        model (Module): The model to load the state dictionary.
+        model (torch.nn.Module): The model to load the state dictionary.
         state_dict (dict): The state dictionary.
     """
     model1_state_dict = model1.state_dict()
@@ -508,8 +553,8 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict):
     model1.load_state_dict(new_state_dict)
 
 
-def batch_norm_to_group_norm(layer):
-    """Iterates over a whole model (or layer of a model) and replaces every
+def batch_norm_to_group_norm(layer: Module) -> Module:
+    r"""Iterates over a whole model (or layer of a model) and replaces every
     batch norm 2D with a group norm
 
     Args:
@@ -519,7 +564,7 @@ def batch_norm_to_group_norm(layer):
         torch.nn.Module: model with group norm layers instead of batch norm layers.
 
     Raises:
-        ValueError: If the number of channels is not in the ``GROUP_NORM_LOOKUP``.
+        ValueError: If the number of channels :math:`\notin \{2^i\}_{i=4}^{11}`
     """
 
     GROUP_NORM_LOOKUP = {

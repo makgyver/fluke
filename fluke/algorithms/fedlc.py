@@ -7,7 +7,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
 from ..client import Client  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from . import CentralizedFL  # NOQA
 
 
@@ -29,8 +29,8 @@ class FedLCClient(Client):
 
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,  # ignored
                  local_epochs: int,

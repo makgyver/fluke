@@ -4,7 +4,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..client import Client  # NOQA
 
@@ -12,8 +12,8 @@ from ..client import Client  # NOQA
 class ClientSGD(Client):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):

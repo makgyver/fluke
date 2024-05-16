@@ -1,15 +1,17 @@
+"""
+The module ``fluke.client`` provides the base classes for the clients in ``fluke``.
+"""
 from __future__ import annotations
 from torch import device
 from torch.nn import Module
-from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
 from typing import Callable
-from copy import deepcopy
 import sys
 sys.path.append(".")
 
 from .evaluation import ClassificationEval  # NOQA
-from .data import FastTensorDataLoader  # NOQA
+from .data import FastDataLoader  # NOQA
 from .utils import OptimizerConfigurator, clear_cache  # NOQA
 from .utils.model import safe_load_state_dict  # NOQA
 from .comm import Channel, Message  # NOQA
@@ -35,43 +37,70 @@ class Client():
 
             When a new client class inherits from this class, it can add all its hyper-parameters
             to this dictionary.
-        index (int): The client identifier.
-        train_set (FastTensorDataLoader): The local training set.
-        test_set (FastTensorDataLoader): The local test set.
+
+        train_set (FastDataLoader): The local training set.
+        test_set (FastDataLoader): The local test set.
         optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
             the optimizer and the learning rate scheduler.
         optimizer (torch.optim.Optimizer): The optimizer.
-        scheduler (torch.optim.lr_scheduler._LRScheduler): The learning rate scheduler.
-        device (torch.device): The device where the client trains the model.
-        server (Server): The server.
-        channel (Channel): The channel to communicate with the server.
+        scheduler (torch.optim.lr_scheduler.LRScheduler): The learning rate scheduler.
+        device (torch.device): The device where the client trains the model. By default, it is the
+            device defined in :class:`fluke.GlobalSettings`.
+
+    Attention:
+        **The client should not directly call methods of the server**. The communication between the
+        client and the server must be done through the :attr:`channel`.
+
+    Caution:
+        When inheriting from this class, make sure to put all the specific hyper-parameters in the
+        :attr:`hyper_params` attribute. In this way ``fluke`` can properly handle the
+        hyper-parameters of the client in the federated learning process.
+
+        For example:
+
+        .. code-block:: python
+            :linenos:
+
+            class MyClient(Client):
+                # We omit the type hints for brevity
+                def __init__(self, index, train_set, test_set, optimizer_cfg, loss_fn, my_param):
+                    super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn)
+                    self.hyper_params.update(my_param=my_param) # This is important
     """
 
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):
-        #  **additional_hyper_params):
 
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
             local_epochs=local_epochs
         )
-        # self.hyper_params.update(**additional_hyper_params)
 
         self._index: int = index
-        self.train_set: FastTensorDataLoader = train_set
-        self.test_set: FastTensorDataLoader = test_set
+        self.train_set: FastDataLoader = train_set
+        self.test_set: FastDataLoader = test_set
         self.model: Module = None
         self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
         self.optimizer: Optimizer = None
-        self.scheduler: _LRScheduler = None
+        self.scheduler: LRScheduler = None
         self.device: device = GlobalSettings().get_device()
         self._server: Server = None
         self._channel: Channel = None
+
+    @property
+    def index(self) -> int:
+        """The client identifier. This might be useful to identify the client in the federated
+        learning process for logging or debugging purposes.
+
+        Returns:
+            int: The client identifier.
+        """
+        return self._index
 
     @property
     def n_examples(self) -> int:
@@ -83,17 +112,11 @@ class Client():
         return self.train_set.size
 
     @property
-    def index(self) -> int:
-        """The client identifier.
-
-        Returns:
-            int: The client identifier.
-        """
-        return self._index
-
-    @property
     def channel(self) -> Channel:
         """The communication channel.
+
+        Attention:
+            Use this channel to communicate with the server.
 
         Returns:
             Channel: The communication channel.
@@ -102,7 +125,8 @@ class Client():
 
     @property
     def server(self) -> Server:
-        """The server to which the client is connected.
+        """The server to which the client is connected. This reference must only be
+        used to send messages through the channel.
 
         Returns:
             Server: The server.
@@ -119,24 +143,24 @@ class Client():
         self._server = server
         self._channel = server.channel
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         """Receive the global model from the server. This method is responsible for receiving the
         global model from the server and updating the local model accordingly. The model is received
-        as a ``Message`` with  ``msg_type`` "model" from the inbox of the client iself.
-        The method uses the channel to receive the message.
+        as a payload of a :class:`fluke.comm.Message` with  ``msg_type="model"`` from the inbox
+        of the client itself. The method uses the channel to receive the message.
         """
         msg = self.channel.receive(self, self.server, msg_type="model")
         if self.model is None:
-            self.model = deepcopy(msg.payload)
+            self.model = msg.payload
         else:
-            safe_load_state_dict(self.model, deepcopy(msg.payload.state_dict()))
+            safe_load_state_dict(self.model, msg.payload.state_dict())
             # self.model.load_state_dict(msg.payload.state_dict())
 
-    def _send_model(self) -> None:
+    def send_model(self) -> None:
         """Send the current model to the server. The model is sent as a ``Message`` with
         ``msg_type`` "model" to the server. The method uses the channel to send the message.
         """
-        self.channel.send(Message(deepcopy(self.model), "model", self), self.server)
+        self.channel.send(Message(self.model, "model", self), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         """Client's local training.
@@ -152,7 +176,7 @@ class Client():
         """
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -172,11 +196,12 @@ class Client():
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
     def evaluate(self) -> dict[str, float]:
-        """Evaluate the local model on the client's ``test_set``. If the test set is not set,
-        the method returns an empty dictionary.
+        """Evaluate the local model on the client's :attr:`test_set`. If the test set is not set or
+        the client has not received the global model from the server, the method returns an empty
+        dictionary.
 
         Warning:
             To date, only classification tasks are supported.
@@ -185,14 +210,10 @@ class Client():
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
             the results.
         """
-        if self.test_set is not None:
-            if self.model is None:
-                # ask for the model and receive it
-                self.channel.send(Message(self.server.model, "model", self.server), self)
-                self._receive_model()
-
+        if self.test_set is not None and self.model is not None:
             return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.model.output_size,
+                                      #   self.model.output_size,
+                                      self.train_set.num_labels,
                                       self.device).evaluate(self.model,
                                                             self.test_set)
         return {}
@@ -200,9 +221,13 @@ class Client():
     def finalize(self) -> None:
         """Finalize the client. This method is called at the end of the federated learning process.
         The default behavior is to receive the global model from the server that is then potentially
-        used to evaluate the performance of the client's model on the local test set.
+        used to evaluate the performance of the model on the local test set.
+
+        Attention:
+            When inheriting from this class, make sure to override this method if this behavior is
+            not desired.
         """
-        self._receive_model()
+        self.receive_model()
 
     def __str__(self) -> str:
         hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
@@ -231,8 +256,8 @@ class PFLClient(Client):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int = 3):
@@ -241,7 +266,8 @@ class PFLClient(Client):
 
     def evaluate(self) -> dict[str, float]:
         """Evaluate the personalized model on the ``test_set``.
-        If the test set is not set, the method returns an empty dictionary.
+        If the test set is not set or the client has no personalized model, the method returns an
+        empty dictionary.
 
         Warning:
             To date, only classification tasks are supported.
@@ -250,9 +276,10 @@ class PFLClient(Client):
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
             the results.
         """
-        if self.test_set is not None:
+        if self.test_set is not None and self.personalized_model is not None:
             evaluator = ClassificationEval(self.hyper_params.loss_fn,
-                                           self.personalized_model.output_size,
+                                           #    self.personalized_model.output_size,
+                                           self.train_set.num_labels,
                                            self.device)
             return evaluator.evaluate(self.personalized_model, self.test_set)
 

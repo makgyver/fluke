@@ -3,20 +3,20 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import FastTensorDataLoader  # NOQA
-from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.data import FastDataLoader  # NOQA
+from fluke.evaluation import Evaluator, ClassificationEval  # NOQA
 
 
 def test_classification_eval():
-    loader = FastTensorDataLoader(torch.FloatTensor([[1, 2, 3],
-                                                     [4, 5, 6],
-                                                     [7, 8, 9],
-                                                     [10, 11, 12]]),
-                                  torch.LongTensor([0, 1, 0, 2]),
-                                  num_labels=2,
-                                  batch_size=1,
-                                  shuffle=False,
-                                  skip_singleton=False)
+    loader = FastDataLoader(torch.FloatTensor([[1, 2, 3],
+                                               [4, 5, 6],
+                                               [7, 8, 9],
+                                               [10, 11, 12]]),
+                            torch.LongTensor([0, 1, 0, 2]),
+                            num_labels=2,
+                            batch_size=1,
+                            shuffle=False,
+                            skip_singleton=False)
 
     clf_eval = ClassificationEval(loss_fn=torch.nn.CrossEntropyLoss(),
                                   n_classes=3,
@@ -66,6 +66,11 @@ def test_classification_eval():
 
     assert clf_eval.evaluate(None, None) == {}
 
+    assert str(clf_eval) == "ClassificationEval(n_classes=3,device=cpu)" + \
+        "[accuracy,precision,recall,f1,CrossEntropyLoss]"
+    assert repr(clf_eval) == str(clf_eval)
+
 
 if __name__ == "__main__":
     test_classification_eval()
+    # 97% coverage for fluke/evaluation.py

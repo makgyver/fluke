@@ -7,7 +7,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
@@ -18,8 +18,8 @@ class FedNovaClient(Client):
 
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int):
@@ -46,11 +46,11 @@ class FedNovaClient(Client):
 class FedNovaServer(Server):
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
-        clients_sd = self._get_client_models(eligible)
+    def aggregate(self, eligible: Iterable[Client]) -> None:
+        clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         a_i = [
-            deepcopy(self.channel.receive(self, client, "local_a").payload)
+            self.channel.receive(self, client, "local_a").payload
             for client in eligible
         ]
 

@@ -8,7 +8,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
@@ -45,8 +45,8 @@ class FedDynClient(Client):
 
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -59,13 +59,13 @@ class FedDynClient(Client):
             "weight_decay"] if "weight_decay" in self.optimizer_cfg.optimizer_kwargs else 0
         self.prev_grads = None
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         model, cld_mdl = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.model = deepcopy(model)
+            self.model = model
             self.prev_grads = torch.zeros_like(get_all_params_of(self.model))
         else:
-            safe_load_state_dict(self.model, deepcopy(cld_mdl.state_dict()))
+            safe_load_state_dict(self.model, cld_mdl.state_dict())
 
     def _receive_weights(self) -> None:
         self.weight = self.channel.receive(self, self.server, msg_type="weight").payload
@@ -75,7 +75,7 @@ class FedDynClient(Client):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -119,13 +119,13 @@ class FedDynClient(Client):
 
         self.model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class FedDynServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = True,
@@ -134,7 +134,7 @@ class FedDynServer(Server):
         self.alpha = alpha
         self.cld_mdl = deepcopy(self.model)
 
-    def _broadcast_model(self, eligible: Iterable[Client]) -> None:
+    def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.cld_mdl), "model", self), eligible)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
@@ -156,14 +156,13 @@ class FedDynServer(Server):
         return super().fit(n_rounds, eligible_perc)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible, state_dict=False)
+        clients_sd = self.get_client_models(eligible, state_dict=False)
         weights = self._get_client_weights(eligible)
 
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                # avg_model_sd[key] = deepcopy(clients_sd[0].state_dict()[key])
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
                 continue
             for i, client_sd in enumerate(clients_sd):

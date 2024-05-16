@@ -1,5 +1,4 @@
 from rich.progress import Progress
-from copy import deepcopy
 from typing import Any, Callable, Sequence
 from torch.nn import Module
 import sys
@@ -9,7 +8,7 @@ sys.path.append("..")
 from ..nets import EncoderHeadNet  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..server import Server  # NOQA
@@ -21,8 +20,8 @@ class FedBABUClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: EncoderHeadNet,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int,
@@ -36,14 +35,14 @@ class FedBABUClient(PFLClient):
         )
         self.model = self.personalized_model
 
-    def _send_model(self):
-        self.channel.send(Message(deepcopy(self.personalized_model.get_encoder()),
+    def send_model(self):
+        self.channel.send(Message(self.personalized_model.get_encoder(),
                           "model", self), self.server)
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         safe_load_state_dict(self.personalized_model.get_encoder(),
-                             deepcopy(msg.payload.state_dict()))
+                             msg.payload.state_dict())
 
         # Deactivate gradient
         for param in self.personalized_model.get_head().parameters():
@@ -87,18 +86,17 @@ class FedBABUServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)
 
-    def _finalize(self) -> None:
+    def finalize(self) -> None:
 
         with Progress() as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
-                # self.channel.send(Message((client._fine_tune, {}), "__action__", self), client)
                 client.fine_tune()
                 progress.update(task, advance=1)
 

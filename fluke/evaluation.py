@@ -1,3 +1,5 @@
+"""This module contains the definition of the evaluation classes used to perform the evaluation
+of the model client-side and server-side."""
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.nn import Module
 import torch
@@ -5,33 +7,39 @@ from typing import Callable, Optional, Union, Iterable
 from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
+sys.path.append("..")
 
-from .data import FastTensorDataLoader  # NOQA
+from .data import FastDataLoader  # NOQA
 from . import GlobalSettings  # NOQA
+
+__all__ = [
+    "Evaluator",
+    "ClassificationEval"
+]
 
 
 class Evaluator(ABC):
     """This class is the base class for all evaluators in ``fluke``.
-    An evaluator object should be used to perform the evaluation of a federated model.
+    An evaluator object should be used to perform the evaluation of a (federated) model.
 
     Attributes:
-        loss_fn (Callable): The loss function.
+        loss_fn (Callable, optional): The loss function to use for evaluation.
     """
 
-    def __init__(self, loss_fn: Callable):
+    def __init__(self, loss_fn: Optional[Callable] = None):
         self.loss_fn: Callable = loss_fn
 
     @abstractmethod
-    def evaluate(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
+    def evaluate(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
         """Evaluate the model.
 
         Args:
             model (Module): The model to evaluate.
-            eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
+            eval_data_loader (FastDataLoader): The data loader to use for evaluation.
         """
-        pass
+        raise NotImplementedError
 
-    def __call__(self, model: Module, eval_data_loader: FastTensorDataLoader) -> dict:
+    def __call__(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
         """Evaluate the model.
 
         Note:
@@ -39,21 +47,27 @@ class Evaluator(ABC):
 
         Args:
             model (Module): The model to evaluate.
-            eval_data_loader (FastTensorDataLoader): The data loader to use for evaluation.
+            eval_data_loader (FastDataLoader): The data loader to use for evaluation.
         """
         return self.evaluate(model, eval_data_loader)
 
 
 class ClassificationEval(Evaluator):
-    """Evaluate a pytorch model for classification.
+    """Evaluate a PyTorch model for classification.
     The metrics computed are ``accuracy``, ``precision``, ``recall``, ``f1`` and the loss according
     to the provided loss function ``loss_fn``. Metrics are computed both in a micro and macro
     fashion.
 
+    Args:
+        loss_fn (Callable or None): The loss function to use for evaluation.
+        n_classes (int): The number of classes.
+        device (torch.device, optional): The device where the evaluation is performed.
+            If ``None``, the device is the one set in the ``GlobalSettings``.
+
     Attributes:
         n_classes (int): The number of classes.
-        device (Optional[torch.device]): The device where the evaluation is performed. If `None`,
-            the device is the one set in the `GlobalSettings`.
+        device (Optional[torch.device]): The device where the evaluation is performed. If ``None``,
+            the device is the one set in the :class:`fluke.GlobalSettings`.
     """
 
     def __init__(self,
@@ -66,15 +80,17 @@ class ClassificationEval(Evaluator):
 
     def evaluate(self,
                  model: torch.nn.Module,
-                 eval_data_loader: Union[FastTensorDataLoader,
-                                         Iterable[FastTensorDataLoader]]) -> dict:
-        """Evaluate the model.
+                 eval_data_loader: Union[FastDataLoader,
+                                         Iterable[FastDataLoader]]) -> dict:
+        """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
+        ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
+        computed both in a micro and macro fashion.
 
         Args:
-            model (torch.nn.Module): The model to evaluate. If `None`, the method returns an
+            model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
                 empty dictionary.
-            eval_data_loader (Union[FastTensorDataLoader, Iterable[FastTensorDataLoader]]):
-                The data loader(s) to use for evaluation. If `None`, the method returns an empty
+            eval_data_loader (Union[FastDataLoader, Iterable[FastDataLoader]]):
+                The data loader(s) to use for evaluation. If ``None``, the method returns an empty
                 dictionary.
 
         Returns:
@@ -123,8 +139,6 @@ class ClassificationEval(Evaluator):
                 macro_f1.update(y_hat.cpu(), y.cpu())
 
             cnt += len(data_loader)
-            if cnt == 0:
-                return {}
             accs.append(accuracy.compute().item())
             micro_precs.append(micro_precision.compute().item())
             micro_recs.append(micro_recall.compute().item())
@@ -149,7 +163,7 @@ class ClassificationEval(Evaluator):
         }
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(n_classes={self.n_classes},average={self.average}," + \
+        return f"{self.__class__.__name__}(n_classes={self.n_classes}," + \
                f"device={self.device})[accuracy,precision,recall,f1," + \
                f"{self.loss_fn.__class__.__name__}]"
 

@@ -8,7 +8,7 @@ sys.path.append("..")
 
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
 from . import PersonalizedFL  # NOQA
@@ -19,8 +19,8 @@ class FedAMPClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -39,14 +39,14 @@ class FedAMPClient(PFLClient):
             proximal_term += torch.norm(w - w_t)**2
         return (self.hyper_params.lam / (2 * self._alpha())) * proximal_term
 
-    def _receive_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model, deepcopy(msg.payload.state_dict()))
+        safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         try:
-            self._receive_model()
+            self.receive_model()
         except ValueError:
             pass
         self.model.to(self.device)
@@ -69,14 +69,14 @@ class FedAMPClient(PFLClient):
         self.model.to("cpu")
         self.personalized_model.to("cpu")
         clear_cache()
-        self._send_model()
+        self.send_model()
 
 
 class FedAMPServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[PFLClient],
                  eval_every: int = 1,
                  sigma: float = 0.1,
@@ -97,8 +97,8 @@ class FedAMPServer(Server):
         return empty_model
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[PFLClient]) -> None:
-        clients_model = self._get_client_models(eligible, state_dict=False)
+    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
+        clients_model = self.get_client_models(eligible, state_dict=False)
         clients_model = [client for client in clients_model]
 
         for i, client in enumerate(eligible):
@@ -123,7 +123,7 @@ class FedAMPServer(Server):
 
             self.channel.send(Message(ui_model, "model", self), client)
 
-    def _broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate
         pass
 

@@ -1,16 +1,18 @@
+"""
+The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
+"""
 from __future__ import annotations
 from rich.progress import track
 import numpy as np
 from typing import Any, Sequence
 from collections import OrderedDict
-
 import torch
 from torch import device
 from torch.nn import Module
 
 from .evaluation import ClassificationEval  # NOQA
 from .comm import Channel, Message  # NOQA
-from .data import FastTensorDataLoader  # NOQA
+from .data import FastDataLoader  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from . import GlobalSettings, ObserverSubject, DDict  # NOQA
 
@@ -43,12 +45,12 @@ class Server(ObserverSubject):
           process.
         channel (Channel): The channel to communicate with the clients.
         rounds (int): The number of rounds that have been executed.
-        test_data (FastTensorDataLoader): The test data to evaluate the model. If None, the model
+        test_data (FastDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
 
     Args:
         model (torch.nn.Module): The federated model to be trained.
-        test_data (FastTensorDataLoader): The test data to evaluate the model.
+        test_data (FastDataLoader): The test data to evaluate the model.
         clients (Sequence[Client]): The clients that will participate in the federated learning
           process.
         eval_every (int): The number of rounds between evaluations. Defaults to 1.
@@ -58,7 +60,7 @@ class Server(ObserverSubject):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastTensorDataLoader,
+                 test_data: FastDataLoader,
                  clients: Sequence[Client],
                  eval_every: int = 1,
                  weighted: bool = False):
@@ -72,15 +74,12 @@ class Server(ObserverSubject):
         self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
-        self.test_data: FastTensorDataLoader = test_data
+        self.test_data: FastDataLoader = test_data
         self._eval_every: int = eval_every
         self._participants: set[int] = set()
 
         for client in self.clients:
             client.set_server(self)
-
-    # def _local_train(self, client: Client) -> None:
-    #     self.channel.send(Message((client.fit, {}), "__action__", self), client)
 
     @property
     def channel(self) -> Channel:
@@ -109,18 +108,22 @@ class Server(ObserverSubject):
         """
         return self.model is not None
 
-    def _broadcast_model(self, eligible: Sequence[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
+        """Broadcast the global model to the clients.
+
+        Args:
+            eligible (Sequence[Client]): The clients that will receive the global model.
+        """
         self._channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
         """Run the federated learning algorithm.
-
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to
         the clients, which compute the local updates and send them back to the server. The server
         aggregates the models of the clients and repeats the process for a number of rounds.
         During the process, the server evaluates the global model and the local model every
-        `eval_every` rounds.
+        ``eval_every`` rounds.
 
         Args:
             n_rounds (int, optional): The number of rounds to run. Defaults to 10.
@@ -130,21 +133,21 @@ class Server(ObserverSubject):
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
             progress_client = GlobalSettings().get_progress_bar("clients")
-            client_x_round = int(self.n_clients*eligible_perc)
+            client_x_round = int(self.n_clients * eligible_perc)
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
             total_rounds = self.rounds + n_rounds
             for round in range(self.rounds, total_rounds):
                 self._notify_start_round(round + 1, self.model)
-                eligible = self._get_eligible_clients(eligible_perc)
+                eligible = self.get_eligible_clients(eligible_perc)
                 self._notify_selected_clients(round + 1, eligible)
-                self._broadcast_model(eligible)
+                self.broadcast_model(eligible)
                 for c, client in enumerate(eligible):
                     client.fit()
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
-                self._aggregate(eligible)
+                self.aggregate(eligible)
 
                 client_evals, evals = [], {}
                 if (round + 1) % self._eval_every == 0:
@@ -159,11 +162,10 @@ class Server(ObserverSubject):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
-        self._finalize()
+        self.finalize()
 
     def evaluate(self) -> dict[str, float]:
-        """Evaluate the global federated model on the :`test_set`.
-
+        """Evaluate the global federated model on the ``test_set``.
         If the test set is not set, the method returns an empty dictionary.
 
         Warning:
@@ -175,19 +177,20 @@ class Server(ObserverSubject):
         """
         if self.test_data is not None:
             return ClassificationEval(self.clients[0].hyper_params.loss_fn,
-                                      self.model.output_size,
+                                      #   self.model.output_size,
+                                      self.test_data.num_labels,
                                       device=self.device).evaluate(self.model,
                                                                    self.test_data)
         return {}
 
-    def _finalize(self) -> None:
+    def finalize(self) -> None:
         """Finalize the federated learning process.
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
         client_evals = []
         client_to_eval = [client for client in self.clients if client.index in self._participants]
-        self._broadcast_model(client_to_eval)
+        self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation..."):
             client.finalize()
             client_eval = client.evaluate()
@@ -195,7 +198,7 @@ class Server(ObserverSubject):
                 client_evals.append(client_eval)
         self._notify_finalize(client_evals)
 
-    def _get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
+    def get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
         """Get the clients that will participate in the current round.
 
         Args:
@@ -213,7 +216,7 @@ class Server(ObserverSubject):
         self._participants.update([c.index for c in selected])
         return selected
 
-    def _get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
+    def get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
         """Retrieve the models of the clients.
         This method assumes that the clients have already sent their models to the server.
 
@@ -237,7 +240,7 @@ class Server(ObserverSubject):
         If the hyperparameter ``weighted`` is True, the clients are weighted by their number of
         samples. Otherwise, all clients have the same weight.
 
-        Note:
+        Caution:
             The computation of the weights do not adhere to the "best-practices" of ``fluke``
             because the server should not have direct access to the number of samples of the
             clients. Thus, the computation of the weights should be done communicating with the
@@ -259,7 +262,7 @@ class Server(ObserverSubject):
             return [1. / len(eligible)] * len(eligible)
 
     @torch.no_grad()
-    def _aggregate(self, eligible: Sequence[Client]) -> None:
+    def aggregate(self, eligible: Sequence[Client]) -> None:
         """Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
@@ -269,7 +272,7 @@ class Server(ObserverSubject):
             eligible (Sequence[Client]): The clients that will participate in the aggregation.
         """
         avg_model_sd = OrderedDict()
-        clients_sd = self._get_client_models(eligible)
+        clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
@@ -301,7 +304,7 @@ class Server(ObserverSubject):
         Args:
             round (int): The round number.
             global_model (Any): The current global model.
-            data (FastTensorDataLoader): The test data.
+            data (FastDataLoader): The test data.
             client_evals (Sequence[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
@@ -325,24 +328,6 @@ class Server(ObserverSubject):
         """
         for observer in self._observers:
             observer.error(error)
-
-    def _notify_send(self, msg: Message) -> None:
-        """Notify the observers that a message has been sent.
-
-        Args:
-            msg (Message): The message sent.
-        """
-        for observer in self._observers:
-            observer.send(msg)
-
-    def _notify_receive(self, msg: Message) -> None:
-        """Notify the observers that a message has been received.
-
-        Args:
-            msg (Message): The message received.
-        """
-        for observer in self._observers:
-            observer.receive(msg)
 
     def _notify_finalize(self, client_evals: Sequence[Any]) -> None:
         """Notify the observers that the federated learning process has ended.

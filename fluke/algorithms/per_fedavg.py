@@ -9,7 +9,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import OptimizerConfigurator  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 
@@ -39,8 +39,8 @@ class PerFedAVGOptimizer(Optimizer):
 class PerFedAVGClient(Client):
     def __init__(self,
                  index: int,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
@@ -97,7 +97,7 @@ class PerFedAVGClient(Client):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
         self.model.train()
         if self.optimizer is None:
             self.optimizer, _ = self.optimizer_cfg(self.model)
@@ -138,7 +138,7 @@ class PerFedAVGClient(Client):
             else:
                 raise ValueError(f"Invalid mode: {self.hyper_params.mode}")
 
-        self._send_model()
+        self.send_model()
 
 
 class PerFedAVG(CentralizedFL):

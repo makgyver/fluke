@@ -1,5 +1,6 @@
+"""This module contains utility classes for loading datasets."""
 from rich.progress import track
-from typing import Any, Tuple
+from typing import Any
 from torchvision.datasets.utils import download_and_extract_archive
 from torchvision.datasets import VisionDataset, ImageFolder
 from torchvision.transforms import ToTensor
@@ -46,6 +47,7 @@ class MNISTM(VisionDataset):
 
     def __getitem__(self, index):
         """Get images and target for data loader.
+
         Args:
             index (int): Index
         Returns:
@@ -101,12 +103,14 @@ class MNISTM(VisionDataset):
                                          extract_root=self.processed_folder,
                                          filename=filename, md5=md5)
 
-    def extra_repr(self):
-        return "Split: {}".format("Train" if self.train is True else "Test")
-
 
 class CINIC10(VisionDataset):
-    """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
+    """`CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset. CINIC-10 is an augmented
+    extension of CIFAR-10. It contains the images from CIFAR-10 (60,000 images, 32x32 RGB pixels)
+    and a selection of ImageNet database images (210,000 images downsampled to 32x32). It was
+    compiled as a 'bridge' between CIFAR-10 and ImageNet, for benchmarking machine learning
+    applications. It is split into three equal subsets - train, validation, and test -
+    each of which contain 90,000 images.
 
     Args:
         root (string): Root directory of dataset where directory ``cifar-10-batches-py`` exists
@@ -183,5 +187,6 @@ class CINIC10(VisionDataset):
                                          download_root=self.root,
                                          md5=CINIC10.file_md5)
 
-    def extra_repr(self) -> str:
-        return f"Split: {self.split}"
+    @property
+    def class_to_idx(self):
+        return {c: i for i, c in enumerate(CINIC10.classes)}

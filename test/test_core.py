@@ -22,6 +22,8 @@ def test_settings():
     settings.set_device("auto")
     if torch.cuda.is_available():
         assert settings.get_device() == torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        assert settings.get_device() == torch.device("mps")
     else:
         assert settings.get_device() == torch.device("cpu")
     live = settings.get_live_renderer()
@@ -70,3 +72,4 @@ if __name__ == "__main__":
     test_settings()
     test_observer()
     test_ddict()
+    # coverage: 94% __init__.py

@@ -12,7 +12,7 @@ from ..utils.model import (get_global_model_dict,  # NOQA
                            get_local_model_dict,  # NOQA
                            mix_networks,  # NOQA
                            set_lambda_model)  # NOQA
-from ..data import FastTensorDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
 
 
@@ -21,8 +21,8 @@ class SuPerFedClient(PFLClient):
     def __init__(self,
                  index: int,
                  model: Module,
-                 train_set: FastTensorDataLoader,
-                 test_set: FastTensorDataLoader,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
@@ -45,7 +45,7 @@ class SuPerFedClient(PFLClient):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self._receive_model()
+        self.receive_model()
 
         if self.hyper_params.mu > 0:
             prev_global_model = deepcopy(self.model)
@@ -127,7 +127,7 @@ class SuPerFedClient(PFLClient):
             self.model.load_state_dict(self.internal_model.state_dict())
             self.personalized_model.load_state_dict(self.internal_model.state_dict())
 
-        self._send_model()
+        self.send_model()
 
 
 class SuPerFed(PersonalizedFL):
