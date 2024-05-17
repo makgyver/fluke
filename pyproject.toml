@@ -10,11 +10,11 @@ namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project]
 name = "fluke-fl"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Mirko Polato", email="mirko.polato@unito.it" },
 ]
-description = "Federated Learning Utility framework for Experimentation"
+description = "Federated Learning Utility framework for Experimentation and research."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
@@ -48,5 +48,6 @@ dependencies = [
 fluke = "fluke.run:main"
 
 [project.urls]
+Documentation = "https://makgyver.github.io/fluke"
 Repository = "https://github.com/makgyver/fluke"
 Issues = "https://github.com/makgyver/fluke/issues"

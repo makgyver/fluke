@@ -3,7 +3,7 @@
 ![GitHub License](https://img.shields.io/github/license/makgyver/fluke?style=for-the-badge)
 
 
-# **``fluke``**: **f**ederated **l**earning **u**tility framewor**k** for **e**xperimentation and research
+# **fluke**: **f**ederated **l**earning **u**tility framewor**k** for **e**xperimentation and research
 
 ``fluke`` is a Python package that provides a framework for federated learning research. It is designed to be modular and extensible, allowing researchers to easily implement and test new federated learning algorithms. ``fluke`` provides a set of pre-implemented state-of-the-art federated learning algorithms that can be used as a starting point for research or as a benchmark for comparison.
 
@@ -45,8 +45,10 @@ The documentation for ``fluke`` can be found [here](https://makgyver.github.io/f
 
 Tutorials on how to use ``fluke`` can be found [here](https://makgyver.github.io/fluke/tutorial.html). In the following, you can find some quick tutorials to get started with ``fluke``:
 
-- Getting started with `fluke` API [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_quick_api.ipynb)
-- Run your algorithm in `fluke` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_alg.ipynb)
+- Getting started with `fluke` API [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
+](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_quick_api.ipynb)
+- Run your algorithm in `fluke` [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
+](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_alg.ipynb)
 
 
 ## Authors
