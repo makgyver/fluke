@@ -276,6 +276,10 @@ def test_fedhp():
     fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedhp.yaml")
 
 
+def test_fednh():
+    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednh.yaml")
+
+
 def test_fedopt():
     fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedadam.yaml")
     fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedadagrad.yaml")
@@ -283,31 +287,32 @@ def test_fedopt():
 
 
 if __name__ == "__main__":
-    test_centralized_fl()
-    test_apfl()
-    test_ccvr()
-    test_ditto()
-    test_fedamp()
-    test_fedbabu()
-    test_feddyn()
-    test_fedlc()
-    test_fednova()
-    test_fedper()
-    test_fedrep()
-    test_lgfedavg()
-    test_moon()
-    test_pfedme()
-    test_scaffold()
-    test_superfed()
-    test_per_fedavg()
-    test_fedavg()
-    test_fedprox()
-    test_fedsgd()
-    test_fedexp()
-    test_fedproto()
-    test_fedopt()
-    test_fedavgm()
-    test_fedhp()
+    # test_centralized_fl()
+    # test_apfl()
+    # test_ccvr()
+    # test_ditto()
+    # test_fedamp()
+    # test_fedbabu()
+    # test_feddyn()
+    # test_fedlc()
+    # test_fednova()
+    # test_fedper()
+    # test_fedrep()
+    # test_lgfedavg()
+    # test_moon()
+    # test_pfedme()
+    # test_scaffold()
+    # test_superfed()
+    # test_per_fedavg()
+    # test_fedavg()
+    # test_fedprox()
+    # test_fedsgd()
+    # test_fedexp()
+    # test_fedproto()
+    # test_fedopt()
+    # test_fedavgm()
+    # test_fedhp()
+    test_fednh()
 
     # 100% coverage algorithms
     # 100% coverage fedavg

@@ -234,7 +234,7 @@ class MNIST_2NN_E(nn.Module):
                  hidden_size: tuple[int, int] = (200, 200)):
         super(MNIST_2NN_E, self).__init__()
         self.input_size = 28*28
-        self.output_size = 10
+        self.output_size = 200
 
         self.fc1 = nn.Linear(28*28, hidden_size[0])
         self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])

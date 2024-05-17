@@ -8,8 +8,6 @@ hyperparameters:
     n_protos: 10
     optimizer:
       lr: 0.01
-      momentum: 0.5
-      # weight_decay: 0.0001
     scheduler:
       gamma: 1
       step_size: 1
@@ -17,5 +15,5 @@ hyperparameters:
   server:
     n_protos: 10
     weighted: true
-    embedding_size: 1024
+    embedding_size: 200
 name: fluke.algorithms.fedhp.FedHP
