@@ -1,3 +1,5 @@
+<a href="https://makgyver.github.io/fluke"><img src="https://img.shields.io/github/actions/workflow/status/makgyver/fluke/doc-publish.yml?style=for-the-badge&label=DOCUMENTATION"/></a>
+
 # FLUKE: Federated Learning Utility frameworK for Experimentation 
 
 ## Install with `pip`
