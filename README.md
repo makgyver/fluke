@@ -45,8 +45,8 @@ The documentation for ``fluke`` can be found [here](https://makgyver.github.io/f
 
 Tutorials on how to use ``fluke`` can be found [here](https://makgyver.github.io/fluke/tutorial.html). In the following, you can find some quick tutorials to get started with ``fluke``:
 
-- Getting started with `fluke` API [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/makgyver/fluke/tree/main/tutorials/fluke_quick_api.ipynb)
-- Run your algorithm in `fluke` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/makgyver/fluke/tree/main/tutorials/fluke_custom_alg.ipynb)
+- Getting started with `fluke` API [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_quick_api.ipynb)
+- Run your algorithm in `fluke` [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_alg.ipynb)
 
 
 ## Authors
