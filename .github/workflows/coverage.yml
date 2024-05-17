@@ -27,7 +27,7 @@ jobs:
 
       - name: Convert Coverage Results
         run: |
-          coveragepy-lcov --data_file_path .coverage --output_file_path lcov.info
+          coverage lcov -o lcov.info
 
       - name: Upload Coverage Results
         uses: coverallsapp/github-action@master
