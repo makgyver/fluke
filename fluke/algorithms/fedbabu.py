@@ -36,16 +36,16 @@ class FedBABUClient(PFLClient):
         self.model = self.personalized_model
 
     def send_model(self):
-        self.channel.send(Message(self.personalized_model.get_encoder(),
+        self.channel.send(Message(self.personalized_model.encoder,
                           "model", self), self.server)
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model.get_encoder(),
+        safe_load_state_dict(self.personalized_model.encoder,
                              msg.payload.state_dict())
 
         # Deactivate gradient
-        for param in self.personalized_model.get_head().parameters():
+        for param in self.personalized_model.head.parameters():
             param.requires_grad = False
 
     def fine_tune(self):
@@ -53,14 +53,14 @@ class FedBABUClient(PFLClient):
             for param in self.personalized_model.parameters():
                 param.requires_grad = True
         elif self.hyper_params.mode == "body":
-            for param in self.personalized_model.get_encoder().parameters():
+            for param in self.personalized_model.encoder.parameters():
                 param.requires_grad = True
-            for param in self.personalized_model.get_head().parameters():
+            for param in self.personalized_model.head.parameters():
                 param.requires_grad = False
         else:  # head
-            for param in self.personalized_model.get_encoder().parameters():
+            for param in self.personalized_model.encoder.parameters():
                 param.requires_grad = False
-            for param in self.personalized_model.get_head().parameters():
+            for param in self.personalized_model.head.parameters():
                 param.requires_grad = True
 
         self.personalized_model.train()

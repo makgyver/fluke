@@ -135,7 +135,7 @@ class CCVRServer(Server):
         self.model.to(self.device)
 
         # FIXME: loss, optimizer and scheduler are fixed for now
-        optimizer = torch.optim.SGD(self.model.get_head().parameters(), lr=self.hyper_params.lr)
+        optimizer = torch.optim.SGD(self.model.head.parameters(), lr=self.hyper_params.lr)
         loss_fn = torch.nn.CrossEntropyLoss()
         train_set = FastDataLoader(Z_train,
                                    y_train,

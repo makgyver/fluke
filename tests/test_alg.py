@@ -183,37 +183,123 @@ def _test_algo(exp_config, alg_config):
     return algo, log
 
 
+def test_apfl():
+    apfl, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/apfl.yaml")
+
+
+def test_ccvr():
+    ccvr, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ccvr.yaml")
+
+
+def test_ditto():
+    ditto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ditto.yaml")
+
+
+def test_fedamp():
+    fedamp, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedamp.yaml")
+
+
+def test_fedbabu():
+    fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu.yaml")
+
+
+def test_feddyn():
+    feddyn, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/feddyn.yaml")
+
+
+def test_fedlc():
+    fedlc, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedlc.yaml")
+
+
+def test_fednova():
+    fednova, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednova.yaml")
+
+
+def test_fedper():
+    fedper, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedper.yaml")
+
+
+def test_fedrep():
+    fedrep, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedrep.yaml")
+
+
+def test_lgfedavg():
+    lgfedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/lg_fedavg.yaml")
+
+
+def test_moon():
+    moon, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/moon.yaml")
+
+
+def test_pfedme():
+    pfedme, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/pfedme.yaml")
+
+
+def test_scaffold():
+    scaffold, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/scaffold.yaml")
+
+
+def test_superfed():
+    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml")
+
+
+def test_per_fedavg():
+    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
+
+
 def test_fedavg():
-    fedavg, log = _test_algo("./tests/configs/fedavg_exp.yaml", "./tests/configs/fedavg.yaml")
+    fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavg.yaml")
     # assert log.history[log.current_round]["accuracy"] >= 0.9642
 
 
 def test_fedavgm():
-    fedavgm, log = _test_algo("./tests/configs/fedavgm_exp.yaml", "./tests/configs/fedavgm.yaml")
+    fedavgm, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavgm.yaml")
 
 
 def test_fedprox():
-    fedprox, log = _test_algo("./tests/configs/fedprox_exp.yaml", "./tests/configs/fedprox.yaml")
+    fedprox, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedprox.yaml")
 
 
 def test_fedsgd():
-    fedsgd, log = _test_algo("./tests/configs/fedsgd_exp.yaml", "./tests/configs/fedsgd.yaml")
+    fedsgd, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedsgd.yaml")
 
 
 def test_fedexp():
-    fedexp, log = _test_algo("./tests/configs/fedexp_exp.yaml", "./tests/configs/fedexp.yaml")
+    fedexp, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedexp.yaml")
 
 
 def test_fedproto():
-    fedproto, log = _test_algo("./tests/configs/fedproto_exp.yaml", "./tests/configs/fedproto.yaml")
+    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedproto.yaml")
+
+
+def test_fedhp():
+    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedhp.yaml")
 
 
 def test_fedopt():
-    fedopt, log = _test_algo("./tests/configs/fedopt_exp.yaml", "./tests/configs/fedopt.yaml")
+    fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedadam.yaml")
+    fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedadagrad.yaml")
+    fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedyogi.yaml")
 
 
 if __name__ == "__main__":
     test_centralized_fl()
+    test_apfl()
+    test_ccvr()
+    test_ditto()
+    test_fedamp()
+    test_fedbabu()
+    test_feddyn()
+    test_fedlc()
+    test_fednova()
+    test_fedper()
+    test_fedrep()
+    test_lgfedavg()
+    test_moon()
+    test_pfedme()
+    test_scaffold()
+    test_superfed()
+    test_per_fedavg()
     test_fedavg()
     test_fedprox()
     test_fedsgd()
@@ -221,3 +307,13 @@ if __name__ == "__main__":
     test_fedproto()
     test_fedopt()
     test_fedavgm()
+    test_fedhp()
+
+    # 100% coverage algorithms
+    # 100% coverage fedavg
+    # 100% coverage fedprox
+    # 100% coverage fedsgd
+    # 96% coverage fedopt
+    # 96% coverage fedproto
+    # 94% coverage fedavgm
+    # 93% coverage fedexp

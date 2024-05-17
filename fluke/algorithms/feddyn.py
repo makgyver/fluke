@@ -55,8 +55,8 @@ class FedDynClient(Client):
 
         self.hyper_params.update(alpha=alpha)
         self.weight = None
-        self.weight_decay = self.optimizer_cfg.optimizer_kwargs[
-            "weight_decay"] if "weight_decay" in self.optimizer_cfg.optimizer_kwargs else 0
+        self.weight_decay = self.optimizer_cfg.optimizer_cfg[
+            "weight_decay"] if "weight_decay" in self.optimizer_cfg.optimizer_cfg else 0
         self.prev_grads = None
 
     def receive_model(self) -> None:

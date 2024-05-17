@@ -179,7 +179,7 @@ class OptimizerConfigurator:
             tuple[Optimizer, StepLR]: The optimizer and the scheduler.
         """
         if override_kwargs:
-            self.optimizer_cfg.update(override_kwargs)
+            self.optimizer_cfg.update(**override_kwargs)
         optimizer = self.optimizer(model.parameters(), **self.optimizer_cfg)
         scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler

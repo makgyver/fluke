@@ -186,6 +186,9 @@ class EncoderGlobalHeadLocalNet(GlobalLocalNet):
     def get_global(self) -> nn.Module:
         return self.model.encoder
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
+
 
 class HeadGlobalEncoderLocalNet(GlobalLocalNet):
     """This implementation of the Global-Local Network (:class:`GlobalLocalNet`) is meant to be used
@@ -211,6 +214,9 @@ class HeadGlobalEncoderLocalNet(GlobalLocalNet):
 
     def get_global(self) -> nn.Module:
         return self.model.head
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
 
 
 class MNIST_2NN_E(nn.Module):

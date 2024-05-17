@@ -1,17 +1,17 @@
 data:
-  client_split: 0.0
+  client_split: 0.2
   dataset:
-    name: cifar10
+    name: mnist
     path: ./data
   distribution:
     name: iid
-  sampling_perc: 1
+  sampling_perc: 0.2
 exp:
-  device: mps
+  device: cpu
   seed: 42
 logger:
   name: local
 protocol:
-  eligible_perc: 0.01
+  eligible_perc: 1
   n_clients: 100
-  n_rounds: 100
+  n_rounds: 1

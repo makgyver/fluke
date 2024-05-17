@@ -1,0 +1,17 @@
+hyperparameters:
+  client:
+    batch_size: 32
+    k: 1
+    local_epochs: 5
+    loss: CrossEntropyLoss
+    optimizer:
+      lamda: 1
+      lr: 0.1
+      mu: 0.001
+    scheduler:
+      gamma: 1
+      step_size: 1
+  model: MNIST_2NN
+  server:
+    beta: 0.5
+name: fluke.algorithms.pfedme.PFedMe

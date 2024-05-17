@@ -5,12 +5,14 @@ hyperparameters:
     loss: CrossEntropyLoss
     optimizer:
       lr: 0.01
-      momentum: 0.9
-      weight_decay: 0.0001
     scheduler:
       gamma: 1
       step_size: 1
-  model: ResNet18
+  model: MNIST_2NN
   server:
-    eval_every: 10
-name: fluke.algorithms.fedexp.FedExP
+    beta1: 0.9
+    beta2: 0.999
+    lr: 0.01
+    mode: adagrad
+    tau: 0.001
+name: fluke.algorithms.fedopt.FedOpt

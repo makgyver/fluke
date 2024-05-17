@@ -1,0 +1,21 @@
+hyperparameters:
+  client:
+    batch_size: 10
+    local_epochs: 10
+    loss: CrossEntropyLoss
+    mode: mm
+    model: MNIST_2NN
+    mu: 0.01
+    nu: 2
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0001
+    scheduler:
+      gamma: 1
+      step_size: 1
+    start_mix: 1
+  model: MNIST_2NN
+  server:
+    weighted: true
+name: fluke.algorithms.superfed.SuPerFed

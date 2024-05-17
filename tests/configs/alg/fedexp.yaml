@@ -1,0 +1,15 @@
+hyperparameters:
+  client:
+    batch_size: 10
+    local_epochs: 10
+    loss: CrossEntropyLoss
+    optimizer:
+      lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0001
+    scheduler:
+      gamma: 0.995
+      step_size: 10
+  model: MNIST_2NN
+  server: {}
+name: fluke.algorithms.fedexp.FedExP
