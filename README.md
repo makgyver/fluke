@@ -34,7 +34,7 @@ You can find some examples of these files in the [configs](https://github.com/ma
 Let say you want to run the classic `FedAvg` algorithm on the `MNIST` dataset. Then, using the configuration files [exp.yaml](https://github.com/makgyver/fluke/blob/main/configs/exp.yaml) and [fedavg.yaml](https://github.com/makgyver/fluke/blob/main/configs/fedavg.yaml), you can run the following command:
 
 ```bash
-fluke --config=configs/exp.yaml federation ./configs/fedavg.yaml
+fluke --config=./configs/exp.yaml federation ./configs/fedavg.yaml
 ```
 
 
