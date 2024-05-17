@@ -1,3 +1,4 @@
+![Coveralls](https://img.shields.io/coverallsCoverage/github/makgyver/fluke?style=for-the-badge&logo=coveralls)
 <a href="https://makgyver.github.io/fluke"><img src="https://img.shields.io/github/actions/workflow/status/makgyver/fluke/doc-publish.yml?style=for-the-badge&label=DOCUMENTATION"/></a>
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fluke-fl?style=for-the-badge&logo=python&logoColor=yellow)
 ![GitHub License](https://img.shields.io/github/license/makgyver/fluke?style=for-the-badge)
