@@ -25,14 +25,17 @@ class PerFedAVGOptimizer(Optimizer):
             loss = closure
 
         for group in self.param_groups:
-            for p in group['params']:
-                if p.grad is None:
-                    continue
-                d_p = p.grad.data
-                if grads is None:
+            if grads is None:
+                for p in group['params']:
+                    if p.grad is None:
+                        continue
+                    d_p = p.grad.data
                     p.data.sub_(d_p, alpha=beta if (beta != 0) else group['lr'])
-                else:
-                    p.data.sub_(beta * grads[0] - beta * group['lr'] * grads[1])
+            else:
+                for p, g1, g2 in zip(group['params'], grads[0], grads[1]):
+                    if p.grad is None:
+                        continue
+                    p.data.sub_(beta * g1 - beta * group['lr'] * g2)
         return loss
 
 
@@ -68,32 +71,38 @@ class PerFedAVGClient(Client):
                       data_batch: tuple[torch.Tensor, torch.Tensor],
                       v: Union[tuple[torch.Tensor, ...], None] = None) -> list[torch.Tensor]:
         X, y = data_batch
-        frz_model_params = deepcopy(model.state_dict())
-        delta = 1e-3
-        dummy_model_params_1 = OrderedDict()
-        dummy_model_params_2 = OrderedDict()
-        with torch.no_grad():
-            for (layer_name, param), grad in zip(model.named_parameters(), v):
-                dummy_model_params_1.update({layer_name: param + delta * grad})
-                dummy_model_params_2.update({layer_name: param - delta * grad})
+        if v is not None:
+            frz_model_params = deepcopy(model.state_dict())
+            delta = 1e-3
+            dummy_model_params_1 = OrderedDict()
+            dummy_model_params_2 = OrderedDict()
+            with torch.no_grad():
+                for (layer_name, param), grad in zip(model.named_parameters(), v):
+                    dummy_model_params_1.update({layer_name: param + delta * grad})
+                    dummy_model_params_2.update({layer_name: param - delta * grad})
 
-        model.load_state_dict(dummy_model_params_1, strict=False)
-        logit_1 = model(X)
-        loss_1 = self.hyper_params.loss_fn(logit_1, y)
-        grads_1 = torch.autograd.grad(loss_1, model.parameters())
+            model.load_state_dict(dummy_model_params_1, strict=False)
+            logit_1 = model(X)
+            loss_1 = self.hyper_params.loss_fn(logit_1, y)
+            grads_1 = torch.autograd.grad(loss_1, model.parameters())
 
-        model.load_state_dict(dummy_model_params_2, strict=False)
-        logit_2 = model(X)
-        loss_2 = self.hyper_params.loss_fn(logit_2, y)
-        grads_2 = torch.autograd.grad(loss_2, model.parameters())
+            model.load_state_dict(dummy_model_params_2, strict=False)
+            logit_2 = model(X)
+            loss_2 = self.hyper_params.loss_fn(logit_2, y)
+            grads_2 = torch.autograd.grad(loss_2, model.parameters())
 
-        model.load_state_dict(frz_model_params)
+            model.load_state_dict(frz_model_params)
 
-        grads = []
-        with torch.no_grad():
-            for g1, g2 in zip(grads_1, grads_2):
-                grads.append((g1 - g2) / (2 * delta))
-        return grads
+            grads = []
+            with torch.no_grad():
+                for g1, g2 in zip(grads_1, grads_2):
+                    grads.append((g1 - g2) / (2 * delta))
+            return grads
+        else:
+            logit = model(X)
+            loss = self.hyper_params.loss_fn(logit, y)
+            grads = torch.autograd.grad(loss, model.parameters())
+            return grads
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs

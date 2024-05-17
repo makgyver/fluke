@@ -1,0 +1,15 @@
+hyperparameters:
+  client:
+    batch_size: 40
+    beta: 0.001
+    local_epochs: 400
+    loss: CrossEntropyLoss
+    mode: HF
+    optimizer:
+      lr: 0.01
+    scheduler:
+      gamma: 1
+      step_size: 1
+  model: MNIST_2NN
+  server: {}
+name: fluke.algorithms.per_fedavg.PerFedAVG

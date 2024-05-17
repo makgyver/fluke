@@ -160,7 +160,7 @@ def test_centralized_fl():
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
 
 
-def _test_algo(exp_config, alg_config):
+def _test_algo(exp_config, alg_config, rounds=1):
     cfg = Configuration(exp_config, alg_config)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -179,7 +179,7 @@ def _test_algo(exp_config, alg_config):
     log.init(**cfg)
     algo.set_callbacks(log)
     # algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    algo.run(1, 1)
+    algo.run(rounds, 1)
     return algo, log
 
 
@@ -201,6 +201,8 @@ def test_fedamp():
 
 def test_fedbabu():
     fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu.yaml")
+    fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu_head.yaml")
+    fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu_body.yaml")
 
 
 def test_feddyn():
@@ -240,11 +242,12 @@ def test_scaffold():
 
 
 def test_superfed():
-    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml")
+    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml", 2)
 
 
 def test_per_fedavg():
-    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
+    # per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
+    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg2.yaml")
 
 
 def test_fedavg():
@@ -303,7 +306,7 @@ if __name__ == "__main__":
     # test_pfedme()
     # test_scaffold()
     # test_superfed()
-    # test_per_fedavg()
+    test_per_fedavg()
     # test_fedavg()
     # test_fedprox()
     # test_fedsgd()
@@ -312,7 +315,7 @@ if __name__ == "__main__":
     # test_fedopt()
     # test_fedavgm()
     # test_fedhp()
-    test_fednh()
+    # test_fednh()
 
     # 100% coverage algorithms
     # 100% coverage fedavg
