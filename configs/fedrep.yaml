@@ -3,7 +3,7 @@ hyperparameters:
     batch_size: 10
     local_epochs: 10
     loss: CrossEntropyLoss
-    mu: 1
+    model: MNIST_2NN
     optimizer:
       lr: 0.01
       momentum: 0.9
@@ -11,8 +11,8 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-    tau: 0.5
-  model: MNIST_2NN_Proto
+    tau: 5
+  model: MNIST_2NN_E
   server:
-    weighted: true
-name: fluke.algorithms.moon.MOON
+    weighted: false
+name: fluke.algorithms.fedrep.FedRep

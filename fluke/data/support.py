@@ -28,7 +28,7 @@ class MNISTM(VisionDataset):
     classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
                '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
 
-    def __init__(self, root, train=True, transform=None, target_transform=None, download=False):
+    def __init__(self, root, train=True, transform=None, target_transform=None, download=True):
         """Init MNIST-M dataset."""
         super(MNISTM, self).__init__(root, transform=transform, target_transform=target_transform)
 

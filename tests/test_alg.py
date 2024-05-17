@@ -242,11 +242,11 @@ def test_scaffold():
 
 
 def test_superfed():
-    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml", 2)
+    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml", 3)
 
 
 def test_per_fedavg():
-    # per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
+    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
     per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg2.yaml")
 
 
@@ -316,12 +316,3 @@ if __name__ == "__main__":
     # test_fedavgm()
     # test_fedhp()
     # test_fednh()
-
-    # 100% coverage algorithms
-    # 100% coverage fedavg
-    # 100% coverage fedprox
-    # 100% coverage fedsgd
-    # 96% coverage fedopt
-    # 96% coverage fedproto
-    # 94% coverage fedavgm
-    # 93% coverage fedexp

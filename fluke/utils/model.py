@@ -182,6 +182,11 @@ class LinesLSTM(MMMixin, nn.LSTM):
         ``weight_ih_l{layer}_local``, where ``layer`` is the layer number. Similar considerations
         apply to the biases.
 
+    Caution:
+        This class may not work properly an all devices. If you encounter any issues, please open
+        an issue in the repository.
+
+
     Attributes:
         weight_hh_l{layer}_local (torch.Tensor): The local hidden-hidden weights of layer ``layer``.
         weight_ih_l{layer}_local (torch.Tensor): The local input-hidden weights of layer ``layer``.
@@ -220,21 +225,21 @@ class LinesLSTM(MMMixin, nn.LSTM):
             torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device)
         )
         with torch.no_grad():
-            if torch._use_cudnn_rnn_flatten_weight():
-                torch._cudnn_rnn_flatten_weight(
-                    weight_arr=w,
-                    weight_stride0=(4 if self.bias else 2),
-                    input_size=self.input_size,
-                    mode=2,  # torch.backends.cudnn.rnn.get_cudnn_mode('LSTM'),
-                    hidden_size=self.hidden_size,
-                    proj_size=0,
-                    num_layers=self.num_layers,
-                    batch_first=True,
-                    bidirectional=False
-                )
-            else:
-                self._flat_weights = w
-                self.flatten_parameters()
+            # if torch._use_cudnn_rnn_flatten_weight():
+            #     torch._cudnn_rnn_flatten_weight(
+            #         weight_arr=w,
+            #         weight_stride0=(4 if self.bias else 2),
+            #         input_size=self.input_size,
+            #         mode=2,  # torch.backends.cudnn.rnn.get_cudnn_mode('LSTM'),
+            #         hidden_size=self.hidden_size,
+            #         proj_size=0,
+            #         num_layers=self.num_layers,
+            #         batch_first=True,
+            #         bidirectional=False
+            #     )
+            # else:
+            self._flat_weights = w
+            self.flatten_parameters()
         result = torch._VF.lstm(x, h, w, self.bias, self.num_layers, 0.0,
                                 self.training, self.bidirectional, self.batch_first)
         return result[0], result[1:]

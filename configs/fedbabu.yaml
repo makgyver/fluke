@@ -5,7 +5,7 @@ hyperparameters:
     local_epochs: 5
     loss: CrossEntropyLoss
     mode: full
-    model: MNIST_2NN_Proto
+    model: MNIST_2NN
     optimizer:
       lr: 0.01
       momentum: 0.9

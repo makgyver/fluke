@@ -9,7 +9,7 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project]
-name = "fluke"
+name = "fluke-fl"
 version = "0.0.1"
 authors = [
   { name="Mirko Polato", email="mirko.polato@unito.it" },

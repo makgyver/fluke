@@ -3,6 +3,7 @@ hyperparameters:
     batch_size: 10
     local_epochs: 5
     loss: CrossEntropyLoss
+    model: MNIST_2NN
     optimizer:
       lr: 0.01
       momentum: 0.9
@@ -10,10 +11,6 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN_Proto
-  server:
-    batch_size: 10
-    lr: 0.01
-    sample_per_class: 1000
-    weighted: true
-name: fluke.algorithms.ccvr.CCVR
+  model: MNIST_2NN_D
+  server: {}
+name: fluke.algorithms.lg_fedavg.LGFedAVG

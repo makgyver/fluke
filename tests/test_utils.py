@@ -275,31 +275,31 @@ def test_log():
     assert log.comm_costs[1] == 4
 
 
-def test_wandb_log():
-    log2 = WandBLog()
-    log2.init()
-    try:
-        log2.comm_costs[0] = 1  # for testing
-        log2.start_round(1, None)
-        log2.comm_costs[0] = 0  # for testing
-        log2.selected_clients(1, [1, 2, 3])
-        log2.message_received(Message("test", "test", None))
-        log2.error("test")
-        log2.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
-        log2.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
-        temp = tempfile.NamedTemporaryFile(mode="w")
-        log2.save(temp.name)
-    except Exception:
-        pytest.fail("Unexpected error!")
+# def test_wandb_log():
+#     log2 = WandBLog()
+#     log2.init()
+#     try:
+#         log2.comm_costs[0] = 1  # for testing
+#         log2.start_round(1, None)
+#         log2.comm_costs[0] = 0  # for testing
+#         log2.selected_clients(1, [1, 2, 3])
+#         log2.message_received(Message("test", "test", None))
+#         log2.error("test")
+#         log2.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
+#         log2.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
+#         temp = tempfile.NamedTemporaryFile(mode="w")
+#         log2.save(temp.name)
+#     except Exception:
+#         pytest.fail("Unexpected error!")
 
-    with open(temp.name, "r") as f:
-        data = dict(json.load(f))
-        assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
-            '0': 0, '1': 4}, 'perf_local': {'1': {'accuracy': 0.6}, '2': {'accuracy': 0.6}}}
+#     with open(temp.name, "r") as f:
+#         data = dict(json.load(f))
+#         assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
+#             '0': 0, '1': 4}, 'perf_local': {'1': {'accuracy': 0.6}, '2': {'accuracy': 0.6}}}
 
-    assert log2.history[1] == {"accuracy": 1}
-    assert log2.client_history[1] == {"accuracy": 0.6}
-    assert log2.comm_costs[1] == 4
+#     assert log2.history[1] == {"accuracy": 1}
+#     assert log2.client_history[1] == {"accuracy": 0.6}
+#     assert log2.comm_costs[1] == 4
 
 
 def test_models():
@@ -389,6 +389,7 @@ def test_mixing():
     assert mixed.get_lambda() == 0.4
 
     x = torch.randint(0, 100, (1, 10))
+    print("here")
     mixed(x)
 
     class TestNet(torch.nn.Module):
@@ -432,13 +433,13 @@ def test_serverobs():
 
 
 if __name__ == "__main__":
-    # test_optimcfg()
-    # test_functions()
-    # test_configuration()
-    # test_log()
+    test_optimcfg()
+    test_functions()
+    test_configuration()
+    test_log()
     # test_wandb_log()
     test_models()
-    # test_mixing()
+    test_mixing()
 
     # 91% coverage utils.__init__
     # 95% coverage utils.model

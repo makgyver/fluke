@@ -1,0 +1,21 @@
+data:
+  dataset:
+    name: mnist
+    path: ./data
+  distribution:
+    name: iid
+  sampling_perc: 1
+  client_split: 0.2
+  keep_test: true
+  server_test: true
+  server_split: 0.0 # not used in this case
+  uniform_test: false
+exp:
+  device: cpu
+  seed: 42
+logger:
+  name: Log
+protocol:
+  eligible_perc: 0.5
+  n_clients: 100
+  n_rounds: 10

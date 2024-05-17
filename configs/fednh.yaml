@@ -3,7 +3,7 @@ hyperparameters:
     batch_size: 10
     local_epochs: 1
     loss: CrossEntropyLoss
-    model: MNIST_CNN_E
+    model: MNIST_2NN_E
     n_protos: 10
     proto_norm: true
     optimizer:
@@ -13,7 +13,7 @@ hyperparameters:
     scheduler:
       name: ExponentialLR
       gamma: 0.99
-  model: MNIST_CNN_E
+  model: MNIST_2NN_E
   server:
     n_protos: 10
     weighted: false
