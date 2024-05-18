@@ -66,7 +66,7 @@ html_context = {
     "source_type": "github",
     "source_user": "makgyver",
     "source_repo": "fluke",
-    "source_version": "deepcopy",  # Optional
+    "source_version": "main",  # Optional
     "source_docs_path": "/docs/",  # Optional
 }
 
