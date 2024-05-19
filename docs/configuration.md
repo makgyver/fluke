@@ -17,7 +17,7 @@ each field.
 
 .. tab:: YAML w/ comments
 
-    .. code-block::
+    .. code-block:: yaml
 
         # Dataset configuration
         data:
@@ -88,7 +88,7 @@ each field.
 
 .. tab:: YAML w/o comments
 
-    .. code-block::
+    .. code-block:: yaml
 
         data:
             dataset:
@@ -120,7 +120,7 @@ It must be structured as follows:
 
 .. tab:: YAML w/ comments
 
-    .. code-block::
+    .. code-block:: yaml
     
         # Hyperparameters (HPs) of the algorithm
         # Name of the algorithm: this must be the full path to the algorithm's class
@@ -159,7 +159,7 @@ It must be structured as follows:
 
 .. tab:: YAML w/o comments
 
-    .. code-block::
+    .. code-block:: yaml
 
         name: fluke.algorithms.fedavg.FedAVG
         hyperparameters:

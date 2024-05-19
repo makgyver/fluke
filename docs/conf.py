@@ -70,6 +70,8 @@ html_context = {
     "source_docs_path": "/docs/",  # Optional
 }
 
+ISSUE_URL = "https://github.com/makgyver/fluke/issues/new" + \
+    "?assignees=&labels=&projects=&template={}.md&title="
 html_theme_options = {
     # "globaltoc_expand_depth": 1,
     # "toctree_collapse": True
@@ -93,13 +95,7 @@ html_theme_options = {
                     "title": "Custom model",
                     "url": "examples/customnn",
                     "summary": "Use a custom model in a FL experiment"
-                },
-                {
-                    "title": "How to configure fluke",
-                    "url": "examples/configure",
-                    "summary": "Explore the configuration options"
-                },
-
+                }
             ]
         },
         {
@@ -108,17 +104,17 @@ html_theme_options = {
             "children": [
                 {
                     "title": "Report a bug",
-                    "url": "help/bug",
+                    "url": ISSUE_URL.format("bug_report"),
                     "summary": "Help us to improve fluke"
                 },
                 {
                     "title": "Request a feature",
-                    "url": "help/feature",
+                    "url": ISSUE_URL.format("feature_request"),
                     "summary": "Tell us what you need"
                 },
                 {
                     "title": "Contribute",
-                    "url": "help/contribute",
+                    "url": "https://github.com/makgyver/fluke/pulls",
                     "summary": "Join the development team"
                 }
             ]
