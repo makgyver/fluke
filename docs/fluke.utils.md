@@ -132,6 +132,8 @@ Functions included in ``fluke.utils``
 
 </h3>
 
+(fluke.utils.ServerObserver)=
+
 ```{eval-rst}
 
 .. autoclass:: fluke.utils.ServerObserver

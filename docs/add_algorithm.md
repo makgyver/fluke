@@ -9,7 +9,7 @@ In this section, we will show how to add a new algorithm to ``fluke``.
 .. attention::
 
    This page will go into the details of the implementation of the server, the client, and the federated learning algorithm.
-   For a gentle introduction, please refer to this tutorial  
+   For a gentle introduction, please refer to this tutorial:
 
    .. image:: https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray
       :alt: Static Badge

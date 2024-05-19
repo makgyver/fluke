@@ -40,8 +40,7 @@ class FedExPServer(Server):
         for key in clients_diff[0].keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 continue
-            num[key] = torch.sum(torch.FloatTensor(
-                [torch.norm(c[key])**2 for c in clients_diff]))
+            num[key] = torch.sum(torch.FloatTensor([torch.norm(c[key])**2 for c in clients_diff]))
             mu_diff[key] = torch.mean(torch.stack([c[key] for c in clients_diff]), dim=0)
             den[key] = 2 * M * (torch.norm(mu_diff[key])**2 + eps)
             eta[key] = torch.max(num[key] / den[key], torch.FloatTensor([1.0]))
