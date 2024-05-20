@@ -12,7 +12,6 @@ data/*
 docs/_build
 docs/_tags
 .flake8
-test/.coverage
 .coverage
 dist/
 *.egg-info

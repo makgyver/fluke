@@ -34,17 +34,19 @@ You can find some examples of these files in the [configs](https://github.com/ma
 Let say you want to run the classic `FedAvg` algorithm on the `MNIST` dataset. Then, using the configuration files [exp.yaml](https://github.com/makgyver/fluke/blob/main/configs/exp.yaml) and [fedavg.yaml](https://github.com/makgyver/fluke/blob/main/configs/fedavg.yaml), you can run the following command:
 
 ```bash
-fluke --config=./configs/exp.yaml federation ./configs/fedavg.yaml
+fluke --config=path_to_folder/exp.yaml federation path_to_folder/fedavg.yaml
 ```
+
+where `path_to_folder` is the path to the folder containing the configuration files.
 
 
 ## Documentation
 
 The documentation for ``fluke`` can be found [here](https://makgyver.github.io/fluke). It contains detailed information about the package, including how to install it, how to run an experiment, and how to implement new algorithms.
 
-## Tutorial
+## Tutorials
 
-Tutorials on how to use ``fluke`` can be found [here](https://makgyver.github.io/fluke/tutorial.html). In the following, you can find some quick tutorials to get started with ``fluke``:
+Tutorials on how to use ``fluke`` can be found [here](https://makgyver.github.io/fluke/tutorials.html). In the following, you can find some quick tutorials to get started with ``fluke``:
 
 - Getting started with `fluke` API [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
 ](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_quick_api.ipynb)
