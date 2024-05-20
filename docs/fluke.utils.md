@@ -95,7 +95,7 @@ Functions included in ``fluke.utils``
 ```{eval-rst}
 
 .. autoclass:: fluke.utils.OptimizerConfigurator
-   :members:
+   :members: __call__
 
 ```
 

@@ -1,6 +1,8 @@
 # ``Server`` class
 
-TODO
+This class is the core of the federated learning simulation in `fluke`. When you start to extend it, 
+make sure to have a clear understanding of what are the data exchanged between the server and the clients and
+how the learning process is orchestrated. This is crucial to avoid introducing bugs and to keep the code clean. 
 
 ## Overview
 
@@ -9,6 +11,11 @@ The learning process starts when the `fit` method is called on the `Server` obje
 `fit` method, the server will iterate over the number of rounds specified in the argument `n_rounds`.
 Each important server's operation trigger a callback to the observers that have been registered to the server.
 Finally, at the end of the `fit` method, the server will finalize the federated learning process.
+
+## Server initialization
+
+The `Server` constructor is responsible for initializing the server. Usually, there is not much more to it than setting the server's attributes.
+However, there is an important notion that you should be aware of: all the server's hyperparameters should be set in the `hyper_params` attribute that is a [DDict](../fluke.md). This best practice ensure that the hyperparameters are easily accessible and stored in a single place.
 
 ## Single round sequence of operations
 
@@ -77,7 +84,7 @@ The default notifications are:
 ```
 
 
-## Customizing the ``Server`` class
+## Creating your ``Server`` class
 
 Creating a custom ``Server`` class is straightforward. You need to create a class that inherits from the ``Server`` class
 and override the methods that you want to customize. As long as the federated protocol you are implementing follows the

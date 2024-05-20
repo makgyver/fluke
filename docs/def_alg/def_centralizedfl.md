@@ -7,7 +7,7 @@ This is why you should extend it after having implemented the server and the cli
 
 The main methods of the `CentralizedFL` class are:
 
-- `__init__`: the constructor of the class;
+- `__init__`: the constructor of the class; this method simply calls the `init_server` and `init_clients` methods. It also prepares the model to be used by the server. Generally, this method should not be overridden;
 - `run`: the method that runs the algorithm. It actually delegates the execution to the server and thus
   in most of the cases it is not necessary to override it;
 - `init_server`: the method that initializes the server given the configuration. It simply instantiates the server class;

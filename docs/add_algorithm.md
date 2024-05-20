@@ -43,9 +43,9 @@ The details of the implementation of the server, the client, and the federated l
 .. toctree::
    :maxdepth: 2
 
-   def_alg/def_centralizedfl
-   def_alg/def_server
    def_alg/def_client
+   def_alg/def_server
+   def_alg/def_centralizedfl
 
 ```
 

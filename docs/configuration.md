@@ -11,7 +11,7 @@ To run an algorithm using the ``fluke`` command you need to create two configura
 
 The `EXP_CONFIG_FILE` is a yaml file containing the configurations for the experiment.
 In the following we provide an example of the `EXP_CONFIG_FILE` with the comments explaining 
-each field.
+each field (there is also a version without the comments). 
 
 ```{eval-rst}
 
