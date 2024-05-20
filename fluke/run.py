@@ -172,3 +172,7 @@ def run(config: str = typer.Option(CONFIG_FNAME, help="Configuration file")) -> 
 
 def main() -> Any:
     return app()
+
+
+if __name__ == "__main__":
+    main()
