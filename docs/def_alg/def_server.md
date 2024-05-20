@@ -10,7 +10,7 @@ The learning process starts when the `fit` method is called on the `Server` obje
 Each important server's operation trigger a callback to the observers that have been registered to the server.
 Finally, at the end of the `fit` method, the server will finalize the federated learning process.
 
-## Single round sequence
+## Single round sequence of operations
 
 The standard behaviour of the `Server` class (as provided in the class [Server](../fluke.server.md))
 follows the sequence of operations of a standard Federate Averaging algorithm. The main methods
@@ -93,7 +93,6 @@ of the other methods.
 
     Here we show a single example but you can check all the following algorithm implementations to see
     other examples of custom ``Server.aggregate``:
-
     - :ref:`APFL <fluke.algorithms.apfl>`;
     - :ref:`FedAMP <fluke.algorithms.fedamp>`;
     - :ref:`FedExP <fluke.algorithms.fedexp>`;
