@@ -19,6 +19,7 @@ __all__ = [
     'evaluation',
     'nets',
     'run',
+    'get',
     'server',
     'utils',
     'DDict',
