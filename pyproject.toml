@@ -46,6 +46,7 @@ dependencies = [
 
 [project.scripts]
 fluke = "fluke.run:main"
+fluke-get = "fluke.get:main" #this is the added line
 
 [project.urls]
 Documentation = "https://makgyver.github.io/fluke"
