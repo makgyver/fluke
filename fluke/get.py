@@ -58,5 +58,8 @@ def config(name: str, outdir: str = typer.Option("config", help="Output director
     with open(f"{outdir}/{name}.yaml", "w", encoding="utf8") as f:
         yaml.dump(config, f)
 
+def main():
+    app()
+
 if __name__ == "__main__":
     app()
