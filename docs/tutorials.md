@@ -16,7 +16,8 @@
    :hidden:
 
    examples/run
-   examples/newalgo
-   examples/customnn
+   examples/tutorials/fluke_custom_alg
+   examples/tutorials/fluke_quick_api
+   examples/tutorials/fluke_custom_nn
 
 ```

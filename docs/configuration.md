@@ -1,6 +1,6 @@
 (configuration)=
 
-# **``fluke``** configuration
+# Configuration
 
 
 To run an algorithm using the ``fluke`` command you need to create two configuration files:

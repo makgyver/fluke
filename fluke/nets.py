@@ -370,13 +370,6 @@ class MNIST_CNN(EncoderHeadNet):
     and 10 neurons, respectively.
 
     Very same architecture is also used in the [SuPerFed]_ paper.
-
-    References:
-        .. [FedAvg] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y
-            Arcas. "Communication-Efficient Learning of Deep Networks from Decentralized Data".
-            In: AISTATS (2017).
-        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-            Personalized Federated Learning. In: KDD (2022).
     """
 
     def __init__(self):
@@ -687,10 +680,6 @@ class ResNet9(EncoderHeadNet):
     See Also:
         - :class:`ResNet9_E`
         - :class:`ResNet9_D`
-
-    References:
-        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-            Personalized Federated Learning. In: KDD (2022).
     """
 
     def __init__(self):
@@ -867,10 +856,6 @@ class VGG9(EncoderHeadNet):
     See Also:
         - :class:`VGG9_E`
         - :class:`VGG9_D`
-
-    References:
-        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-            Personalized Federated Learning. In: KDD (2022).
     """
 
     def __init__(self, input_size: int = 784, output_size: int = 62, seed: int = 98765):
@@ -1144,10 +1129,6 @@ class Shakespeare_LSTM(EncoderHeadNet):
     See Also:
         - :class:`Shakespeare_LSTM_E`
         - :class:`Shakespeare_LSTM_D`
-
-    References:
-        .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-            Personalized Federated Learning. In: KDD (2022).
     """
 
     def __init__(self):

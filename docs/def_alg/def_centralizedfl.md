@@ -35,3 +35,7 @@ The following is the code for the `SCAFFOLD` class:
             return SCAFFOLDServer
 
 ```
+
+## Personalized Federated Learning algorithm
+
+If you want to implement a personalized federated learning algorithm, you should extend the [PersonalizedFL](../fluke.algorithms.md) class instead of the `CentralizedFL` class. The only difference between the two classes is that the `PersonalizedFL` class assume clients to be instances of the [PFLClient](../fluke.client.md) class, which is a subclass of the `Client` class designed for personalized federated learning. The main peculiarity of the `PFLClient` class is that it has a `personalized_model` attribute that must be initialized in the `__init__` method (take a look a [this](def_client.md) for more details). For this reason, in the `PersonalizedFL` class, the `init_clients` method is overridden to call the constructor of the `PFLClient` class instead of the `Client` class.

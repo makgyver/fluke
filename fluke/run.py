@@ -105,7 +105,8 @@ def federation(alg_cfg: str = typer.Argument(...,
 @app.command()
 def clients_only(alg_cfg: str = typer.Argument(...,
                                                help='Config file for \
-                                                the algorithm to run')) -> None:
+                                                the algorithm to run'),
+                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -125,8 +126,9 @@ def clients_only(alg_cfg: str = typer.Argument(...,
 
     criterion = get_loss(hp.client.loss)
     client_evals = []
-    epochs = max(200, int(cfg.protocol.n_rounds *
-                          hp.client.local_epochs * cfg.protocol.eligible_perc))
+    if epochs == 0:
+        epochs = max(100, int(cfg.protocol.n_rounds *
+                              hp.client.local_epochs * cfg.protocol.eligible_perc))
     progress = track(enumerate(zip(clients_tr_data, clients_te_data)),
                      total=len(clients_tr_data),
                      description="Clients training...")

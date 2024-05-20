@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'fluke'
 copyright = '2024, Mirko Polato'
 author = 'Mirko Polato'
-release = '0.0.3'
+release = '0.0.4'
 
 # autodoc_mock_imports = ['algorithms'] # Fix the "No module named 'algorithms'" error
 
@@ -23,7 +23,7 @@ release = '0.0.3'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'myst_parser',
+    # 'myst_parser',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
@@ -33,7 +33,9 @@ extensions = [
     'sphinx_design',
     'sphinx_tags',
     'sphinx_copybutton',
-    'sphinx_inline_tabs'
+    'sphinx_inline_tabs',
+    # 'nbsphinx',
+    'myst_nb'
     # 'sphinx_autodoc_typehints'
 ]
 
@@ -45,6 +47,8 @@ autodoc_inherit_docstrings = False
 tags_create_tags = True
 tags_extension = ['rst', 'md']
 tags_create_badges = True
+nb_number_source_lines = True
+nb_remove_code_outputs = True
 
 intersphinx_mapping = {
     'python': ('http://docs.python.org/3', None),
@@ -88,12 +92,12 @@ html_theme_options = {
                 },
                 {
                     "title": "Add an FL algorithm",
-                    "url": "examples/newalgo",
+                    "url": "examples/fluke_custom_alg",
                     "summary": "Create your own FL algorithm"
                 },
                 {
                     "title": "Custom model",
-                    "url": "examples/customnn",
+                    "url": "examples/fluke_custom_nn",
                     "summary": "Use a custom model in a FL experiment"
                 }
             ]

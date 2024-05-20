@@ -2,12 +2,12 @@
 
 # ``fluke.nets``
 
-```{eval-rst}
+<!-- ```{eval-rst}
 
 .. automodule:: fluke.nets
    :no-members:
 
-```
+``` -->
 
 TODO
 

@@ -25,13 +25,6 @@ TODO
 
 ```
 
-```{eval-rst}
-
-.. important::
-
-    The implemented algorithms are listed :ref:`here <fluke.algorithms.list>`.
-
-```
 
 <h2>
 

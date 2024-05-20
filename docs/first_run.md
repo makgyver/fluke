@@ -29,7 +29,7 @@ fluke --config=EXP_CONFIG_FILE federation ALG_CONFIG_FILE
     selected setting. For example, the number of epochs in the centralized setting is the number of
     total rounds times the participation fraction, while in the clients-only setting it is the
     number of local epochs times the number of rounds times the participation fraction 
-    (anyway no less than 200 epochs).
+    (anyway no less than 100 epochs). Please refer to :ref:`this tutorial <fluke.cli>` for more details.
 
 ```
 

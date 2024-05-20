@@ -1,3 +1,5 @@
+# For more details on how to create your config file 
+# https://makgyver.github.io/fluke/configuration.html
 data:
   dataset:
     name: mnist
