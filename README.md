@@ -48,12 +48,18 @@ Tutorials on how to use ``fluke`` can be found [here](https://makgyver.github.io
 
 - Getting started with `fluke` API [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
 ](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_quick_api.ipynb)
-- Run your algorithm in `fluke` [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
+- Run your algorithm in ``fluke`` [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
 ](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_alg.ipynb)
+
+## Contributing
+
+If you have suggestions for how ``fluke`` could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
+
+For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 
 ## Authors
 
-- [**Mirko Polato**](https://makgyver.github.io) - *Idealization*, *Development*, *Testing*, and *Documentation*
+- [**Mirko Polato**](https://makgyver.github.io) - *Idealization*, *Design*, *Development*, *Testing*, and *Documentation*
 - [**Roberto Esposito**]() - *Testing*
 - [**Samuele Fonio**]() - *Testing*
