@@ -9,7 +9,7 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN
   server:
     momentum: 0.9
+  model: MNIST_2NN
 name: fluke.algorithms.fedavgm.FedAVGM

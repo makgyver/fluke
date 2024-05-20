@@ -10,8 +10,8 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN
   server:
     alpha: 0.1
     sigma: 1
+  model: MNIST_2NN
 name: fluke.algorithms.fedamp.FedAMP

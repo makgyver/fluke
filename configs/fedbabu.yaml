@@ -13,7 +13,7 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN_E
   server:
     weighted: true
+  model: MNIST_2NN_E
 name: fluke.algorithms.fedbabu.FedBABU

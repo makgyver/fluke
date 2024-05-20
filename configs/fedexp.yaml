@@ -10,6 +10,6 @@ hyperparameters:
     scheduler:
       gamma: 0.995
       step_size: 10
-  model: MNIST_2NN
   server: {}
+  model: MNIST_2NN
 name: fluke.algorithms.fedexp.FedExP

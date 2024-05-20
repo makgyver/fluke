@@ -11,7 +11,7 @@ hyperparameters:
       gamma: 1
       step_size: 1
     tau: 0.1
-  model: MNIST_2NN
   server:
     weighted: true
+  model: MNIST_2NN
 name: fluke.algorithms.fedlc.FedLC

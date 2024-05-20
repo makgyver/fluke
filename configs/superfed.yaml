@@ -15,7 +15,7 @@ hyperparameters:
       gamma: 1
       step_size: 1
     start_mix: 1
-  model: MNIST_2NN
   server:
     weighted: true
+  model: MNIST_2NN
 name: fluke.algorithms.superfed.SuPerFed

@@ -11,9 +11,9 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN_E
   server:
     n_protos: 10
     weighted: true
     embedding_size: 200
+  model: MNIST_2NN_E
 name: fluke.algorithms.fedhp.FedHP
