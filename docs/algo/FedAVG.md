@@ -8,3 +8,25 @@
    :no-members:
 
 ```
+
+```{eval-rst}
+
+.. currentmodule:: fluke.algorithms.fedavg
+
+.. autosummary::
+   :nosignatures:
+
+   FedAVG
+   
+```
+
+
+## Classes
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedavg.FedAVG
+   :member-order: bysource
+   :members: 
+
+```

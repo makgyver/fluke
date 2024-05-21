@@ -9,8 +9,6 @@
 
 ```
 
-TODO
-
 <h3>
 
 Classes included in ``fluke.client``

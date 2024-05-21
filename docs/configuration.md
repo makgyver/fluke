@@ -55,6 +55,8 @@ each field (there is also a version without the comments).
             # and the evaluation is done on the server side
             client_split: 0
             # Whether to keep the test set as provided by the dataset
+            # if set to false, and `server_test=false` then the dataset's test will be uniformly
+            # split among the clients
             keep_test: true
             # Whether the server has a test set
             # Note: if `keep_test` is set to true, than the server will have such a test set
@@ -71,13 +73,13 @@ each field (there is also a version without the comments).
             device: cpu
             # The seed (reproducibility)
             seed: 42
-            # Logger configuration
+        # Logger configuration
         logger:
             # `Log` is the standard output, `WandBLog` logs everything on weights and bias
             name: Log
             # `wandb` parameters. Leave empty if `name` is `Log`
             params: null
-            # FL protocol configuration
+        # FL protocol configuration
         protocol:
             # % of eligible clients, i.e., participants, in each round
             eligible_perc: 1
@@ -123,9 +125,10 @@ It must be structured as follows:
     .. code-block:: yaml
     
         # Hyperparameters (HPs) of the algorithm
-        # Name of the algorithm: this must be the full path to the algorithm's class
+        # Name of the algorithm: this must be the fully qualified name of the algorithm's class
+        # This means that you can define your own algorithm and use it here
         name: fluke.algorithms.fedavg.FedAVG
-        # Please refer to the algorithm's implementation to know which are its HPs 
+        # Please refer to the algorithm's implementation to know which are its HPs
         hyperparameters:
             # HPs of the clients
             client:

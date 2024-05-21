@@ -9,7 +9,6 @@
 
 ```
 
-TODO
 
 <h3>Submodules</h3>
 
@@ -141,6 +140,8 @@ Functions included in ``fluke.utils``
    :show-inheritance:
 
 ```
+
+(flake.utils.funct)=
 
 ## Functions
 

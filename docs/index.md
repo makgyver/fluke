@@ -6,6 +6,16 @@
 
 # **``fluke``**
 
+
+```{eval-rst}
+
+.. button-link:: https://pypi.org/project/fluke-fl/
+   :color: primary
+   :outline:
+
+   v |version| |release|
+```
+
 <h3>Federated Learning Utility frameworK for Experimentation</h3>
 
 **``fluke``** is a benchmarking tool for Federated Learning (FL). It is designed to be

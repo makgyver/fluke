@@ -1,3 +1,5 @@
+(tutorials)=
+
 # Tutorials
 
 ```{eval-rst}
@@ -16,8 +18,8 @@
    :hidden:
 
    examples/run
-   examples/tutorials/fluke_custom_alg
    examples/tutorials/fluke_quick_api
+   examples/tutorials/fluke_custom_alg
    examples/tutorials/fluke_custom_nn
 
 ```

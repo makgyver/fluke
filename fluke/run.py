@@ -1,3 +1,4 @@
+"""`fluke` command line interface."""
 from rich.pretty import Pretty
 from rich.panel import Panel
 from rich.progress import track
@@ -26,7 +27,13 @@ CONFIG_FNAME = ""
 @app.command()
 def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
+    """Run a centralized learning experiment.
 
+    Args:
+        alg_cfg (str): Configuration file for the algorithm to run.
+        epochs (int, optional): Number of learning epochs. If set to 0, the number of epochs
+            is computed as `n_rounds * eligible_perc`. Defaults to 0.
+    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -45,10 +52,8 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
     # , **cfg.method.hyperparameters.net_args)
     model = get_model(mname=cfg.method.hyperparameters.model)
-    sch_args = cfg.method.hyperparameters.client.scheduler
-    cfg.method.hyperparameters.client.optimizer.name = torch.optim.SGD
     optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.method.hyperparameters.client.optimizer,
-                                          scheduler_cfg=sch_args)
+                                          scheduler_cfg=cfg.method.hyperparameters.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.method.hyperparameters.client.loss)
     evaluator = ClassificationEval(criterion, data_container.num_classes, device)
@@ -80,7 +85,11 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 @app.command()
 def federation(alg_cfg: str = typer.Argument(...,
                                              help='Config file for the algorithm to run')) -> None:
+    """Run a federated learning experiment.
 
+    Args:
+        alg_cfg (str): Configuration file for the algorithm to run.
+    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -107,7 +116,13 @@ def clients_only(alg_cfg: str = typer.Argument(...,
                                                help='Config file for \
                                                 the algorithm to run'),
                  epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
+    """Run a local training (for all clients) experiment.
 
+    Args:
+        alg_cfg (str): Configuration file for the algorithm to run.
+        epochs (int, optional): Number of learning epochs. If set to 0, the number of epochs
+            is computed as `max(100, n_rounds * eligible_perc * local_epochs)`. Defaults to 0.
+    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)

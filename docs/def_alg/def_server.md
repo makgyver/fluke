@@ -17,7 +17,7 @@ Finally, at the end of the `fit` method, the server will finalize the federated 
 The `Server` constructor is responsible for initializing the server. Usually, there is not much more to it than setting the server's attributes.
 However, there is an important notion that you should be aware of: all the server's hyperparameters should be set in the `hyper_params` attribute that is a [DDict](../fluke.md). This best practice ensure that the hyperparameters are easily accessible and stored in a single place.
 
-## Single round sequence of operations
+## Sequence of operations of a single round
 
 The standard behaviour of the `Server` class (as provided in the class [Server](../fluke.server.md))
 follows the sequence of operations of a standard Federate Averaging algorithm. The main methods
@@ -39,7 +39,7 @@ The following figure shows the sequence of operations of the `Server` class duri
 .. admonition:: Disclaimer
     
     For brevity, many details have been omitted or simplified. However, the figure below shows the key methods and calls involved in a round.
-    For a complete description of the `Server` class, please refer to the :ref:`Server's API documentation <fluke.server>`.
+    For a complete description of the ``Server`` class, please refer to the :ref:`Server's API documentation <fluke.server>`.
 
 ```
 
@@ -62,7 +62,7 @@ for example, to get the final evaluation of the global (and/or local) model(s), 
 It can also be used to trigger fine-tuning operations client-side as it happens in personalized federated learning.
 In its standard implementation, the `finalize` method will call the `evaluate` method to get the final evaluation
 of the global model on the server-side test set (if any) and it also performs the evaluation client-side
-after the global model has been broadcastd for the last time.
+after the global model has been broadcasted for the last time.
 
 ## Observer pattern
 
@@ -100,6 +100,7 @@ of the other methods.
 
     Here we show a single example but you can check all the following algorithm implementations to see
     other examples of custom ``Server.aggregate``:
+
     - :ref:`APFL <fluke.algorithms.apfl>`;
     - :ref:`FedAMP <fluke.algorithms.fedamp>`;
     - :ref:`FedExP <fluke.algorithms.fedexp>`;
@@ -142,7 +143,7 @@ The example follows the implementation of the ``FedExP`` algorithm. We also repo
         def _compute_eta(self, clients_diff: Iterable[dict], eps: float = 1e-4) -> float:
             ...
 
-.. tab:: Server (standard)
+.. tab:: FedAVG Server
 
     .. code-block:: python
         :linenos:
@@ -165,7 +166,7 @@ The example follows the implementation of the ``FedExP`` algorithm. We also repo
 
 ```
 
-Let's start by summarizing the standard implementation of the ``aggregate`` method. The goal of this method
+Let's start by summarizing the implementation of the FedAVG's ``aggregate`` method. The goal of this method
 is to aggregate the models of the clients that participated in the round to update the global model.
 The aggregation is done by computing the weighted average of the models of the clients. Thus, the method
 first collects the models of the clients that participated in the round (``self.get_client_models(eligible)``)
@@ -211,7 +212,7 @@ add such additional operations and then the `super().fit()` is called to trigger
 When overriding the ``fit`` method, you should follow the following best practices:
 
 - **Progress bars**: track the progress of the learning process using progress bars. In `fluke`, this this is done using the `rich` library.
-  In `rich`, progress bars and status indicators use a *live* display that is an insance of the `Live` class. You can reuse the `Live` instance
+  In `rich`, progress bars and status indicators use a *live* display that is an instance of the `Live` class. You can reuse the `Live` instance
   of `fluke` from the `GlobalSettings` using the `get_live_renderer` method. In this live display, you can show the progress of the client-side and
   server-side learning already available in the `GlobalSettings` using `get_progress_bar("clients")` and `get_progress_bar("server")`. Then to update the
   progress bars and to get more information on how to use the `rich` library, please refer to the [official documentation](https://rich.readthedocs.io/en/latest/).

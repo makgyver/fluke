@@ -116,7 +116,7 @@ class Client():
         """The communication channel.
 
         Attention:
-            Use this channel to communicate with the server.
+            Use this channel to exchange data/information with the server.
 
         Returns:
             Channel: The communication channel.

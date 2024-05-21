@@ -9,9 +9,12 @@
 
 ```
 
-TODO
 
-<h2>Classes</h2>
+<h3>
+
+Classes included in ``fluke.algorithms``
+
+</h3>
 
 ```{eval-rst}
 

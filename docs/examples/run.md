@@ -43,6 +43,7 @@ fluke --config <EXP_CONFIG_FILE> centralized <ALG_CONFIG_FILE> [--epochs=<EPOCHS
 ```
 
 where `<EPOCHS>` is the number of epochs to train the model (default is 0). If not specified (=0), the number of epochs are calculated according to the algorithm configuration. Specifically, `EPOCHS = n_rounds * eligible_perc`.
+Since the learning is centralized, some of the parameters in the configuration file are ignored (i.e., the parameters related to the data distribution). The set up of for the learning (e.g., batch size, optimizer, etc.) is taken from the client hyper-parameters in the algorithm configuration file.
 
 ### Federated learning
 
@@ -61,6 +62,7 @@ fluke --config <EXP_CONFIG_FILE> clients-only <ALG_CONFIG_FILE> [--epochs=<EPOCH
 ```
 
 where `<EPOCHS>` is the number of epochs to train the model (default is 0). If not specified (=0), the number of epochs are calculated according to the algorithm configuration. Specifically, `EPOCHS = n_rounds * eligible_perc * local_epochs`, but in any case no less than 100.
+The hyper-parameters related to the server are ignored in this case.
 
 ## `fluke-get`
 

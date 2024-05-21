@@ -10,8 +10,6 @@
 
 ```
 
-TODO
-
 ## Submodules
 
 ```{eval-rst}

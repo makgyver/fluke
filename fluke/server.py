@@ -43,7 +43,6 @@ class Server(ObserverSubject):
         model (torch.nn.Module): The federated model to be trained.
         clients (Sequence[Client]): The clients that will participate in the federated learning
           process.
-        channel (Channel): The channel to communicate with the clients.
         rounds (int): The number of rounds that have been executed.
         test_data (FastDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
@@ -84,6 +83,10 @@ class Server(ObserverSubject):
     @property
     def channel(self) -> Channel:
         """The channel to communicate with the clients.
+
+        Important:
+            Always use this channel to exchange data/information with the clients.
+            The server should directly call the clients' methods only to trigger specific actions.
 
         Returns:
             Channel: The channel to communicate with the clients.
@@ -266,10 +269,21 @@ class Server(ObserverSubject):
         """Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
-        The method directly updates the model of the server.
+        The method directly updates the model of the server. Formally, let :math:`\\theta` be the
+        model of the server, :math:`\\theta_i` the model of client :math:`i`, and :math:`w_i` the
+        weight of client :math:`i` such that :math:`\\sum_{i=1}^{N} w_i = 1`. The aggregation is
+        done as follows [FedAVG]_:
+
+        .. math::
+            \\theta = \\sum_{i=1}^{N} w_i \\theta_i
 
         Args:
             eligible (Sequence[Client]): The clients that will participate in the aggregation.
+
+        References:
+            .. [FedAVG] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas,
+               "Communication-Efficient Learning of Deep Networks from Decentralized Data".
+               In: AISTATS (2017).
         """
         avg_model_sd = OrderedDict()
         clients_sd = self.get_client_models(eligible)

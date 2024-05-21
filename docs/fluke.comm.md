@@ -9,8 +9,6 @@
 
 ```
 
-TODO
-
 
 ```{eval-rst}
 

@@ -316,8 +316,8 @@ class DataSplitter:
            corresponds to the test set of the dataset. The clients have a training set and,
            if ``client_split > 0``, a test set.
         2. ``server_test = True`` and ``keep_test = False``: The server has a test set that
-           is sampled from the test set of whole dataset (training set and test set are merged). The
-           sampling is done according to the ``server_split`` parameter. The clients have a training
+           is sampled from the whole dataset (training set and test set are merged). The server's
+           sample size is indicated by the ``server_split`` parameter. The clients have a training
            set and, if ``client_split > 0``, a test set.
         3. ``server_test = False`` and ``keep_test = True``: The server does not have a test set.
            The clients have a training set and a test set that corresponds to the test set of the

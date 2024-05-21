@@ -9,11 +9,7 @@ In this section, we will show how to add a new algorithm to be used in ``fluke``
 .. attention::
 
    This page will go into the details of the implementation of the server, the client, and the federated learning algorithm.
-   For a gentle introduction, please refer to this tutorial:
-
-   .. image:: https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray
-      :alt: Static Badge
-      :target: https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_alg.ipynb
+   For a gentle introduction, please refer to :ref:`New federated algorithm with fluke <tutorials>` tutorial.
 
 ```
 
@@ -34,7 +30,7 @@ However, you must override the following methods:
 - `get_client_class`: this method must return the client class you defined (if any);
 - `get_server_class`: this method must return the server class you defined (if any).
 
-As pointed out before, only one of the two methods cab be overridden according to the needs of the algorithm you are implementing.
+As pointed out before, only one of the two methods can be overridden according to the needs of the algorithm you are implementing.
 
 The details of the implementation of the server, the client, and the federated learning algorithm are provided in the following sections:
 
@@ -56,9 +52,9 @@ The details of the implementation of the server, the client, and the federated l
 
 ## Running your algorithm using `fluke`
 
-Using the `fluke` command to run your algorithm is as easy as changing a few lines in the configuration file of the algorithm.
+Using the `fluke` CLI to run your algorithm is as easy as changing a few lines in the configuration file of the algorithm.
 Let's assume to have defined our algorithm in a python file named `my_algorithm.py` and that the class representing the algorithm is named `MyAlgorithm`.
-The configuration file of the algorithm must be structured as follows:
+The configuration file of the algorithm must be structured as follows (please make sure to run `fluke` from the right directory):
 
 ```{eval-rst}
 
