@@ -1,8 +1,9 @@
-"""Implementation of the [SuPerFed22]_ algorithm.
+"""Implementation of the [SCAFFOLD20]_ algorithm.
 
 References:
-    .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-       Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
+    .. [SCAFFOLD20] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank J. Reddi,
+       Sebastian U. Stich, Ananda Theertha Suresh. SCAFFOLD: Stochastic Controlled Averaging for
+       Federated Learning. In: ICML (2020). URL: https://arxiv.org/abs/1910.06378
 """
 from torch.optim import Optimizer
 from torch.nn import Module

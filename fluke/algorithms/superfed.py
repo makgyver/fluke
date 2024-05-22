@@ -1,9 +1,8 @@
-"""Implementation of the [FedDyn21]_ algorithm.
+"""Implementation of the [SuPerFed22]_ algorithm.
 
 References:
-    .. [FedDyn21] Durmus Alp Emre Acar, Yue Zhao, Ramon Matas, Matthew Mattina, Paul Whatmough,
-       and Venkatesh Saligrama. Federated Learning with Dynamic Regularization.
-       In: ICLR (2021). URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
+    .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace
+       for Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
 from torch.nn.modules import Module
 from typing import Any, Callable

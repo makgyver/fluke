@@ -32,6 +32,7 @@ Classes included in ``fluke.algorithms.fedavg``
 ```{eval-rst}
 
 .. autoclass:: fluke.algorithms.fedavg.FedAVG
+   :show-inheritance:
    :member-order: bysource
    :members: 
 

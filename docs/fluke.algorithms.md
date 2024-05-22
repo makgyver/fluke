@@ -4,6 +4,14 @@
 
 ```{eval-rst}
 
+.. warning::
+   This section of the documentation is under construction!
+   
+```
+
+
+```{eval-rst}
+
 .. automodule:: fluke.algorithms
    :no-members:
 

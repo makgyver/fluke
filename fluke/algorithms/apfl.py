@@ -104,6 +104,12 @@ class APFLServer(Server):
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
+        """Aggregate the models of the eligible clients every `hyper_params.tau` rounds.
+
+        Args:
+            eligible (Iterable[Client]): The clients that are eligible to participate in the
+                aggregation.
+        """
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache
             self.channel.clear(self)

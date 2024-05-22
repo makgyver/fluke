@@ -52,9 +52,9 @@ nb_number_source_lines = True
 nb_remove_code_outputs = True
 
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/3', None),
-    'numpy': ('http://docs.scipy.org/doc/numpy', None),
-    # 'scipy': ('http://docs.scipy.org/doc/scipy/reference', None),
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     # 'matplotlib': ('http://matplotlib.org/stable', None),
     'torch': ("https://pytorch.org/docs/master/", None),
     'torchvision': ("https://pytorch.org/vision/stable/", None)

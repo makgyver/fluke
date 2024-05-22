@@ -24,7 +24,11 @@ from . import CentralizedFL  # NOQA
 
 class CCVRClient(Client):
     @torch.no_grad()
-    def compute_mean_cov(self):
+    def compute_mean_cov(self) -> None:
+        """Computes the label-wise mean and covariance of the data. After the computation, the
+        client send (through the channel) a message to the server containing the computed values and
+        the number of examples per class.
+        """
         list_z, list_y = [], []
         for _, (X, y) in enumerate(self.train_set):
             X, y = X.to(self.device), y.to(self.device)
@@ -76,7 +80,7 @@ class CCVRServer(Server):
             sample_per_class=sample_per_class
         )
 
-    def _compute_mean_cov(self):
+    def _compute_mean_cov(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         means, covs, ns = [], [], []
         for client in self.clients:
             client.receive_model()
@@ -115,8 +119,9 @@ class CCVRServer(Server):
         return classes_mean, classes_cov
 
     def _generate_virtual_repr(self,
-                               classes_mean: Sequence[torch.tensor],
-                               classes_cov: Sequence[torch.tensor]):
+                               classes_mean: Sequence[torch.Tensor],
+                               classes_cov: Sequence[torch.Tensor]) -> tuple[torch.Tensor,
+                                                                             torch.Tensor]:
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
             if mean is not None and cov is not None:
@@ -137,7 +142,7 @@ class CCVRServer(Server):
         targets = torch.cat(targets)
         return data, targets
 
-    def _calibrate(self, Z_train: torch.FloatTensor, y_train: torch.LongTensor):
+    def _calibrate(self, Z_train: torch.FloatTensor, y_train: torch.LongTensor) -> None:
         self.model.train()
         self.model.to(self.device)
 
@@ -160,6 +165,9 @@ class CCVRServer(Server):
         self.model.to("cpu")
 
     def finalize(self) -> None:
+        """In the CCVR Server, at the end of the learning the model is calibrated according to the
+        data distributions of the clients.
+        """
         self.broadcast_model(self.clients)
         classes_mean, classes_cov = self._compute_mean_cov()
         Z, y = self._generate_virtual_repr(classes_mean, classes_cov)
