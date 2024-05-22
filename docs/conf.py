@@ -97,7 +97,12 @@ html_theme_options = {
                     "summary": "Create your own FL algorithm"
                 },
                 {
-                    "title": "Custom model",
+                    "title": "Custom dataset in fluke",
+                    "url": "examples/fluke_custom_dataset",
+                    "summary": "Use a custom dataset in a FL experiment"
+                },
+                {
+                    "title": "Custom model in fluke",
                     "url": "examples/fluke_custom_nn",
                     "summary": "Use a custom model in a FL experiment"
                 }

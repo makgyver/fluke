@@ -16,7 +16,8 @@
    v |version| |release|
 ```
 
-<h3>Federated Learning Utility frameworK for Experimentation</h3>
+<h3>Federated Learning Utility frameworK for Experimentation and research.</h3>
+<h4>Made by researchers for researchers!</h4>
 
 **``fluke``** is a benchmarking tool for Federated Learning (FL). It is designed to be
 flexible, easy to use, and easy to extend, and can be used to benchmark a wide variety of
