@@ -1,3 +1,10 @@
+"""Implementation of the [FedLC22]_ algorithm.
+
+References:
+    .. [FedLC22] Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu.
+       Federated Learning with Label Distribution Skew via Logits Calibration. In: ICML (2022).
+       URL: https://arxiv.org/abs/2209.00189
+"""
 from collections import Counter
 from typing import Callable
 import torch

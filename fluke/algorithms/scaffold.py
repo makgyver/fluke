@@ -1,3 +1,9 @@
+"""Implementation of the [SuPerFed22]_ algorithm.
+
+References:
+    .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
+       Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
+"""
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch

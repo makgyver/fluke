@@ -1,3 +1,9 @@
+"""Implementation of the [Moon21]_ algorithm.
+
+References:
+    .. [Moon21] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
+       In: CVPR (2021). URL: https://arxiv.org/abs/2103.16257
+"""
 from torch.nn import CosineSimilarity
 import torch
 from typing import Callable

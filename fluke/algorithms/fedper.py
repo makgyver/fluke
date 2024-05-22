@@ -1,3 +1,10 @@
+"""Implementation of the [FedPer19]_ algorithm.
+
+References:
+    .. [FedPer19] Manoj Ghuhan Arivazhagan, Vinay Aggarwal, Aaditya Kumar Singh, and
+       Sunav Choudhary. Federated learning with personalization layers.
+       In: arXiv (2019). URL:https://arxiv.org/abs/1912.00818
+"""
 from typing import Sequence, Callable
 from copy import deepcopy
 import torch

@@ -1,3 +1,9 @@
+"""Implementation of the [FedBABU22]_ algorithm.
+
+References:
+    .. [FedBABU22] Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation
+       for Federated Image Classification. In: ICLR (2022). URL: https://arxiv.org/abs/2106.06042
+"""
 from rich.progress import Progress
 from typing import Any, Callable, Sequence
 from torch.nn import Module

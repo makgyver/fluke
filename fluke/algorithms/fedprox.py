@@ -1,3 +1,10 @@
+"""Implementation of the [FedProx18]_ algorithm.
+
+References:
+    .. [FedProx18] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar,
+       and Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
+       Learning Workshop. URL: https://openreview.net/pdf?id=SkgwE5Ss3N
+"""
 from typing import Callable
 from copy import deepcopy
 import torch

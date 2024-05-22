@@ -1,3 +1,10 @@
+"""Implementation of the [Per-FedAVG20]_ algorithm.
+
+References:
+    .. [Per-FedAVG20] Alireza Fallah, Aryan Mokhtari, Asuman Ozdaglar. Personalized Federated
+       Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach.
+       In: NeurIPS (2020). URL: https://arxiv.org/abs/2002.07948
+"""
 from torch.optim import Optimizer
 import torch
 from typing import Callable, Union

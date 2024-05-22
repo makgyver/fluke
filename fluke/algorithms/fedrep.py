@@ -1,3 +1,10 @@
+"""Implementation of the [FedRep21]_ algorithm.
+
+References:
+    .. [FedRep21] Liam Collins, Hamed Hassani, Aryan Mokhtari, and Sanjay Shakkottai.
+       Exploiting shared representations for personalized federated learning. In: ICML (2021).
+       URL: https://arxiv.org/abs/2102.07078
+"""
 import torch
 from typing import Any, Callable, Sequence
 import sys

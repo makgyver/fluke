@@ -9,6 +9,12 @@
 
 ```
 
+<h3>
+
+Classes included in ``fluke.algorithms.fedavg``
+
+</h3>
+
 ```{eval-rst}
 
 .. currentmodule:: fluke.algorithms.fedavg

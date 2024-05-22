@@ -1,3 +1,9 @@
+"""Implementation of the [FedHP24]_ algorithm.
+
+References:
+    .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype
+       Learning. Submitted to ESANN 2024
+"""
 from typing import Sequence, Callable
 import torch
 from torch import nn
