@@ -1,0 +1,46 @@
+\documentclass[preview]{standalone}
+\usepackage{pgf-umlsd}
+\usepackage{fontspec}
+\usepackage{xcolor}
+
+\setmainfont{Consolasligaturizedv3.ttf}[
+  SizeFeatures={Size=6} 
+]
+
+\definecolor{myviolet}{RGB}{140, 126, 213}
+
+\begin{document}
+\begin{figure}
+  \centering
+  \begin{sequencediagram}
+    \newinst{c}{:Client}{}
+    \newinst[2.5]{ch}{:Channel}{}
+	\newinst[2.5]{s}{:Server}{}
+	
+
+	\begin{messcall}
+		{s}{\color{myviolet}fit()}{c}{}
+		\begin{call}
+			{c}{receive\_model()}{c}{}
+			\begin{call}
+				{c}{receive(model, server)}{ch}{model}
+			\end{call}
+		\end{call}
+		
+		\begin{sdblock}{ for n local epochs }{ }
+%			\node[anchor = east] (t0)  {$t _0$};
+			\node[anchor = west] at (1, -5)  (a2)  {\textrm{$\quad$Pytorch training loop + }};
+			\node[anchor = west] at (1, -5.3)  (a2)  {\textrm{$\quad$specific client's behaviour}};
+		\end{sdblock}
+		
+		\begin{call}
+			{c}{send\_model()}{c}{}
+		\begin{messcall}
+			{c}{send(model, server)}{ch}{}
+		\end{messcall}
+		\end{call}
+	\end{messcall}
+	
+  \end{sequencediagram}
+\end{figure}
+\end{document}

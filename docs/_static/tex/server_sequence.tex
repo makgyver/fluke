@@ -1,0 +1,54 @@
+\documentclass[preview]{standalone}
+\usepackage{pgf-umlsd}
+\usepackage{fontspec}
+\usepackage{xcolor}
+
+\setmainfont{Consolasligaturizedv3.ttf}[
+  SizeFeatures={Size=6} 
+]
+
+\definecolor{myviolet}{RGB}{140, 126, 213}
+
+\begin{document}
+\begin{figure}
+  \centering
+  \begin{sequencediagram}
+    \newinst{s}{:Server}{}
+    \newinst[2.5]{ch}{:Channel}{}
+	\newinst[2.5]{c}{:Client}{}
+	
+%    \begin{call}{S}{Call()}{C}{}
+%    \end{call}
+	\begin{call}
+		{s}{\color{myviolet}get\_eligible\_clients()}{s}{ eligible }
+	\end{call}
+	
+	\begin{call}
+		{s}{\color{myviolet}broadcast\_model(eligible)}{s}{}
+		\begin{messcall}
+			{s}{broadcast(model, eligible)}{ch}{}
+		\end{messcall}
+	\end{call}
+	
+	\begin{sdblock}{for client in  eligible}{}
+	\begin{messcall}
+		{s}{\color{myviolet}fit()}{c}{}
+		\begin{call}
+			{c}{receive(model, server)}{ch}{model}
+		\end{call}
+		\begin{messcall}
+			{c}{send(model, server)}{ch}{}
+		\end{messcall}
+	\end{messcall}
+	\end{sdblock}
+	
+	\begin{call}
+		{s}{\color{myviolet}aggregate(eligible)}{s}{}
+		\begin{call}
+			{s}{receive(model, eligible)}{ch}{models}
+		\end{call}
+	\end{call}
+	
+  \end{sequencediagram}
+\end{figure}
+\end{document}

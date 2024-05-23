@@ -83,6 +83,7 @@ The following figure shows the sequence of operations of the `Client` class duri
 
 ```{figure} ../_static/imgs/client_fit_sequence.png
 Sequence of operations of the `Client` class during the `fit` method. 
+This image has been created with [TikZ](https://texample.net/tikz/) [[source]](https://github.com/makgyver/fluke/blob/main/docs/_static/tex/client_sequence.tex).
 ```
 
 The `fit` method is called by the server when it is time to train the local model on the client's data. 

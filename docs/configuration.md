@@ -113,6 +113,18 @@ each field (there is also a version without the comments).
             n_rounds: 100
 ```
 
+
+```{eval-rst}
+
+.. tip::
+
+    The configuration for the dataset may seem a bit confusing. Please refer to the documentation of
+    the modules :ref:`fluke.data` and :ref:`fluke.data.datasets` for more information.
+    
+    We also suggest to have a look at :ref:`this section <config_data>` for a more detailed explanation.
+
+```
+
 ## Algorithm configuration
 
 The `ALG_CONFIG_FILE` is a yaml file containing the hyper-parameters of the federated algorithm.
@@ -180,5 +192,16 @@ It must be structured as follows:
             server:
                 weighted: true
             model: MNIST_2NN
+
+```
+
+
+```{eval-rst}
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    config_data
 
 ```

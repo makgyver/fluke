@@ -440,14 +440,14 @@ class DataSplitter:
                       min_quantity: int = 2,
                       alpha: float = 4.) -> list[torch.Tensor]:
         r"""
-        Distribute the examples across the users according to the following probability density
+        Distribute the examples across the clients according to the following probability density
         function: :math:`P(x; a) = a x^{a-1}`
         where :math:`x` is the id of a client (:math:`x \in [0, n-1]`), and ``a = alpha > 0`` with
 
         - ``alpha = 1``: examples are equidistributed across clients;
-        - ``alpha = 2``: the examples are "linearly" distributed across users;
+        - ``alpha = 2``: the examples are "linearly" distributed across clients;
         - ``alpha >= 3``: the examples are power law distributed;
-        - ``alpha`` :math:`\rightarrow \infty`: all users but one have ``min_quantity`` examples,
+        - ``alpha`` :math:`\rightarrow \infty`: all clients but one have ``min_quantity`` examples,
           and the remaining user all the rest.
 
         Each client is guaranteed to have at least ``min_quantity`` examples.
@@ -531,10 +531,10 @@ class DataSplitter:
         This method distribute the data across client according to a specific type of skewness of
         the lables. Specifically:
         suppose each party only has data samples of ``class_per_client`` different labels.
-        We first randomly assign k different label IDs to each party. Then, for the samples of each
-        label, we randomly and equally divide them into the parties which own the label.
-        In this way, the number of labels in each party is fixed, and there is no overlap between
-        the samples of different parties.
+        We first randomly assign ``class_per_client`` different label IDs to each party.
+        Then, for the samples of each label, we randomly and equally divide them into the parties
+        which own the label. In this way, the number of labels in each party is fixed, and there is
+        no overlap between the samples of different parties.
         See: https://arxiv.org/pdf/2102.02079.pdf
 
         Args:

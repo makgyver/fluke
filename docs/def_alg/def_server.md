@@ -46,6 +46,7 @@ The following figure shows the sequence of operations of the `Server` class duri
 
 ```{figure} ../_static/imgs/server_fit_sequence.png
 Sequence of operations of the `Server` class during the `fit` method. 
+This image has been created with [TikZ](https://texample.net/tikz/) [[source]](https://github.com/makgyver/fluke/blob/main/docs/_static/tex/server_sequence.tex).
 ```
 
 The sequence diagram above shows the sequence of operations of the `Server` class during a single round.
