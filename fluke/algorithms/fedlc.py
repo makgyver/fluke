@@ -18,13 +18,18 @@ from ..data import FastDataLoader  # NOQA
 from . import CentralizedFL  # NOQA
 
 
-class FedLCClient(Client):
+class CalibratedLoss(torch.nn.Module):
 
-    def __calibrated_loss(self, logit: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def __init__(self, tau: float, label_distrib: torch.Tensor):
+        super().__init__()
+        self.tau = tau
+        self.label_distrib = label_distrib
+
+    def forward(self, logit: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         cal_logit = torch.exp(
             logit
             - (
-                self.hyper_params.tau
+                self.tau
                 * torch.pow(self.label_distrib, -1 / 4)
                 .unsqueeze(0)
                 .expand((logit.shape[0], -1))
@@ -34,6 +39,9 @@ class FedLCClient(Client):
         loss = -torch.log(y_logit / cal_logit.sum(dim=-1, keepdim=True))
         return loss.sum() / logit.shape[0]
 
+
+class FedLCClient(Client):
+
     def __init__(self,
                  index: int,
                  train_set: FastDataLoader,
@@ -42,7 +50,7 @@ class FedLCClient(Client):
                  loss_fn: Callable,  # ignored
                  local_epochs: int,
                  tau: float):
-        super().__init__(index, train_set, test_set, optimizer_cfg, None, local_epochs)
+        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(tau=tau)
         all_labels = self.train_set.tensors[1].tolist()
         label_counter = Counter(all_labels)
@@ -50,7 +58,7 @@ class FedLCClient(Client):
         for cls, count in label_counter.items():
             self.label_distrib[cls] = max(1e-8, count)
 
-        self.hyper_params.loss_fn = self.__calibrated_loss
+        self.hyper_params.loss_fn = CalibratedLoss(tau, self.label_distrib)
 
 
 class FedLC(CentralizedFL):
