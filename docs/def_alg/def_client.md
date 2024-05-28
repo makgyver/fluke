@@ -112,6 +112,7 @@ There is not much to say about the training loop itself. `fluke` is design to wo
     
     Make sure to move the model to the correct device before training it. Be careful to move it back to the CPU before sending it to the server.
     Cleaning up the CUDA cache is also a good practice to avoid memory leaks :ref:`fluke.utils.clear_cache <flake.utils.funct>`.
+    This loading-unloading process on GPU may lead to a performance penalty in some cases (e.g., with many small models that could fit in the GPU memory at the same time). We plan to introduce a more efficient way to handle this in the future.
 
 ```
 
