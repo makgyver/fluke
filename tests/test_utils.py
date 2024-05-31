@@ -230,6 +230,9 @@ def test_configuration():
     # assert conf.data.dataset.name == "mnist"
     assert conf.exp.seed == 42
     # assert conf.logger.name == "local"
+    assert conf.client.local_epochs == 5
+    assert conf.server.weighted
+    assert conf.model == "MNIST_2NN"
 
     assert str(conf) == "fluke.algorithms.fedavg.FedAVG" + \
         "_data(mnist, iid)_proto(C100, R50,E0.1)_seed(42)"

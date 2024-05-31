@@ -67,13 +67,13 @@ Currently, in `fluke` the following data distributions are supported:
 - `qnt`: Quantity skewed data. Distribute the examples across the clients according to the following probability density
 function: {math}`P(x; \alpha) = \alpha x^{\alpha-1}` where {math}`x` is the id of a client ({math}`x \in [0, n-1]`), and {math}`\alpha > 0`. 
 You can specify the parameter `alpha` (default is 4) and the `min_quantity` (default is 2) parameter that represents the minimum number of examples per client.
-- `classqnt`: Class-wise quantity skewed data. This works exactly like `qnt`, but instead of applying the distribution to the entire dataset, it applies it in a class-wise manner.
-- `lblqnt`: Label quantity skewed data. This is still a class-wiese quantity skewed data distribution, but the skeweness is achieved in a different way. Suppose each party only has data samples of `class_per_client` (a required parameter, by default 2) different labels.
+- `classwise_qnt`: Class-wise quantity skewed data. This works exactly like `qnt`, but instead of applying the distribution to the entire dataset, it applies it in a class-wise manner.
+- `lbl_qnt`: Label quantity skewed data. This is still a class-wiese quantity skewed data distribution, but the skeweness is achieved in a different way. Suppose each party only has data samples of `class_per_client` (a required parameter, by default 2) different labels.
 We first randomly assign `class_per_client` different label IDs to each party. Then, for the samples of each
 label, we randomly and equally divide them into the parties which own such label. In this way, the number of labels in each party is fixed, and there is no overlap between the samples of different parties.
 - `dir`: Label skewed data according to the Dirichlet distribution. The parameter `beta` is required (default is 0.1). You can also set the minimum number of examples per class (`min_ex_class`, default is 2).
-- `path`: Pathological skewed data. Each client has data from few classes. The method first sort the data by label, divide it into `n * shards_per_client` shards, and assign each of `n` clients `shards_per_client` shards. `shards_per_client` is a required parameter (default is 2).
-- `covshift`: Covariate shift skewed data. This distribution is a simulation of the covariate shift problem. This method first extracts the first principal component (through PCA) and then divides it in ``modes`` percentiles (`modes` is an integer parameter, default is 2). To each client, only examples from a single mode are selected (uniformly). *Attention: This type of skewness is not present in the literature and this method may also be not very efficient.*
+- `pathological`: Pathological skewed data. Each client has data from few classes. The method first sort the data by label, divide it into `n * shards_per_client` shards, and assign each of `n` clients `shards_per_client` shards. `shards_per_client` is a required parameter (default is 2).
+- `covariate`: Covariate shift skewed data. This distribution is a simulation of the covariate shift problem. This method first extracts the first principal component (through PCA) and then divides it in ``modes`` percentiles (`modes` is an integer parameter, default is 2). To each client, only examples from a single mode are selected (uniformly). *Attention: This type of skewness is not present in the literature and this method may also be not very efficient.*
 
 
 ## Other fields

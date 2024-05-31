@@ -532,6 +532,33 @@ class Configuration(DDict):
         self.update(method=config_alg)
         self._validate()
 
+    @property
+    def client(self) -> DDict:
+        """Get quick access to the client hyperparameters.
+
+        Returns:
+            DDict: The client hyperparameters.
+        """
+        return self.method.hyperparameters.client
+
+    @property
+    def server(self) -> DDict:
+        """Get quick access to the server hyperparameters.
+
+        Returns:
+            DDict: The server hyperparameters.
+        """
+        return self.method.hyperparameters.server
+
+    @property
+    def model(self) -> DDict:
+        """Get quick access to the model hyperparameters.
+
+        Returns:
+            DDict: The model hyperparameters.
+        """
+        return self.method.hyperparameters.model
+
     def _validate(self) -> bool:
 
         EXP_OPT_KEYS = {

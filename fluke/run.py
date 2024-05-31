@@ -42,7 +42,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     device = GlobalSettings().get_device()
 
     train_loader = FastDataLoader(*data_container.train,
-                                  batch_size=cfg.method.hyperparameters.client.batch_size,
+                                  batch_size=cfg.client.batch_size,
                                   num_labels=data_container.num_classes,
                                   shuffle=True)
     test_loader = FastDataLoader(*data_container.test,
@@ -50,18 +50,23 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
                                  num_labels=data_container.num_classes,
                                  shuffle=False)
 
-    # , **cfg.method.hyperparameters.net_args)
-    model = get_model(mname=cfg.method.hyperparameters.model)
-    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.method.hyperparameters.client.optimizer,
-                                          scheduler_cfg=cfg.method.hyperparameters.client.scheduler)
+    model = get_model(mname=cfg.model)
+    if "name" not in cfg.client.optimizer:
+        cfg.client.optimizer.name = torch.optim.SGD
+    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.client.optimizer,
+                                          scheduler_cfg=cfg.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
-    criterion = get_loss(cfg.method.hyperparameters.client.loss)
+    criterion = get_loss(cfg.client.loss)
     evaluator = ClassificationEval(criterion, data_container.num_classes, device)
     history = []
 
     model.to(device)
     epochs = epochs if epochs > 0 else int(
         max(1, cfg.protocol.n_rounds * cfg.protocol.eligible_perc))
+
+    rich.print(f"Centralized Learning [ #Epochs = {epochs} ]")
+    rich.print()
+
     for e in range(epochs):
         model.train()
         rich.print(f"Epoch {e+1}")
@@ -148,7 +153,7 @@ def clients_only(alg_cfg: str = typer.Argument(...,
                      total=len(clients_tr_data),
                      description="Clients training...")
     for i, (train_loader, test_loader) in progress:
-        rich.print(f"Client [{i}]")
+        rich.print(f"Client [{i}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
         hp.client.optimizer.name = torch.optim.SGD
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
