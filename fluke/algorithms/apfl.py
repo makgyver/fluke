@@ -31,7 +31,8 @@ class APFLClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
-                 lam: float = 0.25):
+                 lam: float = 0.25,
+                 **kwargs):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None

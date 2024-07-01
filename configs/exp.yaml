@@ -17,7 +17,9 @@ exp:
   seed: 42
 logger:
   name: Log
+  # entity: mlgroup
+  # project: fluke-paper
 protocol:
-  eligible_perc: 0.5
+  eligible_perc: 0.2
   n_clients: 100
-  n_rounds: 10
+  n_rounds: 100

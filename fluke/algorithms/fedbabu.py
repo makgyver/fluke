@@ -32,7 +32,8 @@ class FedBABUClient(PFLClient):
                  loss_fn: Callable[..., Any],
                  local_epochs: int,
                  mode: str,
-                 fine_tune_epochs: int):
+                 fine_tune_epochs: int,
+                 **kwargs):
         assert mode in ["head", "body", "full"]
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(

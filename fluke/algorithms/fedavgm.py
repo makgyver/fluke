@@ -5,6 +5,7 @@ References:
        Non-Identical Data Distribution for Federated Visual Classification. In: arXiv (2019).
        URL: https://arxiv.org/abs/1909.06335
 """
+from copy import deepcopy
 from torch.nn import Module
 import torch
 from collections import OrderedDict
@@ -40,6 +41,7 @@ class FedAVGMServer(Server):
         """
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(momentum=momentum)
+        self.momentum_vector = None
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
@@ -75,8 +77,16 @@ class FedAVGMServer(Server):
                 else:
                     avg_model_sd[key] += weights[i] * client_diff[key]
 
+        if self.momentum_vector is None:
+            self.momentum_vector = deepcopy(avg_model_sd)
+        else:
+            for key in self.model.state_dict().keys():
+                self.momentum_vector[key].data = self.hyper_params.momentum * \
+                    self.momentum_vector[key].data + \
+                    avg_model_sd[key].data
+
         for key, param in self.model.named_parameters():
-            param.data = self.hyper_params.momentum * param.data - avg_model_sd[key].data
+            param.data = param.data - self.momentum_vector[key].data
 
 
 class FedAVGM(CentralizedFL):

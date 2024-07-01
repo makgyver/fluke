@@ -35,7 +35,8 @@ class LGFedAVGClient(PFLClient):
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],  # not used because fixed to CrossEntropyLoss
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, HeadGlobalEncoderLocalNet(model),
                          train_set, test_set, optimizer_cfg, CrossEntropyLoss(), local_epochs)
 

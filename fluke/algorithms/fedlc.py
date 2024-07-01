@@ -49,8 +49,9 @@ class FedLCClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,  # ignored
                  local_epochs: int,
-                 tau: float):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+                 tau: float,
+                 **kwargs):
+        super().__init__(index, train_set, test_set, optimizer_cfg, None, local_epochs)
         self.hyper_params.update(tau=tau)
         all_labels = self.train_set.tensors[1].tolist()
         label_counter = Counter(all_labels)

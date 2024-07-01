@@ -74,7 +74,8 @@ class Client():
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
 
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,

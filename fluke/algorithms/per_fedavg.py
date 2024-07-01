@@ -55,7 +55,8 @@ class PerFedAVGClient(Client):
                  loss_fn: Callable,
                  local_epochs: int,
                  mode: str,
-                 beta: float):
+                 beta: float,
+                 **kwargs):
 
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(

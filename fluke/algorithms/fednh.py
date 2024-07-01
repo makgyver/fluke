@@ -72,7 +72,8 @@ class FedNHClient(PFLClient):
                  loss_fn: Callable,  # Not used
                  local_epochs: int,
                  n_protos: int,
-                 proto_norm: bool = True):
+                 proto_norm: bool = True,
+                 **kwargs):
         super().__init__(index,
                          ProtoNet(model, n_protos, proto_norm),
                          train_set,

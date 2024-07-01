@@ -35,7 +35,8 @@ class SuPerFedClient(PFLClient):
                  mode: str = "global",
                  start_mix: int = 10,
                  mu: float = 0.1,
-                 nu: float = 0.1):
+                 nu: float = 0.1,
+                 **kwargs):
         assert mode in ["mm", "lm"]
 
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)

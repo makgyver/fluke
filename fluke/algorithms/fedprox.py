@@ -26,7 +26,8 @@ class FedProxClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 mu: float):
+                 mu: float,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(mu=mu)
 

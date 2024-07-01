@@ -80,7 +80,8 @@ class FedHPClient(PFLClient):
                  loss_fn: Callable,
                  local_epochs: int,
                  n_protos: int,
-                 lam: float):
+                 lam: float,
+                 **kwargs):
         super().__init__(index, ProtoNet(model, n_protos), train_set,
                          test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(n_protos=n_protos, lam=lam)

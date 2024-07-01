@@ -48,7 +48,8 @@ class PFedMeClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 k: int):
+                 k: int,
+                 **kwargs):
 
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(k=k)

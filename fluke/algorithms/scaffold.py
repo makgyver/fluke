@@ -51,7 +51,8 @@ class SCAFFOLDClient(Client):
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.control = None
         self.delta_c = None
