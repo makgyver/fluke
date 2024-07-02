@@ -287,7 +287,7 @@ def test_cinic10():
 
 
 if __name__ == "__main__":
-    # test_mnist()
+    test_mnist()
     # test_mnist4d()
     # test_emnist()
     # test_svhn()
@@ -295,10 +295,10 @@ if __name__ == "__main__":
     # test_cifar100()
     # test_mnistm()
     # test_tinyimagenet()
-    test_femnist()
-    test_femnist_dig()
-    test_femnist_upp()
-    test_femnist_low()
+    # test_femnist()
+    # test_femnist_dig()
+    # test_femnist_upp()
+    # test_femnist_low()
     # test_shakespeare()
     # test_fashion_mnist()
     # test_cinic10()
