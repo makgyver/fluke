@@ -7,18 +7,17 @@ from copy import deepcopy
 
 from ..evaluation import ClassificationEval  # NOQA
 from ..client import Client  # NOQA
-from ..server import Server  # NOQA
 from ..utils import clear_cache, OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
 
 from ..algorithms import CentralizedFL  # NOQA
-from .fedavgm import FedAVGMServer  # NOQA
-from .fedexp import FedExPServer  # NOQA
-from .fedopt import FedOptServer  # NOQA
-from .scaffold import SCAFFOLDServer, SCAFFOLDClient, SCAFFOLD  # NOQA
+from .fedavgm import FedAVGM  # NOQA
+from .fedexp import FedExP  # NOQA
+from .fedopt import FedOpt  # NOQA
+from .scaffold import SCAFFOLDClient, SCAFFOLD  # NOQA
 from .fedlc import FedLCClient  # NOQA
-from .fednova import FedNovaClient, FedNovaServer  # NOQA
+from .fednova import FedNovaClient  # NOQA
 from .fedprox import FedProxClient  # NOQA
 from .moon import MOONClient   # NOQA
 
@@ -194,75 +193,26 @@ class FedMarginClient(Client):
         return {}
 
 
-class FedMarginServer(Server):
-
-    def evaluate(self) -> dict[str, float]:
-        """Evaluate the global federated model on the ``test_set``.
-        If the test set is not set, the method returns an empty dictionary.
-
-        Warning:
-            To date, only classification tasks are supported.
-
-        Returns:
-            dict[str, float]: The evaluation results. The keys are the metrics and the values are
-                the results.
-        """
-        if self.test_data is not None:
-            return ClassificationEval(None,  # self.hyper_params.loss_fn
-                                      #   self.model.output_size,
-                                      self.test_data.num_labels,
-                                      device=self.device).evaluate(self.model,
-                                                                   self.test_data)
-        return {}
-
-
 # FedAVG + FedMargin
 class FedAVGMargin(CentralizedFL):
 
     def get_client_class(self) -> Client:
         return FedMarginClient
 
-    def get_server_class(self) -> Server:
-        return FedMarginServer
-
 
 # FedAVGM + FedMargin
-class FedAVGMMarginServer(FedAVGMServer, FedMarginServer):
+class FedAVGMMargin(FedAVGM, FedAVGMargin):
     pass
-
-
-class FedAVGMMargin(CentralizedFL):
-
-    def get_client_class(self) -> Client:
-        return FedMarginClient
-
-    def get_server_class(self) -> Server:
-        return FedAVGMMarginServer
 
 
 # FedExP + FedMargin
-class FedExPMarginServer(FedExPServer, FedMarginServer):
+class FedExPMargin(FedExP, FedAVGMargin):
     pass
-
-
-class FedExPMargin(FedAVGMargin):
-
-    def get_server_class(self) -> Server:
-        return FedExPMarginServer
 
 
 # FedOpt + FedMargin
-class FedOptMarginServer(FedOptServer, FedMarginServer):
+class FedOptMargin(FedOpt, FedAVGMargin):
     pass
-
-
-class FedOptMargin(CentralizedFL):
-
-    def get_client_class(self) -> Client:
-        return FedMarginClient
-
-    def get_server_class(self) -> Server:
-        return FedOptMarginServer
 
 
 # SCAFFOLD + FedMargin
@@ -315,17 +265,10 @@ class SCAFFOLDMarginClient(SCAFFOLDClient):
         self.send_model()
 
 
-class SCAFFOLDMarginServer(SCAFFOLDServer, FedMarginServer):
-    pass
-
-
 class SCAFFOLDMargin(SCAFFOLD):
 
     def get_client_class(self) -> Client:
         return SCAFFOLDMarginClient
-
-    def get_server_class(self) -> Server:
-        return SCAFFOLDMarginServer
 
 
 # FedLC + FedMargin
@@ -355,9 +298,6 @@ class FedLCMargin(CentralizedFL):
     def get_client_class(self) -> Client:
         return FedLCMarginClient
 
-    def get_server_class(self) -> Server:
-        return FedMarginServer
-
 
 # FedNova + FedMargin
 class FedNovaMarginClient(FedNovaClient, FedMarginClient):
@@ -370,17 +310,10 @@ class FedNovaMarginClient(FedNovaClient, FedMarginClient):
         self.channel.send(Message(self.a, "local_a", self), self.server)
 
 
-class FedNovaMarginServer(FedNovaServer, FedMarginServer):
-    pass
-
-
 class FedNovaMargin(CentralizedFL):
 
     def get_client_class(self) -> Client:
         return FedNovaMarginClient
-
-    def get_server_class(self) -> Server:
-        return FedNovaMarginServer
 
 
 # FedProx + FedMargin
@@ -424,9 +357,6 @@ class FedProxMargin(CentralizedFL):
     def get_client_class(self) -> Client:
         return FedProxMarginClient
 
-    def get_server_class(self) -> Server:
-        return FedMarginServer
-
 
 # MOON + FedMargin
 class MOONMarginClient(MOONClient, FedMarginClient):
@@ -451,7 +381,6 @@ class MOONMarginClient(MOONClient, FedMarginClient):
                 one_hot_y = one_hot_y.to(self.device)
                 self.optimizer.zero_grad()
 
-                # y_hat = self.model(X)
                 z_local = self.model.encoder(X)  # , -1)
                 y_hat = self.model.head(z_local)
                 loss_sup = self.hyper_params.loss_fn(y_hat, y)
@@ -482,6 +411,3 @@ class MOONMargin(CentralizedFL):
 
     def get_client_class(self) -> Client:
         return MOONMarginClient
-
-    def get_server_class(self) -> Server:
-        return FedMarginServer

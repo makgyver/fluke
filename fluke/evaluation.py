@@ -151,16 +151,20 @@ class ClassificationEval(Evaluator):
         model.to("cpu")
         clear_cache()
 
-        return {
+        result = {
             "accuracy":  round(sum(accs) / len(accs), 5),
             "micro_precision": round(sum(micro_precs) / len(micro_precs), 5),
             "micro_recall":    round(sum(micro_recs) / len(micro_recs), 5),
             "micro_f1":        round(sum(micro_f1s) / len(micro_f1s), 5),
             "macro_precision": round(sum(macro_precs) / len(macro_precs), 5),
             "macro_recall":    round(sum(macro_recs) / len(macro_recs), 5),
-            "macro_f1":        round(sum(macro_f1s) / len(macro_f1s), 5),
-            "loss":  round(sum(losses) / len(losses), 5) if self.loss_fn is not None else None
+            "macro_f1":        round(sum(macro_f1s) / len(macro_f1s), 5)
         }
+
+        if self.loss_fn is not None:
+            result["loss"] = round(sum(losses) / len(losses), 5)
+
+        return result
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(n_classes={self.n_classes}," + \
