@@ -27,7 +27,7 @@ __all__ = [
     'fedbn',
     'feddyn',
     'fedexp',
-    'fedhyperproto',
+    'fedhp',
     'fedlc',
     'fednh',
     'fednova',
