@@ -22,11 +22,11 @@ from .fedprox import FedProxClient  # NOQA
 from .moon import MOONClient   # NOQA
 
 
-def _max_with_relu(a, b):
+def _max_with_relu(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return a + F.relu(b - a)
 
 
-def _get_grad(out_, in_):
+def _get_grad(out_: torch.Tensor, in_: torch.Tensor) -> torch.Tensor:
     grad, *_ = torch.autograd.grad(out_, in_,
                                    grad_outputs=torch.ones_like(out_, dtype=torch.float32),
                                    retain_graph=True)
@@ -89,10 +89,10 @@ class LargeMarginLoss:
         """Compute the Large Margin loss.
 
         Args:
-            logits (Tensor): output of Network before softmax
-            onehot_labels (Tensor): One-hot shaped label
-            feature_maps (list of Tensor): Target feature maps(Layer of NN) want to enforcing by
-                Large Margin
+            logits (Tensor): output of network *before* softmax
+            onehot_labels (Tensor): One-hot encoded label.
+            feature_maps (list of Tensor): Target feature maps (i.e., output of a layer of the
+                model) want to enforcing by Large Margin.
 
         Returns:
             loss:  Large Margin loss
@@ -123,6 +123,7 @@ class LargeMarginLoss:
                 dist_to_boundary, _ = dist_to_boundary.min(dim=1)
             elif self.agg_fun == "avg":
                 dist_to_boundary = dist_to_boundary.mean(dim=1)
+            # else "all"
 
             loss_layer = _max_with_relu(dist_to_boundary, self.dist_lower)
             loss_layer = _max_with_relu(0, self.dist_upper - loss_layer) - self.dist_upper
@@ -130,7 +131,8 @@ class LargeMarginLoss:
         return loss.mean()
 
     def __str__(self):
-        return "LargeMarginLoss()"
+        return f"LargeMarginLoss(gamma={self.dist_upper}, alpha={self.alpha}, top_k={self.top_k}, "\
+            f"dist_norm={self.dual_norm}, epsilon={self.eps}, agg_fun={self.agg_fun})"
 
     def __repr__(self) -> str:
         return self.__str__()
@@ -216,7 +218,7 @@ class FedOptMargin(FedOpt, FedAVGMargin):
 
 
 # SCAFFOLD + FedMargin
-class SCAFFOLDMarginClient(SCAFFOLDClient):
+class SCAFFOLDMarginClient(SCAFFOLDClient, FedMarginClient):
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
@@ -238,8 +240,9 @@ class SCAFFOLDMarginClient(SCAFFOLDClient):
                 self.optimizer.zero_grad()
                 feature_maps = self.model.encoder(X)
                 y_hat = self.model.head(feature_maps)
-                loss = self.hyper_params.loss_fn(y_hat, y) + 0.2 * \
-                    LargeMarginLoss()(y_hat, y, [feature_maps])
+                lam = self.hyper_params.margin_lam
+                loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
+                    lam * LargeMarginLoss()(y_hat, y, [feature_maps])
                 loss.backward()
                 self.optimizer.step(self.server_control, self.control)
             self.scheduler.step()
@@ -340,7 +343,7 @@ class FedProxMarginClient(FedProxClient, FedMarginClient):
                 feature_maps = self.model.encoder(X)
                 y_hat = self.model.head(feature_maps)
                 lam = self.hyper_params.margin_lam
-                loss = (1 - lam) * (self.hyper_params.loss_fn(
+                loss = (1. - lam) * (self.hyper_params.loss_fn(
                     y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)) + \
                     lam * LargeMarginLoss()(y_hat, one_hot_y, [feature_maps])
                 loss.backward()

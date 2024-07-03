@@ -74,4 +74,4 @@ Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. No Fear of He
 Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu. Tackling Data Heterogeneity in Federated Learning with Class Prototypes. AAAI 2023. URL: https://arxiv.org/abs/2212.02758
 
 <a id="25">[FedHP 2024]</a>
-Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype Learning. Submitted to ESANN 2024
+Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype Learning. In: ESANN 2024 (to appear)
