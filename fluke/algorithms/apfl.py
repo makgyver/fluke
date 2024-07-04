@@ -33,7 +33,9 @@ class APFLClient(PFLClient):
                  local_epochs: int = 3,
                  lam: float = 0.25,
                  **kwargs):
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.internal_model = deepcopy(model)

@@ -33,7 +33,9 @@ class FedAMPClient(PFLClient):
                  local_epochs: int,
                  lam: float,
                  **kwargs):
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)
         # self.personalized_model = u_model
