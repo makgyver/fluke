@@ -74,13 +74,9 @@ class FedNHClient(PFLClient):
                  n_protos: int,
                  proto_norm: bool = True,
                  **kwargs):
-        super().__init__(index,
-                         ProtoNet(model, n_protos, proto_norm),
-                         train_set,
-                         test_set,
-                         optimizer_cfg,
-                         CrossEntropyLoss(),
-                         local_epochs)
+        super().__init__(index=index, model=ProtoNet(model, n_protos, proto_norm),
+                         train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
+                         loss_fn=CrossEntropyLoss(), local_epochs=local_epochs, **kwargs)
         self.hyper_params.update(
             n_protos=n_protos,
             proto_norm=proto_norm

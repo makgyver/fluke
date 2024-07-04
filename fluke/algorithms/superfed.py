@@ -39,7 +39,9 @@ class SuPerFedClient(PFLClient):
                  **kwargs):
         assert mode in ["mm", "lm"]
 
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(
             mode=mode,
             start_mix=start_mix,

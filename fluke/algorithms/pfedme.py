@@ -51,7 +51,9 @@ class PFedMeClient(PFLClient):
                  k: int,
                  **kwargs):
 
-        super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=None, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(k=k)
 
     def receive_model(self) -> None:

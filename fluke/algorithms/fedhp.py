@@ -82,8 +82,9 @@ class FedHPClient(PFLClient):
                  n_protos: int,
                  lam: float,
                  **kwargs):
-        super().__init__(index, ProtoNet(model, n_protos), train_set,
-                         test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=ProtoNet(model, n_protos), train_set=train_set,
+                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
+                         local_epochs=local_epochs, **kwargs)
         self.hyper_params.update(n_protos=n_protos, lam=lam)
         self.model = self.personalized_model
         self.initial_prototypes = None

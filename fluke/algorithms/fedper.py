@@ -34,8 +34,9 @@ class FedPerClient(PFLClient):
                  loss_fn: Callable,
                  local_epochs: int = 3,
                  **kwargs):
-        super().__init__(index, EncoderGlobalHeadLocalNet(model),
-                         train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=EncoderGlobalHeadLocalNet(model),
+                         train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
+                         loss_fn=loss_fn, local_epochs=local_epochs, **kwargs)
 
     def send_model(self):
         self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
