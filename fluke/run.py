@@ -89,13 +89,18 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
 @app.command()
 def federation(alg_cfg: str = typer.Argument(...,
-                                             help='Config file for the algorithm to run')) -> None:
+                                             help='Config file for the algorithm to run'),
+               seed: int = typer.Option(None, help='Seed for reproducibility.')) -> None:
     """Run a federated learning experiment.
 
     Args:
         alg_cfg (str): Configuration file for the algorithm to run.
+        seed (int, optional): Seed for reproducibility, defaults to None. If None, the seed
+            is taken from the configuration file.
     """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
+    if seed is not None:
+        cfg.exp.seed = seed
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
     data_container = Datasets.get(**cfg.data.dataset)
