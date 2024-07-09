@@ -358,3 +358,27 @@ class Server(ObserverSubject):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def save(self, path: str) -> None:
+        """Save the server to a file.
+
+        Args:
+            path (str): The path to save the server.
+        """
+        state = {
+            "model": self.model.state_dict(),
+            "rounds": self.rounds,
+            "participants": self._participants
+        }
+        torch.save(state, path)
+
+    def load(self, path: str) -> None:
+        """Load the server from a file.
+
+        Args:
+            path (str): The path to load the server.
+        """
+        state = torch.load(path)
+        self.model.load_state_dict(state["model"])
+        self.rounds = state["rounds"]
+        self._participants = set(state["participants"])

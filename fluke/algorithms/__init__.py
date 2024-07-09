@@ -196,6 +196,22 @@ class CentralizedFL():
     def __repr__(self) -> str:
         return self.__str__()
 
+    def save(self, path: str):
+        """Save the algorithm state to a file.
+
+        Args:
+            path (str): Path to the file where the algorithm state will be saved.
+        """
+        self.server.save(path)
+
+    def load(self, path: str):
+        """Load the algorithm state from a file.
+
+        Args:
+            path (str): Path to the file where the algorithm state is saved.
+        """
+        self.server.load(path)
+
 
 class PersonalizedFL(CentralizedFL):
     """Personalized Federated Learning algorithm. This class is a simple extension of the
