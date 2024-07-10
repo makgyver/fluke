@@ -757,6 +757,9 @@ class AllLayerOutputModel(nn.Module):
             self.activations_out[name] = output.detach()
         return hook
 
+    def forward(self, x):
+        return self.model(x)
+
 
 # if __name__ == "__main__":
 #     from fluke.nets import MNIST_2NN
