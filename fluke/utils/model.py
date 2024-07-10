@@ -27,7 +27,9 @@ __all__ = [
     "get_global_model_dict",
     "mix_networks",
     "batch_norm_to_group_norm",
-    "safe_load_state_dict"
+    "safe_load_state_dict",
+    "check_model_fit_mem",
+    "AllLayerOutputModel"
 ]
 
 STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
@@ -601,3 +603,196 @@ def batch_norm_to_group_norm(layer: Module) -> Module:
                 sub_layer = batch_norm_to_group_norm(sub_layer)
                 layer.__setattr__(name=name, value=sub_layer)
     return layer
+
+
+def check_model_fit_mem(model: torch.Tensor,
+                        input_size: tuple[int, ...],
+                        num_clients: int,
+                        device: str = 'cuda',
+                        mps_default: bool = True):
+    """Check if the models fit in the memory of the device.
+    The method estimates the memory usage of the models, when all clients and the server own a
+    single neural network, on the device and checks if the models fit in the memory of the device.
+
+    Attention:
+        This function only works for CUDA devices. For MPS devices, the function will
+        always return the value of ``mps_default``. To date, PyTorch does not provide
+        a way to estimate the memory usage of a model on an MPS device.
+
+    Args:
+        model (torch.Tensor): The model to check.
+        input_size (tuple[int, ...]): The input size of the model.
+        num_clients (int): The number of clients in the federation.
+        device (str, optional): The device to check. Defaults to 'cuda'.
+        mps_default (bool, optional): The default value to return if the device is MPS.
+    """
+
+    # Ensure the device is available
+    assert device in ["cuda", "mps"] or device.startswith("cuda:"), \
+        "Invalid argument 'device'. Must be 'cuda', 'mps' or 'cuda:<device_id>'."
+
+    if device == "mps" and not torch.backends.mps.is_available():
+        raise RuntimeError("MPS is not available.")
+    elif not torch.cuda.is_available():
+        raise RuntimeError(f"CUDA is not available on device: {device}")
+
+    if device == "mps":
+        return mps_default
+    else:
+        return _check_model_fit_mem_cuda(model, input_size, num_clients, device)
+
+
+def _check_model_fit_mem_cuda(model: torch.Tensor,
+                              input_size: tuple[int, ...],
+                              num_clients: int,
+                              device: torch.device):
+
+    # Get the current CUDA device
+    cuda_device = torch.device(device)
+
+    # Get the free memory in bytes
+    free_mem = torch.cuda.mem_get_info(cuda_device.index)[0]
+    # current_allocation = torch.cuda.memory_allocated(cuda_device)
+    current_reserved = torch.cuda.memory_reserved(cuda_device)
+
+    # Transfer the model to CUDA
+    model = model.to(cuda_device)
+
+    # Estimate the model memory
+    # param_memory = sum(p.numel() * p.element_size() for p in model.parameters())
+
+    # Create a dummy input tensor with the specified size
+    dummy_input = torch.randn(*input_size, device=cuda_device)
+
+    # Forward pass to estimate memory for activations
+    with torch.no_grad():
+        model(dummy_input)
+
+    # Get the current GPU memory allocated and cached
+    # allocated_mem = torch.cuda.memory_allocated(cuda_device)
+    reserved_mem = torch.cuda.memory_reserved(cuda_device)
+
+    # Total estimated memory usage
+    total_estimated_mem = (num_clients + 1) * (reserved_mem - current_reserved)
+
+    # Compare the total estimated memory with the free memory
+    return total_estimated_mem <= free_mem
+
+
+def _recursive_register_hook(module: Module, hook: callable, name: str = "", handles: list = None):
+    named_modules = module.named_children()
+    empty = True
+    if handles is None:
+        handles = []
+    for n, sub_module in named_modules:
+        empty = False
+        current_name = name + "." + n if name else n
+        leaf = _recursive_register_hook(sub_module, hook, current_name, handles)
+        if leaf:
+            handles.append(sub_module.register_forward_hook(hook(current_name)))
+    return empty
+
+
+class AllLayerOutputModel(nn.Module):
+    """Wrapper class to get the output of all layers in a model.
+    Once the model is wrapped with this class, the activations of all layers can be accessed through
+    the attributes ``activations_in`` and ``activations_out``.
+
+    ``activations_in`` is a dictionary that contains the input activations of all layers.
+    ``activations_out`` is a dictionary that contains the output activations of all layers.
+
+    Note:
+        The activations are stored in the order in which they are computed during the forward pass.
+
+    Important:
+        If you need to access the activations of a specific layer after a potential activation
+        function, you should use the ``activations_in`` of the next layer. For example, if you
+        need the activations of the first layer after the ReLU activation, you should use the
+        activations_in of the second layer. These attribute may not include the activations of the
+        last layer if it includes an activation function.
+
+    Important:
+        If your model includes as submodule all the activations functions (e.g., of type
+        torch.nn.ReLU), then you can use the ``activations_out`` attribute to get all the
+        activations (i.e., before and after the activation functions).
+
+    Attributes:
+        model (torch.nn.Module): The model to wrap.
+        activations_in (OrderedDict): The input activations of all layers.
+        activations_out (OrderedDict): The output activations of all layers.
+    """
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+        self.activations_in = OrderedDict()
+        self.activations_out = OrderedDict()
+        self._handles = []
+        self.activate()
+
+    def is_active(self) -> bool:
+        """Returns whether the all layer output model is active.
+
+        Returns:
+            bool: Whether the all layer output model is active.
+        """
+        return bool(self._handles)
+
+    def activate(self) -> None:
+        """Activate the all layer output functionality."""
+        _recursive_register_hook(self.model, self._get_activation, handles=self._handles)
+
+    def deactivate(self, clear_activations: bool = True) -> None:
+        """Deactivate the all layer output functionality."""
+        for h in self._handles:
+            h.remove()
+        self._handles = []
+        if clear_activations:
+            self.activations_in = OrderedDict()
+            self.activations_out = OrderedDict()
+
+    def _get_activation(self, name):
+        def hook(model, input, output):
+            self.activations_in[name] = input[0].detach()
+            self.activations_out[name] = output.detach()
+        return hook
+
+
+# if __name__ == "__main__":
+#     from fluke.nets import MNIST_2NN
+#     from fluke.data.datasets import Datasets
+#     from fluke.data import FastDataLoader
+#     model = MNIST_2NN(softmax=True)
+#     model_all = AllLayerOutputModel(model)
+#     data = Datasets.MNIST()
+#     dl = FastDataLoader(*data.train, num_labels=10, batch_size=2, shuffle=True)
+
+#     yy = None
+#     for x, y in dl:
+#         model_all.model(x)
+#         yy = model(x)
+#         break
+
+#     print(model_all.activations_in.keys())
+#     print()
+#     print(model_all.activations_out.keys())
+
+#     print(yy)
+
+#     model_all.deactivate()
+#     for x, y in dl:
+#         model_all.model(x)
+#         break
+
+#     print(model_all.activations_in.keys())
+#     print()
+#     print(model_all.activations_out.keys())
+
+#     model_all.activate()
+#     for x, y in dl:
+#         model_all.model(x)
+#         break
+
+#     print(model_all.activations_in.keys())
+#     print()
+#     print(model_all.activations_out.keys())

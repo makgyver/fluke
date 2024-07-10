@@ -29,6 +29,7 @@ Classes included in ``fluke.utils.model``
    LinesLSTM
    LinesEmbedding
    LinesBN2d
+   AllLayerOutputModel
 
 ```
 
@@ -54,7 +55,8 @@ Functions included in ``fluke.utils.model``
    mix_networks
    batch_norm_to_group_norm
    safe_load_state_dict
-
+   check_model_fit_mem
+   
 ```
 
 
@@ -140,6 +142,21 @@ Functions included in ``fluke.utils.model``
 ```{eval-rst}
 
 .. autoclass:: fluke.utils.model.LinesBN2d
+   :members:
+   :show-inheritance:
+
+```
+
+
+<h3>
+
+{bdg-primary}`class` ``fluke.utils.model.AllLayerOutputModel``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.utils.model.AllLayerOutputModel
    :members:
    :show-inheritance:
 
