@@ -119,7 +119,11 @@ class Server(ObserverSubject):
         """
         self._channel.broadcast(Message(self.model, "model", self), eligible)
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
+    def fit(self,
+            n_rounds: int = 10,
+            eligible_perc: float = 0.1,
+            finalize: bool = True,
+            **kwargs) -> None:
         """Run the federated learning algorithm.
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to
@@ -132,6 +136,9 @@ class Server(ObserverSubject):
             n_rounds (int, optional): The number of rounds to run. Defaults to 10.
             eligible_perc (float, optional): The percentage of clients that will be selected for
               each round. Defaults to 0.1.
+            finalize (bool, optional): If True, the server will finalize the federated learning
+                process. Defaults to True.
+            **kwargs: Additional keyword arguments.
         """
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
@@ -165,7 +172,8 @@ class Server(ObserverSubject):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
-        self.finalize()
+        if finalize:
+            self.finalize()
 
     def evaluate(self) -> dict[str, float]:
         """Evaluate the global federated model on the ``test_set``.

@@ -58,7 +58,7 @@ class FedRelativeServer(Server):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(n_anchors_class=n_anchors_class)
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
+    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
         # Select random anchors from test set. n_anchors per class
         X, y = self.test_data.tensors
         anch_X, anch_y = None, None
@@ -74,7 +74,7 @@ class FedRelativeServer(Server):
         self.anchors = anch_X
         # Anchors are sent with the model
         self.model = RelativeProjectionModel(self.model, self.anchors)
-        super().fit(n_rounds, eligible_perc)
+        super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
 
 class FedRelative(CentralizedFL):
