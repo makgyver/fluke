@@ -20,7 +20,15 @@ class RelativeProjectionModel(nn.Module):
         self.model = model
         self.anchors = anchors
         self.relative_linear = nn.Linear(
-            anchors.shape[0], self.model.encoder.output_size, bias=False)
+            self.model.encoder.output_size, anchors.shape[0], bias=False)
+        
+        for layer in self.model.head.children():
+            if isinstance(layer, nn.Linear):
+                right_shape = layer.state_dict()['weight'].shape[1]
+                break
+
+        self.bridge_layer = nn.Linear(
+            anchors.shape[0], right_shape, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         Z = self.model.encoder(x)
@@ -29,8 +37,10 @@ class RelativeProjectionModel(nn.Module):
             H = self.model.encoder(self.anchors)
             H = F.normalize(H, p=2, dim=0)
             self.relative_linear.weight.copy_(H)
+        
         dotZH = self.relative_linear(Z)
-        return self.model.head(dotZH)
+        x = self.bridge_layer(dotZH)
+        return self.model.head(x)
 
     def to(self, *args, **kwargs):
         self.anchors = self.anchors.to(*args, **kwargs)
