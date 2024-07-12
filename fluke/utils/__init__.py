@@ -651,9 +651,9 @@ class Configuration(DDict):
 
     def __str__(self) -> str:
         return f"{self.method.name}_data({self.data.dataset.name}, " + \
-               f"{self.data.distribution.name}" + \
-               f"{',std' if self.data.standardize else ''})" + \
-               f"_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}," + \
+               f"{self.data.distribution.name}(" + \
+               ", ".join([f"{k}={v}" for k, v in self.data.distribution.exclude('name').items()]) +\
+               f"))_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}, " + \
                f"E{self.protocol.eligible_perc})" + \
                f"_seed({self.exp.seed})"
 
