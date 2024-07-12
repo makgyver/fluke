@@ -59,21 +59,22 @@ class FedRelativeServer(Server):
         self.hyper_params.update(n_anchors_class=n_anchors_class)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
-        # Select random anchors from test set. n_anchors per class
-        X, y = self.test_data.tensors
-        anch_X, anch_y = None, None
-        for c in set(y.tolist()):
-            idx = torch.where(y == c)[0]
-            idx = idx[torch.randperm(idx.size(0))[:self.hyper_params.n_anchors_class]]
-            if anch_X is None:
-                anch_X, anch_y = X[idx], y[idx]
-            else:
-                anch_X = torch.cat((anch_X, X[idx]), dim=0)
-                anch_y = torch.cat((anch_y, y[idx]), dim=0)
+        if self.rounds == 0:
+            # Select random anchors from test set. n_anchors per class
+            X, y = self.test_data.tensors
+            anch_X, anch_y = None, None
+            for c in set(y.tolist()):
+                idx = torch.where(y == c)[0]
+                idx = idx[torch.randperm(idx.size(0))[:self.hyper_params.n_anchors_class]]
+                if anch_X is None:
+                    anch_X, anch_y = X[idx], y[idx]
+                else:
+                    anch_X = torch.cat((anch_X, X[idx]), dim=0)
+                    anch_y = torch.cat((anch_y, y[idx]), dim=0)
 
-        self.anchors = anch_X
-        # Anchors are sent with the model
-        self.model = RelativeProjectionModel(self.model, self.anchors)
+            self.anchors = anch_X
+            # Anchors are sent with the model
+            self.model = RelativeProjectionModel(self.model, self.anchors)
         super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
 
