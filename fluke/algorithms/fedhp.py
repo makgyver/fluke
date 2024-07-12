@@ -153,8 +153,10 @@ class FedHPServer(Server):
         # self.prototypes = None
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True):
-        self.model.prototypes.data = self._hyperspherical_embedding()
-        self.channel.broadcast(Message(self.model.prototypes.data, "protos", self), self.clients)
+        if self.rounds == 0:
+            self.model.prototypes.data = self._hyperspherical_embedding()
+            self.channel.broadcast(Message(self.model.prototypes.data,
+                                   "protos", self), self.clients)
         return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
     def _hyperspherical_embedding(self, seed: int = 0):

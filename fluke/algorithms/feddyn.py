@@ -149,19 +149,20 @@ class FedDynServer(Server):
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True):
 
-        # Weight computation
-        for client in self.clients:
-            client._send_weight()
+        if self.rounds == 0:
+            # Weight computation
+            for client in self.clients:
+                client._send_weight()
 
-        weights = np.array([self.channel.receive(
-            self, client, msg_type="weight").payload for client in self.clients])
-        weights = weights / np.sum(weights) * self.n_clients
+            weights = np.array([self.channel.receive(
+                self, client, msg_type="weight").payload for client in self.clients])
+            weights = weights / np.sum(weights) * self.n_clients
 
-        for i, client in enumerate(self.clients):
-            self.channel.send(Message(weights[i], "weight", self), client)
+            for i, client in enumerate(self.clients):
+                self.channel.send(Message(weights[i], "weight", self), client)
 
-        for client in self.clients:
-            client._receive_weights()
+            for client in self.clients:
+                client._receive_weights()
 
         return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
