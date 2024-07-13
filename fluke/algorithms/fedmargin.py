@@ -45,7 +45,7 @@ class LargeMarginLoss:
         alpha_factor (float): Factor to determine the lower bound of margin.
             Both gamma and alpha_factor determine points to include in training
             the margin these points lie with distance to boundary of [gamma * (1 - alpha), gamma]
-        top_k (int):Number of top classes to include in the margin loss.
+        top_k (int): Number of top classes to include in the margin loss.
         dist_norm (1, 2, np.inf): Distance to boundary defined on norm
         epslion (float): Small number to avoid division by 0.
         use_approximation (bool):
@@ -63,14 +63,14 @@ class LargeMarginLoss:
     def __init__(self,
                  gamma: float = 10000.0,
                  alpha_factor: float = 4.0,
-                 top_k: int = 1,  # not sure about this
+                 top_k: int = 1,
                  dist_norm: Literal[1, 2, "inf"] = 2,
                  epsilon: float = 1e-8,
                  agg_fun: str = "avg"):
 
-        assert dist_norm in [1, 2, np.inf, "inf"], "dist_norm should be 1, 2, or np.inf"
-        assert agg_fun in ["min", "avg", "all"], "agg_fun should be 'min', 'avg', or 'all'"
-        assert top_k > 0, "top_k should be positive integer"
+        assert dist_norm in [1, 2, np.inf, "inf"], "dist_norm must be 1, 2, or np.inf"
+        assert agg_fun in ["min", "avg", "all"], "agg_fun must be 'min', 'avg', or 'all'"
+        assert top_k > 0, "top_k must be a positive integer"
 
         self.dist_upper = gamma
         self.dist_lower = gamma * (1.0 - alpha_factor)
