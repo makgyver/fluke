@@ -21,11 +21,15 @@ class RelativeProjectionModel(nn.Module):
         self.anchors = anchors
         self.relative_linear = nn.Linear(
             self.model.encoder.output_size, anchors.shape[0], bias=False)
-        
+
+        right_shape = None
         for layer in self.model.head.children():
             if isinstance(layer, nn.Linear):
                 right_shape = layer.state_dict()['weight'].shape[1]
                 break
+
+        if right_shape is None:
+            raise ValueError("No linear layer found in the head of the model.")
 
         self.bridge_layer = nn.Linear(
             anchors.shape[0], right_shape, bias=False)
@@ -37,7 +41,7 @@ class RelativeProjectionModel(nn.Module):
             H = self.model.encoder(self.anchors)
             H = F.normalize(H, p=2, dim=0)
             self.relative_linear.weight.copy_(H)
-        
+
         dotZH = self.relative_linear(Z)
         x = self.bridge_layer(dotZH)
         return self.model.head(x)
