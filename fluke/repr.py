@@ -73,6 +73,9 @@ def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorit
         -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
+    if n_clients == 0:
+        cfg.protocol.n_clients = n_clients
+
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
     data_container = Datasets.get(**cfg.data.dataset)
@@ -82,7 +85,7 @@ def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorit
                                  **cfg.data.exclude('dataset', 'distribution'))
 
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
-    fl_algo = fl_algo_class(cfg.protocol.n_clients if n_clients == 0 else n_clients,
+    fl_algo = fl_algo_class(cfg.protocol.n_clients,
                             data_splitter,
                             cfg.method.hyperparameters)
 
@@ -168,10 +171,11 @@ def analyze(folder: str = typer.Argument(..., help='Folder containing \
                                          the results to analyze')) -> None:
     # load the results
     files = os.listdir(folder)
-    files = OrderedDict({int(f.split(".")[-2].split("_R")[-1]): f for f in files})
+    files = {int(f.split(".")[-2].split("_R")[-1]): f for f in files}
 
-    for k, v in files.items():
-        rich.print(f"Round: {k}")
+    for k in sorted(list(files.keys())):
+        v = files[k]
+        rich.print(f"Round: {k+1}")
         data = torch.load(f"{folder}/{v}")
         repr_clients = data['repr_clients']
         # norm_clients = data['norm_clients']
