@@ -1,5 +1,4 @@
 """`fluke` command line interface."""
-from collections import OrderedDict
 from .utils.model import AllLayerOutputModel
 from rich.pretty import Pretty
 from rich.panel import Panel
