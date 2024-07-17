@@ -1,4 +1,5 @@
 """`fluke` command line interface."""
+from collections import OrderedDict
 from .utils.model import AllLayerOutputModel
 from rich.pretty import Pretty
 from rich.panel import Panel
@@ -10,7 +11,7 @@ import torch
 from copy import deepcopy
 import sys
 import os
-import uuid
+import time
 sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
@@ -23,6 +24,28 @@ app = typer.Typer()
 
 # CONST
 CONFIG_FNAME = ""
+
+
+def linear_CKA(X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
+    # ||X.T Y||_F / (||X.T X||_F * ||Y.T Y||_F)
+    # compute the gram matrix
+    X_gram = X @ X.T
+    Y_gram = Y @ Y.T
+    XY_gram = X @ Y.T
+    # centralize the gram matrix
+    # H = I - 1/n 11^T
+    # Kc = H K H
+    n = X_gram.shape[0]
+    I_n = torch.eye(n, device=X.device)
+    H = I_n - torch.ones(n, n, device=X.device) / n
+    X_gram = H @ X_gram @ H
+    Y_gram = H @ Y_gram @ H
+    XY_gram = H @ XY_gram @ H
+    # compute the norms
+    X_norm = torch.norm(X_gram, p='fro')
+    Y_norm = torch.norm(Y_gram, p='fro')
+    XY_norm = torch.norm(XY_gram, p='fro') ** 2
+    return XY_norm / (X_norm * Y_norm)
 
 
 def _sample_data(X: torch.Tensor,
@@ -42,10 +65,12 @@ def _sample_data(X: torch.Tensor,
 
 
 @app.command()
-def analysis(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
-             filename: str = typer.Argument(..., help='Filename template to save the results'),
-             n_clients: int = typer.Option(0, help='Number of clients to run'),
-             sample_class: int = typer.Option(5, help='Number of samples per class')) -> None:
+def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+            filename: str = typer.Argument(..., help='Filename template to save the results'),
+            n_clients: int = typer.Option(0, help='Number of clients to run'),
+            sample_class: int = typer.Option(5, help='Number of samples per class'),
+            use_kernel: bool = typer.Option(False, help='Use kernel CKA instead of linear CKA')) \
+        -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -82,7 +107,8 @@ def analysis(alg_cfg: str = typer.Argument(..., help='Config file for the algori
         ycnt = {i: int(ycnt[i]) for i in range(ycnt.size(0))}
         dists.append(ycnt)
 
-    exp_id = str(uuid.uuid4())
+    # exp_id = str(uuid.uuid4())
+    exp_id = ".".join(str(cfg).split(".")[3:]) + "_" + time.strftime("%Y%m%dh%H%M%S")
     if not os.path.exists(f"repr_results/{exp_id}"):
         os.makedirs(f"repr_results/{exp_id}")
 
@@ -104,16 +130,30 @@ def analysis(alg_cfg: str = typer.Argument(..., help='Config file for the algori
                 if layers is None:
                     layers = tuple(cmodel.activations_in.keys())
 
-                for ik, (k, v) in enumerate(cmodel.activations_in.items()):
-                    if ik == 0:
+                for ik, (_, v) in enumerate(cmodel.activations_in.items()):
+
+                    if ik == 0 or len(v.shape) > 2:
                         continue
-                    if k not in repr_clients[i]:
+
+                    if layers[ik - 1] not in repr_clients[i]:
                         repr_clients[i][layers[ik - 1]] = []
                         norm_clients[i][layers[ik - 1]] = []
-                    repr_clients[i][layers[ik - 1]].append(torch.mm(v, v.t()))
+                    if use_kernel:
+                        repr_clients[i][layers[ik - 1]].append(torch.mm(v, v.t()))
+                    else:
+                        repr_clients[i][layers[ik - 1]].append(v)
                     norm_clients[i][layers[ik - 1]].append(torch.norm(v, dim=1))
-                repr_clients[i][layers[-1]] = output.detach()
-                norm_clients[i][layers[-1]] = torch.norm(output.detach(), dim=1)
+
+                # last layer
+                if not layers[-1] in repr_clients[i]:
+                    repr_clients[i][layers[-1]] = []
+                    norm_clients[i][layers[-1]] = []
+                v = output.detach()
+                if use_kernel:
+                    repr_clients[i][layers[-1]].append(torch.mm(v, v.t()))
+                else:
+                    repr_clients[i][layers[-1]].append(v)
+                norm_clients[i][layers[-1]].append(torch.norm(v, dim=1))
 
         fname = f"repr_results/{exp_id}/{noext}_R{i}.{ext}"
         torch.save({
@@ -121,6 +161,33 @@ def analysis(alg_cfg: str = typer.Argument(..., help='Config file for the algori
             'norm_clients': norm_clients[i],
             'dists': dists
         }, fname)
+
+
+@app.command()
+def analyze(folder: str = typer.Argument(..., help='Folder containing \
+                                         the results to analyze')) -> None:
+    # load the results
+    files = os.listdir(folder)
+    files = OrderedDict({int(f.split(".")[-2].split("_R")[-1]): f for f in files})
+
+    for k, v in files.items():
+        rich.print(f"Round: {k}")
+        data = torch.load(f"{folder}/{v}")
+        repr_clients = data['repr_clients']
+        # norm_clients = data['norm_clients']
+        # dists = data['dists']
+        # compute the similarity
+        layers_sim = []
+        for layer, reprs in repr_clients.items():
+            rich.print(f"Layer: {layer}")
+            # compute the similarity
+            layer_sim = []
+            for c1 in range(len(reprs)):
+                for c2 in range(c1+1, len(reprs)):
+                    layer_sim.append(linear_CKA(reprs[c1], reprs[c2]))
+            layers_sim.append(torch.mean(torch.tensor(layer_sim)))
+            # rich.print(f"Layer: {layer}")
+            rich.print(f"Similarity: {layers_sim[-1]}\n")
 
 
 @ app.callback()

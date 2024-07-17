@@ -720,6 +720,9 @@ class AllLayerOutputModel(nn.Module):
         model (torch.nn.Module): The model to wrap.
         activations_in (OrderedDict): The input activations of all layers.
         activations_out (OrderedDict): The output activations of all layers.
+
+    Args:
+        model (torch.nn.Module): The model to wrap.
     """
 
     def __init__(self, model: nn.Module):
@@ -741,6 +744,8 @@ class AllLayerOutputModel(nn.Module):
     def activate(self) -> None:
         """Activate the all layer output functionality."""
         _recursive_register_hook(self.model, self._get_activation, handles=self._handles)
+        # for layer in self.model.modules():
+        #     self._handles.append(layer.register_forward_hook(self._get_activation(layer)))
 
     def deactivate(self, clear_activations: bool = True) -> None:
         """Deactivate the all layer output functionality."""
@@ -753,8 +758,12 @@ class AllLayerOutputModel(nn.Module):
 
     def _get_activation(self, name):
         def hook(model, input, output):
-            self.activations_in[name] = input[0].detach()
-            self.activations_out[name] = output.detach()
+            # print(name)
+            # print(input[0].shape)
+            # print(output.shape)
+            if name not in self.activations_in:
+                self.activations_in[name] = input[0].detach()
+                self.activations_out[name] = output.detach()
         return hook
 
     def forward(self, x):
