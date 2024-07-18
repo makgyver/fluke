@@ -167,10 +167,11 @@ class FedMarginClient(Client):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 one_hot_y = torch.zeros(len(y),
-                                        self.train_set.num_labels).scatter_(1,
-                                                                            y.unsqueeze(1),
-                                                                            1.).float()
-                one_hot_y = one_hot_y.to(self.device)
+                                        self.train_set.num_labels,
+                                        device=self.device).scatter_(1,
+                                                                     y.unsqueeze(1),
+                                                                     1.).float()
+                # one_hot_y = one_hot_y.to(self.device)
                 self.optimizer.zero_grad()
                 feature_maps = self.model.encoder(X)
                 y_hat = self.model.head(feature_maps)
