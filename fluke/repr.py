@@ -65,14 +65,14 @@ def _sample_data(X: torch.Tensor,
 
 @app.command()
 def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
-            filename: str = typer.Argument(..., help='Filename template to save the results'),
+            # filename: str = typer.Argument(..., help='Filename template to save the results'),
             n_clients: int = typer.Option(0, help='Number of clients to run'),
             sample_class: int = typer.Option(5, help='Number of samples per class'),
             use_kernel: bool = typer.Option(False, help='Use kernel CKA instead of linear CKA')) \
         -> None:
 
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    if n_clients == 0:
+    if n_clients != 0:
         cfg.protocol.n_clients = n_clients
 
     GlobalSettings().set_seed(cfg.exp.seed)
@@ -116,10 +116,6 @@ def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorit
 
     rich.print(f"\nSaving files into the folder 'repr_results/{exp_id}'")
 
-    splitted = filename.split(".")
-    noext = "".join(splitted[:-1])
-    ext = splitted[-1]
-
     layers = None
     for i in range(cfg.protocol.n_rounds):
         fl_algo.run(n_rounds=1, eligible_perc=1, finalize=False)
@@ -157,7 +153,7 @@ def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorit
                     repr_clients[i][layers[-1]].append(v)
                 norm_clients[i][layers[-1]].append(torch.norm(v, dim=1))
 
-        fname = f"repr_results/{exp_id}/{noext}_R{i}.{ext}"
+        fname = f"repr_results/{exp_id}/R{i}.pth"
         torch.save({
             'repr_clients': repr_clients[i],
             'norm_clients': norm_clients[i],

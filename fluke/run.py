@@ -101,6 +101,7 @@ def federation(alg_cfg: str = typer.Argument(...,
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     if seed is not None:
         cfg.exp.seed = seed
+
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
     data_container = Datasets.get(**cfg.data.dataset)
