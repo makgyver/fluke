@@ -1383,11 +1383,13 @@ class CifarConv2_Margin(nn.Module):
         self.linear2 = nn.Linear(512, self.output_size)
         self.bn3 = nn.BatchNorm1d(512)
 
-    def forward(self, x):
+    def forward(self, x, all_layers=False):
         x1 = self.pool(F.relu(self.bn1(self.conv1(x))))
         x2 = self.pool(F.relu(self.bn2(self.conv2(x1))))
         # x1 = x1.view(-1, 64 * 14 * 14)
         x2 = x2.view(-1, 64 * 5 * 5)
         x3 = F.relu(self.bn3(self.linear1(x2)))
         logits = self.linear2(x3)
-        return logits, [x2, x3]
+        if all_layers:
+            return logits, [x1, x2, x3]
+        return logits
