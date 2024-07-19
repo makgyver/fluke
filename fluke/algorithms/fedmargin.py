@@ -174,7 +174,7 @@ class FedMarginClient(Client):
                 # one_hot_y = one_hot_y.to(self.device)
                 self.optimizer.zero_grad()
                 # feature_maps = self.model.encoder(X)
-                y_hat, feature_maps = self.model(X)
+                y_hat, feature_maps = self.model(X, all_layers=True)
                 lam = self.hyper_params.margin_lam
                 loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
                     lam * LargeMarginLoss()(y_hat, one_hot_y, feature_maps)
