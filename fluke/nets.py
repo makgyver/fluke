@@ -475,9 +475,9 @@ class CifarConv2_E(nn.Module):
         - :class:`CifarConv2_D`
     """
 
-    def __init__(self, output_size=1600):
+    def __init__(self):  # , output_size: int = 1600):
         super().__init__()
-        self.output_size = output_size
+        self.output_size = 1600
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
         self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
@@ -507,10 +507,10 @@ class CifarConv2_D(nn.Module):
         - :class:`CifarConv2_E`
     """
 
-    def __init__(self, input_size=100, num_classes=10):
+    def __init__(self):
         super().__init__()
-        self.input_size = input_size
-        self.output_size = num_classes
+        self.input_size = 1600
+        self.output_size = 10
         # self.linear2 = nn.Linear(self.input_size, self.output_size, bias=False)
         self.linear1 = nn.Linear(self.input_size, 512)
         self.linear2 = nn.Linear(512, self.output_size)
@@ -544,10 +544,8 @@ class CifarConv2(EncoderHeadNet):
             In: AAAI (2023).
     """
 
-    def __init__(self, embedding_size=1600, num_classes=10):
-        super().__init__(CifarConv2_E(embedding_size),
-                         CifarConv2_D(input_size=embedding_size,
-                                      num_classes=num_classes))
+    def __init__(self):
+        super().__init__(CifarConv2_E(), CifarConv2_D())
 
 
 # FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N (MNIST and FEMNIST)
@@ -1369,3 +1367,27 @@ class CNNHyper(nn.Module):
             "fc3.bias": self.l3_bias(features).view(-1),
         })
         return weights
+
+
+class CifarConv2_Margin(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+        self.output_size = 10
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.linear1 = nn.Linear(1600, 512)
+        self.linear2 = nn.Linear(512, self.output_size)
+        self.bn3 = nn.BatchNorm1d(512)
+
+    def forward(self, x):
+        x1 = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x2 = self.pool(F.relu(self.bn2(self.conv2(x1))))
+        # x1 = x1.view(-1, 64 * 14 * 14)
+        x2 = x2.view(-1, 64 * 5 * 5)
+        x3 = F.relu(self.bn3(self.linear1(x2)))
+        logits = self.linear2(x3)
+        return logits, [x2, x3]
