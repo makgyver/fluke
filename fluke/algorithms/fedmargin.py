@@ -233,14 +233,15 @@ class SCAFFOLDMarginClient(SCAFFOLDClient, FedMarginClient):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X = X.to(self.device)
-                one_hot_y = torch.zeros(len(y),
-                                        self.train_set.num_labels).scatter_(1,
-                                                                            y.unsqueeze(1),
-                                                                            1.).float()
-                y = one_hot_y.to(self.device)
+                y = torch.zeros(len(y),
+                                self.train_set.num_labels,
+                                device=self.device).scatter_(1,
+                                                             y.unsqueeze(1),
+                                                             1.).float()
+                # one_hot_y = one_hot_y.to(self.device)
                 self.optimizer.zero_grad()
-                feature_maps = self.model.encoder(X)
-                y_hat = self.model.head(feature_maps)
+                # feature_maps = self.model.encoder(X)
+                y_hat, feature_maps = self.model(X, all_layers=True)
                 lam = self.hyper_params.margin_lam
                 loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
                     lam * LargeMarginLoss()(y_hat, y, [feature_maps])
@@ -336,13 +337,14 @@ class FedProxMarginClient(FedProxClient, FedMarginClient):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 one_hot_y = torch.zeros(len(y),
-                                        self.train_set.num_labels).scatter_(1,
-                                                                            y.unsqueeze(1),
-                                                                            1.).float()
-                one_hot_y = one_hot_y.to(self.device)
+                                        self.train_set.num_labels,
+                                        device=self.device).scatter_(1,
+                                                                     y.unsqueeze(1),
+                                                                     1.).float()
+                # one_hot_y = one_hot_y.to(self.device)
                 self.optimizer.zero_grad()
-                feature_maps = self.model.encoder(X)
-                y_hat = self.model.head(feature_maps)
+                # feature_maps = self.model.encoder(X)
+                y_hat, feature_maps = self.model(X, all_layers=True)
                 lam = self.hyper_params.margin_lam
                 loss = (1. - lam) * (self.hyper_params.loss_fn(
                     y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)) + \
