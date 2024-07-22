@@ -14,6 +14,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import GlobalSettings  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastDataLoader  # NOQA
@@ -139,14 +140,17 @@ class SCAFFOLDServer(Server):
         self.control = [torch.zeros_like(p.data)
                         for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update(global_step=global_step)
+        self.device = GlobalSettings().get_device()
 
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        delta_y = [torch.zeros_like(p.data, device=self.device)
+                   for p in self.model.parameters() if p.requires_grad]
+        delta_c = [torch.zeros_like(p.data, device=self.device)
+                   for p in self.model.parameters() if p.requires_grad]
 
         for client in eligible:
             cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
