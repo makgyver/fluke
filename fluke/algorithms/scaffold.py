@@ -75,12 +75,18 @@ class SCAFFOLDClient(Client):
             safe_load_state_dict(self.model, model.state_dict())
         self.server_control = server_control
 
+    def _move_to(self, control: list[torch.tensor], device: str) -> None:
+        for c in control:
+            c.data = c.data.to(device)
+
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         server_model = deepcopy(self.model)
         self.model.to(self.device)
         self.model.train()
+        self._move_to(self.control, self.device)
+        self._move_to(self.server_control, self.device)
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
@@ -111,6 +117,8 @@ class SCAFFOLDClient(Client):
             local_control.data = new_control.data
 
         self.model.to("cpu")
+        self._move_to(self.control, "cpu")
+        self._move_to(self.server_control, "cpu")
         clear_cache()
         self.send_model()
 
