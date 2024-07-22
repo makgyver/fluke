@@ -349,7 +349,7 @@ class FedProxMarginClient(FedProxClient, FedMarginClient):
                 lam = self.hyper_params.margin_lam
                 loss = (1. - lam) * (self.hyper_params.loss_fn(
                     y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)) + \
-                    lam * LargeMarginLoss()(y_hat, one_hot_y, [feature_maps])
+                    lam * LargeMarginLoss()(y_hat, one_hot_y, feature_maps)
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
