@@ -84,6 +84,7 @@ class SCAFFOLDClient(Client):
         self.receive_model()
         server_model = deepcopy(self.model)
         self.model.to(self.device)
+        server_model.to(self.device)
         self.model.train()
         self._move_to(self.control, self.device)
         self._move_to(self.server_control, self.device)
@@ -104,7 +105,7 @@ class SCAFFOLDClient(Client):
         for local_model, server_model, delta_y in params:
             delta_y.data = local_model.data.detach() - server_model.data.detach()
 
-        new_controls = [torch.zeros_like(p.data)
+        new_controls = [torch.zeros_like(p.data, device=self.device)
                         for p in self.model.parameters() if p.requires_grad]
         coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set)
                       * self.scheduler.get_last_lr()[0])
@@ -117,6 +118,7 @@ class SCAFFOLDClient(Client):
             local_control.data = new_control.data
 
         self.model.to("cpu")
+        server_model.to("cpu")
         self._move_to(self.control, "cpu")
         self._move_to(self.server_control, "cpu")
         clear_cache()
