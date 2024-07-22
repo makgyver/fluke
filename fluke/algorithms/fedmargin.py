@@ -328,6 +328,7 @@ class FedProxMarginClient(FedProxClient, FedMarginClient):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         W = deepcopy(self.model)
+        W.to(self.device)
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
@@ -354,6 +355,7 @@ class FedProxMarginClient(FedProxClient, FedMarginClient):
             self.scheduler.step()
 
         self.model.to("cpu")
+        W.to("cpu")
         clear_cache()
         self.send_model()
 
