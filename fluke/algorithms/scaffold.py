@@ -137,16 +137,18 @@ class SCAFFOLDServer(Server):
                  eval_every: int = 1,
                  global_step: float = 1.):
         super().__init__(model, test_data, clients, eval_every, False)
-        self.control = [torch.zeros_like(p.data)
+        self.device = GlobalSettings().get_device()
+        self.model.to(self.device)
+        self.control = [torch.zeros_like(p.data, device=self.device)
                         for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update(global_step=global_step)
-        self.device = GlobalSettings().get_device()
 
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.control), "model", self), eligible)
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
+        self.model.to(self.device)
         delta_y = [torch.zeros_like(p.data, device=self.device)
                    for p in self.model.parameters() if p.requires_grad]
         delta_c = [torch.zeros_like(p.data, device=self.device)
@@ -166,6 +168,8 @@ class SCAFFOLDServer(Server):
 
         params_deltas = zip(self.model.parameters(), self.control, delta_y, delta_c)
         for param, server_control, server_delta_y, server_delta_c in params_deltas:
+            print(param.data.device, server_control.data.device,
+                  server_delta_y.data.device, server_delta_c.data.device)
             param.data = param.data + self.hyper_params.global_step * server_delta_y
             server_control.data = server_control.data + server_delta_c.data
 
