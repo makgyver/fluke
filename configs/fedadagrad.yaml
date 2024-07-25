@@ -8,11 +8,11 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN
   server:
     beta1: 0.9
     beta2: 0.999
     lr: 0.01
     mode: adagrad
     tau: 0.001
+  model: MNIST_2NN
 name: fluke.algorithms.fedopt.FedOpt

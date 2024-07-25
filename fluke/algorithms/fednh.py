@@ -1,3 +1,10 @@
+"""Implementation of the [FedNH23]_ algorithm.
+
+References:
+    .. [FedNH23] Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu.
+       Tackling Data Heterogeneity in Federated Learning with Class Prototypes. In: AAAI (2023).
+       URL: https://arxiv.org/abs/2212.02758
+"""
 from collections import OrderedDict
 import torch
 from torch.nn import Module, Parameter, CrossEntropyLoss
@@ -65,7 +72,8 @@ class FedNHClient(PFLClient):
                  loss_fn: Callable,  # Not used
                  local_epochs: int,
                  n_protos: int,
-                 proto_norm: bool = True):
+                 proto_norm: bool = True,
+                 **kwargs):
         super().__init__(index,
                          ProtoNet(model, n_protos, proto_norm),
                          train_set,

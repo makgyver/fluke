@@ -19,6 +19,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from . import DataContainer, FastDataLoader, support  # NOQA
+from ..utils import get_class_from_qualified_name  # NOQA
 
 
 def _apply_transforms(dataset: VisionDataset, transforms: Optional[Callable]) -> VisionDataset:
@@ -43,10 +44,12 @@ class Datasets:
         """Get a dataset by name initialized with the provided arguments.
         Supported datasets are: ``mnist``, ``mnistm``, ``svhn``, ``femnist``, ``emnist``,
         ``cifar10``, ``cifar100``, ``tiny_imagenet``, ``shakespeare``, ``fashion_mnist``, and
-        ``cinic10``.
+        ``cinic10``. If `name` is not in the supported datasets, it is assumed to be a fully
+        qualified name of a custom dataset function (``Callable[..., DataContainer]``).
 
         Args:
-            name (str): The name of the dataset to load.
+            name (str): The name of the dataset to load or the fully qualified name of a custom
+              dataset function.
             **kwargs: Additional arguments to pass to construct the dataset.
 
         Returns:
@@ -56,8 +59,12 @@ class Datasets:
             ValueError: If the dataset is not supported or the name is wrong.
         """
         if name not in Datasets._DATASET_MAP:
-            raise ValueError(f"Dataset {name} not found. The supported datasets are: " +
-                             ", ".join(Datasets._DATASET_MAP.keys()) + ".")
+            try:
+                data_fun = get_class_from_qualified_name(name)
+                return data_fun(**kwargs)
+            except (ModuleNotFoundError, TypeError, ValueError):
+                raise ValueError(f"Dataset {name} not found. The supported datasets are: " +
+                                 ", ".join(Datasets._DATASET_MAP.keys()) + ".")
 
         return Datasets._DATASET_MAP[name](**kwargs)
 

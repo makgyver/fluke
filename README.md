@@ -52,6 +52,10 @@ Tutorials on how to use ``fluke`` can be found [here](https://makgyver.github.io
 ](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_quick_api.ipynb)
 - Run your algorithm in ``fluke`` [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
 ](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_alg.ipynb)
+- Use your own model with `fluke` [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
+](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_nn.ipynb)
+- Add your dataset and use it with ``fluke`` [![Open in Colab](https://img.shields.io/badge/Open_in_Colab-blue?style=flat-square&logo=google-colab&logoColor=yellow&labelColor=gray)
+](https://colab.research.google.com/github/makgyver/fluke/blob/main/tutorials/fluke_custom_dataset.ipynb)
 
 ## Contributing
 

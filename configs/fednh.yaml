@@ -13,9 +13,9 @@ hyperparameters:
     scheduler:
       name: ExponentialLR
       gamma: 0.99
-  model: MNIST_2NN_E
   server:
     n_protos: 10
     weighted: false
     rho: 0.9
+  model: MNIST_2NN_E
 name: fluke.algorithms.fednh.FedNH

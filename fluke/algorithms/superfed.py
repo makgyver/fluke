@@ -1,3 +1,9 @@
+"""Implementation of the [SuPerFed22]_ algorithm.
+
+References:
+    .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace
+       for Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
+"""
 from torch.nn.modules import Module
 from typing import Any, Callable
 import numpy as np
@@ -29,7 +35,8 @@ class SuPerFedClient(PFLClient):
                  mode: str = "global",
                  start_mix: int = 10,
                  mu: float = 0.1,
-                 nu: float = 0.1):
+                 nu: float = 0.1,
+                 **kwargs):
         assert mode in ["mm", "lm"]
 
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)

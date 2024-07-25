@@ -1,3 +1,9 @@
+"""Implementation of the [pFedMe20]_ algorithm.
+
+References:
+    .. [pFedMe20] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
+       Learning with Moreau Envelopes. In: NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
+"""
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
@@ -42,7 +48,8 @@ class PFedMeClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 k: int):
+                 k: int,
+                 **kwargs):
 
         super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(k=k)

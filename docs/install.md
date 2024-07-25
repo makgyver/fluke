@@ -1,4 +1,4 @@
-# Install
+# Installation
 
 To install ``fluke``, you can use `pip`:
 

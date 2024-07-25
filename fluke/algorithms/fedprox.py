@@ -1,3 +1,10 @@
+"""Implementation of the [FedProx18]_ algorithm.
+
+References:
+    .. [FedProx18] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar,
+       and Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
+       Learning Workshop. URL: https://openreview.net/pdf?id=SkgwE5Ss3N
+"""
 from typing import Callable
 from copy import deepcopy
 import torch
@@ -19,7 +26,8 @@ class FedProxClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 mu: float):
+                 mu: float,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(mu=mu)
 
@@ -33,6 +41,7 @@ class FedProxClient(Client):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         W = deepcopy(self.model)
+        W.to(self.device)
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
@@ -50,6 +59,7 @@ class FedProxClient(Client):
             self.scheduler.step()
 
         self.model.to("cpu")
+        W.to("cpu")
         clear_cache()
         self.send_model()
 

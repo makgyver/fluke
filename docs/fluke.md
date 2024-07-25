@@ -7,9 +7,7 @@
 .. automodule:: fluke
    :no-members:
 
-```
-
-TODO
+```   
 
 <h3>Submodules</h3>
 

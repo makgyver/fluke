@@ -1,3 +1,10 @@
+"""Implementation of the [SCAFFOLD20]_ algorithm.
+
+References:
+    .. [SCAFFOLD20] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank J. Reddi,
+       Sebastian U. Stich, Ananda Theertha Suresh. SCAFFOLD: Stochastic Controlled Averaging for
+       Federated Learning. In: ICML (2020). URL: https://arxiv.org/abs/1910.06378
+"""
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
@@ -44,7 +51,8 @@ class SCAFFOLDClient(Client):
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.control = None
         self.delta_c = None

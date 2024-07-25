@@ -1,3 +1,9 @@
+"""Implementation of the [Moon21]_ algorithm.
+
+References:
+    .. [Moon21] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
+       In: CVPR (2021). URL: https://arxiv.org/abs/2103.16257
+"""
 from torch.nn import CosineSimilarity
 import torch
 from typing import Callable
@@ -22,7 +28,8 @@ class MOONClient(Client):
                  loss_fn: Callable,
                  local_epochs: int,
                  mu: float,
-                 tau: float):
+                 tau: float,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(
             mu=mu,
@@ -58,12 +65,12 @@ class MOONClient(Client):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
 
-                y_hat = self.model(X)
-                z_local = self.model.forward_encoder(X)  # , -1)
+                z_local = self.model.encoder(X)  # , -1)
+                y_hat = self.model.head(z_local)
                 loss_sup = self.hyper_params.loss_fn(y_hat, y)
 
-                z_prev = self.prev_model.forward_encoder(X)  # , -1)
-                z_global = self.server_model.forward_encoder(X)  # , -1)
+                z_prev = self.prev_model.encoder(X)  # , -1)
+                z_global = self.server_model.encoder(X)  # , -1)
 
                 sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
                 sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau

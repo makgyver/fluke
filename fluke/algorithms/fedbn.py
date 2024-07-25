@@ -1,3 +1,10 @@
+"""Implementation of the [FedBN21]_ algorithm.
+
+References:
+    .. [FedBN21] Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN:
+       Federated Learning on Non-IID Features via Local Batch Normalization. In: ICLR (2021).
+       URL: https://openreview.net/pdf?id=6YEQUn0QICG
+"""
 import torch
 import sys
 sys.path.append(".")

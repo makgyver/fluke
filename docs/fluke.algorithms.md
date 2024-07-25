@@ -4,14 +4,25 @@
 
 ```{eval-rst}
 
+.. warning::
+   This section of the documentation is under construction!
+   
+```
+
+
+```{eval-rst}
+
 .. automodule:: fluke.algorithms
    :no-members:
 
 ```
 
-TODO
 
-<h2>Classes</h2>
+<h3>
+
+Classes included in ``fluke.algorithms``
+
+</h3>
 
 ```{eval-rst}
 
@@ -25,13 +36,6 @@ TODO
 
 ```
 
-```{eval-rst}
-
-.. important::
-
-    The implemented algorithms are listed :ref:`here <fluke.algorithms.list>`.
-
-```
 
 <h2>
 

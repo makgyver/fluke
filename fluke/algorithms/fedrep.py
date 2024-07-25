@@ -1,3 +1,10 @@
+"""Implementation of the [FedRep21]_ algorithm.
+
+References:
+    .. [FedRep21] Liam Collins, Hamed Hassani, Aryan Mokhtari, and Sanjay Shakkottai.
+       Exploiting shared representations for personalized federated learning. In: ICML (2021).
+       URL: https://arxiv.org/abs/2102.07078
+"""
 import torch
 from typing import Any, Callable, Sequence
 import sys
@@ -25,7 +32,8 @@ class FedRepClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
-                 tau: int = 3):
+                 tau: int = 3,
+                 **kwargs):
         super().__init__(index, EncoderGlobalHeadLocalNet(model),
                          train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None

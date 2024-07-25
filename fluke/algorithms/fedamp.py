@@ -1,3 +1,10 @@
+"""Implementation of the [FedAMP21]_ algorithm.
+
+References:
+    .. [FedAMP21] Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong
+       Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In: AAAI (2021).
+       URL: https://arxiv.org/abs/2007.03797
+"""
 from torch.nn import Module
 import torch
 from typing import Callable, Sequence
@@ -24,7 +31,8 @@ class FedAMPClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
                  local_epochs: int,
-                 lam: float):
+                 lam: float,
+                 **kwargs):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)

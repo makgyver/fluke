@@ -1,8 +1,16 @@
+# Getting Started with `fluke`
+
 ```{eval-rst}
 
-.. warning::
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
 
-    This section is under construction.
+   install
+   first_run
+   configuration
+   add_algorithm
+   tutorials
 
 ```
 

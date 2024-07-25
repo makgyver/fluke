@@ -21,6 +21,7 @@ We'd also love PRs. If you're thinking of a large PR, we advise opening up an is
 1. [Fork][fork] and clone the repository.
 1. Create a new virtual env: `python -m venv venv` (or whatever you wanna call it) and activate it: `source venv/bin/activate`.
 1. Install the dependencies: `pip install -r requirements.txt`.
+1. If everything is installed correctly, you should be able to run fluke by typing `python -m fluke.run` in the terminal.
 1. Make sure the tests pass on your machine: `pytest`, note: you may need to install `pytest` first.
 1. Create a new branch: `git checkout -b my-branch-name`.
 1. Make your change, add tests, and make sure the tests still pass.

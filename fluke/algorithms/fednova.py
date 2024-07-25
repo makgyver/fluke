@@ -1,3 +1,10 @@
+"""Implementation of the [FedNova21]_ algorithm.
+
+References:
+    .. [FedNova21] Jianyu Wang, Qinghua Liu, Hao Liang, Gauri Joshi, and H. Vincent Poor.
+       Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization.
+       In: NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
+"""
 import torch
 from typing import Callable, Iterable
 from copy import deepcopy
@@ -22,7 +29,8 @@ class FedNovaClient(Client):
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int):
+                 local_epochs: int,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.tau = 0
 

@@ -1,3 +1,9 @@
+"""Implementation of the [FedBABU22]_ algorithm.
+
+References:
+    .. [FedBABU22] Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation
+       for Federated Image Classification. In: ICLR (2022). URL: https://arxiv.org/abs/2106.06042
+"""
 from rich.progress import Progress
 from typing import Any, Callable, Sequence
 from torch.nn import Module
@@ -26,7 +32,8 @@ class FedBABUClient(PFLClient):
                  loss_fn: Callable[..., Any],
                  local_epochs: int,
                  mode: str,
-                 fine_tune_epochs: int):
+                 fine_tune_epochs: int,
+                 **kwargs):
         assert mode in ["head", "body", "full"]
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(

@@ -1,7 +1,7 @@
 # First run
 
 After installing `fluke`, you can run a federated algorithm from the command line. 
-To do so, you need to two configuration files:
+To do so, you need two configuration files:
 
 - `EXP_CONFIG_FILE`: the experiment configuration file (independent from the algorithm);
 - `ALG_CONFIG_FILE`: the algorithm configuration file;
@@ -29,12 +29,26 @@ fluke --config=EXP_CONFIG_FILE federation ALG_CONFIG_FILE
     selected setting. For example, the number of epochs in the centralized setting is the number of
     total rounds times the participation fraction, while in the clients-only setting it is the
     number of local epochs times the number of rounds times the participation fraction 
-    (anyway no less than 200 epochs).
+    (anyway no less than 100 epochs). Please refer to :ref:`this tutorial <fluke.cli>` for more details.
 
 ```
 
 For the purpose of this introductory page, we will use the configuration files provided in the 
 [configs folder](https://github.com/makgyver/fluke/tree/main/configs) of the ``fluke`` repository.
+
+```{eval-rst}
+
+.. tip::
+    You can easily get the configuration files provided in the repository using the ``fluke-get`` command.
+    For example, to get the configuration files used in this tutorial, you can run the following commands:
+
+    .. code-block:: bash
+
+        fluke-get exp
+        fluke-get fedavg
+    
+    These two file will be downloaded in the "./config" folder.
+```
 
 In particular, we will use the configuration files [exp.yaml](https://github.com/makgyver/fluke/tree/main/configs/exp.yaml)
 and [fedavg.yaml](https://github.com/makgyver/fluke/tree/main/configs/fedavg.yaml) to run the classic `FedAvg` algorithm on the `MNIST` dataset.

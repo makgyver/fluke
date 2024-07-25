@@ -1,3 +1,11 @@
+"""Implementation of the [LG-FedAVG20]_ algorithm.
+
+References:
+    .. [LG-FedAVG20] Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach,
+       David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally:
+       Federated Learning with Local and Global Representations. In: arXiv (2020).
+       URL: https://arxiv.org/abs/2001.01523
+"""
 from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
 from typing import Any, Callable, Sequence
@@ -27,7 +35,8 @@ class LGFedAVGClient(PFLClient):
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],  # not used because fixed to CrossEntropyLoss
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, HeadGlobalEncoderLocalNet(model),
                          train_set, test_set, optimizer_cfg, CrossEntropyLoss(), local_epochs)
 

@@ -6,10 +6,9 @@
 
 .. automodule:: fluke.nets
    :no-members:
+   :no-index:
 
 ```
-
-TODO
 
 
 ```{eval-rst}

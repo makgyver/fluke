@@ -1,4 +1,5 @@
-"""This module contains the implementation of several the federated learning algorithms."""
+"""This module contains (as submodules) the implementation of several the federated learning
+algorithms."""
 from __future__ import annotations
 import torch
 from typing import Callable, Union, Any, Iterable
@@ -26,7 +27,7 @@ __all__ = [
     'fedbn',
     'feddyn',
     'fedexp',
-    'fedhyperproto',
+    'fedhp',
     'fedlc',
     'fednh',
     'fednova',

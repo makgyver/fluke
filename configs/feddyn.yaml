@@ -1,16 +1,16 @@
 hyperparameters:
   client:
     alpha: 0.01
-    batch_size: 10
-    local_epochs: 20
+    batch_size: 32
+    local_epochs: 5
     loss: CrossEntropyLoss
     optimizer:
       lr: 0.1
-      weight_decay: 0.0001
+      # weight_decay: 0.0001
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN
   server:
     weighted: false
+  model: MNIST_2NN
 name: fluke.algorithms.feddyn.FedDyn

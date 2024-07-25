@@ -1,3 +1,4 @@
+"""`fluke` command line interface."""
 from rich.pretty import Pretty
 from rich.panel import Panel
 from rich.progress import track
@@ -26,7 +27,13 @@ CONFIG_FNAME = ""
 @app.command()
 def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
+    """Run a centralized learning experiment.
 
+    Args:
+        alg_cfg (str): Configuration file for the algorithm to run.
+        epochs (int, optional): Number of learning epochs. If set to 0, the number of epochs
+            is computed as `n_rounds * eligible_perc`. Defaults to 0.
+    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -35,7 +42,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     device = GlobalSettings().get_device()
 
     train_loader = FastDataLoader(*data_container.train,
-                                  batch_size=cfg.method.hyperparameters.client.batch_size,
+                                  batch_size=cfg.client.batch_size,
                                   num_labels=data_container.num_classes,
                                   shuffle=True)
     test_loader = FastDataLoader(*data_container.test,
@@ -43,20 +50,23 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
                                  num_labels=data_container.num_classes,
                                  shuffle=False)
 
-    # , **cfg.method.hyperparameters.net_args)
-    model = get_model(mname=cfg.method.hyperparameters.model)
-    sch_args = cfg.method.hyperparameters.client.scheduler
-    cfg.method.hyperparameters.client.optimizer.name = torch.optim.SGD
-    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.method.hyperparameters.client.optimizer,
-                                          scheduler_cfg=sch_args)
+    model = get_model(mname=cfg.model)
+    if "name" not in cfg.client.optimizer:
+        cfg.client.optimizer.name = torch.optim.SGD
+    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.client.optimizer,
+                                          scheduler_cfg=cfg.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
-    criterion = get_loss(cfg.method.hyperparameters.client.loss)
+    criterion = get_loss(cfg.client.loss)
     evaluator = ClassificationEval(criterion, data_container.num_classes, device)
     history = []
 
     model.to(device)
     epochs = epochs if epochs > 0 else int(
         max(1, cfg.protocol.n_rounds * cfg.protocol.eligible_perc))
+
+    rich.print(f"Centralized Learning [ #Epochs = {epochs} ]")
+    rich.print()
+
     for e in range(epochs):
         model.train()
         rich.print(f"Epoch {e+1}")
@@ -80,7 +90,11 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 @app.command()
 def federation(alg_cfg: str = typer.Argument(...,
                                              help='Config file for the algorithm to run')) -> None:
+    """Run a federated learning experiment.
 
+    Args:
+        alg_cfg (str): Configuration file for the algorithm to run.
+    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -105,8 +119,15 @@ def federation(alg_cfg: str = typer.Argument(...,
 @app.command()
 def clients_only(alg_cfg: str = typer.Argument(...,
                                                help='Config file for \
-                                                the algorithm to run')) -> None:
+                                                the algorithm to run'),
+                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
+    """Run a local training (for all clients) experiment.
 
+    Args:
+        alg_cfg (str): Configuration file for the algorithm to run.
+        epochs (int, optional): Number of learning epochs. If set to 0, the number of epochs
+            is computed as `max(100, n_rounds * eligible_perc * local_epochs)`. Defaults to 0.
+    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -125,13 +146,14 @@ def clients_only(alg_cfg: str = typer.Argument(...,
 
     criterion = get_loss(hp.client.loss)
     client_evals = []
-    epochs = max(200, int(cfg.protocol.n_rounds *
-                          hp.client.local_epochs * cfg.protocol.eligible_perc))
+    if epochs == 0:
+        epochs = max(100, int(cfg.protocol.n_rounds *
+                              hp.client.local_epochs * cfg.protocol.eligible_perc))
     progress = track(enumerate(zip(clients_tr_data, clients_te_data)),
                      total=len(clients_tr_data),
                      description="Clients training...")
     for i, (train_loader, test_loader) in progress:
-        rich.print(f"Client [{i}]")
+        rich.print(f"Client [{i}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
         hp.client.optimizer.name = torch.optim.SGD
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,

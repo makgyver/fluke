@@ -12,8 +12,8 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN
   server:
     tau: 1
     weighted: true
+  model: MNIST_2NN
 name: fluke.algorithms.apfl.APFL

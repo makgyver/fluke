@@ -11,6 +11,6 @@ hyperparameters:
     scheduler:
       gamma: 1
       step_size: 1
-  model: MNIST_2NN_D
   server: {}
+  model: MNIST_2NN_D
 name: fluke.algorithms.lg_fedavg.LGFedAVG

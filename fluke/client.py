@@ -74,7 +74,8 @@ class Client():
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
 
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
@@ -116,7 +117,7 @@ class Client():
         """The communication channel.
 
         Attention:
-            Use this channel to communicate with the server.
+            Use this channel to exchange data/information with the server.
 
         Returns:
             Channel: The communication channel.

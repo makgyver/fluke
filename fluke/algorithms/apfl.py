@@ -1,3 +1,9 @@
+"""Implementation of the [APFL20]_ algorithm.
+
+References:
+    .. [APFL20] Yuyang Deng, Mohammad Mahdi Kamani, and Mehrdad Mahdavi. Adaptive Personalized
+       Federated Learning. In: arXiv (2020). URL: https://arxiv.org/abs/2003.13461
+"""
 from copy import deepcopy
 from torch.nn import Module
 import torch
@@ -25,7 +31,8 @@ class APFLClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
-                 lam: float = 0.25):
+                 lam: float = 0.25,
+                 **kwargs):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
@@ -98,6 +105,12 @@ class APFLServer(Server):
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
+        """Aggregate the models of the eligible clients every `hyper_params.tau` rounds.
+
+        Args:
+            eligible (Iterable[Client]): The clients that are eligible to participate in the
+                aggregation.
+        """
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache
             self.channel.clear(self)

@@ -1,3 +1,10 @@
+"""Implementation of the [Ditto21]_ algorithm.
+
+References:
+    .. [Ditto21] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia Smith. Ditto: Fair and Robust
+       Federated Learning Through Personalization. In: ICML (2021).
+       URL: https://arxiv.org/abs/2012.04221
+"""
 from copy import deepcopy
 import torch
 from typing import Any, Callable
@@ -23,7 +30,8 @@ class DittoClient(PFLClient):
                  loss_fn: Callable[..., Any],
                  local_epochs: int = 3,
                  tau: int = 3,
-                 lam: float = 0.1):
+                 lam: float = 0.1,
+                 **kwargs):
         super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None

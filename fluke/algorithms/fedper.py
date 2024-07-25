@@ -1,3 +1,10 @@
+"""Implementation of the [FedPer19]_ algorithm.
+
+References:
+    .. [FedPer19] Manoj Ghuhan Arivazhagan, Vinay Aggarwal, Aaditya Kumar Singh, and
+       Sunav Choudhary. Federated learning with personalization layers.
+       In: arXiv (2019). URL:https://arxiv.org/abs/1912.00818
+"""
 from typing import Sequence, Callable
 from copy import deepcopy
 import torch
@@ -25,7 +32,8 @@ class FedPerClient(PFLClient):
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Callable,
-                 local_epochs: int = 3):
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, EncoderGlobalHeadLocalNet(model),
                          train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
 
