@@ -1,0 +1,15 @@
+.DS_Store
+*.pyc
+.vscode/*
+log
+wandb
+*.svmlight
+*.data
+*.csv
+*.mat
+*.gz
+data/*
+docs/_build/*
+.flake8
+test/.coverage
+.coverage
