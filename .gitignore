@@ -1,0 +1,11 @@
+data/
+tests/data/
+docs/_build/
+.pytest_cache/
+__pycache__/
+dist/
+wandb/
+.DS_Store
+.coverage
+*.pth
+.flake8
