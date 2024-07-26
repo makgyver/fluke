@@ -168,8 +168,6 @@ class SCAFFOLDServer(Server):
 
         params_deltas = zip(self.model.parameters(), self.control, delta_y, delta_c)
         for param, server_control, server_delta_y, server_delta_c in params_deltas:
-            print(param.data.device, server_control.data.device,
-                  server_delta_y.data.device, server_delta_c.data.device)
             param.data = param.data + self.hyper_params.global_step * server_delta_y
             server_control.data = server_control.data + server_delta_c.data
 
