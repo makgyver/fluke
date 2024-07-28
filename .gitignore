@@ -13,3 +13,9 @@ docs/_build/*
 .flake8
 test/.coverage
 .coverage
+repr_results
+dist/*
+fluke_fl.egg-info
+tests/data
+tutorials/data
+docs/examples/tutorials/data
