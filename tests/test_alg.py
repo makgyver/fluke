@@ -167,12 +167,12 @@ def _test_algo(exp_config, alg_config, rounds=1, oncpu=True):
     if oncpu:
         cfg.exp.device = "cpu"
     else:
-        if torch.cuda.is_available():
-            cfg.exp.device = "cuda"
-        elif torch.backends.mps.is_available():
-            cfg.exp.device = "mps"
-        else:
-            return None, None
+        # if torch.cuda.is_available():
+        #     cfg.exp.device = "cuda"
+        # elif torch.backends.mps.is_available():
+        #     cfg.exp.device = "mps"
+        # else:
+        return None, None
     GlobalSettings().set_device(cfg.exp.device)
     dataset = Datasets.get(**cfg.data.dataset)
     splitter = DataSplitter(dataset=dataset,
@@ -370,7 +370,7 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_lgfedavg()
     # test_moon()
-    # test_pfedme() # TO BE CHECKED
+    test_pfedme()  # TO BE CHECKED
     # test_scaffold()
     # test_superfed()
     # test_per_fedavg()
@@ -382,4 +382,4 @@ if __name__ == "__main__":
     # test_fedopt()
     # test_fedavgm()
     # test_fedhp()
-    test_fednh()
+    # test_fednh()
