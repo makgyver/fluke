@@ -48,6 +48,7 @@ class APFLClient(PFLClient):
 
         self.model.to(self.device)
         self.personalized_model.to(self.device)
+        self.internal_model.to(self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -79,6 +80,7 @@ class APFLClient(PFLClient):
             self.pers_scheduler.step()
 
         self.model.to("cpu")
+        self.personalized_model.to("cpu")
         self.internal_model.to("cpu")
         clear_cache()
 

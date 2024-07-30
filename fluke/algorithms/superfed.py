@@ -55,7 +55,7 @@ class SuPerFedClient(PFLClient):
         self.receive_model()
 
         if self.hyper_params.mu > 0:
-            prev_global_model = deepcopy(self.model)
+            prev_global_model = deepcopy(self.model).to(self.device)
             for param in prev_global_model.parameters():
                 param.requires_grad = False
 

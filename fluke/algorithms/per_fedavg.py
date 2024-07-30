@@ -79,6 +79,7 @@ class PerFedAVGClient(Client):
                       data_batch: tuple[torch.Tensor, torch.Tensor],
                       v: Union[tuple[torch.Tensor, ...], None] = None) -> list[torch.Tensor]:
         X, y = data_batch
+        X, y = X.to(self.device), y.to(self.device)
         if v is not None:
             frz_model_params = deepcopy(model.state_dict())
             delta = 1e-3
@@ -116,6 +117,7 @@ class PerFedAVGClient(Client):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         self.model.train()
+        self.model.to(self.device)
         if self.optimizer is None:
             self.optimizer, _ = self.optimizer_cfg(self.model)
 
@@ -145,7 +147,7 @@ class PerFedAVGClient(Client):
             elif self.hyper_params.mode == "HF":
                 batch_3 = self._get_next_batch()
 
-                temp_model = deepcopy(self.model)
+                temp_model = deepcopy(self.model).to(self.device)
                 grads_1st = self._compute_grad(temp_model, batch_2)
                 grads_2nd = self._compute_grad(self.model, batch_3, v=grads_1st)
                 self.optimizer.step(self.model.parameters(),
@@ -155,6 +157,7 @@ class PerFedAVGClient(Client):
             else:
                 raise ValueError(f"Invalid mode: {self.hyper_params.mode}")
 
+        self.model.to("cpu")
         self.send_model()
 
 

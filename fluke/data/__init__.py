@@ -425,7 +425,7 @@ class DataSplitter:
             list[torch.Tensor]: The examples' ids assignment.
         """
         assert X_train.shape[0] >= n, "# of instances must be > than #clients"
-        assert X_test.shape[0] >= n, "# of instances must be > than #clients"
+        assert X_test is None or X_test.shape[0] >= n, "# of instances must be > than #clients"
 
         assigments = []
         for X in (X_train, X_test):

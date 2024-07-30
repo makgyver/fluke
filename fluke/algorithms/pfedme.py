@@ -66,6 +66,9 @@ class PFedMeClient(PFLClient):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         self.personalized_model.train()
+        self.personalized_model.to(self.device)
+        self.model.to(self.device)
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
 
@@ -87,7 +90,9 @@ class PFedMeClient(PFLClient):
                     param_l.data = param_l.data - lamda * lr * (param_l.data - param_p.data)
 
             self.scheduler.step()
-        self.personalized_model.load_state_dict(self.model.state_dict())
+        self.model.load_state_dict(self.personalized_model.state_dict())
+        self.model.to("cpu")
+        self.personalized_model.to("cpu")
         self.send_model()
 
     def send_model(self):
