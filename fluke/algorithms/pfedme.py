@@ -7,7 +7,7 @@ References:
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Optional
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -28,9 +28,13 @@ class PFedMeOptimizer(Optimizer):
         defaults = dict(lr=lr, lamda=lamda, mu=mu)
         super(PFedMeOptimizer, self).__init__(params, defaults)
 
-    @torch.no_grad()
-    def step(self, local_parameters: list[torch.nn.Parameter]):
-        group = None
+    def step(self,
+             local_parameters: list[torch.nn.Parameter],
+             closure: Callable = None) -> Optional[float]:
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure
         for group in self.param_groups:
             for param_p, param_l in zip(group["params"], local_parameters):
                 param_p.data = param_p.data - group["lr"] * (
@@ -38,6 +42,7 @@ class PFedMeOptimizer(Optimizer):
                     + group["lamda"] * (param_p.data - param_l.data)
                     + group["mu"] * param_p.data
                 )
+        return loss
 
 
 class PFedMeClient(PFLClient):
