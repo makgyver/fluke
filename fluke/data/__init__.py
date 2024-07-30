@@ -416,9 +416,9 @@ class DataSplitter:
 
         Args:
             X_train (torch.Tensor): The training examples.
-            y_train (torch.Tensor): The training labels.
+            y_train (torch.Tensor): The training labels. Not used.
             X_test (torch.Tensor): The test examples.
-            y_test (torch.Tensor): The test labels.
+            y_test (torch.Tensor): The test labels. Not used.
             n (int): The number of clients upon which the examples are distributed.
 
         Returns:
@@ -435,9 +435,12 @@ class DataSplitter:
             ex_client = X.shape[0] // n
             idx = np.random.permutation(X.shape[0])
             assigments.append([idx[range(ex_client*i, ex_client*(i+1))] for i in range(n)])
-            # Assign the remaining examples to the first clients
+            # Assign the remaining examples one to every client until the examples are finished
             if X.shape[0] % n > 0:
-                assigments[-1] = np.concatenate((assigments[-1], idx[ex_client*n:]))
+                # assigments[-1] = np.concatenate((assigments[-1], idx[ex_client*n:]))
+                for cid, eid in enumerate(range(ex_client*n, X.shape[0])):
+                    assigments[-1][cid] = np.append(assigments[-1][cid], idx[eid])
+
         return assigments[0], assigments[1]
 
     def quantity_skew(self,
@@ -463,9 +466,9 @@ class DataSplitter:
 
         Args:
             X_train (torch.Tensor): The training examples.
-            y_train (torch.Tensor): The training labels.
+            y_train (torch.Tensor): The training labels. Not used.
             X_test (torch.Tensor): The test examples.
-            y_test (torch.Tensor): The test labels.
+            y_test (torch.Tensor): The test labels. Not used.
             n (int): The number of clients upon which the examples are distributed.
             min_quantity (int, optional): The minimum number of examples per client. Defaults to 2.
             alpha (float, optional): The skewness parameter. Defaults to 4.
@@ -479,6 +482,7 @@ class DataSplitter:
         assert X_test is None or min_quantity * \
             n <= X_test.shape[0], "# of test instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
+
         s = np.array(power(alpha, X_train.shape[0] - min_quantity*n) * n, dtype=int)
         m = np.array([[i] * min_quantity for i in range(n)]).flatten()
         assignment_tr = np.concatenate([s, m])
@@ -492,13 +496,14 @@ class DataSplitter:
         assignment_te = np.concatenate([s, m])
         shuffle(assignment_te)
 
-        return [np.where(assignment_tr == i)[0] for i in range(n)], \
-            [np.where(assignment_te == i)[0] for i in range(n)] if X_test is not None else None
+        assignments_tr = [np.where(assignment_tr == i)[0] for i in range(n)]
+        assignments_te = [np.where(assignment_te == i)[0] for i in range(n)]
+        return assignments_tr, assignments_te
 
     def label_quantity_skew(self,
                             X_train: torch.Tensor,  # not used
                             y_train: torch.Tensor,
-                            X_test: Optional[torch.Tensor],
+                            X_test: Optional[torch.Tensor],  # not used
                             y_test: Optional[torch.Tensor],
                             n: int,
                             class_per_client: int = 2) -> list[torch.Tensor]:
@@ -513,8 +518,10 @@ class DataSplitter:
         See: https://arxiv.org/pdf/2102.02079.pdf
 
         Args:
-            X (torch.Tensor): The examples. Not used.
-            y (torch.Tensor): The lables.
+            X_train (torch.Tensor): The training examples. Not used.
+            y_train (torch.Tensor): The training labels.
+            X_test (torch.Tensor): The test examples. Not used.
+            y_test (torch.Tensor): The test labels.
             n (int): The number of clients upon which the examples are distributed.
             class_per_client (int, optional): The number of classes per client. Defaults to 2.
 
@@ -539,11 +546,13 @@ class DataSplitter:
             if y is None:
                 assignments.append(None)
                 continue
+
             assignment = np.zeros(y.shape[0])
             for lbl, users in class_map.items():
                 ids = np.where(y == lbl)[0]
                 assignment[ids] = choice(users, len(ids))
             assignments.append([np.where(assignment == i)[0] for i in range(n)])
+
         return assignments[0], assignments[1]
 
     def label_dirichlet_skew(self,
@@ -585,14 +594,16 @@ class DataSplitter:
         for c in labels:
             shuffle(pk[c])
         # assignment = np.zeros(y.shape[0])
-        idx_batch = [[[] for _ in range(n)], [[] for _ in range(n)]]
+        idx_batch = [[[] for _ in range(n)],
+                     [[] for _ in range(n)]]
         for iy, y in enumerate([y_train, y_test]):
-            tot = y.shape[0]
-            avg = np.ceil(tot / n)
             if y is None:
                 continue
 
+            samples_avg = np.ceil(y.shape[0] / n)
+
             for c in labels:
+                # get the ids of the examples of class c
                 ids = np.where(y == c)[0]
                 shuffle(ids)
 
@@ -604,11 +615,11 @@ class DataSplitter:
                 ids = ids[n * min_ex_class:]
 
                 # compute the proportions
-                proportions = np.array([p * (len(idx_j) < avg)
+                proportions = np.array([p * (len(idx_j) < samples_avg)
                                         for p, idx_j in zip(pk[c], idx_batch[iy])])
                 proportions = proportions / proportions.sum()
 
-                # fixed the proportions to ensure a balanced distribution of the examples
+                # fix the proportions to ensure a balanced distribution of the examples
                 fixed = []
                 while balanced:
                     to_fix = False
@@ -618,12 +629,13 @@ class DataSplitter:
                             continue
 
                         # check if the client has more than the average number of examples
-                        surplus = len(idx_batch[iy][i]) + proportions_int[i] - avg
+                        surplus = len(idx_batch[iy][i]) + proportions_int[i] - samples_avg
                         if surplus > 0 and proportions_int[i] > 0:
                             to_fix = True
                             # redistribute the surplus examples
                             # saturate the examples for the client
-                            proportions[i] = max((avg - len(idx_batch[iy][i])) / len(ids), 0)
+                            proportions[i] = max(
+                                (samples_avg - len(idx_batch[iy][i])) / len(ids), 0)
                             fixed.append(i)
 
                             # given that we have fixed the proportion for client i, we need to
@@ -653,7 +665,7 @@ class DataSplitter:
     def label_pathological_skew(self,
                                 X_train: torch.Tensor,  # not used
                                 y_train: torch.Tensor,
-                                X_test: Optional[torch.Tensor],
+                                X_test: Optional[torch.Tensor],  # not used
                                 y_test: Optional[torch.Tensor],
                                 n: int,
                                 shards_per_client: int = 2) -> list[torch.Tensor]:
@@ -665,9 +677,9 @@ class DataSplitter:
         See: http://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
 
         Args:
-            X_train (torch.Tensor): The training examples.
+            X_train (torch.Tensor): The training examples. Not used.
             y_train (torch.Tensor): The training labels.
-            X_test (torch.Tensor): The test examples.
+            X_test (torch.Tensor): The test examples. Not used.
             y_test (torch.Tensor): The test labels.
             n (int): The number of clients upon which the examples are distributed.
             shards_per_client (int, optional): The number of shards per client. Defaults to 2.
@@ -679,10 +691,13 @@ class DataSplitter:
         sorted_ids_tr = np.argsort(y_train)
         shard_size_tr = int(np.ceil(len(y_train) / n_shards))
         assignments_tr = np.zeros(y_train.shape[0])
+
+        assignments_te = None
         if y_test is not None:
             sorted_ids_te = np.argsort(y_test)
             shard_size_te = int(np.ceil(len(y_test) / n_shards))
             assignments_te = np.zeros(y_test.shape[0])
+
         perm = permutation(n_shards)
         j = 0
         for i in range(n):
@@ -697,8 +712,10 @@ class DataSplitter:
                     assignments_te[sorted_ids_te[left:right]] = i
 
                 j += 1
-        return [np.where(assignments_tr == i)[0] for i in range(n)], \
-            [np.where(assignments_te == i)[0] for i in range(n)] if y_test is not None else None
+        assignments_tr = [np.where(assignments_tr == i)[0] for i in range(n)]
+        if y_test is not None:
+            assignments_te = [np.where(assignments_te == i)[0] for i in range(n)]
+        return assignments_tr, assignments_te
 
     _iidness_functions = {
         "iid": iid,

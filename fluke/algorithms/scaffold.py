@@ -14,6 +14,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import GlobalSettings  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from ..data import FastDataLoader  # NOQA
@@ -53,7 +54,9 @@ class SCAFFOLDClient(Client):
                  loss_fn: Callable,
                  local_epochs: int = 3,
                  **kwargs):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.control = None
         self.delta_c = None
         self.delta_y = None
@@ -73,12 +76,19 @@ class SCAFFOLDClient(Client):
             safe_load_state_dict(self.model, model.state_dict())
         self.server_control = server_control
 
+    def _move_to(self, control: list[torch.tensor], device: str) -> None:
+        for c in control:
+            c.data = c.data.to(device)
+
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         server_model = deepcopy(self.model)
         self.model.to(self.device)
+        server_model.to(self.device)
         self.model.train()
+        self._move_to(self.control, self.device)
+        self._move_to(self.server_control, self.device)
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
         for _ in range(epochs):
@@ -96,7 +106,7 @@ class SCAFFOLDClient(Client):
         for local_model, server_model, delta_y in params:
             delta_y.data = local_model.data.detach() - server_model.data.detach()
 
-        new_controls = [torch.zeros_like(p.data)
+        new_controls = [torch.zeros_like(p.data, device=self.device)
                         for p in self.model.parameters() if p.requires_grad]
         coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set)
                       * self.scheduler.get_last_lr()[0])
@@ -109,6 +119,9 @@ class SCAFFOLDClient(Client):
             local_control.data = new_control.data
 
         self.model.to("cpu")
+        server_model.to("cpu")
+        self._move_to(self.control, "cpu")
+        self._move_to(self.server_control, "cpu")
         clear_cache()
         self.send_model()
 
@@ -124,7 +137,9 @@ class SCAFFOLDServer(Server):
                  eval_every: int = 1,
                  global_step: float = 1.):
         super().__init__(model, test_data, clients, eval_every, False)
-        self.control = [torch.zeros_like(p.data)
+        self.device = GlobalSettings().get_device()
+        self.model.to(self.device)
+        self.control = [torch.zeros_like(p.data, device=self.device)
                         for p in self.model.parameters() if p.requires_grad]
         self.hyper_params.update(global_step=global_step)
 
@@ -133,8 +148,11 @@ class SCAFFOLDServer(Server):
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        delta_y = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
-        delta_c = [torch.zeros_like(p.data) for p in self.model.parameters() if p.requires_grad]
+        self.model.to(self.device)
+        delta_y = [torch.zeros_like(p.data, device=self.device)
+                   for p in self.model.parameters() if p.requires_grad]
+        delta_c = [torch.zeros_like(p.data, device=self.device)
+                   for p in self.model.parameters() if p.requires_grad]
 
         for client in eligible:
             cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
