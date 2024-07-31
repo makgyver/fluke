@@ -7,7 +7,7 @@ References:
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Optional
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -28,9 +28,13 @@ class PFedMeOptimizer(Optimizer):
         defaults = dict(lr=lr, lamda=lamda, mu=mu)
         super(PFedMeOptimizer, self).__init__(params, defaults)
 
-    @torch.no_grad()
-    def step(self, local_parameters: list[torch.nn.Parameter]):
-        group = None
+    def step(self,
+             local_parameters: list[torch.nn.Parameter],
+             closure: Callable = None) -> Optional[float]:
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure
         for group in self.param_groups:
             for param_p, param_l in zip(group["params"], local_parameters):
                 param_p.data = param_p.data - group["lr"] * (
@@ -38,6 +42,7 @@ class PFedMeOptimizer(Optimizer):
                     + group["lamda"] * (param_p.data - param_l.data)
                     + group["mu"] * param_p.data
                 )
+        return loss
 
 
 class PFedMeClient(PFLClient):
@@ -51,9 +56,7 @@ class PFedMeClient(PFLClient):
                  k: int,
                  **kwargs):
 
-        super().__init__(index=index, model=None, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+        super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(k=k)
 
     def receive_model(self) -> None:
@@ -68,6 +71,9 @@ class PFedMeClient(PFLClient):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
         self.personalized_model.train()
+        self.personalized_model.to(self.device)
+        self.model.to(self.device)
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
 
@@ -89,7 +95,9 @@ class PFedMeClient(PFLClient):
                     param_l.data = param_l.data - lamda * lr * (param_l.data - param_p.data)
 
             self.scheduler.step()
-        self.personalized_model.load_state_dict(self.model.state_dict())
+        self.model.load_state_dict(self.personalized_model.state_dict())
+        self.model.to("cpu")
+        self.personalized_model.to("cpu")
         self.send_model()
 
     def send_model(self):
