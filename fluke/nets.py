@@ -271,7 +271,7 @@ class MNIST_2NN_D(nn.Module):
         if self.use_softmax:
             return F.softmax(self.fc3(x), dim=1)
         else:
-            return torch.sigmoid(self.fc3(x))
+            return self.fc3(x)
 
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf - hidden_size=[200,200], w/o softmax
