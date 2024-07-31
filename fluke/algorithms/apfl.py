@@ -33,9 +33,7 @@ class APFLClient(PFLClient):
                  local_epochs: int = 3,
                  lam: float = 0.25,
                  **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.internal_model = deepcopy(model)
@@ -50,6 +48,7 @@ class APFLClient(PFLClient):
 
         self.model.to(self.device)
         self.personalized_model.to(self.device)
+        self.internal_model.to(self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -81,6 +80,7 @@ class APFLClient(PFLClient):
             self.pers_scheduler.step()
 
         self.model.to("cpu")
+        self.personalized_model.to("cpu")
         self.internal_model.to("cpu")
         clear_cache()
 

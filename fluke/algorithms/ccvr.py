@@ -29,6 +29,7 @@ class CCVRClient(Client):
         client send (through the channel) a message to the server containing the computed values and
         the number of examples per class.
         """
+        self.model.to(self.device)
         list_z, list_y = [], []
         for _, (X, y) in enumerate(self.train_set):
             X, y = X.to(self.device), y.to(self.device)
@@ -54,11 +55,12 @@ class CCVRClient(Client):
             Z_c = Z[idx]
             mean_c = Z_c.mean(dim=0)
             cov_c = Z_c.t().cov(correction=0)
-            classes_mean.append(mean_c)
-            classes_cov.append(cov_c)
+            classes_mean.append(mean_c.to("cpu"))
+            classes_cov.append(cov_c.to("cpu"))
             ex_x_class.append(Z_c.size(0))
 
         payload = (classes_mean, classes_cov, ex_x_class)
+        self.model.to("cpu")
         self.channel.send(Message(payload, "mean_cov", self), self.server)
 
 
