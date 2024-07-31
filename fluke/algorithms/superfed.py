@@ -39,9 +39,7 @@ class SuPerFedClient(PFLClient):
                  **kwargs):
         assert mode in ["mm", "lm"]
 
-        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(
             mode=mode,
             start_mix=start_mix,
@@ -57,7 +55,7 @@ class SuPerFedClient(PFLClient):
         self.receive_model()
 
         if self.hyper_params.mu > 0:
-            prev_global_model = deepcopy(self.model)
+            prev_global_model = deepcopy(self.model).to(self.device)
             for param in prev_global_model.parameters():
                 param.requires_grad = False
 
