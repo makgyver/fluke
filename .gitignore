@@ -9,3 +9,5 @@ wandb/
 .coverage
 *.pth
 .flake8
+fluke_fl.egg-info/
+tests/*.ipynb
