@@ -41,7 +41,8 @@ dependencies = [
     "typer",
     "wandb",
     "datasets",
-    "psutil"
+    "psutil",
+    "clearml"
 ]
 
 [project.scripts]
