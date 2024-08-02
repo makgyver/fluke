@@ -19,6 +19,7 @@
 .. autosummary::
    :nosignatures:
 
+   log
    model
 
 ```
@@ -38,8 +39,6 @@ Classes included in ``fluke.utils``
 
    Configuration
    OptimizerConfigurator
-   Log
-   WandBLog
    ServerObserver
 
 ```
@@ -61,7 +60,6 @@ Functions included in ``fluke.utils``
    get_class_from_str
    get_class_from_qualified_name
    get_full_classname
-   get_logger
    get_loss
    get_model
    get_scheduler
@@ -100,33 +98,6 @@ Functions included in ``fluke.utils``
 
 <h3>
 
-{bdg-primary}`class` ``fluke.utils.Log``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.utils.Log
-   :members:
-
-```
-
-<h3>
-
-{bdg-primary}`class` ``fluke.utils.WandBLog``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.utils.WandBLog
-   :members:
-   :show-inheritance:
-
-```
-
-<h3>
-
 {bdg-secondary}`interface` ``fluke.utils.ServerObserver``
 
 </h3>
@@ -155,8 +126,6 @@ Functions included in ``fluke.utils``
 
 .. autofunction:: fluke.utils.get_full_classname
 
-.. autofunction:: fluke.utils.get_logger
-
 .. autofunction:: fluke.utils.get_loss
 
 .. autofunction:: fluke.utils.get_model
@@ -175,5 +144,6 @@ Functions included in ``fluke.utils``
    :hidden:
 
    fluke.utils.model
+   fluke.utils.log
 
 ```

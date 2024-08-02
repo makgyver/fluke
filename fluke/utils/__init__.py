@@ -23,10 +23,8 @@ from ..comm import ChannelObserver, Message  # NOQA
 __all__ = [
     'model',
     'Configuration',
-    'Log',
     'OptimizerConfigurator',
     'ServerObserver',
-    'WandBLog',
     'clear_cache',
     'get_class_from_str',
     'get_class_from_qualified_name',

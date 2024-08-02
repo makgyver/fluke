@@ -3,6 +3,7 @@ from rich.panel import Panel
 import rich
 import wandb
 from torch.utils.tensorboard import SummaryWriter
+from clearml import Task
 import psutil
 import pandas as pd
 import numpy as np
@@ -125,8 +126,9 @@ class TensorBoardLog(Log):
     """
 
     def __init__(self, **config):
-        super().__init__()
+        super().__init__(**config)
         ts_config = DDict(**config).exclude("name")
+        print(config)
         if "log_dir" not in ts_config:
             exp_name = config['name']
             if exp_name.startswith("fluke.algorithms."):
@@ -175,7 +177,7 @@ class WandBLog(Log):
     """
 
     def __init__(self, **config):
-        super().__init__()
+        super().__init__(**config)
         self.config = config
 
     def init(self, **kwargs):
@@ -204,6 +206,33 @@ class WandBLog(Log):
     def save(self, path: str):
         super().save(path)
         self.run.finish()
+
+
+class ClearMLLog(TensorBoardLog):
+    """ClearML logger.
+    This class is used to log the performance of the global model and the communication costs during
+    the federated learning process on ClearML.
+
+    Note:
+        The ClearML logger takes advantage of the TensorBoard logger, thus the logging also happens
+        on TensorBoard. The logging folder is "./runs/{experiment_name}_{timestamp}".
+
+    See Also:
+        For more information on ClearML, see the `official documentation
+        <https://clear.ml/docs/latest/docs/>`_.
+
+    Args:
+        **config: The configuration for ClearML.
+    """
+
+    def __init__(self, **config):
+        super().__init__(name=config['name'])
+        self.config = DDict(**config)
+
+    def init(self, **kwargs):
+        super().init(**kwargs)
+        self.task = Task.init(**self.config.exclude("name"))
+        self.task.connect(kwargs)
 
 
 def get_logger(lname: str, **kwargs) -> Log:
