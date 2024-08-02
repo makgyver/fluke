@@ -1,23 +1,15 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
-from rich.pretty import Pretty
-from rich.panel import Panel
 import rich
+import torch
 from torch.optim import Optimizer
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
-import torch
 from typing import Any, Sequence
 # from enum import Enum
-import psutil
-import pandas as pd
-import numpy as np
 import importlib
 import inspect
-import wandb
-import json
 import yaml
-import os
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -196,145 +188,6 @@ class OptimizerConfigurator:
         return str(self)
 
 
-class Log(ServerObserver, ChannelObserver):
-    """Basic logger.
-    This class is used to log the performance of the global model and the communication costs during
-    the federated learning process. The logging happens in the console.
-
-    Attributes:
-        history (dict): The history of the global model's performance.
-        client_history (dict): The history of the clients' performance.
-        comm_costs (dict): The history of the communication costs.
-        current_round (int): The current round.
-    """
-
-    def __init__(self, **kwargs):
-        self.history: dict = {}
-        self.client_history: dict = {}
-        self.comm_costs: dict = {0: 0}
-        self.current_round: int = 0
-
-    def init(self, **kwargs):
-        """Initialize the logger.
-        The initialization is done by printing the configuration in the console.
-
-        Args:
-            **kwargs: The configuration.
-        """
-        if kwargs:
-            rich.print(Panel(Pretty(kwargs, expand_all=True), title="Configuration"))
-
-    def start_round(self, round: int, global_model: Module):
-        self.comm_costs[round] = 0
-        self.current_round = round
-
-        if round == 1 and self.comm_costs[0] > 0:
-            rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
-
-    def end_round(self,
-                  round: int,
-                  global_eval: dict[str, float],
-                  client_evals: Sequence[Any]):
-        self.history[round] = global_eval
-        stats = {'global': self.history[round]}
-
-        if client_evals:
-            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-            self.client_history[round] = client_mean
-            stats['local'] = client_mean
-
-        stats['comm_cost'] = self.comm_costs[round]
-        if stats['global'] or ('local' in stats and stats['local']):
-            rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-            rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
-
-    def message_received(self, message: Message):
-        self.comm_costs[self.current_round] += message.get_size()
-
-    def finished(self, client_evals: Sequence[Any]):
-        if client_evals:
-            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-            self.client_history[self.current_round + 1] = client_mean
-            rich.print(Panel(Pretty(client_mean, expand_all=True),
-                             title="Overall local performance"))
-
-        if self.history[self.current_round]:
-            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True),
-                             title="Overall global performance"))
-
-        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
-                         title="Total communication cost"))
-
-    def save(self, path: str):
-        """Save the logger's history to a JSON file.
-
-        Args:
-            path (str): The path to the JSON file.
-        """
-        json_to_save = {
-            "perf_global": self.history,
-            "comm_costs": self.comm_costs,
-            "perf_local": self.client_history
-        }
-        with open(path, 'w') as f:
-            json.dump(json_to_save, f, indent=4)
-
-    def error(self, error: str):
-        """Log an error.
-
-        Args:
-            error (str): The error message.
-        """
-        rich.print(f"[bold red]Error: {error}[/bold red]")
-
-
-class WandBLog(Log):
-    """Weights and Biases logger.
-    This class is used to log the performance of the global model and the communication costs during
-    the federated learning process on Weights and Biases.
-
-    See Also:
-        For more information on Weights and Biases, see the `Weights and Biases documentation
-        <https://docs.wandb.ai/>`_.
-
-    Args:
-        **config: The configuration for Weights and Biases.
-    """
-
-    def __init__(self, **config):
-        super().__init__()
-        self.config = config
-
-    def init(self, **kwargs):
-        super().init(**kwargs)
-        self.config["config"] = kwargs
-        self.run = wandb.init(**self.config)
-
-    def start_round(self, round: int, global_model: Module):
-        super().start_round(round, global_model)
-        if round == 1 and self.comm_costs[0] > 0:
-            self.run.log({"comm_costs": self.comm_costs[0]})
-
-    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Sequence[Any]):
-        super().end_round(round, global_eval, client_evals)
-        self.run.log({"global": self.history[round]}, step=round)
-        self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
-        if client_evals:
-            self.run.log({"local": self.client_history[round]}, step=round)
-
-    def finished(self, client_evals: Sequence[Any]):
-        super().finished(client_evals)
-        if client_evals:
-            self.run.log(
-                {"local": self.client_history[self.current_round+1]}, step=self.current_round+1)
-
-    def save(self, path: str):
-        super().save(path)
-        self.run.finish()
-
-
 def import_module_from_str(name: str) -> Any:
     """Import a module from its name.
 
@@ -450,21 +303,6 @@ def get_full_classname(classtype: type) -> str:
                 get_full_classname(B) # '__main__.B'
     """
     return f"{classtype.__module__}.{classtype.__name__}"
-
-
-def get_logger(lname: str, **kwargs) -> Log | WandBLog:
-    """Get a logger from its name.
-    This function is used to get a logger from its name. It is used to dynamically import loggers.
-    The supported loggers are the ones defined in the ``fluke.utils`` module.
-
-    Args:
-        lname (str): The name of the logger.
-        **kwargs: The keyword arguments to pass to the logger's constructor.
-
-    Returns:
-        Log | WandBLog: The logger.
-    """
-    return get_class_from_str("fluke.utils", lname)(**kwargs)
 
 
 def get_optimizer(oname: str) -> type[Optimizer]:

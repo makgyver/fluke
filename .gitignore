@@ -11,3 +11,4 @@ wandb/
 .flake8
 fluke_fl.egg-info/
 tests/*.ipynb
+runs/

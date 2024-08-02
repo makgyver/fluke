@@ -13,7 +13,8 @@ sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model, get_logger)  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model)  # NOQA
+from .utils.log import get_logger  # NOQA
 from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
@@ -87,6 +88,43 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     model.to("cpu")
 
 
+def plot_distribution(clients):
+    import matplotlib.pyplot as plt
+
+    client = {}
+    for c in clients:
+        client[c.index] = c.train_set.tensors[1]
+
+    # Count the occurrences of each class for each client
+    class_counts = {client_idx: torch.bincount(client_data).tolist(
+    ) for client_idx, client_data in enumerate(client.values())}
+
+    # Maximum number of classes
+    num_classes = max(len(counts) for counts in class_counts.values())
+
+    # Plotting
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for client_idx, counts in class_counts.items():
+        for class_idx, count in enumerate(counts):
+            # Adjusting size based on the count
+            size = count * 1  # Adjust the scaling factor as needed
+            ax.scatter(client_idx, class_idx, s=size, alpha=0.6)
+            ax.text(client_idx, class_idx, str(count), va='center',
+                    ha='center', color='black', fontsize=12)
+
+    # Setting labels and title
+    ax.set_xlabel('Client Index', fontsize=14)
+    ax.set_ylabel('Class', fontsize=14)
+    ax.set_title('Number of Examples per Class for Each Client', fontsize=16)
+    ax.set_xticks(range(len(client)))
+    ax.set_xticklabels([f'Client {i+1}' for i in range(len(client))])
+    ax.set_yticks(range(num_classes))
+    ax.grid(False)
+
+    plt.show()
+
+
 @app.command()
 def federation(alg_cfg: str = typer.Argument(...,
                                              help='Config file for the algorithm to run'),
@@ -114,7 +152,7 @@ def federation(alg_cfg: str = typer.Argument(...,
     fl_algo = fl_algo_class(cfg.protocol.n_clients,
                             data_splitter,
                             cfg.method.hyperparameters)
-
+    # plot_distribution(fl_algo.clients)
     log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
