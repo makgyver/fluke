@@ -14,7 +14,8 @@ import time
 sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
-from .utils import (Configuration, get_class_from_qualified_name, get_logger)  # NOQA
+from .utils import (Configuration, get_class_from_qualified_name)  # NOQA
+from .utils.log import get_logger  # NOQA
 from .data import DataSplitter  # NOQA
 from .data.datasets import Datasets  # NOQA
 

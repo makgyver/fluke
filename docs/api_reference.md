@@ -137,8 +137,6 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    
    OptimizerConfigurator
    Configuration
-   Log
-   WandBLog
    ServerObserver
 
 ```
@@ -152,7 +150,6 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
    import_module_from_str
    get_class_from_str
-   get_logger
    get_loss
    get_model
    get_scheduler
@@ -171,6 +168,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    :nosignatures:
    
    model
+   log
 
 ```
 

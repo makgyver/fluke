@@ -15,9 +15,10 @@ from fluke.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
 from fluke.comm import Message  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
-           get_class_from_str, get_model, get_class_from_qualified_name, get_logger,  # NOQA
+           get_class_from_str, get_model, get_class_from_qualified_name,  # NOQA
            get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
-           Log, WandBLog, ServerObserver)  # NOQA
+           ServerObserver)  # NOQA
+from fluke.utils.log import get_logger, Log, WandBLog  # NOQA
 
 from fluke.utils.model import (merge_models, diff_model, mix_networks, batch_norm_to_group_norm,  # NOQA
                                   get_local_model_dict, get_global_model_dict, set_lambda_model,   # NOQA

@@ -10,3 +10,4 @@ typer
 wandb
 datasets
 psutil
+clearml
