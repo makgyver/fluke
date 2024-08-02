@@ -148,9 +148,11 @@ class FedMarginClient(Client):
                  loss_fn: Callable,
                  local_epochs: int = 3,
                  margin_lam: float = 0.2,
+                 margin_agg: str = "min",
                  **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update(margin_lam=margin_lam)
+        self.hyper_params.update(margin_lam=margin_lam, margin_agg=margin_agg)
+        self._lm_loss = LargeMarginLoss(agg_fun=margin_agg)
 
     def fit(self, override_local_epochs: int = 0) -> None:
         epochs: int = (override_local_epochs if override_local_epochs
@@ -173,11 +175,12 @@ class FedMarginClient(Client):
                                                                      1.).float()
                 # one_hot_y = one_hot_y.to(self.device)
                 self.optimizer.zero_grad()
-                # feature_maps = self.model.encoder(X)
-                y_hat, feature_maps = self.model(X, all_layers=True)
+                feature_maps = self.model.encoder(X)
+                # y_hat, feature_maps = self.model(X)#, all_layers=True)
+                y_hat = self.model.head(feature_maps)
                 lam = self.hyper_params.margin_lam
                 loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
-                    lam * LargeMarginLoss()(y_hat, one_hot_y, feature_maps)
+                    lam * self._lm_loss(y_hat, one_hot_y, [feature_maps])
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
