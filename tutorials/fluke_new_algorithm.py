@@ -5,7 +5,7 @@ from fluke.server import Server
 from fluke.data import DataSplitter
 from fluke.data.datasets import Datasets
 from fluke import DDict
-from fluke.utils import Log
+from fluke.utils.log import Log
 import numpy as np
 
 
