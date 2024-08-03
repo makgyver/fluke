@@ -42,6 +42,7 @@ dependencies = [
     "wandb",
     "datasets",
     "psutil",
+    "tensorboard",
     "clearml"
 ]
 
