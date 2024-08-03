@@ -79,7 +79,6 @@ class LargeMarginLoss:
         self.top_k = top_k
         self.dual_norm = {1: np.inf, 2: 2, np.inf: 1, "inf": 1}[dist_norm]
         self.eps = epsilon
-
         self.agg_fun = agg_fun
 
     def __call__(self,
@@ -125,8 +124,11 @@ class LargeMarginLoss:
                 dist_to_boundary = dist_to_boundary.mean(dim=1)
             # else "all"
 
-            loss_layer = _max_with_relu(dist_to_boundary, self.dist_lower)
-            loss_layer = _max_with_relu(0, self.dist_upper - loss_layer) - self.dist_upper
+            # loss_layer = _max_with_relu(dist_to_boundary, self.dist_lower)
+            # loss_layer = _max_with_relu(0, self.dist_upper - loss_layer) - self.dist_upper
+
+            loss_layer = self.dist_upper - \
+                torch.min(self.dist_upper, torch.max(dist_to_boundary, self.dist_lower))
             loss = torch.cat([loss, loss_layer])
         return loss.mean()
 

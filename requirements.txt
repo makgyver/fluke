@@ -10,4 +10,5 @@ typer
 wandb
 datasets
 psutil
+tensorboard
 clearml
