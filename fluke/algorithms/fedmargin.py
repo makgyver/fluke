@@ -128,7 +128,7 @@ class LargeMarginLoss:
             # loss_layer = _max_with_relu(0, self.dist_upper - loss_layer) - self.dist_upper
 
             loss_layer = self.dist_upper - \
-                torch.min(self.dist_upper, torch.max(dist_to_boundary, self.dist_lower))
+                torch.clamp(torch.clamp(dist_to_boundary, min=self.dist_lower), max=self.dist_upper)
             loss = torch.cat([loss, loss_layer])
         return loss.mean()
 
