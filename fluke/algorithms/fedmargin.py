@@ -140,6 +140,22 @@ class LargeMarginLoss:
         return self.__str__()
 
 
+class LargeMarginLoss2:
+
+    def __init__(self, base_loss: Callable, margin_lam: float, num_labels: int = 10):
+        self.base_loss = base_loss
+        self.margin_lam = margin_lam
+        self.num_labels = num_labels
+
+    def __call__(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        logits = F.softmax(y_pred, dim=1)
+        y_unsqueezed = y_true.view(-1, 1)
+        logits_y = torch.gather(logits, 1, y_unsqueezed).view(-1).repeat(self.num_labels, 1).t()
+        diff_y_k = torch.square(1 - (logits_y - logits))
+        loss = (diff_y_k.sum() - 1) / (self.num_labels - 1)
+        return self.base_loss(logits, y_true) + self.margin_lam * loss
+
+
 class FedMarginClient(Client):
 
     def __init__(self,
@@ -150,55 +166,68 @@ class FedMarginClient(Client):
                  loss_fn: Callable,
                  local_epochs: int = 3,
                  margin_lam: float = 0.2,
-                 margin_agg: str = "min",
                  **kwargs):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
-        self.hyper_params.update(margin_lam=margin_lam, margin_agg=margin_agg)
-        self._lm_loss = LargeMarginLoss(agg_fun=margin_agg)
+        super().__init__(index, train_set, test_set, optimizer_cfg,
+                         LargeMarginLoss2(loss_fn, margin_lam), local_epochs)
+        self.hyper_params.update(margin_lam=margin_lam)
 
-    def fit(self, override_local_epochs: int = 0) -> None:
-        epochs: int = (override_local_epochs if override_local_epochs
-                       else self.hyper_params.local_epochs)
-        self.receive_model()
-        self.model.train()
-        self.model.to(self.device)
+    # def __init__(self,
+    #              index: int,
+    #              train_set: FastDataLoader,
+    #              test_set: FastDataLoader,
+    #              optimizer_cfg: OptimizerConfigurator,
+    #              loss_fn: Callable,
+    #              local_epochs: int = 3,
+    #              margin_lam: float = 0.2,
+    #              margin_agg: str = "min",
+    #              **kwargs):
+    #     super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+    #     self.hyper_params.update(margin_lam=margin_lam, margin_agg=margin_agg)
+    #     self._lm_loss = LargeMarginLoss(agg_fun=margin_agg)
 
-        if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+    # def fit(self, override_local_epochs: int = 0) -> None:
+    #     epochs: int = (override_local_epochs if override_local_epochs
+    #                    else self.hyper_params.local_epochs)
+    #     self.receive_model()
+    #     self.model.train()
+    #     self.model.to(self.device)
 
-        for _ in range(epochs):
-            loss = None
-            for _, (X, y) in enumerate(self.train_set):
-                X, y = X.to(self.device), y.to(self.device)
-                one_hot_y = torch.zeros(len(y),
-                                        self.train_set.num_labels,
-                                        device=self.device).scatter_(1,
-                                                                     y.unsqueeze(1),
-                                                                     1.).float()
-                # one_hot_y = one_hot_y.to(self.device)
-                self.optimizer.zero_grad()
-                feature_maps = self.model.encoder(X)
-                # y_hat, feature_maps = self.model(X)#, all_layers=True)
-                y_hat = self.model.head(feature_maps)
-                lam = self.hyper_params.margin_lam
-                loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
-                    lam * self._lm_loss(y_hat, one_hot_y, [feature_maps])
-                loss.backward()
-                self.optimizer.step()
-            self.scheduler.step()
+    #     if self.optimizer is None:
+    #         self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
-        self.model.to("cpu")
-        clear_cache()
-        self.send_model()
+    #     for _ in range(epochs):
+    #         loss = None
+    #         for _, (X, y) in enumerate(self.train_set):
+    #             X, y = X.to(self.device), y.to(self.device)
+    #             one_hot_y = torch.zeros(len(y),
+    #                                     self.train_set.num_labels,
+    #                                     device=self.device).scatter_(1,
+    #                                                                  y.unsqueeze(1),
+    #                                                                  1.).float()
+    #             # one_hot_y = one_hot_y.to(self.device)
+    #             self.optimizer.zero_grad()
+    #             feature_maps = self.model.encoder(X)
+    #             # y_hat, feature_maps = self.model(X)#, all_layers=True)
+    #             y_hat = self.model.head(feature_maps)
+    #             lam = self.hyper_params.margin_lam
+    #             loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
+    #                 lam * self._lm_loss(y_hat, one_hot_y, [feature_maps])
+    #             loss.backward()
+    #             self.optimizer.step()
+    #         self.scheduler.step()
 
-    def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None and self.model is not None:
-            return ClassificationEval(None,  # self.hyper_params.loss_fn,
-                                      #   self.model.output_size,
-                                      self.train_set.num_labels,
-                                      self.device).evaluate(self.model,
-                                                            self.test_set)
-        return {}
+    #     self.model.to("cpu")
+    #     clear_cache()
+    #     self.send_model()
+
+    # def evaluate(self) -> dict[str, float]:
+    #     if self.test_set is not None and self.model is not None:
+    #         return ClassificationEval(None,  # self.hyper_params.loss_fn,
+    #                                   #   self.model.output_size,
+    #                                   self.train_set.num_labels,
+    #                                   self.device).evaluate(self.model,
+    #                                                         self.test_set)
+    #     return {}
 
 
 # FedAVG + FedMargin
