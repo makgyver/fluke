@@ -594,6 +594,8 @@ class DataSplitter:
         for c in labels:
             shuffle(pk[c])
         # assignment = np.zeros(y.shape[0])
+
+        cid_perm = permutation(n)
         idx_batch = [[[] for _ in range(n)],
                      [[] for _ in range(n)]]
         for iy, y in enumerate([y_train, y_test]):
@@ -661,6 +663,8 @@ class DataSplitter:
                                  for idx_j, idx in zip(idx_batch[iy],
                                                        np.split(ids, proportions))]
 
+        # change idx_batch according to cid_perm
+        idx_batch = [[idx_batch[i][cid_perm[j]] for j in range(n)] for i in range(2)]
         return idx_batch[0], idx_batch[1] if y_test is not None else None
 
     def label_pathological_skew(self,

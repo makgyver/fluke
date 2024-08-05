@@ -2,7 +2,7 @@ import numpy as np
 from typing import Callable, Literal
 import torch
 import torch.nn.functional as F
-from torch.nn import CosineSimilarity
+from torch.nn import CosineSimilarity, CrossEntropyLoss
 from copy import deepcopy
 
 from ..evaluation import ClassificationEval  # NOQA
@@ -140,20 +140,57 @@ class LargeMarginLoss:
         return self.__str__()
 
 
-class LargeMarginLoss2:
+class LargeMarginLoss2(torch.nn.Module):
+    """
+    Large Margin Loss as proposed in the paper [MARGIN2015]_.
+    The same concept of margin is also discussed in [AAAI2016]_.
 
-    def __init__(self, base_loss: Callable, margin_lam: float, num_labels: int = 10):
+    Args:
+        base_loss (torch.nn.Module): Base loss function.
+        margin_lam (float): Margin factor.
+        reduce (str): Reduction method for the loss. Default is "mean". The other option is "max".
+            When "max" is selected, the loss is calculated as the score difference between the
+            correct class and the incorrect class with the maximum score.
+        num_labels (int): Number of classes.
+
+    References:
+        .. [MARGIN2015] Shizhao Sun, et al. Large Margin Deep Neural Networks: Theory and
+           Algorithms. In: ArXiV 2015. URL: https://arxiv.org/pdf/1506.05232v1
+        .. [AAAI2016] Shizhao Sun, et al. On the Depth of Deep Neural Networks: A Theoretical View.
+           In: AAAI 2016. URL: https://cdn.aaai.org/ojs/10243/10243-13-13771-1-2-20201228.pdf
+    """
+
+    def __init__(self,
+                 base_loss: torch.nn.Module = CrossEntropyLoss(),
+                 margin_lam: float = 0.2,
+                 reduce: str = "mean",  # "max"
+                 num_labels: int = 10):
+        super().__init__()
         self.base_loss = base_loss
         self.margin_lam = margin_lam
         self.num_labels = num_labels
+        self.reduce = reduce
 
-    def __call__(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         logits = F.softmax(y_pred, dim=1)
         y_unsqueezed = y_true.view(-1, 1)
-        logits_y = torch.gather(logits, 1, y_unsqueezed).view(-1).repeat(self.num_labels, 1).t()
-        diff_y_k = torch.square(1 - (logits_y - logits))
-        loss = (diff_y_k.sum() - 1) / (self.num_labels - 1)
-        return self.base_loss(logits, y_true) + self.margin_lam * loss
+        logits_y = torch.gather(logits, 1, y_unsqueezed).view(-1)
+        if self.reduce == "mean":
+            logits_y = logits_y.repeat(self.num_labels, 1).t()
+            diff_y_k = torch.square(1 - (logits_y - logits))
+            loss = (diff_y_k.sum() - 1) / (self.num_labels - 1)
+        else:
+            logits_noy = logits.clone()
+            logits_noy[np.arange(len(y_true)), y_true] = -np.inf
+            loss = torch.square(1 - logits_y + torch.max(logits_noy, dim=1).values)
+            loss = loss.mean()
+        return self.base_loss(y_pred, y_true) + self.margin_lam * loss
+
+    def __str__(self):
+        return f"LargeMarginLoss2(base_loss={self.base_loss}, margin_lam={self.margin_lam})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class FedMarginClient(Client):
@@ -357,41 +394,42 @@ class FedNovaMargin(CentralizedFL):
 
 # FedProx + FedMargin
 class FedProxMarginClient(FedProxClient, FedMarginClient):
+    pass
+    # def fit(self, override_local_epochs: int = 0):
+    #     epochs = override_local_epochs if override_local_epochs
+    #              else self.hyper_params.local_epochs
+    #     self.receive_model()
+    #     W = deepcopy(self.model)
+    #     W.to(self.device)
+    #     self.model.to(self.device)
+    #     self.model.train()
+    #     if self.optimizer is None:
+    #         self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+    #     for _ in range(epochs):
+    #         loss = None
+    #         for _, (X, y) in enumerate(self.train_set):
+    #             X, y = X.to(self.device), y.to(self.device)
+    #             one_hot_y = torch.zeros(len(y),
+    #                                     self.train_set.num_labels,
+    #                                     device=self.device).scatter_(1,
+    #                                                                  y.unsqueeze(1),
+    #                                                                  1.).float()
+    #             # one_hot_y = one_hot_y.to(self.device)
+    #             self.optimizer.zero_grad()
+    #             # feature_maps = self.model.encoder(X)
+    #             y_hat, feature_maps = self.model(X, all_layers=True)
+    #             lam = self.hyper_params.margin_lam
+    #             loss = (1. - lam) * (self.hyper_params.loss_fn(y_hat, y) + \
+    #                    (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)) + \
+    #                    lam * LargeMarginLoss()(y_hat, one_hot_y, feature_maps)
+    #             loss.backward()
+    #             self.optimizer.step()
+    #         self.scheduler.step()
 
-    def fit(self, override_local_epochs: int = 0):
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
-        W = deepcopy(self.model)
-        W.to(self.device)
-        self.model.to(self.device)
-        self.model.train()
-        if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        for _ in range(epochs):
-            loss = None
-            for _, (X, y) in enumerate(self.train_set):
-                X, y = X.to(self.device), y.to(self.device)
-                one_hot_y = torch.zeros(len(y),
-                                        self.train_set.num_labels,
-                                        device=self.device).scatter_(1,
-                                                                     y.unsqueeze(1),
-                                                                     1.).float()
-                # one_hot_y = one_hot_y.to(self.device)
-                self.optimizer.zero_grad()
-                # feature_maps = self.model.encoder(X)
-                y_hat, feature_maps = self.model(X, all_layers=True)
-                lam = self.hyper_params.margin_lam
-                loss = (1. - lam) * (self.hyper_params.loss_fn(
-                    y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)) + \
-                    lam * LargeMarginLoss()(y_hat, one_hot_y, feature_maps)
-                loss.backward()
-                self.optimizer.step()
-            self.scheduler.step()
-
-        self.model.to("cpu")
-        W.to("cpu")
-        clear_cache()
-        self.send_model()
+    #     self.model.to("cpu")
+    #     W.to("cpu")
+    #     clear_cache()
+    #     self.send_model()
 
 
 class FedProxMargin(CentralizedFL):
