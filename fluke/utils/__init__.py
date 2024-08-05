@@ -1,7 +1,12 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
+from typing import TYPE_CHECKING
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import rich
 import torch
+import numpy as np
 from torch.optim import Optimizer
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
@@ -9,11 +14,14 @@ from typing import Any, Sequence
 # from enum import Enum
 import importlib
 import inspect
+import warnings
 import yaml
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
+if TYPE_CHECKING:
+    from client import Client
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
@@ -495,3 +503,70 @@ class Configuration(DDict):
 
     def __repr__(self) -> str:
         return str(self)
+
+
+def plot_distribution(clients: list[Client],
+                      train: bool = True,
+                      type: str = "ball") -> None:
+    """Plot the distribution of classes for each client.
+    This function is used to plot the distribution of classes for each client. The plot can be a
+    scatter plot, a heatmap, or a bar plot. The scatter plot (``type='ball'``) shows filled circles
+    whose size is proportional to the number of examples of a class. The heatmap (``type='mat'``)
+    shows a matrix where the rows represent the classes and the columns represent the clients with
+    a color intensity proportional to the number of examples of a class. The bar plot
+    (``type='bar'``) shows a stacked bar plot where the height of the bars is proportional to the
+    number of examples of a class.
+
+    Warning:
+        If the number of clients is greater than 30, the type is automatically switched to
+        ``'bar'`` for better visualization.
+
+    Args:
+        clients (list[Client]): The list of clients.
+        train (bool, optional): Whether to plot the distribution on the training set. If ``False``,
+            the distribution is plotted on the test set. Defaults to ``True``.
+        type (str, optional): The type of plot. It can be ``'ball'``, ``'mat'``, or ``'bar'``.
+            Defaults to ``'ball'``.
+    """
+    assert type in ["bar", "ball", "mat"], "Invalid plot type. Must be 'bar', 'ball' or 'mat'."
+    if len(clients) > 30 and type != "bar":
+        warnings.warn("Too many clients to plot. Switching to 'bar' plot.")
+        type = "bar"
+
+    client = {}
+    for c in clients:
+        client[c.index] = c.train_set.tensors[1] if train else c.test_set.tensors[1]
+
+    # Count the occurrences of each class for each client
+    class_counts = {client_idx: torch.bincount(client_data).tolist()
+                    for client_idx, client_data in enumerate(client.values())}
+
+    # Maximum number of classes
+    num_classes = max(len(counts) for counts in class_counts.values())
+
+    _, ax = plt.subplots(figsize=(12, 6))
+    ax.set_xticks(range(len(client)))
+    ax.set_yticks(range(num_classes))
+
+    class_matrix = np.zeros((num_classes, len(client)))
+    for client_idx, counts in class_counts.items():
+        for class_idx, count in enumerate(counts):
+            class_matrix[class_idx, client_idx] = count
+            # Adjusting size based on the count
+            if type == "ball":
+                size = count * 1  # Adjust the scaling factor as needed
+                ax.scatter(client_idx, class_idx, s=size, alpha=0.6)
+                ax.text(client_idx, class_idx, str(count), va='center',
+                        ha='center', color='black', fontsize=9)
+    plt.title('Number of Examples per Class for Each Client', fontsize=12)
+    ax.grid(False)
+    if type == "mat":
+        sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix,
+                    cbar=False, annot_kws={"fontsize": 6})
+    elif type == "bar":
+        df = pd.DataFrame(class_matrix.T, index=[f'{i}' for i in range(len(client))],
+                          columns=[f'{i}' for i in range(num_classes)])
+        df.plot(ax=ax, kind='bar', stacked=True, color=sns.color_palette('viridis', num_classes))
+    plt.xlabel('clients')
+    plt.ylabel('classes')
+    plt.show()
