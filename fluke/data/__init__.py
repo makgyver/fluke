@@ -589,11 +589,11 @@ class DataSplitter:
             n <= X_train.shape[0], "# of training nstances must be >= than min_ex_class * n"
         assert X_test is None or min_ex_class * \
             n <= X_test.shape[0], "# of test instances must be >= than min_ex_class * n"
+
         labels = list(torch.unique(torch.LongTensor(y_train)).numpy())
         pk = {c: dirichlet([beta]*n) for c in labels}
         for c in labels:
             shuffle(pk[c])
-        # assignment = np.zeros(y.shape[0])
 
         cid_perm = permutation(n)
         idx_batch = [[[] for _ in range(n)],

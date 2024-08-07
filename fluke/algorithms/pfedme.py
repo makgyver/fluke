@@ -51,7 +51,7 @@ class PFedMeClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  k: int,
                  **kwargs):

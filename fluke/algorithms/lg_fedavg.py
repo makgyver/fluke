@@ -6,7 +6,7 @@ References:
        Federated Learning with Local and Global Representations. In: arXiv (2020).
        URL: https://arxiv.org/abs/2001.01523
 """
-from torch.nn import CrossEntropyLoss
+# from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
 from typing import Any, Callable, Sequence
 import sys
@@ -34,11 +34,11 @@ class LGFedAVGClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],  # not used because fixed to CrossEntropyLoss
+                 loss_fn: Callable[..., Any],  # In the paper it is fixed to CrossEntropyLoss
                  local_epochs: int = 3,
                  **kwargs):
         super().__init__(index=index, model=HeadGlobalEncoderLocalNet(model), train_set=train_set,
-                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=CrossEntropyLoss(),
+                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, **kwargs)
 
     def send_model(self):

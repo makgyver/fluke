@@ -91,6 +91,8 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 @app.command()
 def federation(alg_cfg: str = typer.Argument(...,
                                              help='Config file for the algorithm to run'),
+               resume: str = typer.Option(None, help='Path to the checkpoint file to load.'),
+               save: str = typer.Option(None, help='Path to the checkpoint file to save.'),
                seed: int = typer.Option(None, help='Seed for reproducibility.')) -> None:
     """Run a federated learning experiment.
 
@@ -120,7 +122,14 @@ def federation(alg_cfg: str = typer.Argument(...,
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
+
+    if resume is not None:
+        fl_algo.load(resume)
+
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
+
+    if save is not None:
+        fl_algo.save(save)
 
 
 @app.command()

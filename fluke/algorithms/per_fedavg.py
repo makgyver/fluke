@@ -7,7 +7,7 @@ References:
 """
 from torch.optim import Optimizer
 import torch
-from typing import Callable, Union
+from typing import Union
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -52,7 +52,7 @@ class PerFedAVGClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  mode: str,
                  beta: float,

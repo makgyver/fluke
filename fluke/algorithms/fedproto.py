@@ -7,7 +7,7 @@ References:
 """
 import torch
 from torch.nn import Module
-from typing import Sequence, Callable
+from typing import Sequence
 from collections import defaultdict
 from copy import deepcopy
 import sys
@@ -62,7 +62,7 @@ class FedProtoClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  n_protos: int,
                  lam: float,

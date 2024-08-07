@@ -5,7 +5,6 @@ References:
        and Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
        Learning Workshop. URL: https://openreview.net/pdf?id=SkgwE5Ss3N
 """
-from typing import Callable
 from copy import deepcopy
 import torch
 import sys
@@ -24,7 +23,7 @@ class FedProxClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  mu: float,
                  **kwargs):
