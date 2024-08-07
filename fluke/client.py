@@ -6,7 +6,6 @@ from torch import device
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
-from typing import Callable
 import sys
 sys.path.append(".")
 
@@ -73,7 +72,7 @@ class Client():
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: Module,
                  local_epochs: int = 3,
                  **kwargs):
 
@@ -260,8 +259,9 @@ class PFLClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
-                 local_epochs: int = 3):
+                 loss_fn: Module,
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
 

@@ -64,6 +64,7 @@ Functions included in ``fluke.utils``
    get_model
    get_scheduler
    import_module_from_str
+   plot_distribution
 
 ```
 
@@ -133,6 +134,8 @@ Functions included in ``fluke.utils``
 .. autofunction:: fluke.utils.get_scheduler
 
 .. autofunction:: fluke.utils.import_module_from_str
+
+.. autofunction:: fluke.utils.plot_distribution
 
 ```
 

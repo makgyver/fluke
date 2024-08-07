@@ -6,7 +6,6 @@ References:
        URL: https://arxiv.org/abs/2209.00189
 """
 from collections import Counter
-from typing import Callable
 import torch
 import sys
 sys.path.append(".")
@@ -47,7 +46,7 @@ class FedLCClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,  # ignored
+                 loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
                  tau: float,
                  **kwargs):

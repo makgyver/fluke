@@ -4,7 +4,7 @@ References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype
        Learning. Submitted to ESANN 2024
 """
-from typing import Sequence, Callable
+from typing import Sequence
 import torch
 from torch import nn
 # from torch.optim import Adam
@@ -77,7 +77,7 @@ class FedHPClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  n_protos: int,
                  lam: float,

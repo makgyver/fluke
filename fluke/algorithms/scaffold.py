@@ -8,7 +8,7 @@ References:
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Iterable
+from typing import Iterable
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -51,7 +51,7 @@ class SCAFFOLDClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,

@@ -1,25 +1,27 @@
 import numpy as np
-from typing import Callable, Literal
+from typing import Literal
 import torch
 import torch.nn.functional as F
 from torch.nn import CosineSimilarity, CrossEntropyLoss
-from copy import deepcopy
+# from copy import deepcopy
 
 from ..evaluation import ClassificationEval  # NOQA
 from ..client import Client  # NOQA
 from ..utils import clear_cache, OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
 
-from ..algorithms import CentralizedFL  # NOQA
+from ..algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from .fedavgm import FedAVGM  # NOQA
 from .fedexp import FedExP  # NOQA
 from .fedopt import FedOpt  # NOQA
 from .scaffold import SCAFFOLDClient, SCAFFOLD  # NOQA
-from .fedlc import FedLCClient  # NOQA
-from .fednova import FedNovaClient  # NOQA
-from .fedprox import FedProxClient  # NOQA
+from .fedlc import FedLCClient, FedLC  # NOQA
+from .fednova import FedNovaClient, FedNova  # NOQA
+from .fedprox import FedProxClient, FedProx  # NOQA
 from .moon import MOONClient   # NOQA
+from .lg_fedavg import LGFedAVGClient, LGFedAVG  # NOQA
 
 
 def _max_with_relu(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -200,7 +202,7 @@ class FedMarginClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  margin_lam: float = 0.2,
                  **kwargs):
@@ -213,7 +215,7 @@ class FedMarginClient(Client):
     #              train_set: FastDataLoader,
     #              test_set: FastDataLoader,
     #              optimizer_cfg: OptimizerConfigurator,
-    #              loss_fn: Callable,
+    #              loss_fn: torch.nn.Module,
     #              local_epochs: int = 3,
     #              margin_lam: float = 0.2,
     #              margin_agg: str = "min",
@@ -292,53 +294,72 @@ class FedOptMargin(FedOpt, FedAVGMargin):
 # SCAFFOLD + FedMargin
 class SCAFFOLDMarginClient(SCAFFOLDClient, FedMarginClient):
 
-    def fit(self, override_local_epochs: int = 0):
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
-        server_model = deepcopy(self.model)
-        self.model.to(self.device)
-        self.model.train()
-        if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        for _ in range(epochs):
-            loss = None
-            for _, (X, y) in enumerate(self.train_set):
-                X = X.to(self.device)
-                y = torch.zeros(len(y),
-                                self.train_set.num_labels,
-                                device=self.device).scatter_(1,
-                                                             y.unsqueeze(1),
-                                                             1.).float()
-                # one_hot_y = one_hot_y.to(self.device)
-                self.optimizer.zero_grad()
-                # feature_maps = self.model.encoder(X)
-                y_hat, feature_maps = self.model(X, all_layers=True)
-                lam = self.hyper_params.margin_lam
-                loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
-                    lam * LargeMarginLoss()(y_hat, y, [feature_maps])
-                loss.backward()
-                self.optimizer.step(self.server_control, self.control)
-            self.scheduler.step()
+    def __init__(self,
+                 index: int,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: torch.nn.Module,
+                 local_epochs: int = 3,
+                 margin_lam: float = 0.2,
+                 **kwargs):
+        super().__init__(index=index,
+                         train_set=train_set,
+                         test_set=test_set,
+                         optimizer_cfg=optimizer_cfg,
+                         loss_fn=LargeMarginLoss2(loss_fn),
+                         local_epochs=local_epochs,
+                         margin_lam=margin_lam,
+                         ** kwargs)
 
-        params = zip(self.model.parameters(), server_model.parameters(), self.delta_y)
-        for local_model, server_model, delta_y in params:
-            delta_y.data = local_model.data.detach() - server_model.data.detach()
+    # def fit(self, override_local_epochs: int = 0):
+    #     epochs = override_local_epochs if override_local_epochs
+    #               else self.hyper_params.local_epochs
+    #     self.receive_model()
+    #     server_model = deepcopy(self.model)
+    #     self.model.to(self.device)
+    #     self.model.train()
+    #     if self.optimizer is None:
+    #         self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+    #     for _ in range(epochs):
+    #         loss = None
+    #         for _, (X, y) in enumerate(self.train_set):
+    #             X = X.to(self.device)
+    #             y = torch.zeros(len(y),
+    #                             self.train_set.num_labels,
+    #                             device=self.device).scatter_(1,
+    #                                                          y.unsqueeze(1),
+    #                                                          1.).float()
+    #             # one_hot_y = one_hot_y.to(self.device)
+    #             self.optimizer.zero_grad()
+    #             # feature_maps = self.model.encoder(X)
+    #             y_hat, feature_maps = self.model(X, all_layers=True)
+    #             lam = self.hyper_params.margin_lam
+    #             loss = (1. - lam) * self.hyper_params.loss_fn(y_hat, y) + \
+    #                 lam * LargeMarginLoss()(y_hat, y, [feature_maps])
+    #             loss.backward()
+    #             self.optimizer.step(self.server_control, self.control)
+    #         self.scheduler.step()
 
-        new_controls = [torch.zeros_like(p.data)
-                        for p in self.model.parameters() if p.requires_grad]
-        coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set)
-                      * self.scheduler.get_last_lr()[0])
-        params = zip(self.control, self.server_control, new_controls, self.delta_y)
-        for local_control, server_control, new_control, delta_y in params:
-            new_control.data = local_control.data - server_control.data - delta_y.data * coeff
+    #     params = zip(self.model.parameters(), server_model.parameters(), self.delta_y)
+    #     for local_model, server_model, delta_y in params:
+    #         delta_y.data = local_model.data.detach() - server_model.data.detach()
 
-        for local_control, new_control, delta_c in zip(self.control, new_controls, self.delta_c):
-            delta_c.data = new_control.data - local_control.data
-            local_control.data = new_control.data
+    #     new_controls = [torch.zeros_like(p.data)
+    #                     for p in self.model.parameters() if p.requires_grad]
+    #     coeff = 1. / (self.hyper_params.local_epochs * len(self.train_set)
+    #                   * self.scheduler.get_last_lr()[0])
+    #     params = zip(self.control, self.server_control, new_controls, self.delta_y)
+    #     for local_control, server_control, new_control, delta_y in params:
+    #         new_control.data = local_control.data - server_control.data - delta_y.data * coeff
 
-        self.model.to("cpu")
-        clear_cache()
-        self.send_model()
+    #     for local_control, new_control, delta_c in zip(self.control, new_controls, self.delta_c):
+    #         delta_c.data = new_control.data - local_control.data
+    #         local_control.data = new_control.data
+
+    #     self.model.to("cpu")
+    #     clear_cache()
+    #     self.send_model()
 
 
 class SCAFFOLDMargin(SCAFFOLD):
@@ -347,29 +368,38 @@ class SCAFFOLDMargin(SCAFFOLD):
         return SCAFFOLDMarginClient
 
 
-# FedLC + FedMargin
-class FedLCMarginClient(FedLCClient, FedMarginClient):
-
+class LGFedAVGMarginClient(LGFedAVGClient, FedMarginClient):
     def __init__(self,
                  index: int,
+                 model: EncoderHeadNet,
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,  # ignored
+                 loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
-                 tau: float,
                  margin_lam: float):
-        super().__init__(index,
-                         train_set,
-                         test_set,
-                         optimizer_cfg,
-                         None,
-                         local_epochs,
-                         tau=tau,
+        super().__init__(index=index,
+                         model=model,
+                         train_set=train_set,
+                         test_set=test_set,
+                         optimizer_cfg=optimizer_cfg,
+                         loss_fn=loss_fn,
+                         local_epochs=local_epochs,
                          margin_lam=margin_lam)
 
 
-class FedLCMargin(CentralizedFL):
+class LGFedAVGMargin(LGFedAVG):
+
+    def get_client_class(self) -> Client:
+        return LGFedAVGMarginClient
+
+
+# FedLC + FedMargin
+class FedLCMarginClient(FedLCClient, FedMarginClient):
+    pass
+
+
+class FedLCMargin(FedLC):
 
     def get_client_class(self) -> Client:
         return FedLCMarginClient
@@ -386,7 +416,7 @@ class FedNovaMarginClient(FedNovaClient, FedMarginClient):
         self.channel.send(Message(self.a, "local_a", self), self.server)
 
 
-class FedNovaMargin(CentralizedFL):
+class FedNovaMargin(FedNova):
 
     def get_client_class(self) -> Client:
         return FedNovaMarginClient
@@ -432,7 +462,7 @@ class FedProxMarginClient(FedProxClient, FedMarginClient):
     #     self.send_model()
 
 
-class FedProxMargin(CentralizedFL):
+class FedProxMargin(FedProx):
 
     def get_client_class(self) -> Client:
         return FedProxMarginClient

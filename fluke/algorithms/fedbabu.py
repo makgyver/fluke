@@ -103,7 +103,7 @@ class FedBABUServer(Server):
 
     def finalize(self) -> None:
 
-        with Progress() as progress:
+        with Progress(transient=True) as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
                 client.fine_tune()

@@ -233,7 +233,7 @@ class MNIST_2NN_E(nn.Module):
     """
 
     def __init__(self,
-                 hidden_size: tuple[int, int] = (200, 200)):
+                 hidden_size: tuple[int, int] = (200, 100)):
         super(MNIST_2NN_E, self).__init__()
         self.input_size = 28*28
         self.output_size = hidden_size[1]
@@ -262,7 +262,7 @@ class MNIST_2NN_D(nn.Module):
     """
 
     def __init__(self,
-                 hidden_size: int = 200,
+                 hidden_size: int = 100,
                  use_softmax: bool = False):
         super(MNIST_2NN_D, self).__init__()
         self.output_size = 10

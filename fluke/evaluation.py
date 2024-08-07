@@ -71,7 +71,7 @@ class ClassificationEval(Evaluator):
     """
 
     def __init__(self,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  n_classes: int,
                  device: Optional[torch.device] = None):
         super().__init__(loss_fn)

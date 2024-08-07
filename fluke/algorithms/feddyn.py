@@ -8,7 +8,7 @@ References:
 from torch.nn import Module
 import numpy as np
 import torch
-from typing import Callable, Iterable
+from typing import Iterable
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -56,7 +56,7 @@ class FedDynClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  alpha: float,
                  **kwargs):

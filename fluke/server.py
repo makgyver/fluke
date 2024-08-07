@@ -2,7 +2,7 @@
 The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
 """
 from __future__ import annotations
-from rich.progress import track
+from rich.progress import track, open as openprg
 import numpy as np
 from typing import Any, Sequence
 from collections import OrderedDict
@@ -202,7 +202,7 @@ class Server(ObserverSubject):
         client_evals = []
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
-        for client in track(client_to_eval, "Finalizing federation..."):
+        for client in track(client_to_eval, "Finalizing federation...", transient=True):
             client.finalize()
             client_eval = client.evaluate()
             if client_eval:
@@ -386,7 +386,9 @@ class Server(ObserverSubject):
         Args:
             path (str): The path to load the server.
         """
-        state = torch.load(path)
+        with openprg(path, "rb", transient=True) as file:
+            state = torch.load(file)
+        # state = torch.load(path)
         self.model.load_state_dict(state["model"])
         self.rounds = state["rounds"]
         self._participants = set(state["participants"])
