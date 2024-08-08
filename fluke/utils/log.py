@@ -62,7 +62,7 @@ class Log(ServerObserver, ChannelObserver):
 
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+            client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.client_history[round] = client_mean
             stats['local'] = client_mean
 
