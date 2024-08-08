@@ -197,7 +197,7 @@ def clients_only(alg_cfg: str = typer.Argument(...,
         model.to("cpu")
 
     client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-    client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+    client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
     rich.print(Panel(Pretty(client_mean, expand_all=True),
                      title="Overall local performance"))
 
