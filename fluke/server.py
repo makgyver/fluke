@@ -368,7 +368,7 @@ class Server(ObserverSubject):
         return self.__str__()
 
     def save(self, path: str) -> None:
-        """Save the server to a file.
+        """Save the server/s state to file.
 
         Args:
             path (str): The path to save the server.
@@ -381,7 +381,7 @@ class Server(ObserverSubject):
         torch.save(state, path)
 
     def load(self, path: str) -> None:
-        """Load the server from a file.
+        """Load the server's state from file.
 
         Args:
             path (str): The path to load the server.

@@ -43,7 +43,9 @@ dependencies = [
     "datasets",
     "psutil",
     "tensorboard",
-    "clearml"
+    "clearml",
+    "matplotlib",
+    "seaborn"
 ]
 
 [project.scripts]
