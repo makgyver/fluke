@@ -87,6 +87,9 @@ class SCAFFOLDClient(Client):
         self.model.to(self.device)
         self.model.train()
 
+        self._move_to(self.control, self.device)
+        self._move_to(self.server_control, self.device)
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
@@ -106,8 +109,6 @@ class SCAFFOLDClient(Client):
                 self.optimizer.step()  # self.server_control, self.control)
             self.scheduler.step()
 
-        self._move_to(self.control, self.device)
-        self._move_to(self.server_control, self.device)
         with torch.no_grad():
 
             self.delta_y = []
