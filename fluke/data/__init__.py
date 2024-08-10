@@ -129,6 +129,7 @@ class FastDataLoader:
         self.skip_singleton: bool = skip_singleton
         self.batch_size: int = batch_size if batch_size > 0 else self.size
         self.single_batch: bool = single_batch
+        self.__i = 0
 
     def __getitem__(self, index: int) -> tuple:
         """Get the entry at the given index for each tensor.
@@ -178,19 +179,19 @@ class FastDataLoader:
         if self.shuffle:
             r = torch.randperm(self.size)
             self.tensors = [t[r] for t in self.tensors]
-        self.i = 0
+        self.__i = 0
         return self
 
     def __next__(self) -> tuple:
-        if self.single_batch and self.i > 0:
+        if self.single_batch and self.__i > 0:
             raise StopIteration
-        if self.i >= self.size:
+        if self.__i >= self.size:
             raise StopIteration
-        batch = tuple(t[self.i: self.i+self._batch_size] for t in self.tensors)
+        batch = tuple(t[self.__i: self.__i+self._batch_size] for t in self.tensors)
         # Useful in case of batch norm layers
         if self.skip_singleton and batch[0].shape[0] == 1:
             raise StopIteration
-        self.i += self._batch_size
+        self.__i += self._batch_size
         return batch
 
     def __len__(self) -> int:

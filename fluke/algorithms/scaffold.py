@@ -64,9 +64,10 @@ class SCAFFOLDClient(Client):
 
     def receive_model(self) -> None:
         model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
+        self.server_control = server_control
         if self.model is None:
             self.model = model
-            self.control = [torch.zeros_like(p.data)
+            self.control = [torch.zeros_like(p.data, device=self.device)
                             for p in self.model.parameters()]  # if p.requires_grad]
             # self.delta_y = [torch.zeros_like(p.data)
             #                 for p in self.model.parameters() if p.requires_grad]
@@ -74,11 +75,20 @@ class SCAFFOLDClient(Client):
             #                 for p in self.model.parameters() if p.requires_grad]
         else:
             safe_load_state_dict(self.model, model.state_dict())
-        self.server_control = server_control
 
     def _move_to(self, control: list[torch.tensor], device: str) -> None:
         for c in control:
             c.data = c.data.to(device)
+
+    def _get_next_batch(self):
+        try:
+            X, y = next(self.train_set)
+            X, y = X.to(self.device), y.to(self.device)
+        except StopIteration:
+            self.train_iterator = iter(self.train_set)
+            X, y = next(self.train_iterator)
+
+        return X, y
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
@@ -87,27 +97,28 @@ class SCAFFOLDClient(Client):
         self.model.to(self.device)
         self.model.train()
 
-        self._move_to(self.control, self.device)
-        self._move_to(self.server_control, self.device)
+        # self._move_to(self.control, self.device)
+        # self._move_to(self.server_control, self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
         for _ in range(epochs):
             loss = None
-            for _, (X, y) in enumerate(self.train_set):
-                X, y = X.to(self.device), y.to(self.device)
-                self.optimizer.zero_grad()
-                y_hat = self.model(X)
-                loss = self.hyper_params.loss_fn(y_hat, y)
-                loss.backward()
-                for param, c, c_i in zip(self.model.parameters(),
-                                         self.server_control,
-                                         self.control):
-                    if param.requires_grad:
-                        param.grad.data += (c - c_i).to(self.device)
-                self.optimizer.step()  # self.server_control, self.control)
-            self.scheduler.step()
+            # for _, (X, y) in enumerate(self.train_set):
+            # X, y = X.to(self.device), y.to(self.device)
+            X, y = self._get_next_batch()
+            self.optimizer.zero_grad()
+            y_hat = self.model(X)
+            loss = self.hyper_params.loss_fn(y_hat, y)
+            loss.backward()
+            for param, c, c_i in zip(self.model.parameters(),
+                                     self.server_control,
+                                     self.control):
+                if param.requires_grad:
+                    param.grad.data += (c - c_i).to(self.device)
+            self.optimizer.step()  # self.server_control, self.control)
+        self.scheduler.step()
 
         with torch.no_grad():
 
