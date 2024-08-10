@@ -63,8 +63,9 @@ class SCAFFOLDClient(Client):
         self.server_control = None
 
     def receive_model(self) -> None:
-        model, server_control = self.channel.receive(self, self.server, msg_type="model").payload
-        self.server_control = server_control
+        model, self.server_control = self.channel.receive(self,
+                                                          self.server,
+                                                          msg_type="model").payload
         if self.model is None:
             self.model = model
             self.control = [torch.zeros_like(p.data, device=self.device)
@@ -83,11 +84,11 @@ class SCAFFOLDClient(Client):
     def _get_next_batch(self):
         try:
             X, y = next(self.train_set)
-            X, y = X.to(self.device), y.to(self.device)
         except StopIteration:
             self.train_iterator = iter(self.train_set)
             X, y = next(self.train_iterator)
 
+        X, y = X.to(self.device), y.to(self.device)
         return X, y
 
     def fit(self, override_local_epochs: int = 0):
@@ -97,8 +98,8 @@ class SCAFFOLDClient(Client):
         self.model.to(self.device)
         self.model.train()
 
-        # self._move_to(self.control, self.device)
-        # self._move_to(self.server_control, self.device)
+        self._move_to(self.control, self.device)  # useful?
+        self._move_to(self.server_control, self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -106,8 +107,8 @@ class SCAFFOLDClient(Client):
         for _ in range(epochs):
             loss = None
             # for _, (X, y) in enumerate(self.train_set):
-            # X, y = X.to(self.device), y.to(self.device)
             X, y = self._get_next_batch()
+            # X, y = X.to(self.device), y.to(self.device)
             self.optimizer.zero_grad()
             y_hat = self.model(X)
             loss = self.hyper_params.loss_fn(y_hat, y)
@@ -131,7 +132,8 @@ class SCAFFOLDClient(Client):
                 self.delta_y.append(param_l - param_g)
 
             # compute c_plus
-            coef = 1 / (self.hyper_params.local_epochs * self.scheduler.get_last_lr()[0])
+            coef = 1 / (self.hyper_params.local_epochs * len(self.train_set)
+                        * self.scheduler.get_last_lr()[0])
             for c_l, c_g, diff in zip(self.control, self.server_control, self.delta_y):
                 c_plus.append(c_l - c_g - coef * diff)
 
@@ -180,6 +182,7 @@ class SCAFFOLDServer(Server):
         self.model.to(self.device)
         self.control = [torch.zeros_like(p.data, device=self.device)
                         for p in self.model.parameters()]  # if p.requires_grad]
+        self.client_controls = {}
         self.hyper_params.update(global_step=global_step)
 
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
@@ -190,24 +193,26 @@ class SCAFFOLDServer(Server):
         self.model.to(self.device)
 
         y_delta_cache = []
-        c_delta_cache = []
+        # c_delta_cache = []
 
         for client in eligible:
             cl_delta_y, cl_delta_c = self.channel.receive(self, client, "model").payload
             y_delta_cache.append(cl_delta_y)
-            c_delta_cache.append(cl_delta_c)
+            # c_delta_cache.append(cl_delta_c)
+            self.client_controls[client.index] = cl_delta_c
 
         # update global model
-        avg_weight = torch.tensor([1 / len(eligible) for _ in eligible], device=self.device)
-        for param, y_del in zip(self.model.parameters(), zip(*y_delta_cache)):
-            x_del = torch.sum(avg_weight * torch.stack(y_del, dim=-1), dim=-1)
-            param.data += self.hyper_params.global_step * x_del
+        # avg_weight = torch.tensor([1 / len(eligible) for _ in eligible], device=self.device)
+        # weights = torch.FloatTensor(self._get_client_weights(eligible))
+        for param, y_delta in zip(self.model.parameters(), zip(*y_delta_cache)):
+            x_delta = torch.sum(torch.stack(y_delta, dim=-1), dim=-1)
+            param.data += self.hyper_params.global_step / len(eligible) * x_delta
             # print(param)
 
         # update global control
-        for c_g, c_del in zip(self.control, zip(*c_delta_cache)):
-            c_del = torch.sum(avg_weight * torch.stack(c_del, dim=-1), dim=-1)
-            c_g.data += (len(eligible) / self.n_clients) * c_del
+        for c_g, c_delta in zip(self.control, zip(*list(self.client_controls.values()))):
+            c_delta = torch.sum(torch.stack(c_delta, dim=-1), dim=-1)
+            c_g.data += c_delta / self.n_clients
 
         # delta_y = [torch.zeros_like(p.data, device=self.device)
         #            for p in self.model.parameters() if p.requires_grad]
