@@ -304,7 +304,8 @@ class Server(ObserverSubject):
                 if key not in avg_model_sd:
                     avg_model_sd[key] = weights[i] * client_sd[key]
                 else:
-                    avg_model_sd[key] += weights[i] * client_sd[key]
+                    avg_model_sd[key] = avg_model_sd[key] + weights[i] * client_sd[key]
+
         self.model.load_state_dict(avg_model_sd)
 
     def _notify_start_round(self, round: int, global_model: Any) -> None:

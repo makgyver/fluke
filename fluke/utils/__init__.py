@@ -178,7 +178,8 @@ class OptimizerConfigurator:
         """
         if override_kwargs:
             self.optimizer_cfg.update(**override_kwargs)
-        optimizer = self.optimizer(model.parameters(), **self.optimizer_cfg)
+        optimizer = self.optimizer(filter(lambda p: p.requires_grad, model.parameters()),
+                                   **self.optimizer_cfg)
         scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 
@@ -561,7 +562,7 @@ def plot_distribution(clients: list[Client],
     plt.title('Number of Examples per Class for Each Client', fontsize=12)
     ax.grid(False)
     if type == "mat":
-        sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix,
+        sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix, fmt='g',
                     cbar=False, annot_kws={"fontsize": 6})
     elif type == "bar":
         df = pd.DataFrame(class_matrix.T, index=[f'{i}' for i in range(len(client))],

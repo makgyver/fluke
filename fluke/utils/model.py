@@ -32,7 +32,7 @@ __all__ = [
     "AllLayerOutputModel"
 ]
 
-STATE_DICT_KEYS_TO_IGNORE = ("num_batches_tracked")
+STATE_DICT_KEYS_TO_IGNORE = tuple()  # ("num_batches_tracked", "running_mean", "running_var")
 
 
 class MMMixin:
@@ -547,8 +547,8 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict) -> None:
         This function performs an inplace operation on ``model1``.
 
     Args:
-        model (torch.nn.Module): The model to load the state dictionary.
-        state_dict (dict): The state dictionary.
+        model1 (torch.nn.Module): The model to load the state dictionary.
+        model2_state_dict (dict): The state dictionary.
     """
     model1_state_dict = model1.state_dict()
     new_state_dict = OrderedDict()
