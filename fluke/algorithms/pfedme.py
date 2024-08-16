@@ -137,6 +137,7 @@ class PFedMeServer(Server):
 
 
 class PFedMe(CentralizedFL):
+
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return PFedMeOptimizer
 

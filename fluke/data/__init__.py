@@ -603,7 +603,7 @@ class DataSplitter:
             if y is None:
                 continue
 
-            samples_avg = np.ceil(y.shape[0] / n)
+            samples_avg = y.shape[0] / n
 
             shuffle(labels)
             for c in labels:
@@ -625,6 +625,7 @@ class DataSplitter:
 
                 # fix the proportions to ensure a balanced distribution of the examples
                 fixed = []
+                samples_avg = np.ceil(samples_avg)
                 while balanced:
                     to_fix = False
                     proportions_int = (proportions * len(ids)).astype(int)

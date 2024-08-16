@@ -35,14 +35,13 @@ class FedProxClient(Client):
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), global_model.parameters()):
-            proximal_term += torch.norm(w - w_t)**2
+            proximal_term += (w - w_t).norm(2) ** 2
         return proximal_term
 
     def fit(self, override_local_epochs: int = 0):
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.receive_model()
-        W = deepcopy(self.model)
-        W.to(self.device)
+        W = deepcopy(self.model).to(self.device)
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
@@ -53,8 +52,8 @@ class FedProxClient(Client):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
-                loss = self.hyper_params.loss_fn(
-                    y_hat, y) + (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
+                loss = self.hyper_params.loss_fn(y_hat, y) + \
+                    (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
                 loss.backward()
                 self.optimizer.step()
             self.scheduler.step()
