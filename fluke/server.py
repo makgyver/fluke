@@ -362,11 +362,11 @@ class Server(ObserverSubject):
             observer.finished(client_evals)
 
     def __str__(self) -> str:
-        hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
+        hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         return f"{self.__class__.__name__}({hpstr})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
     def save(self, path: str) -> None:
         """Save the server/s state to file.

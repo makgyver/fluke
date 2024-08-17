@@ -134,11 +134,11 @@ class Message:
             self.sender == other.sender
 
     def __str__(self) -> str:
-        return f"Message(type={self.msg_type},from={self.sender},payload={self.payload}," + \
+        return f"Message(type={self.msg_type}, from={self.sender}, payload={self.payload}, " + \
             f"size={self.get_size()})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
 
 class ChannelObserver():
