@@ -5,7 +5,7 @@ References:
        for Federated Image Classification. In: ICLR (2022). URL: https://arxiv.org/abs/2106.06042
 """
 from rich.progress import Progress
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterable
 from torch.nn import Module
 import sys
 sys.path.append(".")
@@ -96,7 +96,7 @@ class FedBABUServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)

@@ -248,7 +248,7 @@ When overriding the ``fit`` method, you should follow the following best practic
   .. code-block:: python
       :linenos:
   
-      def broadcast_model(self, eligible: Sequence[Client]) -> None:
+      def broadcast_model(self, eligible: Iterable[Client]) -> None:
           self._channel.broadcast(Message(self.model, "model", self), eligible)
   ```
 

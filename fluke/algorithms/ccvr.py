@@ -8,7 +8,7 @@ References:
 import torch
 import numpy as np
 import sys
-from typing import Sequence
+from typing import Iterable
 
 from torch.nn.modules import Module
 
@@ -69,7 +69,7 @@ class CCVRServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[Client],
+                 clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
                  lr: float = 0.1,
@@ -121,8 +121,8 @@ class CCVRServer(Server):
         return classes_mean, classes_cov
 
     def _generate_virtual_repr(self,
-                               classes_mean: Sequence[torch.Tensor],
-                               classes_cov: Sequence[torch.Tensor]) -> tuple[torch.Tensor,
+                               classes_mean: Iterable[torch.Tensor],
+                               classes_cov: Iterable[torch.Tensor]) -> tuple[torch.Tensor,
                                                                              torch.Tensor]:
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):

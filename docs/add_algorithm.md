@@ -96,7 +96,7 @@ The configuration file of the algorithm must be structured as follows (please ma
       :linenos:
 
       from fluke.algorithms import CentralizedFL
-      from typing import Sequence
+      from typing import Iterable
       from fluke.client import Client
       from fluke.server import Server
       import numpy as np
@@ -105,7 +105,7 @@ The configuration file of the algorithm must be structured as follows (please ma
       class MyServer(Server):
 
          # we override the aggregate method to implement our aggregation strategy
-         def aggregate(self, eligible: Sequence[Client]) -> None:
+         def aggregate(self, eligible: Iterable[Client]) -> None:
             # eligible is a list of clients that participated in the last round
             # here we randomly select only two of them
 

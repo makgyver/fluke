@@ -4,7 +4,7 @@ References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype
        Learning. Submitted to ESANN 2024
 """
-from typing import Sequence
+from typing import Iterable
 import torch
 from torch import nn
 # from torch.optim import Adam
@@ -141,7 +141,7 @@ class FedHPServer(Server):
     def __init__(self,
                  model: nn.Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10,
@@ -184,7 +184,7 @@ class FedHPServer(Server):
             mapping.div_(torch.norm(mapping, dim=1, keepdim=True))
         return mapping.detach()
 
-    # def _get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
+    # def _get_client_models(self, eligible: Iterable[PFLClient], state_dict: bool = False):
     #     return [self.channel.receive(self, client, "model").payload for client in eligible]
 
 

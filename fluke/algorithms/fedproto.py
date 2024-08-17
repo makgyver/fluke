@@ -7,7 +7,7 @@ References:
 """
 import torch
 from torch.nn import Module
-from typing import Sequence
+from typing import Iterable
 from collections import defaultdict
 from copy import deepcopy
 import sys
@@ -85,7 +85,7 @@ class FedProtoClient(PFLClient):
     def send_model(self):
         self.channel.send(Message(self.prototypes, "model", self), self.server)
 
-    def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
+    def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
         for label, prts in protos.items():
             self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
@@ -156,7 +156,7 @@ class FedProtoServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10):
@@ -164,15 +164,15 @@ class FedProtoServer(Server):
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
         # This funciton broadcasts the prototypes to the clients
         self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
 
-    def get_client_models(self, eligible: Sequence[PFLClient], state_dict: bool = False):
+    def get_client_models(self, eligible: Iterable[PFLClient], state_dict: bool = False):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
     @torch.no_grad()
-    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Iterable[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_protos = self.get_client_models(eligible)
 

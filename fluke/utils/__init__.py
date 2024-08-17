@@ -10,7 +10,7 @@ import numpy as np
 from torch.optim import Optimizer
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
-from typing import Any, Sequence
+from typing import Any, Iterable
 # from enum import Enum
 import importlib
 import inspect
@@ -63,22 +63,22 @@ class ServerObserver():
     def end_round(self,
                   round: int,
                   evals: dict[str, float],
-                  client_evals: Sequence[Any]):
+                  client_evals: Iterable[Any]):
         """This method is called when a round ends.
 
         Args:
             round (int): The round number.
             evals (dict[str, float]): The evaluation results of the global model.
-            client_evals (Sequence[Any]): The evaluation rstuls of the clients.
+            client_evals (Iterable[Any]): The evaluation rstuls of the clients.
         """
         pass
 
-    def selected_clients(self, round: int, clients: Sequence):
+    def selected_clients(self, round: int, clients: Iterable):
         """This method is called when the clients have been selected for the current round.
 
         Args:
             round (int): The round number.
-            clients (Sequence): The clients selected for the current round.
+            clients (Iterable): The clients selected for the current round.
         """
         pass
 
@@ -90,11 +90,11 @@ class ServerObserver():
         """
         pass
 
-    def finished(self,  client_evals: Sequence[Any]):
+    def finished(self,  client_evals: Iterable[Any]):
         """This method is called when the federated learning process has ended.
 
         Args:
-            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+            client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         pass
 

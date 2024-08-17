@@ -4,7 +4,7 @@ The module ``fluke.server`` provides the base classes for the servers in ``fluke
 from __future__ import annotations
 from rich.progress import track, open as openprg
 import numpy as np
-from typing import Any, Sequence
+from typing import Any, Iterable
 from collections import OrderedDict
 import torch
 from torch import device
@@ -41,7 +41,7 @@ class Server(ObserverSubject):
           to this dictionary.
         device (torch.device): The device where the server runs.
         model (torch.nn.Module): The federated model to be trained.
-        clients (Sequence[Client]): The clients that will participate in the federated learning
+        clients (Iterable[Client]): The clients that will participate in the federated learning
           process.
         rounds (int): The number of rounds that have been executed.
         test_data (FastDataLoader): The test data to evaluate the model. If None, the model
@@ -50,7 +50,7 @@ class Server(ObserverSubject):
     Args:
         model (torch.nn.Module): The federated model to be trained.
         test_data (FastDataLoader): The test data to evaluate the model.
-        clients (Sequence[Client]): The clients that will participate in the federated learning
+        clients (Iterable[Client]): The clients that will participate in the federated learning
           process.
         eval_every (int): The number of rounds between evaluations. Defaults to 1.
         weighted (bool): A boolean indicating if the clients should be weighted by the
@@ -60,7 +60,7 @@ class Server(ObserverSubject):
     def __init__(self,
                  model: torch.nn.Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[Client],
+                 clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__()
@@ -69,7 +69,7 @@ class Server(ObserverSubject):
         )
         self.device: device = GlobalSettings().get_device()
         self.model: Module = model
-        self.clients: Sequence[Client] = clients
+        self.clients: Iterable[Client] = clients
         self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
@@ -111,11 +111,11 @@ class Server(ObserverSubject):
         """
         return self.model is not None
 
-    def broadcast_model(self, eligible: Sequence[Client]) -> None:
+    def broadcast_model(self, eligible: Iterable[Client]) -> None:
         """Broadcast the global model to the clients.
 
         Args:
-            eligible (Sequence[Client]): The clients that will receive the global model.
+            eligible (Iterable[Client]): The clients that will receive the global model.
         """
         self._channel.broadcast(Message(self.model, "model", self), eligible)
 
@@ -209,14 +209,14 @@ class Server(ObserverSubject):
                 client_evals.append(client_eval)
         self._notify_finalize(client_evals)
 
-    def get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
+    def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
 
         Args:
             eligible_perc (float): The percentage of clients that will be selected.
 
         Returns:
-            Sequence[Client]: The clients that will participate in the current round.
+            Iterable[Client]: The clients that will participate in the current round.
         """
         if eligible_perc == 1:
             if not self._participants:
@@ -227,12 +227,12 @@ class Server(ObserverSubject):
         self._participants.update([c.index for c in selected])
         return selected
 
-    def get_client_models(self, eligible: Sequence[Client], state_dict: bool = True) -> list[Any]:
+    def get_client_models(self, eligible: Iterable[Client], state_dict: bool = True) -> list[Any]:
         """Retrieve the models of the clients.
         This method assumes that the clients have already sent their models to the server.
 
         Args:
-            eligible (Sequence[Client]): The clients that will participate in the aggregation.
+            eligible (Iterable[Client]): The clients that will participate in the aggregation.
             state_dict (bool, optional): If True, the method returns the state_dict of the models.
               Otherwise, it returns the models. Defaults to True.
 
@@ -245,7 +245,7 @@ class Server(ObserverSubject):
             return [m.state_dict() for m in client_models]
         return client_models
 
-    def _get_client_weights(self, eligible: Sequence[Client]):
+    def _get_client_weights(self, eligible: Iterable[Client]):
         """Get the weights of the clients for the aggregation.
         The weights are calculated based on the number of samples of each client.
         If the hyperparameter ``weighted`` is True, the clients are weighted by their number of
@@ -260,7 +260,7 @@ class Server(ObserverSubject):
             performance.
 
         Args:
-            eligible (Sequence[Client]): The clients that will participate in the aggregation.
+            eligible (Iterable[Client]): The clients that will participate in the aggregation.
 
         Returns:
             list[float]: The weights of the clients.
@@ -273,7 +273,7 @@ class Server(ObserverSubject):
             return [1. / len(eligible)] * len(eligible)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Sequence[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         """Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
@@ -286,7 +286,7 @@ class Server(ObserverSubject):
             \\theta = \\sum_{i=1}^{N} w_i \\theta_i
 
         Args:
-            eligible (Sequence[Client]): The clients that will participate in the aggregation.
+            eligible (Iterable[Client]): The clients that will participate in the aggregation.
 
         References:
             .. [FedAVG] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas,
@@ -321,24 +321,24 @@ class Server(ObserverSubject):
     def _notify_end_round(self,
                           round: int,
                           evals: dict[str, float],
-                          client_evals: Sequence[Any]) -> None:
+                          client_evals: Iterable[Any]) -> None:
         """Notify the observers that a round has ended.
 
         Args:
             round (int): The round number.
             global_model (Any): The current global model.
             data (FastDataLoader): The test data.
-            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+            client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
             observer.end_round(round, evals, client_evals)
 
-    def _notify_selected_clients(self, round: int, clients: Sequence[Any]) -> None:
+    def _notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
         """Notify the observers that the clients have been selected for the current round.
 
         Args:
             round (int): The round number.
-            clients (Sequence[Any]): The clients selected for the current round.
+            clients (Iterable[Any]): The clients selected for the current round.
         """
         for observer in self._observers:
             observer.selected_clients(round, clients)
@@ -352,11 +352,11 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.error(error)
 
-    def _notify_finalize(self, client_evals: Sequence[Any]) -> None:
+    def _notify_finalize(self, client_evals: Iterable[Any]) -> None:
         """Notify the observers that the federated learning process has ended.
 
         Args:
-            client_evals (Sequence[Any]): The evaluation metrics of the clients.
+            client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
             observer.finished(client_evals)
