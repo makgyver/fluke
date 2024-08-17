@@ -2,7 +2,7 @@ import numpy as np
 from typing import Literal
 import torch
 import torch.nn.functional as F
-from torch.nn import CosineSimilarity, CrossEntropyLoss
+from torch.nn import CrossEntropyLoss  # , CosineSimilarity
 # from copy import deepcopy
 
 from ..evaluation import ClassificationEval  # NOQA
@@ -24,8 +24,8 @@ from .moon import MOONClient   # NOQA
 from .lg_fedavg import LGFedAVGClient, LGFedAVG  # NOQA
 
 
-def _max_with_relu(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    return a + F.relu(b - a)
+# def _max_with_relu(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+#     return a + F.relu(b - a)
 
 
 def _get_grad(out_: torch.Tensor, in_: torch.Tensor) -> torch.Tensor:
@@ -139,7 +139,7 @@ class LargeMarginLoss:
             f"dist_norm={self.dual_norm}, epsilon={self.eps}, agg_fun={self.agg_fun})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
 
 class LargeMarginLoss2(torch.nn.Module):
@@ -189,10 +189,11 @@ class LargeMarginLoss2(torch.nn.Module):
         return self.base_loss(y_pred, y_true) + self.margin_lam * loss
 
     def __str__(self):
-        return f"LargeMarginLoss2(base_loss={self.base_loss}, margin_lam={self.margin_lam})"
+        return f"LargeMarginLoss2(base_loss={self.base_loss}, margin_lam={self.margin_lam},\
+            reduce={self.reduce})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
 
 class FedMarginClient(Client):
@@ -470,51 +471,53 @@ class FedProxMargin(FedProx):
 
 # MOON + FedMargin
 class MOONMarginClient(MOONClient, FedMarginClient):
-    def fit(self, override_local_epochs: int = 0):
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
-        cos = CosineSimilarity(dim=-1).to(self.device)
-        self.model.to(self.device)
-        self.prev_model.to(self.device)
-        self.server_model.to(self.device)
-        self.model.train()
-        if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-        for _ in range(epochs):
-            loss = None
-            for _, (X, y) in enumerate(self.train_set):
-                X, y = X.to(self.device), y.to(self.device)
-                one_hot_y = torch.zeros(len(y),
-                                        self.train_set.num_labels).scatter_(1,
-                                                                            y.unsqueeze(1),
-                                                                            1.).float()
-                one_hot_y = one_hot_y.to(self.device)
-                self.optimizer.zero_grad()
+    pass
+    # def fit(self, override_local_epochs: int = 0):
+    #     epochs = override_local_epochs if override_local_epochs
+    #              else self.hyper_params.local_epochs
+    #     self.receive_model()
+    #     cos = CosineSimilarity(dim=-1).to(self.device)
+    #     self.model.to(self.device)
+    #     self.prev_model.to(self.device)
+    #     self.server_model.to(self.device)
+    #     self.model.train()
+    #     if self.optimizer is None:
+    #         self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+    #     for _ in range(epochs):
+    #         loss = None
+    #         for _, (X, y) in enumerate(self.train_set):
+    #             X, y = X.to(self.device), y.to(self.device)
+    #             one_hot_y = torch.zeros(len(y),
+    #                                     self.train_set.num_labels).scatter_(1,
+    #                                                                         y.unsqueeze(1),
+    #                                                                         1.).float()
+    #             one_hot_y = one_hot_y.to(self.device)
+    #             self.optimizer.zero_grad()
 
-                z_local = self.model.encoder(X)  # , -1)
-                y_hat = self.model.head(z_local)
-                loss_sup = self.hyper_params.loss_fn(y_hat, y)
+    #             z_local = self.model.encoder(X)  # , -1)
+    #             y_hat = self.model.head(z_local)
+    #             loss_sup = self.hyper_params.loss_fn(y_hat, y)
 
-                z_prev = self.prev_model.encoder(X)  # , -1)
-                z_global = self.server_model.encoder(X)  # , -1)
+    #             z_prev = self.prev_model.encoder(X)  # , -1)
+    #             z_global = self.server_model.encoder(X)  # , -1)
 
-                sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
-                sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau
-                loss_con = -torch.log(torch.exp(sim_lg) /
-                                      (torch.exp(sim_lg) + torch.exp(sim_lp))).mean()
+    #             sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
+    #             sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau
+    #             loss_con = -torch.log(torch.exp(sim_lg) /
+    #                                   (torch.exp(sim_lg) + torch.exp(sim_lp))).mean()
 
-                lam = self.hyper_params.margin_lam
-                loss = (1. - lam) * (loss_sup + self.hyper_params.mu * loss_con) + \
-                    lam * LargeMarginLoss()(y_hat, one_hot_y, [z_local])
-                loss.backward()
-                self.optimizer.step()
-            self.scheduler.step()
+    #             lam = self.hyper_params.margin_lam
+    #             loss = (1. - lam) * (loss_sup + self.hyper_params.mu * loss_con) + \
+    #                 lam * LargeMarginLoss()(y_hat, one_hot_y, [z_local])
+    #             loss.backward()
+    #             self.optimizer.step()
+    #         self.scheduler.step()
 
-        self.prev_model.to("cpu")
-        self.server_model.to("cpu")
-        self.model.to("cpu")
-        clear_cache()
-        self.send_model()
+    #     self.prev_model.to("cpu")
+    #     self.server_model.to("cpu")
+    #     self.model.to("cpu")
+    #     clear_cache()
+    #     self.send_model()
 
 
 class MOONMargin(CentralizedFL):
