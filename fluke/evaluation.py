@@ -167,9 +167,10 @@ class ClassificationEval(Evaluator):
         return result
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(n_classes={self.n_classes}," + \
-               f"device={self.device})[accuracy,precision,recall,f1," + \
-               f"{self.loss_fn.__class__.__name__}]"
+        loss_str = f", {self.loss_fn.__class__.__name__}" if self.loss_fn is not None else ""
+        return f"{self.__class__.__name__}(n_classes={self.n_classes}, " + \
+               f"device={self.device})[accuracy, precision, recall, f1" + \
+               f"{loss_str}" + "]"
 
     def __repr__(self) -> str:
         return str(self)

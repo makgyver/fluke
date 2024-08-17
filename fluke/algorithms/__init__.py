@@ -194,7 +194,7 @@ class CentralizedFL():
         return f"{self.__class__.__name__}({algo_hp}\n\t{client_str},\n\t{self.server}\n)"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
     def save(self, path: str):
         """Save the algorithm state to a file.

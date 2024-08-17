@@ -185,9 +185,9 @@ class OptimizerConfigurator:
 
     def __str__(self) -> str:
         strsched = self.scheduler.__name__
-        to_str = f"OptCfg({self.optimizer.__name__},"
-        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
-        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
+        to_str = f"OptCfg({self.optimizer.__name__}, "
+        to_str += ", ".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
+        to_str += f", {strsched}(" + ", ".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
         to_str += "))"
         return to_str
 
