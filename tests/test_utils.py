@@ -73,7 +73,7 @@ def test_optimcfg():
     assert opt.defaults["momentum"] == 0.9
     assert sch.step_size == 1
     assert sch.gamma == 0.1
-    assert str(opt_cfg) == "OptCfg(SGD,lr=0.1,momentum=0.9,StepLR(step_size=1,gamma=0.1))"
+    assert str(opt_cfg) == "OptCfg(SGD, lr=0.1, momentum=0.9, StepLR(step_size=1, gamma=0.1))"
     assert str(opt_cfg) == opt_cfg.__repr__()
 
     with pytest.raises(ValueError):
@@ -235,8 +235,8 @@ def test_configuration():
     assert conf.server.weighted
     assert conf.model == "MNIST_2NN"
 
-    assert str(conf) == "fluke.algorithms.fedavg.FedAVG" + \
-        "_data(mnist, iid)_proto(C100, R50,E0.1)_seed(42)"
+    print(str(conf))
+    assert str(conf) == "fluke.algorithms.fedavg.FedAVG_data(mnist, iid())_proto(C100, R50, E0.1)_seed(42)"
 
     cfg = dict({"protocol": {}, "data": {}, "exp": {}, "logger": {}})
     cfg_alg = dict({"name": "fluke.algorithms.fedavg.FedAVG", "hyperparameters": {

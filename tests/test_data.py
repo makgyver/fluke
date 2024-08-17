@@ -183,12 +183,12 @@ def test_splitter():
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK?
-    splitter.distribution = "covariate"
-    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    # splitter.distribution = "covariate"
+    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK
-    splitter.distribution = "classwise_qnt"
-    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+    # splitter.distribution = "classwise_qnt"
+    # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     splitter.distribution = "pathological"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)

@@ -62,9 +62,12 @@ class Datasets:
             try:
                 data_fun = get_class_from_qualified_name(name)
                 return data_fun(**kwargs)
-            except (ModuleNotFoundError, TypeError, ValueError):
-                raise ValueError(f"Dataset {name} not found. The supported datasets are: " +
-                                 ", ".join(Datasets._DATASET_MAP.keys()) + ".")
+            except (ModuleNotFoundError, TypeError, ValueError) as e:
+                if "." in name:
+                    raise e
+                else:
+                    raise ValueError(f"Dataset {name} not found. The supported datasets are: " +
+                                     ", ".join(Datasets._DATASET_MAP.keys()) + ".")
 
         return Datasets._DATASET_MAP[name](**kwargs)
 

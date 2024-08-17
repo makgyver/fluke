@@ -147,7 +147,7 @@ class FedDynServer(Server):
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.cld_mdl), "model", self), eligible)
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
+    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
 
         # Weight computation
         for client in self.clients:
