@@ -245,6 +245,6 @@ def get_logger(lname: str, **kwargs) -> Log:
         **kwargs: The keyword arguments to pass to the logger's constructor.
 
     Returns:
-        Log | WandBLog | TensorBoardLog: The logger.
+        Log | WandBLog | ClearMLLog | TensorBoardLog: The logger.
     """
     return get_class_from_str("fluke.utils.log", lname)(**kwargs)

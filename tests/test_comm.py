@@ -46,8 +46,8 @@ def test_message():
     assert msg.get_size() == 0
 
     msg = Message(payload="prova", msg_type="type_test", sender=None)
-    assert str(msg) == "Message(type=type_test,from=None,payload=prova,size=5)"
-    assert msg.__repr__() == "Message(type=type_test,from=None,payload=prova,size=5)"
+    assert str(msg) == "Message(type=type_test, from=None, payload=prova, size=5)"
+    assert msg.__repr__() == "Message(type=type_test, from=None, payload=prova, size=5)"
 
 
 def test_channel():
