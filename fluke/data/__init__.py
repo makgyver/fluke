@@ -129,6 +129,7 @@ class FastDataLoader:
         self.skip_singleton: bool = skip_singleton
         self.batch_size: int = batch_size if batch_size > 0 else self.size
         self.single_batch: bool = single_batch
+        self.__i = 0
 
     def __getitem__(self, index: int) -> tuple:
         """Get the entry at the given index for each tensor.
@@ -178,19 +179,19 @@ class FastDataLoader:
         if self.shuffle:
             r = torch.randperm(self.size)
             self.tensors = [t[r] for t in self.tensors]
-        self.i = 0
+        self.__i = 0
         return self
 
     def __next__(self) -> tuple:
-        if self.single_batch and self.i > 0:
+        if self.single_batch and self.__i > 0:
             raise StopIteration
-        if self.i >= self.size:
+        if self.__i >= self.size:
             raise StopIteration
-        batch = tuple(t[self.i: self.i+self._batch_size] for t in self.tensors)
+        batch = tuple(t[self.__i: self.__i+self._batch_size] for t in self.tensors)
         # Useful in case of batch norm layers
         if self.skip_singleton and batch[0].shape[0] == 1:
             raise StopIteration
-        self.i += self._batch_size
+        self.__i += self._batch_size
         return batch
 
     def __len__(self) -> int:
@@ -589,18 +590,20 @@ class DataSplitter:
             n <= X_train.shape[0], "# of training nstances must be >= than min_ex_class * n"
         assert X_test is None or min_ex_class * \
             n <= X_test.shape[0], "# of test instances must be >= than min_ex_class * n"
+
         labels = list(torch.unique(torch.LongTensor(y_train)).numpy())
         pk = {c: dirichlet([beta]*n) for c in labels}
         for c in labels:
             shuffle(pk[c])
-        # assignment = np.zeros(y.shape[0])
+
+        cid_perm = permutation(n)
         idx_batch = [[[] for _ in range(n)],
                      [[] for _ in range(n)]]
         for iy, y in enumerate([y_train, y_test]):
             if y is None:
                 continue
 
-            samples_avg = np.ceil(y.shape[0] / n)
+            samples_avg = y.shape[0] / n
 
             shuffle(labels)
             for c in labels:
@@ -622,6 +625,7 @@ class DataSplitter:
 
                 # fix the proportions to ensure a balanced distribution of the examples
                 fixed = []
+                samples_avg = np.ceil(samples_avg)
                 while balanced:
                     to_fix = False
                     proportions_int = (proportions * len(ids)).astype(int)
@@ -661,6 +665,8 @@ class DataSplitter:
                                  for idx_j, idx in zip(idx_batch[iy],
                                                        np.split(ids, proportions))]
 
+        # change idx_batch according to cid_perm
+        idx_batch = [[idx_batch[i][cid_perm[j]] for j in range(n)] for i in range(2)]
         return idx_batch[0], idx_batch[1] if y_test is not None else None
 
     def label_pathological_skew(self,

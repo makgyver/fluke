@@ -6,7 +6,6 @@ References:
 """
 from torch.nn import CosineSimilarity
 import torch
-from typing import Callable
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -25,12 +24,14 @@ class MOONClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  mu: float,
                  tau: float,
                  **kwargs):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(
             mu=mu,
             tau=tau

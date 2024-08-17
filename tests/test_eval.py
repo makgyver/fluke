@@ -66,8 +66,8 @@ def test_classification_eval():
 
     assert clf_eval.evaluate(None, None) == {}
 
-    assert str(clf_eval) == "ClassificationEval(n_classes=3,device=cpu)" + \
-        "[accuracy,precision,recall,f1,CrossEntropyLoss]"
+    assert str(clf_eval) == "ClassificationEval(n_classes=3, device=cpu)" + \
+        "[accuracy, precision, recall, f1, CrossEntropyLoss]"
     assert repr(clf_eval) == str(clf_eval)
 
 

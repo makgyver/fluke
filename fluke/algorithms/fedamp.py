@@ -7,7 +7,7 @@ References:
 """
 from torch.nn import Module
 import torch
-from typing import Callable, Sequence
+from typing import Sequence
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -29,11 +29,13 @@ class FedAMPClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  lam: float,
                  **kwargs):
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)
         # self.personalized_model = u_model

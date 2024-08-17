@@ -2,7 +2,7 @@
 The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
 """
 from __future__ import annotations
-from rich.progress import track
+from rich.progress import track, open as openprg
 import numpy as np
 from typing import Any, Sequence
 from collections import OrderedDict
@@ -119,7 +119,11 @@ class Server(ObserverSubject):
         """
         self._channel.broadcast(Message(self.model, "model", self), eligible)
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
+    def fit(self,
+            n_rounds: int = 10,
+            eligible_perc: float = 0.1,
+            finalize: bool = True,
+            **kwargs) -> None:
         """Run the federated learning algorithm.
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to
@@ -132,6 +136,9 @@ class Server(ObserverSubject):
             n_rounds (int, optional): The number of rounds to run. Defaults to 10.
             eligible_perc (float, optional): The percentage of clients that will be selected for
               each round. Defaults to 0.1.
+            finalize (bool, optional): If True, the server will finalize the federated learning
+                process. Defaults to True.
+            **kwargs: Additional keyword arguments.
         """
         with GlobalSettings().get_live_renderer():
             progress_fl = GlobalSettings().get_progress_bar("FL")
@@ -165,7 +172,8 @@ class Server(ObserverSubject):
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
-        self.finalize()
+        if finalize:
+            self.finalize()
 
     def evaluate(self) -> dict[str, float]:
         """Evaluate the global federated model on the ``test_set``.
@@ -179,7 +187,7 @@ class Server(ObserverSubject):
                 the results.
         """
         if self.test_data is not None:
-            return ClassificationEval(self.clients[0].hyper_params.loss_fn,
+            return ClassificationEval(None,  # self.clients[0].hyper_params.loss_fn,
                                       #   self.model.output_size,
                                       self.test_data.num_labels,
                                       device=self.device).evaluate(self.model,
@@ -194,7 +202,7 @@ class Server(ObserverSubject):
         client_evals = []
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
-        for client in track(client_to_eval, "Finalizing federation..."):
+        for client in track(client_to_eval, "Finalizing federation...", transient=True):
             client.finalize()
             client_eval = client.evaluate()
             if client_eval:
@@ -296,7 +304,8 @@ class Server(ObserverSubject):
                 if key not in avg_model_sd:
                     avg_model_sd[key] = weights[i] * client_sd[key]
                 else:
-                    avg_model_sd[key] += weights[i] * client_sd[key]
+                    avg_model_sd[key] = avg_model_sd[key] + weights[i] * client_sd[key]
+
         self.model.load_state_dict(avg_model_sd)
 
     def _notify_start_round(self, round: int, global_model: Any) -> None:
@@ -353,8 +362,34 @@ class Server(ObserverSubject):
             observer.finished(client_evals)
 
     def __str__(self) -> str:
-        hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
+        hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         return f"{self.__class__.__name__}({hpstr})"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
+
+    def save(self, path: str) -> None:
+        """Save the server/s state to file.
+
+        Args:
+            path (str): The path to save the server.
+        """
+        state = {
+            "model": self.model.state_dict(),
+            "rounds": self.rounds,
+            "participants": self._participants
+        }
+        torch.save(state, path)
+
+    def load(self, path: str) -> None:
+        """Load the server's state from file.
+
+        Args:
+            path (str): The path to load the server.
+        """
+        with openprg(path, "rb", transient=True) as file:
+            state = torch.load(file)
+        # state = torch.load(path)
+        self.model.load_state_dict(state["model"])
+        self.rounds = state["rounds"]
+        self._participants = set(state["participants"])

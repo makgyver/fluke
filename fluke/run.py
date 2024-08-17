@@ -13,7 +13,8 @@ sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model, get_logger)  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model, plot_distribution)  # NOQA
+from .utils.log import get_logger  # NOQA
 from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
@@ -89,13 +90,21 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
 @app.command()
 def federation(alg_cfg: str = typer.Argument(...,
-                                             help='Config file for the algorithm to run')) -> None:
+                                             help='Config file for the algorithm to run'),
+               resume: str = typer.Option(None, help='Path to the checkpoint file to load.'),
+               save: str = typer.Option(None, help='Path to the checkpoint file to save.'),
+               seed: int = typer.Option(None, help='Seed for reproducibility.')) -> None:
     """Run a federated learning experiment.
 
     Args:
         alg_cfg (str): Configuration file for the algorithm to run.
+        seed (int, optional): Seed for reproducibility, defaults to None. If None, the seed
+            is taken from the configuration file.
     """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
+    if seed is not None:
+        cfg.exp.seed = seed
+
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
     data_container = Datasets.get(**cfg.data.dataset)
@@ -108,12 +117,19 @@ def federation(alg_cfg: str = typer.Argument(...,
     fl_algo = fl_algo_class(cfg.protocol.n_clients,
                             data_splitter,
                             cfg.method.hyperparameters)
-
+    # plot_distribution(fl_algo.clients)
     log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
+
+    if resume is not None:
+        fl_algo.load(resume)
+
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
+
+    if save is not None:
+        fl_algo.save(save)
 
 
 @app.command()
@@ -181,7 +197,7 @@ def clients_only(alg_cfg: str = typer.Argument(...,
         model.to("cpu")
 
     client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-    client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
+    client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
     rich.print(Panel(Pretty(client_mean, expand_all=True),
                      title="Overall local performance"))
 

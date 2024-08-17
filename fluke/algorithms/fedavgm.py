@@ -22,6 +22,17 @@ from ..client import Client  # NOQA
 
 
 class FedAVGMServer(Server):
+    """Server class for the FedAVGM algorithm.
+
+    Args:
+        model (Module): The model to be trained.
+        test_data (FastDataLoader): The test data.
+        clients (Iterable[Client]): The clients participating in the federated learning process.
+        eval_every (int, optional): Evaluate the model every `eval_every` rounds. Defaults to 1.
+        weighted (bool, optional): Use weighted averaging. Defaults to True.
+        momentum (float, optional): The momentum hyper-parameter. Defaults to 0.9.
+    """
+
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
@@ -29,16 +40,6 @@ class FedAVGMServer(Server):
                  eval_every: int = 1,
                  weighted: bool = True,
                  momentum: float = 0.9):
-        """_summary_
-
-        Args:
-            model (Module): _description_
-            test_data (FastDataLoader): _description_
-            clients (Iterable[Client]): _description_
-            eval_every (int, optional): _description_. Defaults to 1.
-            weighted (bool, optional): _description_. Defaults to True.
-            momentum (float, optional): _description_. Defaults to 0.9.
-        """
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(momentum=momentum)
         self.momentum_vector = None

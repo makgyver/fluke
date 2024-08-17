@@ -6,7 +6,6 @@ from torch import device
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
-from typing import Callable
 import sys
 sys.path.append(".")
 
@@ -73,7 +72,7 @@ class Client():
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: Module,
                  local_epochs: int = 3,
                  **kwargs):
 
@@ -231,9 +230,9 @@ class Client():
         self.receive_model()
 
     def __str__(self) -> str:
-        hpstr = ",".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
-        hpstr = "," + hpstr if hpstr else ""
-        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}," + \
+        hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
+        hpstr = ", " + hpstr if hpstr else ""
+        return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, " + \
                f"batch_size={self.train_set._batch_size}{hpstr})"
 
     def __repr__(self) -> str:
@@ -260,8 +259,9 @@ class PFLClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
-                 local_epochs: int = 3):
+                 loss_fn: Module,
+                 local_epochs: int = 3,
+                 **kwargs):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
 

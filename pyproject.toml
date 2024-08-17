@@ -41,7 +41,11 @@ dependencies = [
     "typer",
     "wandb",
     "datasets",
-    "psutil"
+    "psutil",
+    "tensorboard",
+    "clearml",
+    "matplotlib",
+    "seaborn"
 ]
 
 [project.scripts]

@@ -19,3 +19,5 @@ fluke_fl.egg-info
 tests/data
 tutorials/data
 docs/examples/tutorials/data
+runs
+*.pth

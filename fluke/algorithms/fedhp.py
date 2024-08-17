@@ -4,7 +4,7 @@ References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype
        Learning. Submitted to ESANN 2024
 """
-from typing import Sequence, Callable
+from typing import Sequence
 import torch
 from torch import nn
 # from torch.optim import Adam
@@ -77,13 +77,14 @@ class FedHPClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  n_protos: int,
                  lam: float,
                  **kwargs):
-        super().__init__(index, ProtoNet(model, n_protos), train_set,
-                         test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=ProtoNet(model, n_protos), train_set=train_set,
+                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
+                         local_epochs=local_epochs, **kwargs)
         self.hyper_params.update(n_protos=n_protos, lam=lam)
         self.model = self.personalized_model
         self.initial_prototypes = None
@@ -151,10 +152,12 @@ class FedHPServer(Server):
         self.device = GlobalSettings().get_device()
         # self.prototypes = None
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
-        self.model.prototypes.data = self._hyperspherical_embedding()
-        self.channel.broadcast(Message(self.model.prototypes.data, "protos", self), self.clients)
-        return super().fit(n_rounds, eligible_perc)
+    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True):
+        if self.rounds == 0:
+            self.model.prototypes.data = self._hyperspherical_embedding()
+            self.channel.broadcast(Message(self.model.prototypes.data,
+                                   "protos", self), self.clients)
+        return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
     def _hyperspherical_embedding(self, seed: int = 0):
         """

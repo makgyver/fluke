@@ -1,27 +1,27 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
-from rich.pretty import Pretty
-from rich.panel import Panel
+from typing import TYPE_CHECKING
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import rich
+import torch
+import numpy as np
 from torch.optim import Optimizer
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
-import torch
 from typing import Any, Sequence
 # from enum import Enum
-import psutil
-import pandas as pd
-import numpy as np
 import importlib
 import inspect
-import wandb
-import json
+import warnings
 import yaml
-import os
 import sys
 sys.path.append(".")
 sys.path.append("..")
 
+if TYPE_CHECKING:
+    from client import Client
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
@@ -31,10 +31,8 @@ from ..comm import ChannelObserver, Message  # NOQA
 __all__ = [
     'model',
     'Configuration',
-    'Log',
     'OptimizerConfigurator',
     'ServerObserver',
-    'WandBLog',
     'clear_cache',
     'get_class_from_str',
     'get_class_from_qualified_name',
@@ -180,159 +178,21 @@ class OptimizerConfigurator:
         """
         if override_kwargs:
             self.optimizer_cfg.update(**override_kwargs)
-        optimizer = self.optimizer(model.parameters(), **self.optimizer_cfg)
+        optimizer = self.optimizer(filter(lambda p: p.requires_grad, model.parameters()),
+                                   **self.optimizer_cfg)
         scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 
     def __str__(self) -> str:
         strsched = self.scheduler.__name__
-        to_str = f"OptCfg({self.optimizer.__name__},"
-        to_str += ",".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
-        to_str += f",{strsched}(" + ",".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
+        to_str = f"OptCfg({self.optimizer.__name__}, "
+        to_str += ", ".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
+        to_str += f", {strsched}(" + ", ".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
         to_str += "))"
         return to_str
 
     def __repr__(self) -> str:
         return str(self)
-
-
-class Log(ServerObserver, ChannelObserver):
-    """Basic logger.
-    This class is used to log the performance of the global model and the communication costs during
-    the federated learning process. The logging happens in the console.
-
-    Attributes:
-        history (dict): The history of the global model's performance.
-        client_history (dict): The history of the clients' performance.
-        comm_costs (dict): The history of the communication costs.
-        current_round (int): The current round.
-    """
-
-    def __init__(self, **kwargs):
-        self.history: dict = {}
-        self.client_history: dict = {}
-        self.comm_costs: dict = {0: 0}
-        self.current_round: int = 0
-
-    def init(self, **kwargs):
-        """Initialize the logger.
-        The initialization is done by printing the configuration in the console.
-
-        Args:
-            **kwargs: The configuration.
-        """
-        if kwargs:
-            rich.print(Panel(Pretty(kwargs, expand_all=True), title="Configuration"))
-
-    def start_round(self, round: int, global_model: Module):
-        self.comm_costs[round] = 0
-        self.current_round = round
-
-        if round == 1 and self.comm_costs[0] > 0:
-            rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
-
-    def end_round(self,
-                  round: int,
-                  global_eval: dict[str, float],
-                  client_evals: Sequence[Any]):
-        self.history[round] = global_eval
-        stats = {'global': self.history[round]}
-
-        if client_evals:
-            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-            self.client_history[round] = client_mean
-            stats['local'] = client_mean
-
-        stats['comm_cost'] = self.comm_costs[round]
-        if stats['global'] or ('local' in stats and stats['local']):
-            rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-            rich.print(f"  MEMORY USAGE: {psutil.Process(os.getpid()).memory_percent():.2f} %")
-
-    def message_received(self, message: Message):
-        self.comm_costs[self.current_round] += message.get_size()
-
-    def finished(self, client_evals: Sequence[Any]):
-        if client_evals:
-            client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
-            client_mean = {k: np.round(float(v), 5) for k, v in client_mean.items()}
-            self.client_history[self.current_round + 1] = client_mean
-            rich.print(Panel(Pretty(client_mean, expand_all=True),
-                             title="Overall local performance"))
-
-        if self.history[self.current_round]:
-            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True),
-                             title="Overall global performance"))
-
-        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
-                         title="Total communication cost"))
-
-    def save(self, path: str):
-        """Save the logger's history to a JSON file.
-
-        Args:
-            path (str): The path to the JSON file.
-        """
-        json_to_save = {
-            "perf_global": self.history,
-            "comm_costs": self.comm_costs,
-            "perf_local": self.client_history
-        }
-        with open(path, 'w') as f:
-            json.dump(json_to_save, f, indent=4)
-
-    def error(self, error: str):
-        """Log an error.
-
-        Args:
-            error (str): The error message.
-        """
-        rich.print(f"[bold red]Error: {error}[/bold red]")
-
-
-class WandBLog(Log):
-    """Weights and Biases logger.
-    This class is used to log the performance of the global model and the communication costs during
-    the federated learning process on Weights and Biases.
-
-    See Also:
-        For more information on Weights and Biases, see the `Weights and Biases documentation
-        <https://docs.wandb.ai/>`_.
-
-    Args:
-        **config: The configuration for Weights and Biases.
-    """
-
-    def __init__(self, **config):
-        super().__init__()
-        self.config = config
-
-    def init(self, **kwargs):
-        super().init(**kwargs)
-        self.config["config"] = kwargs
-        self.run = wandb.init(**self.config)
-
-    def start_round(self, round: int, global_model: Module):
-        super().start_round(round, global_model)
-        if round == 1 and self.comm_costs[0] > 0:
-            self.run.log({"comm_costs": self.comm_costs[0]})
-
-    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Sequence[Any]):
-        super().end_round(round, global_eval, client_evals)
-        self.run.log({"global": self.history[round]}, step=round)
-        self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
-        if client_evals:
-            self.run.log({"local": self.client_history[round]}, step=round)
-
-    def finished(self, client_evals: Sequence[Any]):
-        super().finished(client_evals)
-        if client_evals:
-            self.run.log(
-                {"local": self.client_history[self.current_round+1]}, step=self.current_round+1)
-
-    def save(self, path: str):
-        super().save(path)
-        self.run.finish()
 
 
 def import_module_from_str(name: str) -> Any:
@@ -450,21 +310,6 @@ def get_full_classname(classtype: type) -> str:
                 get_full_classname(B) # '__main__.B'
     """
     return f"{classtype.__module__}.{classtype.__name__}"
-
-
-def get_logger(lname: str, **kwargs) -> Log | WandBLog:
-    """Get a logger from its name.
-    This function is used to get a logger from its name. It is used to dynamically import loggers.
-    The supported loggers are the ones defined in the ``fluke.utils`` module.
-
-    Args:
-        lname (str): The name of the logger.
-        **kwargs: The keyword arguments to pass to the logger's constructor.
-
-    Returns:
-        Log | WandBLog: The logger.
-    """
-    return get_class_from_str("fluke.utils", lname)(**kwargs)
 
 
 def get_optimizer(oname: str) -> type[Optimizer]:
@@ -651,11 +496,78 @@ class Configuration(DDict):
 
     def __str__(self) -> str:
         return f"{self.method.name}_data({self.data.dataset.name}, " + \
-               f"{self.data.distribution.name}" + \
-               f"{',std' if self.data.standardize else ''})" + \
-               f"_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}," + \
+               f"{self.data.distribution.name}(" + \
+               ", ".join([f"{k}={v}" for k, v in self.data.distribution.exclude('name').items()]) +\
+               f"))_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}, " + \
                f"E{self.protocol.eligible_perc})" + \
                f"_seed({self.exp.seed})"
 
     def __repr__(self) -> str:
         return str(self)
+
+
+def plot_distribution(clients: list[Client],
+                      train: bool = True,
+                      type: str = "ball") -> None:
+    """Plot the distribution of classes for each client.
+    This function is used to plot the distribution of classes for each client. The plot can be a
+    scatter plot, a heatmap, or a bar plot. The scatter plot (``type='ball'``) shows filled circles
+    whose size is proportional to the number of examples of a class. The heatmap (``type='mat'``)
+    shows a matrix where the rows represent the classes and the columns represent the clients with
+    a color intensity proportional to the number of examples of a class. The bar plot
+    (``type='bar'``) shows a stacked bar plot where the height of the bars is proportional to the
+    number of examples of a class.
+
+    Warning:
+        If the number of clients is greater than 30, the type is automatically switched to
+        ``'bar'`` for better visualization.
+
+    Args:
+        clients (list[Client]): The list of clients.
+        train (bool, optional): Whether to plot the distribution on the training set. If ``False``,
+            the distribution is plotted on the test set. Defaults to ``True``.
+        type (str, optional): The type of plot. It can be ``'ball'``, ``'mat'``, or ``'bar'``.
+            Defaults to ``'ball'``.
+    """
+    assert type in ["bar", "ball", "mat"], "Invalid plot type. Must be 'bar', 'ball' or 'mat'."
+    if len(clients) > 30 and type != "bar":
+        warnings.warn("Too many clients to plot. Switching to 'bar' plot.")
+        type = "bar"
+
+    client = {}
+    for c in clients:
+        client[c.index] = c.train_set.tensors[1] if train else c.test_set.tensors[1]
+
+    # Count the occurrences of each class for each client
+    class_counts = {client_idx: torch.bincount(client_data).tolist()
+                    for client_idx, client_data in enumerate(client.values())}
+
+    # Maximum number of classes
+    num_classes = max(len(counts) for counts in class_counts.values())
+
+    _, ax = plt.subplots(figsize=(12, 6))
+    ax.set_xticks(range(len(client)))
+    ax.set_yticks(range(num_classes))
+
+    class_matrix = np.zeros((num_classes, len(client)))
+    for client_idx, counts in class_counts.items():
+        for class_idx, count in enumerate(counts):
+            class_matrix[class_idx, client_idx] = count
+            # Adjusting size based on the count
+            if type == "ball":
+                size = count * 1  # Adjust the scaling factor as needed
+                ax.scatter(client_idx, class_idx, s=size, alpha=0.6)
+                ax.text(client_idx, class_idx, str(count), va='center',
+                        ha='center', color='black', fontsize=9)
+    plt.title('Number of Examples per Class for Each Client', fontsize=12)
+    ax.grid(False)
+    if type == "mat":
+        sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix, fmt='g',
+                    cbar=False, annot_kws={"fontsize": 6})
+    elif type == "bar":
+        df = pd.DataFrame(class_matrix.T, index=[f'{i}' for i in range(len(client))],
+                          columns=[f'{i}' for i in range(num_classes)])
+        df.plot(ax=ax, kind='bar', stacked=True, color=sns.color_palette('viridis', num_classes))
+    plt.xlabel('clients')
+    plt.ylabel('classes')
+    plt.show()

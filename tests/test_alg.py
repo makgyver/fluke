@@ -14,7 +14,8 @@ from fluke.nets import MNIST_2NN  # NOQA
 from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from fluke.algorithms.fedavg import FedAVG  # NOQA
-from fluke.utils import Configuration, Log, get_class_from_qualified_name, ServerObserver  # NOQA
+from fluke.utils import Configuration, get_class_from_qualified_name, ServerObserver  # NOQA
+from fluke.utils.log import Log  # NOQA
 
 
 def test_centralized_fl():

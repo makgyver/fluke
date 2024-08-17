@@ -8,7 +8,7 @@ References:
 from torch.nn import Module
 import numpy as np
 import torch
-from typing import Callable, Iterable
+from typing import Iterable
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -56,7 +56,7 @@ class FedDynClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  alpha: float,
                  **kwargs):
@@ -147,7 +147,7 @@ class FedDynServer(Server):
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
         self.channel.broadcast(Message((self.model, self.cld_mdl), "model", self), eligible)
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1) -> None:
+    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
 
         # Weight computation
         for client in self.clients:

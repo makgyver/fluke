@@ -6,7 +6,7 @@ References:
        In: NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
 """
 import torch
-from typing import Callable, Iterable
+from typing import Iterable
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -28,10 +28,12 @@ class FedNovaClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int,
                  **kwargs):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.tau = 0
 
     def _get_momentum(self):

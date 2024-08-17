@@ -35,7 +35,9 @@ class FedBABUClient(PFLClient):
                  fine_tune_epochs: int,
                  **kwargs):
         assert mode in ["head", "body", "full"]
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(
             mode=mode,
             fine_tune_epochs=fine_tune_epochs
@@ -101,7 +103,7 @@ class FedBABUServer(Server):
 
     def finalize(self) -> None:
 
-        with Progress() as progress:
+        with Progress(transient=True) as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
                 client.fine_tune()

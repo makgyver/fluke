@@ -15,9 +15,10 @@ from fluke.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
 from fluke.comm import Message  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
-           get_class_from_str, get_model, get_class_from_qualified_name, get_logger,  # NOQA
+           get_class_from_str, get_model, get_class_from_qualified_name,  # NOQA
            get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
-           Log, WandBLog, ServerObserver)  # NOQA
+           ServerObserver)  # NOQA
+from fluke.utils.log import get_logger, Log, WandBLog  # NOQA
 
 from fluke.utils.model import (merge_models, diff_model, mix_networks, batch_norm_to_group_norm,  # NOQA
                                   get_local_model_dict, get_global_model_dict, set_lambda_model,   # NOQA
@@ -72,7 +73,7 @@ def test_optimcfg():
     assert opt.defaults["momentum"] == 0.9
     assert sch.step_size == 1
     assert sch.gamma == 0.1
-    assert str(opt_cfg) == "OptCfg(SGD,lr=0.1,momentum=0.9,StepLR(step_size=1,gamma=0.1))"
+    assert str(opt_cfg) == "OptCfg(SGD, lr=0.1, momentum=0.9, StepLR(step_size=1, gamma=0.1))"
     assert str(opt_cfg) == opt_cfg.__repr__()
 
     with pytest.raises(ValueError):
@@ -234,8 +235,8 @@ def test_configuration():
     assert conf.server.weighted
     assert conf.model == "MNIST_2NN"
 
-    assert str(conf) == "fluke.algorithms.fedavg.FedAVG" + \
-        "_data(mnist, iid)_proto(C100, R50,E0.1)_seed(42)"
+    print(str(conf))
+    assert str(conf) == "fluke.algorithms.fedavg.FedAVG_data(mnist, iid())_proto(C100, R50, E0.1)_seed(42)"
 
     cfg = dict({"protocol": {}, "data": {}, "exp": {}, "logger": {}})
     cfg_alg = dict({"name": "fluke.algorithms.fedavg.FedAVG", "hyperparameters": {

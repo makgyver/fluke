@@ -98,6 +98,7 @@ Classes
    assign
    iid
    quantity_skew
+   label_quantity_skew
    label_dirichlet_skew
    label_pathological_skew
 

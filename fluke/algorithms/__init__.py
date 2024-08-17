@@ -180,8 +180,8 @@ class CentralizedFL():
         self.server.attach(callbacks)
         self.server.channel.attach(callbacks)
 
-    def run(self, n_rounds: int, eligible_perc: float):
-        self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc)
+    def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs):
+        self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
 
     def __str__(self) -> str:
         algo_hp = ",\n\t".join(
@@ -193,7 +193,23 @@ class CentralizedFL():
         return f"{self.__class__.__name__}({algo_hp}\n\t{client_str},\n\t{self.server}\n)"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
+
+    def save(self, path: str):
+        """Save the algorithm state to a file.
+
+        Args:
+            path (str): Path to the file where the algorithm state will be saved.
+        """
+        self.server.save(path)
+
+    def load(self, path: str):
+        """Load the algorithm state from a file.
+
+        Args:
+            path (str): Path to the file where the algorithm state is saved.
+        """
+        self.server.load(path)
 
 
 class PersonalizedFL(CentralizedFL):

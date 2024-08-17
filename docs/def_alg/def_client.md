@@ -28,7 +28,7 @@ The following excperts show the constructor of the [Client](../fluke.client.md) 
                     train_set: FastDataLoader,
                     test_set: FastDataLoader,
                     optimizer_cfg: OptimizerConfigurator,
-                    loss_fn: Callable,
+                    loss_fn: torch.nn.Module,
                     local_epochs: int):
             self.hyper_params: DDict = DDict(
                 loss_fn=loss_fn,
@@ -56,7 +56,7 @@ The following excperts show the constructor of the [Client](../fluke.client.md) 
                     train_set: FastDataLoader,
                     test_set: FastDataLoader,
                     optimizer_cfg: OptimizerConfigurator,
-                    loss_fn: Callable,
+                    loss_fn: torch.nn.Module,
                     local_epochs: int,
                     my_hp1: float,
                     my_hp2: float):
@@ -207,7 +207,7 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
                     train_set: FastDataLoader,
                     test_set: FastDataLoader,
                     optimizer_cfg: OptimizerConfigurator,
-                    loss_fn: Callable,
+                    loss_fn: torch.nn.Module,
                     local_epochs: int,
                     mu: float):
             super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)

@@ -36,9 +36,11 @@ each field (there is also a version without the comments).
                 # Currently supported: 
                 # - iid: Independent and Identically Distributed data.
                 # - qnt: Quantity skewed data.
+                # - classqnt: Class-wise quantity skewed data.
                 # - lblqnt: Label quantity skewed data.
                 # - dir: Label skewed data according to the Dirichlet distribution.
                 # - path : Pathological skewed data (each client has data from few classes).
+                # - covshift: Covariate shift skewed data.
                 name: iid
                 # Potential parameters of the disribution, e.g., `beta` for `dir`
                 # (see the documentation of fluke.data.DataSplitter)
