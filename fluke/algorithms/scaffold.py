@@ -133,6 +133,13 @@ class SCAFFOLDServer(Server):
         self.channel.broadcast(Message(self.model, "model", self), eligible)
         self.channel.broadcast(Message(self.control, "control", self), eligible)
 
+    def _get_client_weights(self, eligible: Iterable[Client]):
+        weights = super()._get_client_weights(eligible)
+        if self.hyper_params.global_step != 1:
+            for c in eligible:
+                weights[c] = self.hyper_params.global_step * weights[c]
+        return weights
+
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
         self.model.to(self.device)

@@ -8,7 +8,7 @@ References:
 from collections import OrderedDict
 import torch
 from torch.nn import Module, Parameter, CrossEntropyLoss
-from typing import Sequence
+from typing import Iterable
 from collections import defaultdict
 import sys
 
@@ -83,7 +83,7 @@ class FedNHClient(PFLClient):
         )
         self.model = self.personalized_model
 
-    def _update_protos(self, protos: Sequence[torch.Tensor]) -> None:
+    def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
         for label, prts in protos.items():
             if prts.shape[0] > 0:
                 self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
@@ -142,7 +142,7 @@ class FedNHServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10,
@@ -156,7 +156,7 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Iterable[PFLClient]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_models = self.get_client_models(eligible, state_dict=False)
         clients_protos = [cmodel.prototypes.data for cmodel in clients_models]
