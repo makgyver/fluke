@@ -35,7 +35,8 @@ class FedProxClient(Client):
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), global_model.parameters()):
-            proximal_term += (w - w_t).norm(2) ** 2
+            if w_t.requires_grad:
+                proximal_term += (w - w_t).norm(2) ** 2
         return proximal_term
 
     def fit(self, override_local_epochs: int = 0):

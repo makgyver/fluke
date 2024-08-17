@@ -44,9 +44,9 @@ class SCAFFOLDClient(Client):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)
-        self.control = None
-        self.delta_control = None
-        self.server_control = None
+        self.control: OrderedDict = None
+        self.delta_control: OrderedDict = None
+        self.server_control: OrderedDict = None
 
     def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
@@ -116,8 +116,8 @@ class SCAFFOLDServer(Server):
                  test_data: FastDataLoader,
                  clients: Iterable[Client],
                  eval_every: int = 1,
-                 global_step: float = 1.,
                  weighted: bool = True,
+                 global_step: float = 1.,
                  **kwargs):
         super().__init__(model=model,
                          test_data=test_data,
