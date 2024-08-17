@@ -203,9 +203,9 @@ class GlobalSettings(metaclass=Singleton):
 
     def __init__(self):
         super().__init__()
-        self._progress_FL: Progress = Progress()
-        self._progress_clients: Progress = Progress()
-        self._progress_server: Progress = Progress()
+        self._progress_FL: Progress = Progress(transient=True)
+        self._progress_clients: Progress = Progress(transient=True)
+        self._progress_server: Progress = Progress(transient=True)
         self._live_renderer: Live = Live(Group(self._progress_FL,
                                                self._progress_clients,
                                                self._progress_server))
