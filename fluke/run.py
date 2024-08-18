@@ -65,8 +65,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     epochs = epochs if epochs > 0 else int(
         max(1, cfg.protocol.n_rounds * cfg.protocol.eligible_perc))
 
-    rich.print(f"Centralized Learning [ #Epochs = {epochs} ]")
-    rich.print()
+    rich.print(f"Centralized Learning [ #Epochs = {epochs} ]\n")
 
     for e in range(epochs):
         model.train()
@@ -79,7 +78,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
             loss = criterion(y_hat, y)
             loss.backward()
             optimizer.step()
-            scheduler.step()
+        scheduler.step()
 
         epoch_eval = evaluator.evaluate(model, test_loader)
         history.append(epoch_eval)
@@ -98,6 +97,8 @@ def federation(alg_cfg: str = typer.Argument(...,
 
     Args:
         alg_cfg (str): Configuration file for the algorithm to run.
+        resume (str): Path to the checkpoint file to load.
+        save (str): Path to the checkpoint file to save.
         seed (int, optional): Seed for reproducibility, defaults to None. If None, the seed
             is taken from the configuration file.
     """
@@ -189,7 +190,7 @@ def clients_only(alg_cfg: str = typer.Argument(...,
                 loss = criterion(y_hat, y)
                 loss.backward()
                 optimizer.step()
-                scheduler.step()
+            scheduler.step()
 
         client_eval = evaluator.evaluate(model, test_loader)
         rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))

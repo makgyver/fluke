@@ -28,6 +28,8 @@ __all__ = [
     "mix_networks",
     "batch_norm_to_group_norm",
     "safe_load_state_dict",
+    "state_dict_zero_like",
+    "flatten_parameters",
     "check_model_fit_mem",
     "AllLayerOutputModel"
 ]
@@ -603,6 +605,34 @@ def batch_norm_to_group_norm(layer: Module) -> Module:
                 sub_layer = batch_norm_to_group_norm(sub_layer)
                 layer.__setattr__(name=name, value=sub_layer)
     return layer
+
+
+def state_dict_zero_like(state_dict: OrderedDict) -> OrderedDict:
+    output = OrderedDict()
+    for k, v in state_dict.items():
+        output[k] = torch.zeros_like(v)
+    return output
+
+
+def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
+    """Returns the model parameters as a contiguous tensor.
+
+    Args:
+        model (torch.nn.Module): The model.
+
+    Returns:
+        torch.Tensor: The model parameters as a contiguous tensor of shape (n,), where n is the
+            number of parameters in the model.
+    """
+    n = sum(p.numel() for p in model.parameters())
+    params = torch.zeros(n)
+    i = 0
+    for p in model.parameters():
+        params_slice = params[i:i + p.numel()]
+        params_slice.copy_(p.flatten())
+        p.data = params_slice.view(p.shape)
+        i += p.numel()
+    return params
 
 
 def check_model_fit_mem(model: torch.Tensor,

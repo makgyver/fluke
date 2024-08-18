@@ -60,6 +60,7 @@ class MOONClient(Client):
         self.model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
