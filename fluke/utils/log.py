@@ -11,7 +11,7 @@ import json
 import time
 import os
 from torch.nn import Module
-from typing import Any, Sequence
+from typing import Any, Iterable
 
 from ..comm import ChannelObserver, Message  # NOQA
 from . import ServerObserver, get_class_from_str  # NOQA
@@ -56,7 +56,7 @@ class Log(ServerObserver, ChannelObserver):
     def end_round(self,
                   round: int,
                   global_eval: dict[str, float],
-                  client_evals: Sequence[Any]):
+                  client_evals: Iterable[Any]):
         self.history[round] = global_eval
         stats = {'global': self.history[round]}
 
@@ -74,7 +74,7 @@ class Log(ServerObserver, ChannelObserver):
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
 
-    def finished(self, client_evals: Sequence[Any]):
+    def finished(self, client_evals: Iterable[Any]):
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
@@ -128,7 +128,6 @@ class TensorBoardLog(Log):
     def __init__(self, **config):
         super().__init__(**config)
         ts_config = DDict(**config).exclude("name")
-        print(config)
         if "log_dir" not in ts_config:
             exp_name = config['name']
             if exp_name.startswith("fluke.algorithms."):
@@ -142,7 +141,7 @@ class TensorBoardLog(Log):
             self._writer.add_scalar("comm_costs", self.comm_costs[0], round)
         self._writer.flush()
 
-    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Sequence[Any]):
+    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Iterable[Any]):
         super().end_round(round, global_eval, client_evals)
         self._writer.add_scalars("global", self.history[round], round)
         self._writer.add_scalar("comm_costs", self.comm_costs[round], round)
@@ -150,7 +149,7 @@ class TensorBoardLog(Log):
             self._writer.add_scalars("local", self.client_history[round], round)
         self._writer.flush()
 
-    def finished(self, client_evals: Sequence[Any]):
+    def finished(self, client_evals: Iterable[Any]):
         super().finished(client_evals)
         if client_evals:
             self._writer.add_scalars("local",
@@ -190,14 +189,14 @@ class WandBLog(Log):
         if round == 1 and self.comm_costs[0] > 0:
             self.run.log({"comm_costs": self.comm_costs[0]})
 
-    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Sequence[Any]):
+    def end_round(self, round: int, global_eval: dict[str, float], client_evals: Iterable[Any]):
         super().end_round(round, global_eval, client_evals)
         self.run.log({"global": self.history[round]}, step=round)
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
         if client_evals:
             self.run.log({"local": self.client_history[round]}, step=round)
 
-    def finished(self, client_evals: Sequence[Any]):
+    def finished(self, client_evals: Iterable[Any]):
         super().finished(client_evals)
         if client_evals:
             self.run.log(

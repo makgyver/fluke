@@ -303,6 +303,12 @@ def test_fedavg():
     # assert log.history[log.current_round]["accuracy"] >= 0.9642
 
 
+def test_fedbn():
+    fedbn, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbn.yaml")
+    fedbn, log = _test_algo("./tests/configs/exp.yaml",
+                            "./tests/configs/alg/fedbn.yaml", oncpu=False)
+
+
 def test_fedavgm():
     fedavgm, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavgm.yaml")
     fedavgm, log = _test_algo("./tests/configs/exp.yaml",
@@ -371,7 +377,8 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_lgfedavg()
     # test_moon()
-    test_pfedme()  # TO BE CHECKED
+    test_fedbn()
+    # test_pfedme()  # TO BE CHECKED
     # test_scaffold()
     # test_superfed()
     # test_per_fedavg()

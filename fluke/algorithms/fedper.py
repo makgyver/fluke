@@ -5,7 +5,7 @@ References:
        Sunav Choudhary. Federated learning with personalization layers.
        In: arXiv (2019). URL:https://arxiv.org/abs/1912.00818
 """
-from typing import Sequence
+from typing import Iterable
 from copy import deepcopy
 import torch
 import sys
@@ -53,7 +53,7 @@ class FedPerServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_data: FastDataLoader,  # test_data is not used
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)

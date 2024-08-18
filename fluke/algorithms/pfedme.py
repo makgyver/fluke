@@ -7,7 +7,7 @@ References:
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Sequence, Optional
+from typing import Callable, Iterable, Optional
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -108,7 +108,7 @@ class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[Client],
+                 clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = False,
                  beta: float = 0.5):
@@ -116,7 +116,7 @@ class PFedMeServer(Server):
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Sequence[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client]) -> None:
         avg_model_sd = OrderedDict()
         clients_sd = self.get_client_models(eligible)
         weights = self._get_client_weights(eligible)

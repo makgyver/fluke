@@ -5,7 +5,7 @@ References:
        y Arcas. Communication-efficient learning of deep networks from decentralized data.
        In: AISTATS (2017). URL: https://arxiv.org/abs/1602.05629
 """
-from typing import Callable
+import torch
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -22,10 +22,12 @@ class ClientSGD(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable,
+                 loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  **kwargs):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.train_set.single_batch = True
         self.train_set.shuffle = True
         self.hyper_params.local_epochs = 1

@@ -7,7 +7,7 @@ References:
 """
 from torch.nn import Module
 import torch
-from typing import Sequence
+from typing import Iterable
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -87,7 +87,7 @@ class FedAMPServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  sigma: float = 0.1,
                  alpha: float = 0.1):
@@ -107,7 +107,7 @@ class FedAMPServer(Server):
         return empty_model
 
     @torch.no_grad()
-    def aggregate(self, eligible: Sequence[PFLClient]) -> None:
+    def aggregate(self, eligible: Iterable[PFLClient]) -> None:
         clients_model = self.get_client_models(eligible, state_dict=False)
         clients_model = [client for client in clients_model]
 
@@ -133,7 +133,7 @@ class FedAMPServer(Server):
 
             self.channel.send(Message(ui_model, "model", self), client)
 
-    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate
         pass
 

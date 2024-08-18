@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2102.07078
 """
 import torch
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterable
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -106,7 +106,7 @@ class FedRepServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_data: FastDataLoader,  # test_data is not used
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)

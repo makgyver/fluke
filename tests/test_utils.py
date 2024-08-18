@@ -393,7 +393,6 @@ def test_mixing():
     assert mixed.get_lambda() == 0.4
 
     x = torch.randint(0, 100, (1, 10))
-    print("here")
     mixed(x)
 
     class TestNet(torch.nn.Module):

@@ -8,7 +8,7 @@ References:
 """
 # from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterable
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -56,7 +56,7 @@ class LGFedAVGServer(Server):
     def __init__(self,
                  model: Module,
                  test_data: FastDataLoader,
-                 clients: Sequence[PFLClient],
+                 clients: Iterable[PFLClient],
                  eval_every: int = 1,
                  weighted: bool = False):
         super().__init__(model, None, clients, eval_every, weighted)
