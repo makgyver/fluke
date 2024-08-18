@@ -17,19 +17,12 @@ sys.path.append("..")
 
 from .. import GlobalSettings  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
-
-
-def _zero_like(state_dict: OrderedDict) -> OrderedDict:
-    output = OrderedDict()
-    for k, v in state_dict.items():
-        output[k] = torch.zeros_like(v)
-    return output
 
 
 class SCAFFOLDClient(Client):
@@ -53,7 +46,7 @@ class SCAFFOLDClient(Client):
         self.server_control = self.channel.receive(self, self.server, msg_type="control").payload
         if self.model is None:
             self.model = model
-            self.control = _zero_like(model.state_dict())
+            self.control = state_dict_zero_like(model.state_dict())
         else:
             safe_load_state_dict(self.model, model.state_dict())
         self.server_model = deepcopy(model.state_dict())
@@ -88,8 +81,8 @@ class SCAFFOLDClient(Client):
         # This happens on CPU!
 
         with torch.no_grad():
-            c_plus = _zero_like(self.control)
-            c_delta = _zero_like(self.control)
+            c_plus = state_dict_zero_like(self.control)
+            c_delta = state_dict_zero_like(self.control)
             model_params = self.model.state_dict()
             for key in model_params:
                 c_plus[key] = self.control[key] - self.server_control[key] + \
@@ -126,7 +119,7 @@ class SCAFFOLDServer(Server):
                          weighted=weighted,
                          **kwargs)
         self.device = GlobalSettings().get_device()
-        self.control = _zero_like(self.model.state_dict())
+        self.control = state_dict_zero_like(self.model.state_dict())
         self.hyper_params.update(global_step=global_step)
 
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
@@ -144,7 +137,7 @@ class SCAFFOLDServer(Server):
     def aggregate(self, eligible: Iterable[Client]) -> None:
         self.model.to(self.device)
 
-        total_delta = _zero_like(self.model.state_dict())
+        total_delta = state_dict_zero_like(self.model.state_dict())
         delta_params = [self.channel.receive(self, client, "control").payload
                         for client in eligible]
 

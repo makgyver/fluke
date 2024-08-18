@@ -8,7 +8,6 @@ References:
 from copy import deepcopy
 from torch.nn import Module
 import torch
-from collections import OrderedDict
 from typing import Iterable
 import sys
 sys.path.append(".")
@@ -16,7 +15,7 @@ sys.path.append("..")
 
 from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..utils.model import diff_model, STATE_DICT_KEYS_TO_IGNORE  # NOQA
+from ..utils.model import state_dict_zero_like  # NOQA
 from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 
@@ -39,55 +38,30 @@ class FedAVGMServer(Server):
                  clients: Iterable[Client],
                  eval_every: int = 1,
                  weighted: bool = True,
-                 momentum: float = 0.9):
+                 momentum: float = 0.9,
+                 **kwargs):
         super().__init__(model, test_data, clients, eval_every, weighted)
         self.hyper_params.update(momentum=momentum)
         self.momentum_vector = None
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        """Aggregate the models of the eligible clients using the FedAVGM algorithm.
-
-        Formally, given the global model parameters :math:`\\theta^{t-1}` at round :math:`t-1`,
-        the model parameters of the eligible clients :math:`\\theta_{i}^{t-1}`, and the weights
-        :math:`w_i` of the clients, the update of the global model parameters for round :math:`t`
-        are computed as:
-
-        .. math::
-
-            \\theta^t = \\mu \\theta^{t-1} - \\sum_{i=1}^{N} w_i (\\theta^{t-1} - \\theta^{t-1}_i)
-
-        where :math:`\\mu` is the `momentum` hyper-parameter.
-
-        Args:
-            eligible (Iterable[Client]): The eligible clients.
-        """
-        avg_model_sd = OrderedDict()
-        clients_sd = self.get_client_models(eligible)
-        clients_diff = [diff_model(self.model.state_dict(), client_model)
-                        for client_model in clients_sd]
-        weights = self._get_client_weights(eligible)
-
-        for key in self.model.state_dict().keys():
-            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                avg_model_sd[key] = self.model.state_dict()[key].clone()
-                continue
-            for i, client_diff in enumerate(clients_diff):
-                if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_diff[key]
-                else:
-                    avg_model_sd[key] += weights[i] * client_diff[key]
+        prev_model_sd = deepcopy(self.model.state_dict())
+        super().aggregate(eligible)
+        avg_model_sd = self.model.state_dict()
 
         if self.momentum_vector is None:
-            self.momentum_vector = deepcopy(avg_model_sd)
+            self.momentum_vector = state_dict_zero_like(prev_model_sd)
         else:
-            for key in self.model.state_dict().keys():
+            for key in prev_model_sd:
                 self.momentum_vector[key].data = self.hyper_params.momentum * \
                     self.momentum_vector[key].data + \
-                    avg_model_sd[key].data
+                    prev_model_sd[key].data - avg_model_sd[key].data
 
-        for key, param in self.model.named_parameters():
-            param.data = param.data - self.momentum_vector[key].data
+        for key in prev_model_sd:
+            avg_model_sd[key].data = prev_model_sd[key].data - self.momentum_vector[key].data
+
+        self.model.load_state_dict(avg_model_sd)
 
 
 class FedAVGM(CentralizedFL):

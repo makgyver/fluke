@@ -18,6 +18,9 @@ from . import ServerObserver, get_class_from_str  # NOQA
 from .. import DDict
 
 
+wandb.require("core")
+
+
 class Log(ServerObserver, ChannelObserver):
     """Basic logger.
     This class is used to log the performance of the global model and the communication costs during
