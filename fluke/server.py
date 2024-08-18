@@ -223,7 +223,7 @@ class Server(ObserverSubject):
                 self._participants = set(range(self.n_clients))
             return self.clients
         n = int(self.n_clients * eligible_perc)
-        selected = np.random.choice(self.clients, n)
+        selected = np.random.choice(self.clients, n, replace=False)
         self._participants.update([c.index for c in selected])
         return selected
 

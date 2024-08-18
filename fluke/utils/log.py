@@ -128,7 +128,6 @@ class TensorBoardLog(Log):
     def __init__(self, **config):
         super().__init__(**config)
         ts_config = DDict(**config).exclude("name")
-        print(config)
         if "log_dir" not in ts_config:
             exp_name = config['name']
             if exp_name.startswith("fluke.algorithms."):
