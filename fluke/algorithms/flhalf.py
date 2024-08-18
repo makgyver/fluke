@@ -19,7 +19,7 @@ from ..client import PFLClient  # NOQA
 from ..evaluation import ClassificationEval  # NOQA
 from ..comm import Message  # NOQA
 from .. import GlobalSettings  # NOQA
-from ..algorithms.fedmargin import LargeMarginLoss2  # NOQA
+from ..algorithms.fedmargin import LargeMarginLoss  # NOQA
 
 
 def relative_projection(encoder: nn.Module,
@@ -50,7 +50,7 @@ class FLHalfClient(PFLClient):
                          train_set,
                          test_set,
                          optimizer_cfg,
-                         LargeMarginLoss2(loss_fn),
+                         LargeMarginLoss(loss_fn),
                          local_epochs)
         # self.personalized_model.init()
         self.hyper_params.update(
