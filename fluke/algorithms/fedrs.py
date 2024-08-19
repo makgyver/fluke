@@ -2,7 +2,7 @@
 
 References:
     .. [FedRS21] Xin-Chun Li and De-Chuan Zhan. 2021. FedRS: Federated Learning with Restricted
-       Softmax for Label Distribution Non-IID Data. In: KDD (2021). 
+       Softmax for Label Distribution Non-IID Data. In: KDD (2021).
        URL: https://doi.org/10.1145/3447548.3467254
 """
 import torch
