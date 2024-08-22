@@ -1,0 +1,20 @@
+hyperparameters:
+  client:
+    batch_size: 32
+    local_epochs: 5
+    loss: CrossEntropyLoss
+    optimizer:
+      lr: 0.1
+      # momentum: 0.9
+      # weight_decay: 0.0001
+    scheduler:
+      gamma: 1
+      step_size: 1
+  server:
+    weighted: true
+    aws_lr: 0.1
+    aws_steps: 100
+    margin: 0.5
+    last_layer_name: "_head.fc3"
+  model: MNIST_2NN
+name: fluke.algorithms.fedaws.FedAwS
