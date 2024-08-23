@@ -13,3 +13,4 @@ fluke_fl.egg-info/
 tests/*.ipynb
 runs/
 repr_results/
+checkpoint*/

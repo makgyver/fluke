@@ -206,7 +206,6 @@ class CentralizedFL():
         Args:
             path (str): Path to the folder where the algorithm state will be saved.
         """
-        print(path)
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -222,7 +221,6 @@ class CentralizedFL():
         """
         self.server.load(os.path.join(path, "server.pth"))
         for i, client in enumerate(self.clients):
-            print(i, client.index)
             client.model = deepcopy(self.server.model)
             client.load(os.path.join(path, f"client_{i}.pth"))
 
