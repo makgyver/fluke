@@ -347,5 +347,7 @@ class PFLClient(Client):
 
         if "personalized_model" in state and state["personalized_model"] is not None:
             self.personalized_model.load_state_dict(state["personalized_model"])
+        else:
+            self.personalized_model = None
 
         self._index = state["index"]

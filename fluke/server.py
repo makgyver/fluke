@@ -2,7 +2,7 @@
 The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
 """
 from __future__ import annotations
-from rich.progress import track, open as openprg
+from rich.progress import track
 import numpy as np
 from typing import Any, Iterable
 from collections import OrderedDict
@@ -371,7 +371,7 @@ class Server(ObserverSubject):
         return str(self)
 
     def state_dict(self) -> dict:
-        """Return the server's state.
+        """Return the server's state as a dictionary.
 
         Returns:
             dict: The server's state.
@@ -383,7 +383,7 @@ class Server(ObserverSubject):
         }
 
     def save(self, path: str) -> None:
-        """Save the server/s state to file.
+        """Save the server's state to file.
 
         Args:
             path (str): The path to save the server.
@@ -394,10 +394,9 @@ class Server(ObserverSubject):
         """Load the server's state from file.
 
         Args:
-            path (str): The path to load the server.
+            path (str): The path to load the server's state.
         """
-        with openprg(path, "rb", transient=True) as file:
-            state = torch.load(file, weights_only=True)
+        state = torch.load(path, weights_only=True)
         self.model.load_state_dict(state["model"])
         self.rounds = state["rounds"]
         self._participants = set(state["participants"])

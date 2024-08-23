@@ -185,4 +185,6 @@ Functions included in ``fluke.utils.model``
 
 .. autofunction:: fluke.utils.model.safe_load_state_dict
 
+.. autofunction:: fluke.utils.model.check_model_fit_mem
+
 ```

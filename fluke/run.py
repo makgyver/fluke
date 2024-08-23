@@ -88,8 +88,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
 
 @app.command()
-def federation(alg_cfg: str = typer.Argument(...,
-                                             help='Config file for the algorithm to run'),
+def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                resume: str = typer.Option(None, help='Path to the checkpoint file to load.'),
                save: str = typer.Option(None, help='Path to the checkpoint file to save.'),
                seed: int = typer.Option(None, help='Seed for reproducibility.')) -> None:
@@ -134,9 +133,7 @@ def federation(alg_cfg: str = typer.Argument(...,
 
 
 @app.command()
-def clients_only(alg_cfg: str = typer.Argument(...,
-                                               help='Config file for \
-                                                the algorithm to run'),
+def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                  epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
     """Run a local training (for all clients) experiment.
 

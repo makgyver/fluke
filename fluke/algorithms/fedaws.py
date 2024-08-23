@@ -61,7 +61,6 @@ class FedAwSServer(Server):
                  **kwargs):
         super().__init__(model=model, test_data=test_data,
                          clients=clients, eval_every=eval_every, weighted=weighted)
-        print(model.state_dict().keys())
         assert (last_layer_name + ".weight") in model.state_dict().keys(), \
             f"Invalid last_layer_name: {last_layer_name}. Make sure that the last layer \
                 is named as {last_layer_name}"

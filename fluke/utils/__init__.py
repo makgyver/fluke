@@ -129,6 +129,11 @@ class OptimizerConfigurator:
                 and a gamma of 1. Defaults to ``None``.
         """
 
+        self.optimizer_cfg: DDict = None
+        self.scheduler_cfg: DDict = None
+        self.optimizer: type[Optimizer] = None
+        self.scheduler: type[LRScheduler] = None
+
         if isinstance(optimizer_cfg, DDict):
             self.optimizer_cfg = optimizer_cfg
         elif isinstance(optimizer_cfg, dict):
@@ -146,7 +151,7 @@ class OptimizerConfigurator:
             raise ValueError("Invalid scheduler configuration.")
 
         if isinstance(self.optimizer_cfg.name, str):
-            self.optimizer: type[Optimizer] = get_optimizer(self.optimizer_cfg.name)
+            self.optimizer = get_optimizer(self.optimizer_cfg.name)
         elif inspect.isclass(self.optimizer_cfg.name) and \
                 issubclass(self.optimizer_cfg.name, Optimizer):
             self.optimizer = self.optimizer_cfg.name
@@ -156,7 +161,7 @@ class OptimizerConfigurator:
         if "name" not in self.scheduler_cfg:
             self.scheduler = get_scheduler("StepLR")
         elif isinstance(self.scheduler_cfg.name, str):
-            self.scheduler: type[LRScheduler] = get_scheduler(self.scheduler_cfg.name)
+            self.scheduler = get_scheduler(self.scheduler_cfg.name)
         elif inspect.isclass(self.scheduler_cfg.name) and \
                 issubclass(self.scheduler_cfg.name, LRScheduler):
             self.scheduler = self.scheduler_cfg.name
