@@ -5,7 +5,6 @@ References:
        for Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
 from torch.nn.modules import Module
-from typing import Any, Callable
 import numpy as np
 from copy import deepcopy
 import sys
@@ -30,7 +29,7 @@ class SuPerFedClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: Module,
                  local_epochs: int = 3,
                  mode: str = "global",
                  start_mix: int = 10,

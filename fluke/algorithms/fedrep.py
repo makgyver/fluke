@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2102.07078
 """
 import torch
-from typing import Any, Callable, Iterable
+from typing import Iterable
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -30,7 +30,7 @@ class FedRepClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  tau: int = 3,
                  **kwargs):

@@ -3,7 +3,7 @@ of the model client-side and server-side."""
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.nn import Module
 import torch
-from typing import Callable, Optional, Union, Iterable
+from typing import Optional, Union, Iterable
 from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
@@ -23,11 +23,11 @@ class Evaluator(ABC):
     An evaluator object should be used to perform the evaluation of a (federated) model.
 
     Attributes:
-        loss_fn (Callable, optional): The loss function to use for evaluation.
+        loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
     """
 
-    def __init__(self, loss_fn: Optional[Callable] = None):
-        self.loss_fn: Callable = loss_fn
+    def __init__(self, loss_fn: Optional[Module] = None):
+        self.loss_fn: Module = loss_fn
 
     @abstractmethod
     def evaluate(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
@@ -59,7 +59,7 @@ class ClassificationEval(Evaluator):
     fashion.
 
     Args:
-        loss_fn (Callable or None): The loss function to use for evaluation.
+        loss_fn (torch.nn.Module or None): The loss function to use for evaluation.
         n_classes (int): The number of classes.
         device (torch.device, optional): The device where the evaluation is performed.
             If ``None``, the device is the one set in the ``GlobalSettings``.

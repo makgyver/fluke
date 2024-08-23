@@ -5,7 +5,7 @@ References:
        for Federated Image Classification. In: ICLR (2022). URL: https://arxiv.org/abs/2106.06042
 """
 from rich.progress import Progress
-from typing import Any, Callable, Iterable
+from typing import Iterable
 from torch.nn import Module
 import sys
 sys.path.append(".")
@@ -29,7 +29,7 @@ class FedBABUClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: Module,
                  local_epochs: int,
                  mode: str,
                  fine_tune_epochs: int,
