@@ -788,9 +788,6 @@ class AllLayerOutputModel(nn.Module):
 
     def _get_activation(self, name):
         def hook(model, input, output):
-            # print(name)
-            # print(input[0].shape)
-            # print(output.shape)
             if name not in self.activations_in:
                 self.activations_in[name] = input[0].detach()
                 self.activations_out[name] = output.detach()

@@ -14,7 +14,6 @@ sys.path.append("..")
 
 
 from .. import DDict  # NOQA
-# from .datasets import Datasets  # NOQA
 
 __all__ = [
     'datasets',
@@ -129,7 +128,7 @@ class FastDataLoader:
         self.skip_singleton: bool = skip_singleton
         self.batch_size: int = batch_size if batch_size > 0 else self.size
         self.single_batch: bool = single_batch
-        self.__i = 0
+        self.__i: int = 0
 
     def __getitem__(self, index: int) -> tuple:
         """Get the entry at the given index for each tensor.
@@ -280,20 +279,20 @@ class DataSplitter:
         if not server_test and client_split == 0.0:
             raise AssertionError("Either client_split > 0 or server_test = True must be true.")
 
-        self.data_container = dataset
-        self.distribution = distribution
-        self.client_split = client_split
-        self.sampling_perc = sampling_perc
-        self.keep_test = keep_test
-        self.server_test = server_test
-        self.server_split = server_split
-        self.uniform_test = uniform_test
-        self.dist_args = dist_args if dist_args is not None else DDict()
+        self.data_container: DataContainer = dataset
+        self.distribution: str = distribution
+        self.client_split: float = client_split
+        self.sampling_perc: float = sampling_perc
+        self.keep_test: bool = keep_test
+        self.server_test: bool = server_test
+        self.server_split: float = server_split
+        self.uniform_test: bool = uniform_test
+        self.dist_args: DDict = dist_args if dist_args is not None else DDict()
 
     # def num_features(self) -> int:
     #     return self.data_container.num_features
 
-    @ property
+    @property
     def num_classes(self) -> int:
         """Return the number of classes of the dataset.
 
@@ -744,20 +743,14 @@ class DummyDataSplitter(DataSplitter):
 
     def __init__(self,
                  dataset: tuple[FastDataLoader, Optional[FastDataLoader], Optional[FastDataLoader]],
-                 #  num_features: int,
-                 #  num_classes: int,
                  builder_args: DDict = None,
                  **kwargs):
-        self.data_container = None
-        # self.standardize = False
-        self.distribution = "iid"
-        self.client_split = None
-        self.sampling_perc = 1.0
-        (self.client_tr_assignments,
-         self.client_te_assignments,
-         self.server_te) = dataset
-        # self._num_features = num_features
-        self._num_classes = self._compute_num_classes()
+        self.data_container: DataContainer = None
+        self.distribution: str = "iid"
+        self.client_split: float = None
+        self.sampling_perc: float = 1.0
+        (self.client_tr_assignments, self.client_te_assignments, self.server_te) = dataset
+        self._num_classes: int = self._compute_num_classes()
 
     def _compute_num_classes(self) -> int:
 
