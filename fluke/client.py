@@ -2,6 +2,7 @@
 The module ``fluke.client`` provides the base classes for the clients in ``fluke``.
 """
 from __future__ import annotations
+import torch
 from torch import device
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
@@ -229,6 +230,46 @@ class Client():
         """
         self.receive_model()
 
+    def state_dict(self) -> dict:
+        """Get the client state as a dictionary.
+
+        Returns:
+            dict: The client state.
+        """
+        return {
+            "model": self.model.state_dict() if self.model is not None else None,
+            "optimizer": self.optimizer.state_dict() if self.optimizer is not None else None,
+            "scheduler": self.scheduler.state_dict() if self.scheduler is not None else None,
+            "index": self.index
+        }
+
+    def save(self, path: str) -> None:
+        """Save the client state to a file.
+
+        Args:
+            path (str): The path to the file where the client state will be saved.
+        """
+        torch.save(self.state_dict(), path)
+
+    def load(self, path: str) -> None:
+        """Load the client state from a file.
+
+        Args:
+            path (str): The path to the file where the client state is saved.
+        """
+        state = torch.load(path, weights_only=True)
+        if "model" in state and state["model"] is not None:
+            self.model.load_state_dict(state["model"])
+            if state["optimizer"] is not None:
+                self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+                self.optimizer.load_state_dict(state["optimizer"])
+                if state["scheduler"] is not None:
+                    self.scheduler.load_state_dict(state["scheduler"])
+        else:
+            self.model = None
+
+        self._index = state["index"]
+
     def __str__(self) -> str:
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = ", " + hpstr if hpstr else ""
@@ -285,3 +326,26 @@ class PFLClient(Client):
             return evaluator.evaluate(self.personalized_model, self.test_set)
 
         return {}
+
+    def state_dict(self) -> dict:
+        state = super().state_dict()
+        state["personalized_model"] = \
+            self.personalized_model.state_dict() if self.personalized_model is not None else None
+        return state
+
+    def load(self, path: str) -> None:
+        state = torch.load(path, weights_only=True)
+        if "model" in state and state["model"] is not None:
+            self.model.load_state_dict(state["model"])
+            if state["optimizer"] is not None:
+                self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+                self.optimizer.load_state_dict(state["optimizer"])
+                if state["scheduler"] is not None:
+                    self.scheduler.load_state_dict(state["scheduler"])
+        else:
+            self.model = None
+
+        if "personalized_model" in state and state["personalized_model"] is not None:
+            self.personalized_model.load_state_dict(state["personalized_model"])
+
+        self._index = state["index"]

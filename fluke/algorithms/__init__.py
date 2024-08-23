@@ -1,6 +1,7 @@
 """This module contains (as submodules) the implementation of several the federated learning
 algorithms."""
 from __future__ import annotations
+import os
 import torch
 from typing import Callable, Union, Any, Iterable
 from copy import deepcopy
@@ -200,20 +201,30 @@ class CentralizedFL():
         return str(self)
 
     def save(self, path: str):
-        """Save the algorithm state to a file.
+        """Save the algorithm state into files in the specified directory.
 
         Args:
-            path (str): Path to the file where the algorithm state will be saved.
+            path (str): Path to the folder where the algorithm state will be saved.
         """
-        self.server.save(path)
+        print(path)
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        self.server.save(os.path.join(path, "server.pth"))
+        for i, client in enumerate(self.clients):
+            client.save(os.path.join(path, f"client_{i}.pth"))
 
     def load(self, path: str):
-        """Load the algorithm state from a file.
+        """Load the algorithm state from the specified folder
 
         Args:
-            path (str): Path to the file where the algorithm state is saved.
+            path (str): Path to the folder where the algorithm state is saved.
         """
-        self.server.load(path)
+        self.server.load(os.path.join(path, "server.pth"))
+        for i, client in enumerate(self.clients):
+            print(i, client.index)
+            client.model = deepcopy(self.server.model)
+            client.load(os.path.join(path, f"client_{i}.pth"))
 
 
 class PersonalizedFL(CentralizedFL):
