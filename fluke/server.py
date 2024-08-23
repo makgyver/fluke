@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .client import Client
 
+torch.serialization.add_safe_globals([set])
+
 
 class Server(ObserverSubject):
     """Basic Server for Federated Learning.
@@ -368,18 +370,25 @@ class Server(ObserverSubject):
     def __repr__(self) -> str:
         return str(self)
 
+    def state_dict(self) -> dict:
+        """Return the server's state.
+
+        Returns:
+            dict: The server's state.
+        """
+        return {
+            "model": self.model.state_dict(),
+            "rounds": self.rounds,
+            "participants": self._participants
+        }
+
     def save(self, path: str) -> None:
         """Save the server/s state to file.
 
         Args:
             path (str): The path to save the server.
         """
-        state = {
-            "model": self.model.state_dict(),
-            "rounds": self.rounds,
-            "participants": self._participants
-        }
-        torch.save(state, path)
+        torch.save(self.state_dict(), path)
 
     def load(self, path: str) -> None:
         """Load the server's state from file.
@@ -388,8 +397,7 @@ class Server(ObserverSubject):
             path (str): The path to load the server.
         """
         with openprg(path, "rb", transient=True) as file:
-            state = torch.load(file)
-        # state = torch.load(path)
+            state = torch.load(file, weights_only=True)
         self.model.load_state_dict(state["model"])
         self.rounds = state["rounds"]
         self._participants = set(state["participants"])

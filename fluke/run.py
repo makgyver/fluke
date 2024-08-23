@@ -97,8 +97,8 @@ def federation(alg_cfg: str = typer.Argument(...,
 
     Args:
         alg_cfg (str): Configuration file for the algorithm to run.
-        resume (str): Path to the checkpoint file to load.
-        save (str): Path to the checkpoint file to save.
+        resume (str): Path to the checkpoint folder to load.
+        save (str): Path to the checkpoint folder to save.
         seed (int, optional): Seed for reproducibility, defaults to None. If None, the seed
             is taken from the configuration file.
     """
