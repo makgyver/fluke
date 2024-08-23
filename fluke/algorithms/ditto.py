@@ -7,7 +7,6 @@ References:
 """
 from copy import deepcopy
 import torch
-from typing import Any, Callable
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -27,7 +26,7 @@ class DittoClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  tau: int = 3,
                  lam: float = 0.1,
