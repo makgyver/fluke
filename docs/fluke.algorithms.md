@@ -113,6 +113,8 @@ Classes included in ``fluke.algorithms``
    algo/FedProto
    algo/FedProx
    algo/FedRep
+   algo/FedRS
+   algo/FedSAM
    algo/FedSGD
    algo/LG-FedAvg
    algo/MOON
