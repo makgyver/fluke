@@ -742,7 +742,9 @@ class DummyDataSplitter(DataSplitter):
     """
 
     def __init__(self,
-                 dataset: tuple[FastDataLoader, Optional[FastDataLoader], Optional[FastDataLoader]],
+                 dataset: tuple[FastDataLoader,
+                                Optional[FastDataLoader],
+                                Optional[FastDataLoader]],
                  builder_args: DDict = None,
                  **kwargs):
         self.data_container: DataContainer = None

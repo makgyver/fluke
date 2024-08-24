@@ -5,6 +5,7 @@ import os
 import torch
 from typing import Callable, Union, Any, Iterable
 from copy import deepcopy
+import warnings
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -101,6 +102,16 @@ class CentralizedFL():
         self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
         self.init_server(model, server_data, hyper_params.server)
 
+    def can_override_optimizer(self) -> bool:
+        """Return whether the optimizer can be changed user-side.
+        Generally, the optimizer can be configured by the user. However, in some cases, the
+        algorithm may require a specific optimizer and the user should not be able to change it.
+
+        Returns:
+            bool: Whether the optimizer can be changed user-side.
+        """
+        return True
+
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         """Get the optimizer class.
 
@@ -150,8 +161,14 @@ class CentralizedFL():
             :class:`fluke.client.Client`
         """
 
-        if "name" not in config.optimizer:
+        if not self.can_override_optimizer() and \
+                config.optimizer.name != self.get_optimizer_class().__name__:
+            warnings.warn(f"The algorithm does not support the optimizer {config.optimizer.name}. "
+                          f"Using {self.get_optimizer_class().__name__} instead.")
+
+        if "name" not in config.optimizer or not self.can_override_optimizer():
             config.optimizer.name = self.get_optimizer_class()
+
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
@@ -252,7 +269,12 @@ class PersonalizedFL(CentralizedFL):
                      config: DDict) -> None:
 
         model = get_model(mname=config.model) if isinstance(config.model, str) else config.model
-        if "name" not in config.optimizer:
+        if not self.can_override_optimizer() and \
+                config.optimizer.name != self.get_optimizer_class().__name__:
+            warnings.warn(f"The algorithm does not support the optimizer {config.optimizer.name}. "
+                          f"Using {self.get_optimizer_class().__name__} instead.")
+
+        if "name" not in config.optimizer or not self.can_override_optimizer():
             config.optimizer.name = self.get_optimizer_class()
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)

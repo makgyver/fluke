@@ -166,5 +166,8 @@ class PerFedAVG(CentralizedFL):
     def get_client_class(self) -> Client:
         return PerFedAVGClient
 
+    def can_override_optimizer(self) -> bool:
+        return False
+
     def get_optimizer_class(self) -> Optimizer:
         return PerFedAVGOptimizer
