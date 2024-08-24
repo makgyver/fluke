@@ -138,6 +138,9 @@ class PFedMeServer(Server):
 
 class PFedMe(CentralizedFL):
 
+    def can_override_optimizer(self) -> bool:
+        return False
+
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return PFedMeOptimizer
 

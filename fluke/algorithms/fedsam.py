@@ -143,6 +143,9 @@ class FedSAMClient(Client):
 
 class FedSAM(CentralizedFL):
 
+    def can_override_optimizer(self) -> bool:
+        return False
+
     def get_optimizer_class(self) -> Optimizer:
         return SAMOptimizer
 

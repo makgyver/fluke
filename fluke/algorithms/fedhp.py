@@ -190,6 +190,9 @@ class FedHPServer(Server):
 
 class FedHP(PersonalizedFL):
 
+    def can_override_optimizer(self) -> bool:
+        return False
+
     def get_client_class(self) -> PFLClient:
         return FedHPClient
 
