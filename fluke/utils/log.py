@@ -77,7 +77,7 @@ class Log(ServerObserver, ChannelObserver):
     def message_received(self, message: Message):
         self.comm_costs[self.current_round] += message.get_size()
 
-    def finished(self, client_evals: Iterable[Any]):
+    def finished(self, evals: dict[str, float], client_evals: Iterable[Any]):
         if client_evals:
             client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
@@ -85,12 +85,12 @@ class Log(ServerObserver, ChannelObserver):
             rich.print(Panel(Pretty(client_mean, expand_all=True),
                              title="Overall local performance"))
 
-        if self.history[self.current_round]:
-            rich.print(Panel(Pretty(self.history[self.current_round], expand_all=True),
-                             title="Overall global performance"))
-
-        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
-                         title="Total communication cost"))
+        if evals:
+            self.history[self.current_round + 1] = evals
+            rich.print(Panel(Pretty(evals, expand_all=True), title="Overall global performance"))
+        elif self.history[self.current_round]:
+            rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
+                             title="Total communication cost"))
 
     def save(self, path: str):
         """Save the logger's history to a JSON file.
@@ -152,11 +152,16 @@ class TensorBoardLog(Log):
             self._writer.add_scalars("local", self.client_history[round], round)
         self._writer.flush()
 
-    def finished(self, client_evals: Iterable[Any]):
-        super().finished(client_evals)
+    def finished(self, evals: dict[str, float], client_evals: Iterable[Any]):
+        super().finished(evals, client_evals)
         if client_evals:
             self._writer.add_scalars("local",
                                      self.client_history[self.current_round+1],
+                                     self.current_round+1)
+            self._writer.flush()
+        if evals:
+            self._writer.add_scalars("global",
+                                     self.history[self.current_round+1],
                                      self.current_round+1)
             self._writer.flush()
         self._writer.close()
@@ -199,11 +204,14 @@ class WandBLog(Log):
         if client_evals:
             self.run.log({"local": self.client_history[round]}, step=round)
 
-    def finished(self, client_evals: Iterable[Any]):
-        super().finished(client_evals)
+    def finished(self, evals: dict[str, float], client_evals: Iterable[Any]):
+        super().finished(evals, client_evals)
         if client_evals:
             self.run.log(
                 {"local": self.client_history[self.current_round+1]}, step=self.current_round+1)
+        if evals:
+            self.run.log(
+                {"global": self.history[self.current_round+1]}, step=self.current_round+1)
 
     def save(self, path: str):
         super().save(path)

@@ -158,6 +158,11 @@ class FastDataLoader:
         if percentage > 1.0 or percentage <= 0.0:
             raise ValueError("percentage must be in (0, 1]")
         self.size = max(int(self.tensors[0].shape[0] * percentage), 1)
+
+        if self.size < self.max_size:
+            r = torch.randperm(self.max_size)
+            self.tensors = [t[r] for t in self.tensors]
+
         return self.size
 
     @property

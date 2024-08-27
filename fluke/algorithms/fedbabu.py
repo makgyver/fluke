@@ -45,13 +45,11 @@ class FedBABUClient(PFLClient):
         self.model = self.personalized_model
 
     def send_model(self):
-        self.channel.send(Message(self.personalized_model.encoder,
-                          "model", self), self.server)
+        self.channel.send(Message(self.personalized_model.encoder, "model", self), self.server)
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model.encoder,
-                             msg.payload.state_dict())
+        safe_load_state_dict(self.personalized_model.encoder, msg.payload.state_dict())
 
         # Deactivate gradient
         for param in self.personalized_model.head.parameters():
@@ -110,7 +108,7 @@ class FedBABUServer(Server):
                 progress.update(task, advance=1)
 
         client_evals = [client.evaluate() for client in self.clients]
-        self._notify_finalize(client_evals if client_evals[0] else None)
+        self._notify_finalize(None, client_evals if client_evals[0] else None)
 
 
 class FedBABU(PersonalizedFL):

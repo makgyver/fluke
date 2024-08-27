@@ -209,7 +209,8 @@ class Server(ObserverSubject):
             client_eval = client.evaluate()
             if client_eval:
                 client_evals.append(client_eval)
-        self._notify_finalize(client_evals)
+        evals = self.evaluate()
+        self._notify_finalize(evals, client_evals)
 
     def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
@@ -354,14 +355,15 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.error(error)
 
-    def _notify_finalize(self, client_evals: Iterable[Any]) -> None:
+    def _notify_finalize(self, evals: dict[str, float], client_evals: Iterable[Any]) -> None:
         """Notify the observers that the federated learning process has ended.
 
         Args:
+            evals (dict[str, float]): The evaluation metrics of the global model.
             client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
-            observer.finished(client_evals)
+            observer.finished(evals, client_evals)
 
     def __str__(self) -> str:
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
