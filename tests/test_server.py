@@ -36,7 +36,7 @@ def test_server():
         def error(self, error):
             assert error == "error"
 
-        def finished(self,  client_evals):
+        def finished(self, evals, client_evals):
             assert len(client_evals) == 1
 
     class Model(Linear):

@@ -90,10 +90,11 @@ class ServerObserver():
         """
         pass
 
-    def finished(self,  client_evals: Iterable[Any]):
+    def finished(self,  evals: dict[str, float], client_evals: Iterable[Any]):
         """This method is called when the federated learning process has ended.
 
         Args:
+            evals (dict[str, float]): The evaluation results of the global model.
             client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         pass

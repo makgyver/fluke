@@ -104,7 +104,7 @@ def test_centralized_fl():
             assert error == "error"
             self.called_error = True
 
-        def finished(self,  client_evals):
+        def finished(self, evals, client_evals):
             assert len(client_evals) == 0
             self.called_finished = True
 
