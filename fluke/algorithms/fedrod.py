@@ -1,0 +1,135 @@
+import sys
+import torch
+from copy import deepcopy
+import numpy as np
+from torch.nn import functional as F
+
+sys.path.append(".")
+sys.path.append("..")
+
+from . import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
+from ..utils import clear_cache  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..data import FastDataLoader  # NOQA
+from fluke.evaluation import ClassificationEval  # NOQA
+
+
+class RODModel(torch.nn.Module):
+    def __init__(self, global_model: EncoderHeadNet, local_head: EncoderHeadNet):
+        super().__init__()
+        self.local_head = local_head
+        self.global_model = global_model
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        rep = self.global_model.encoder(x)
+        out_g = self.global_model.head(rep)
+        out_p = self.local_head(rep.detach())
+        output = out_g.detach() + out_p
+        return output
+
+
+class BalancedSoftmaxLoss(torch.nn.Module):
+    """Compute the Balanced Softmax Loss.
+
+    Args:
+        sample_per_class (torch.Tensor): Number of samples per class.
+    """
+
+    def __init__(self, sample_per_class: torch.Tensor):
+        super().__init__()
+        self.sample_per_class = sample_per_class
+
+    def forward(self,
+                y: torch.LongTensor,
+                logits: torch.FloatTensor,
+                reduction: str = "mean"):
+        spc = self.sample_per_class.type_as(logits)
+        spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
+        logits = logits + spc.log()
+        loss = F.cross_entropy(input=logits, target=y, reduction=reduction)
+        return loss
+
+
+class FedRODClient(Client):
+
+    def __init__(self,
+                 index: int,
+                 train_set: FastDataLoader,
+                 test_set: FastDataLoader,
+                 optimizer_cfg: OptimizerConfigurator,
+                 loss_fn: torch.nn.Module,
+                 local_epochs: int,
+                 **kwargs):
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
+
+        self.sample_per_class = torch.zeros(self.train_set.num_labels)
+        uniq_val, uniq_count = np.unique(self.train_set.tensors[1], return_counts=True)
+        for i, c in enumerate(uniq_val.tolist()):
+            self.sample_per_class[c] = uniq_count[i]
+        self.inner_model = None
+
+    def receive_model(self) -> None:
+        super().receive_model()
+        if self.inner_model is None:
+            self.inner_model = deepcopy(self.model.head)
+
+    def fit(self, override_local_epochs: int = 0) -> None:
+        epochs: int = (override_local_epochs if override_local_epochs
+                       else self.hyper_params.local_epochs)
+        self.receive_model()
+        self.model.train()
+        self.inner_model.train()
+        self.model.to(self.device)
+        self.inner_model.to(self.device)
+
+        if self.optimizer is None:
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer_head, self.scheduler_head = self.optimizer_cfg(self.inner_model)
+
+        bsm_loss = BalancedSoftmaxLoss(self.sample_per_class)
+        for _ in range(epochs):
+            loss = None
+            for _, (X, y) in enumerate(self.train_set):
+                X, y = X.to(self.device), y.to(self.device)
+
+                rep = self.model.encoder(X)
+                out_g = self.model.head(rep)
+                loss = bsm_loss(y, out_g)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+                out_p = self.inner_model(rep.detach())
+                loss = self.hyper_params.loss_fn(out_g.detach() + out_p, y)
+                self.optimizer_head.zero_grad()
+                loss.backward()
+                self.optimizer_head.step()
+
+            self.scheduler.step()
+            self.scheduler_head.step()
+
+        self.model.to("cpu")
+        self.inner_model.to("cpu")
+        clear_cache()
+        self.send_model()
+
+    def evaluate(self) -> dict[str, float]:
+        if self.test_set is not None and \
+                self.model is not None and \
+                self.inner_model is not None:
+            evaluator = ClassificationEval(self.hyper_params.loss_fn,
+                                           self.train_set.num_labels,
+                                           self.device)
+            return evaluator.evaluate(RODModel(self.model, self.inner_model), self.test_set)
+
+        return {}
+
+
+class FedROD(CentralizedFL):
+
+    def get_client_class(self) -> Client:
+        return FedRODClient
