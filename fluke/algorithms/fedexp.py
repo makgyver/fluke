@@ -1,8 +1,8 @@
-"""Implementation of the [FedExP23]_ algorithm.
+"""Implementation of the FedExP [FedExP23]_ algorithm.
 
 References:
     .. [FedExP23] Divyansh Jhunjhunwala, Shiqiang Wang, and Gauri Joshi.
-       FedExP: Speeding Up Federated Averaging via Extrapolation. In: ICLR (2023).
+       FedExP: Speeding Up Federated Averaging via Extrapolation. In ICLR (2023).
        URL: https://arxiv.org/abs/2301.09604
 """
 from typing import Iterable

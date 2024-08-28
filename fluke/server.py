@@ -294,7 +294,7 @@ class Server(ObserverSubject):
         References:
             .. [FedAVG] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas,
                "Communication-Efficient Learning of Deep Networks from Decentralized Data".
-               In: AISTATS (2017).
+               In AISTATS (2017).
         """
         avg_model_sd = OrderedDict()
         clients_sd = self.get_client_models(eligible)

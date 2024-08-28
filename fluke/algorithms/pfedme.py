@@ -2,7 +2,7 @@
 
 References:
     .. [pFedMe20] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
-       Learning with Moreau Envelopes. In: NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
+       Learning with Moreau Envelopes. In NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
 """
 from torch.optim import Optimizer
 from torch.nn import Module

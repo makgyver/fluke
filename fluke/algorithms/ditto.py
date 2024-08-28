@@ -1,8 +1,8 @@
-"""Implementation of the [Ditto21]_ algorithm.
+"""Implementation of the DITTO [Ditto21]_ algorithm.
 
 References:
     .. [Ditto21] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia Smith. Ditto: Fair and Robust
-       Federated Learning Through Personalization. In: ICML (2021).
+       Federated Learning Through Personalization. In ICML (2021).
        URL: https://arxiv.org/abs/2012.04221
 """
 from copy import deepcopy

@@ -1,7 +1,9 @@
-"""Implementation of the [FedAwS]_ algorithm.
+"""Implementation of the Federated Averaging with Spreadout [FedAwS20]_ algorithm.
 
 References:
-    .. [FedAwS] TODO
+    .. [FedAwS20] Felix X. Yu, Ankit Singh Rawat, Aditya Krishna Menon, Sanjiv Kumar.
+       Federated Learning with Only Positive Labels.
+       In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
 import sys
 from typing import Iterable

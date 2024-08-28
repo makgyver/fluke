@@ -2,7 +2,7 @@
 
 References:
     .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace
-       for Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
+       for Personalized Federated Learning. In KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
 from torch.nn.modules import Module
 import numpy as np

@@ -1,8 +1,8 @@
-"""Implementation of the [CCVR21]_ algorithm.
+"""Implementation of the CCVR [CCVR21]_ algorithm.
 
 References:
     .. [CCVR21] Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. No Fear of
-       Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. In: NeurIPS
+       Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. In NeurIPS
        (2021). URL: https://arxiv.org/abs/2106.05001
 """
 import torch

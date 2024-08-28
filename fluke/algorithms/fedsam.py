@@ -2,7 +2,7 @@
 
 References:
     .. [FedSAM22] Caldarola, D., Caputo, B., & Ciccone, M. Improving Generalization in Federated
-       Learning by Seeking Flat Minima. In: ECCV (2022).
+       Learning by Seeking Flat Minima. In ECCV (2022).
        URL: https://arxiv.org/abs/2203.11834
 """
 import torch
