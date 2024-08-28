@@ -1,8 +1,8 @@
-"""Implementation of the [FedAMP21]_ algorithm.
+"""Implementation of the FedAMP [FedAMP21]_ algorithm.
 
 References:
     .. [FedAMP21] Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong
-       Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In: AAAI (2021).
+       Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In AAAI (2021).
        URL: https://arxiv.org/abs/2007.03797
 """
 from torch.nn import Module

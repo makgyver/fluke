@@ -3,7 +3,7 @@
 References:
     .. [FedPer19] Manoj Ghuhan Arivazhagan, Vinay Aggarwal, Aaditya Kumar Singh, and
        Sunav Choudhary. Federated learning with personalization layers.
-       In: arXiv (2019). URL:https://arxiv.org/abs/1912.00818
+       In arXiv (2019). URL:https://arxiv.org/abs/1912.00818
 """
 from typing import Iterable
 from copy import deepcopy

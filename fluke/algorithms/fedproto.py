@@ -1,8 +1,8 @@
-"""Implementation of the [FedProto22]_ algorithm.
+"""Implementation of the FedProto [FedProto22]_ algorithm.
 
 References:
     .. [FedProto22] Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi
-       Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. In: AAAI (2022).
+       Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. In AAAI (2022).
        URL: https://arxiv.org/abs/2105.00243
 """
 import torch

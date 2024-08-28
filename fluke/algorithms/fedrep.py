@@ -2,7 +2,7 @@
 
 References:
     .. [FedRep21] Liam Collins, Hamed Hassani, Aryan Mokhtari, and Sanjay Shakkottai.
-       Exploiting shared representations for personalized federated learning. In: ICML (2021).
+       Exploiting shared representations for personalized federated learning. In ICML (2021).
        URL: https://arxiv.org/abs/2102.07078
 """
 import torch

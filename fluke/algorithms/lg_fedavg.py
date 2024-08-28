@@ -3,7 +3,7 @@
 References:
     .. [LG-FedAVG20] Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach,
        David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally:
-       Federated Learning with Local and Global Representations. In: arXiv (2020).
+       Federated Learning with Local and Global Representations. In arXiv (2020).
        URL: https://arxiv.org/abs/2001.01523
 """
 # from torch.nn import CrossEntropyLoss

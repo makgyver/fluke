@@ -3,7 +3,7 @@
 References:
     .. [SCAFFOLD20] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank J. Reddi,
        Sebastian U. Stich, Ananda Theertha Suresh. SCAFFOLD: Stochastic Controlled Averaging for
-       Federated Learning. In: ICML (2020). URL: https://arxiv.org/abs/1910.06378
+       Federated Learning. In ICML (2020). URL: https://arxiv.org/abs/1910.06378
 """
 # from torch.optim import Optimizer
 from torch.nn import Module

@@ -38,9 +38,9 @@ class LargeMarginLoss(torch.nn.Module):
 
     References:
         .. [MARGIN2015] Shizhao Sun, et al. Large Margin Deep Neural Networks: Theory and
-           Algorithms. In: ArXiV 2015. URL: https://arxiv.org/pdf/1506.05232v1
+           Algorithms. In ArXiV 2015. URL: https://arxiv.org/pdf/1506.05232v1
         .. [AAAI2016] Shizhao Sun, et al. On the Depth of Deep Neural Networks: A Theoretical View.
-           In: AAAI 2016. URL: https://cdn.aaai.org/ojs/10243/10243-13-13771-1-2-20201228.pdf
+           In AAAI 2016. URL: https://cdn.aaai.org/ojs/10243/10243-13-13771-1-2-20201228.pdf
     """
 
     def __init__(self,

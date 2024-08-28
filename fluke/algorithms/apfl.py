@@ -1,8 +1,8 @@
-"""Implementation of the [APFL20]_ algorithm.
+"""Implementation of the APFL [APFL20]_ algorithm.
 
 References:
     .. [APFL20] Yuyang Deng, Mohammad Mahdi Kamani, and Mehrdad Mahdavi. Adaptive Personalized
-       Federated Learning. In: arXiv (2020). URL: https://arxiv.org/abs/2003.13461
+       Federated Learning. In arXiv (2020). URL: https://arxiv.org/abs/2003.13461
 """
 from copy import deepcopy
 from torch.nn import Module

@@ -1,8 +1,8 @@
-"""Implementation of the [FedAVGM19]_ algorithm.
+"""Implementation of the Federated Averaging with momentum [FedAVGM19]_ algorithm.
 
 References:
     .. [FedAVGM19] Tzu-Ming Harry Hsu, Hang Qi, Matthew Brown. Measuring the Effects of
-       Non-Identical Data Distribution for Federated Visual Classification. In: arXiv (2019).
+       Non-Identical Data Distribution for Federated Visual Classification. In arXiv (2019).
        URL: https://arxiv.org/abs/1909.06335
 """
 from copy import deepcopy

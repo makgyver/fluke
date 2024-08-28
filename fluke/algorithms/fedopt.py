@@ -3,7 +3,7 @@
 References:
     .. [FedOpt21] Sashank Reddi, Zachary Charles, Manzil Zaheer, Zachary Garrett, Keith Rush,
        Jakub Konečný, Sanjiv Kumar, H. Brendan McMahan. Adaptive Federated Optimization.
-       In: ICLR (2021). URL: https://openreview.net/pdf?id=LkFG3lB13U5
+       In ICLR (2021). URL: https://openreview.net/pdf?id=LkFG3lB13U5
 """
 from torch.nn import Module
 import torch
