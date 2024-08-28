@@ -178,7 +178,7 @@ class CentralizedFL():
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
-                loss_fn=self.loss,
+                loss_fn=deepcopy(self.loss),
                 **config.exclude('optimizer', 'loss', 'batch_size', 'scheduler')
             )
             for i in range(self.n_clients)]
@@ -286,7 +286,7 @@ class PersonalizedFL(CentralizedFL):
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
-                loss_fn=self.loss,
+                loss_fn=deepcopy(self.loss),
                 **config.exclude('optimizer', 'loss', 'batch_size', 'model', 'scheduler')
             )
             for i in range(self.n_clients)]

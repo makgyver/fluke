@@ -121,7 +121,8 @@ class PerFedAVGClient(Client):
         if self.optimizer is None:
             self.optimizer, _ = self.optimizer_cfg(self.model)
 
-        for _ in range(epochs):
+        iterations = len(self.train_set) * epochs
+        for _ in range(iterations):
             loss = None
 
             batch_1 = self._get_next_batch()

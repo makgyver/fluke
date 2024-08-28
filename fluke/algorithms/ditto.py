@@ -6,6 +6,9 @@ References:
        URL: https://arxiv.org/abs/2012.04221
 """
 from copy import deepcopy
+from typing import Iterator
+from torch.optim import Optimizer
+from torch.nn.parameter import Parameter
 import torch
 import sys
 sys.path.append(".")
@@ -15,6 +18,19 @@ from . import PersonalizedFL  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
+
+
+class PerturbedGradientDescent(Optimizer):
+    def __init__(self, params: Iterator[Parameter], lr: float = 0.01, lam: float = 0.0):
+        default = dict(lr=lr, lam=lam)
+        super().__init__(params, default)
+
+    @torch.no_grad()
+    def step(self, global_params):
+        for group in self.param_groups:
+            for p, g in zip(group['params'], global_params):
+                d_p = p.grad.data + group['lam'] * (p.data - g.data)
+                p.data.add_(d_p, alpha=-group['lr'])
 
 
 # https://arxiv.org/pdf/2012.04221.pdf
@@ -44,9 +60,9 @@ class DittoClient(PFLClient):
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
         for name, param in local_model.named_parameters():
-            if 'weight' not in name:
-                continue
-            proximal_term += (param - global_model.get_parameter(name)).norm(2)
+            # if 'weight' not in name:
+            #     continue
+            proximal_term += (param - global_model.get_parameter(name))  # .norm(2)
         return proximal_term
 
     def fit(self, override_local_epochs: int = 0) -> dict:
@@ -80,7 +96,13 @@ class DittoClient(PFLClient):
         w_prev.to(self.device)
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.personalized_model)
+            self.pers_optimizer = PerturbedGradientDescent(self.personalized_model.parameters(),
+                                                           lam=self.hyper_params.lam,
+                                                           **self.optimizer_cfg.optimizer_cfg)
+            self.pers_scheduler = self.optimizer_cfg.scheduler(
+                self.pers_optimizer,
+                **self.optimizer_cfg.scheduler_cfg
+            )
 
         for _ in range(self.hyper_params.tau):
             loss = None
@@ -89,9 +111,8 @@ class DittoClient(PFLClient):
                 self.pers_optimizer.zero_grad()
                 y_hat = self.personalized_model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
-                loss += self.hyper_params.lam * self._proximal_loss(self.personalized_model, w_prev)
                 loss.backward()
-                self.pers_optimizer.step()
+                self.pers_optimizer.step(w_prev.parameters())
             self.pers_scheduler.step()
 
         self.personalized_model.to("cpu")
