@@ -3,6 +3,7 @@ of the model client-side and server-side."""
 from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.nn import Module
 import torch
+import numpy as np
 from typing import Optional, Union, Iterable
 from abc import ABC, abstractmethod
 import sys
@@ -10,7 +11,6 @@ sys.path.append(".")
 sys.path.append("..")
 
 from .data import FastDataLoader  # NOQA
-from . import GlobalSettings  # NOQA
 
 __all__ = [
     "Evaluator",
@@ -22,87 +22,112 @@ class Evaluator(ABC):
     """This class is the base class for all evaluators in ``fluke``.
     An evaluator object should be used to perform the evaluation of a (federated) model.
 
+    Args:
+        eval_every (int): The evaluation frequency. Defaults to 1.
+
     Attributes:
-        loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
+        eval_every (int): The evaluation frequency.
     """
 
-    def __init__(self, loss_fn: Optional[Module] = None):
-        self.loss_fn: Module = loss_fn
+    def __init__(self, eval_every: int = 1):
+        self.eval_every: int = eval_every
 
     @abstractmethod
-    def evaluate(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
+    def evaluate(self,
+                 round: int,
+                 model: Module,
+                 eval_data_loader: FastDataLoader,
+                 loss_fn: Optional[torch.nn.Module],
+                 **kwargs) -> dict:
         """Evaluate the model.
 
         Args:
+            round (int): The current
             model (Module): The model to evaluate.
             eval_data_loader (FastDataLoader): The data loader to use for evaluation.
+            loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
+            **kwargs: Additional keyword arguments.
         """
         raise NotImplementedError
 
-    def __call__(self, model: Module, eval_data_loader: FastDataLoader) -> dict:
+    def __call__(self,
+                 round: int,
+                 model: Module,
+                 eval_data_loader: FastDataLoader,
+                 loss_fn: Optional[torch.nn.Module],
+                 **kwargs) -> dict:
         """Evaluate the model.
 
         Note:
             This method is equivalent to ``evaluate``.
 
         Args:
+            round (int): The current round.
             model (Module): The model to evaluate.
             eval_data_loader (FastDataLoader): The data loader to use for evaluation.
+            loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
+            **kwargs: Additional keyword arguments.
         """
-        return self.evaluate(model, eval_data_loader)
+        return self.evaluate(round=round,
+                             model=model,
+                             eval_data_loader=eval_data_loader,
+                             loss_fn=loss_fn,
+                             **kwargs)
 
 
 class ClassificationEval(Evaluator):
     """Evaluate a PyTorch model for classification.
     The metrics computed are ``accuracy``, ``precision``, ``recall``, ``f1`` and the loss according
-    to the provided loss function ``loss_fn``. Metrics are computed both in a micro and macro
-    fashion.
+    to the provided loss function ``loss_fn`` when calling the method ``evaluation``.
+    Metrics are computed both in a micro and macro fashion.
 
     Args:
-        loss_fn (torch.nn.Module or None): The loss function to use for evaluation.
+        eval_every (int): The evaluation frequency.
         n_classes (int): The number of classes.
-        device (torch.device, optional): The device where the evaluation is performed.
-            If ``None``, the device is the one set in the ``GlobalSettings``.
 
     Attributes:
+        eval_every (int): The evaluation frequency.
         n_classes (int): The number of classes.
-        device (Optional[torch.device]): The device where the evaluation is performed. If ``None``,
-            the device is the one set in the :class:`fluke.GlobalSettings`.
     """
 
-    def __init__(self,
-                 loss_fn: torch.nn.Module,
-                 n_classes: int,
-                 device: Optional[torch.device] = None):
-        super().__init__(loss_fn)
+    def __init__(self, eval_every: int, n_classes: int):
+        super().__init__(eval_every=eval_every)
         self.n_classes: int = n_classes
-        self.device: torch.device = device if device is not None else GlobalSettings().get_device()
 
     def evaluate(self,
+                 round: int,
                  model: torch.nn.Module,
                  eval_data_loader: Union[FastDataLoader,
-                                         Iterable[FastDataLoader]]) -> dict:
+                                         Iterable[FastDataLoader]],
+                 loss_fn: Optional[torch.nn.Module] = None,
+                 device: torch.device = torch.device("cpu")) -> dict:
         """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
         ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
         computed both in a micro and macro fashion.
 
         Args:
+            round (int): The current round.
             model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
                 empty dictionary.
             eval_data_loader (Union[FastDataLoader, Iterable[FastDataLoader]]):
                 The data loader(s) to use for evaluation. If ``None``, the method returns an empty
                 dictionary.
+            loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
+            device (torch.device, optional): The device to use for evaluation. Defaults to "cpu".
 
         Returns:
             dict: A dictionary containing the computed metrics.
         """
         from .utils import clear_cache  # NOQA
 
+        if round % self.eval_every != 0:
+            return {}
+
         if (model is None) or (eval_data_loader is None):
             return {}
 
         model.eval()
-        model.to(self.device)
+        model.to(device)
         task = "multiclass"  # if self.n_classes >= 2 else "binary"
         accs, losses = [], []
         micro_precs, micro_recs, micro_f1s = [], [], []
@@ -124,11 +149,11 @@ class ClassificationEval(Evaluator):
             macro_f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="macro")
             loss = 0
             for X, y in data_loader:
-                X, y = X.to(self.device), y.to(self.device)
+                X, y = X.to(device), y.to(device)
                 with torch.no_grad():
                     y_hat = model(X)
-                    if self.loss_fn is not None:
-                        loss += self.loss_fn(y_hat, y).item()
+                    if loss_fn is not None:
+                        loss += loss_fn(y_hat, y).item()
 
                 accuracy.update(y_hat.cpu(), y.cpu())
                 micro_precision.update(y_hat.cpu(), y.cpu())
@@ -152,25 +177,23 @@ class ClassificationEval(Evaluator):
         clear_cache()
 
         result = {
-            "accuracy":  round(sum(accs) / len(accs), 5),
-            "micro_precision": round(sum(micro_precs) / len(micro_precs), 5),
-            "micro_recall":    round(sum(micro_recs) / len(micro_recs), 5),
-            "micro_f1":        round(sum(micro_f1s) / len(micro_f1s), 5),
-            "macro_precision": round(sum(macro_precs) / len(macro_precs), 5),
-            "macro_recall":    round(sum(macro_recs) / len(macro_recs), 5),
-            "macro_f1":        round(sum(macro_f1s) / len(macro_f1s), 5)
+            "accuracy":  np.round(sum(accs) / len(accs), 5).item(),
+            "micro_precision": np.round(sum(micro_precs) / len(micro_precs), 5).item(),
+            "micro_recall":    np.round(sum(micro_recs) / len(micro_recs), 5).item(),
+            "micro_f1":        np.round(sum(micro_f1s) / len(micro_f1s), 5).item(),
+            "macro_precision": np.round(sum(macro_precs) / len(macro_precs), 5).item(),
+            "macro_recall":    np.round(sum(macro_recs) / len(macro_recs), 5).item(),
+            "macro_f1":        np.round(sum(macro_f1s) / len(macro_f1s), 5).item()
         }
 
-        if self.loss_fn is not None:
-            result["loss"] = round(sum(losses) / len(losses), 5)
+        if loss_fn is not None:
+            result["loss"] = np.round(sum(losses) / len(losses), 5)
 
         return result
 
     def __str__(self) -> str:
-        loss_str = f", {self.loss_fn.__class__.__name__}" if self.loss_fn is not None else ""
-        return f"{self.__class__.__name__}(n_classes={self.n_classes}, " + \
-               f"device={self.device})[accuracy, precision, recall, f1" + \
-               f"{loss_str}" + "]"
+        return f"{self.__class__.__name__}(eval_every={self.eval_every}" + \
+               f", n_classes={self.n_classes})[accuracy, precision, recall, f1]"
 
     def __repr__(self) -> str:
         return str(self)

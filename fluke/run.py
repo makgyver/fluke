@@ -58,7 +58,8 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
                                           scheduler_cfg=cfg.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
     criterion = get_loss(cfg.client.loss)
-    evaluator = ClassificationEval(criterion, data_container.num_classes, device)
+    evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
+                                   n_classes=data_container.num_classes)
     history = []
 
     model.to(device)
@@ -80,7 +81,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
             optimizer.step()
         scheduler.step()
 
-        epoch_eval = evaluator.evaluate(model, test_loader)
+        epoch_eval = evaluator.evaluate(model, test_loader, criterion)
         history.append(epoch_eval)
         rich.print(Panel(Pretty(epoch_eval, expand_all=True), title="Performance"))
         rich.print()
@@ -108,6 +109,11 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
     data_container = Datasets.get(**cfg.data.dataset)
+    evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
+                                   n_classes=data_container.num_classes)
+    GlobalSettings().set_evaluator(evaluator)
+    GlobalSettings().set_eval_cfg(cfg.eval)
+
     data_splitter = DataSplitter(dataset=data_container,
                                  distribution=cfg.data.distribution.name,
                                  dist_args=cfg.data.distribution.exclude("name"),
@@ -117,7 +123,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
     fl_algo = fl_algo_class(cfg.protocol.n_clients,
                             data_splitter,
                             cfg.method.hyperparameters)
-    # plot_distribution(fl_algo.clients)
+
     log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
     log.init(**cfg)
     fl_algo.set_callbacks(log)
@@ -173,9 +179,8 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
                                               scheduler_cfg=hp.client.scheduler)
         optimizer, scheduler = optimizer_cfg(model)
-        evaluator = ClassificationEval(criterion,
-                                       data_splitter.data_container.num_classes,
-                                       device)
+        evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
+                                       n_classes=data_container.num_classes)
         model.to(device)
         for _ in range(epochs):
             model.train()
@@ -189,7 +194,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                 optimizer.step()
             scheduler.step()
 
-        client_eval = evaluator.evaluate(model, test_loader)
+        client_eval = evaluator.evaluate(model, test_loader, criterion)
         rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))
         client_evals.append(client_eval)
         model.to("cpu")

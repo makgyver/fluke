@@ -261,9 +261,10 @@ def test_log():
         log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
         log.message_received(Message("test", "test", None))
-        log.error("test")
-        log.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
-        log.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
+        log.server_evaluation(1, "global", {"accuracy": 1})
+        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.end_round(1)
+        log.finished(1)
         temp = tempfile.NamedTemporaryFile(mode="w")
         log.save(temp.name)
     except Exception:
@@ -272,11 +273,18 @@ def test_log():
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
         assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
-            '0': 0, '1': 4}, 'perf_local': {'1': {'accuracy': 0.6}, '2': {'accuracy': 0.6}}}
+            '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
+            'perf_postfit': {}}
 
-    assert log.history[1] == {"accuracy": 1}
-    assert log.client_history[1] == {"accuracy": 0.6}
-    assert log.comm_costs[1] == 4
+    assert log.global_eval == {1: {"accuracy": 1}}
+    assert log.locals_eval == {}
+    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}}}
+    assert log.postfit_eval == {}
+    assert log.locals_eval_summary == {}
+    assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
+    assert log.postfit_eval_summary == {}
+    assert log.comm_costs == {0: 0, 1: 4}
+    assert log.current_round == 1
 
 
 # def test_wandb_log():
@@ -429,9 +437,9 @@ def test_mixing():
 def test_serverobs():
     sobs = ServerObserver()
     sobs.start_round(1, None)
-    sobs.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
-    sobs.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
-    sobs.error("test")
+    sobs.server_evaluation("global", {"accuracy": 1})
+    sobs.end_round(1)
+    sobs.finished(1)
     sobs.selected_clients(1, [1, 2, 3])
 
 

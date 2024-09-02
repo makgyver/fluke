@@ -15,24 +15,26 @@ The main methods of the `CentralizedFL` class are:
   the initialization of the clients requires non-standard operations. Currently, all algorithms in `fluke` use the implementation provided by the `CentralizedFL` class;
 - `get_client_class`: the method that returns the client class. This method must be overridden if you defined a custom client class;
 - `get_server_class`: the method that returns the server class. This method must be overridden if you defined a custom server class;
-- `get_optimizer_class`: the method that returns the optimizer class. This method must be overridden if you defined a custom (client-side) optimizer class.
+- `get_optimizer_class`: the method that returns the optimizer class. This method must be overridden if you defined a custom (client-side) optimizer class;
+- `can_override_optimizer`: a boolean attribute that specifies whether the optimizer can be overridden. If set to `True`, the optimizer can be overridden using the configuration. If set to `False`, the optimizer cannot be overridden. The default value is `True`.
 
-The following is the code for the `SCAFFOLD` class:
+The following is the code for the `PerFedAVG` class:
 
 ```{eval-rst}
 
 .. code-block:: python
    :linenos:
 
-    class SCAFFOLD(CentralizedFL):
-        def get_optimizer_class(self) -> torch.optim.Optimizer:
-            return SCAFFOLDOptimizer
+    class PerFedAVG(CentralizedFL):
 
         def get_client_class(self) -> Client:
-            return SCAFFOLDClient
+            return PerFedAVGClient
 
-        def get_server_class(self) -> Server:
-            return SCAFFOLDServer
+        def can_override_optimizer(self) -> bool:
+            return False
+
+        def get_optimizer_class(self) -> Optimizer:
+            return PerFedAVGOptimizer
 
 ```
 

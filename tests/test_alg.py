@@ -1,4 +1,4 @@
-from torch.nn import CrossEntropyLoss
+from torch.nn import CrossEntropyLoss, Module
 from torch.optim import SGD
 import torch
 import sys
@@ -14,8 +14,9 @@ from fluke.nets import MNIST_2NN  # NOQA
 from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from fluke.algorithms.fedavg import FedAVG  # NOQA
-from fluke.utils import Configuration, get_class_from_qualified_name, ServerObserver  # NOQA
+from fluke.utils import Configuration, get_class_from_qualified_name, ServerObserver, ClientObserver  # NOQA
 from fluke.utils.log import Log  # NOQA
+from fluke.evaluation import ClassificationEval  # NOQA
 
 
 def test_centralized_fl():
@@ -35,7 +36,7 @@ def test_centralized_fl():
         server=DDict(weighted=True)
     )
     mnist = Datasets.MNIST("../data")
-    splitter = DataSplitter(mnist)
+    splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(2, splitter, hparams)
 
     assert fl.n_clients == 2
@@ -44,7 +45,8 @@ def test_centralized_fl():
     assert isinstance(fl.clients[0], Client)
     assert isinstance(fl.server, Server)
     assert isinstance(fl.server.model, MNIST_2NN)
-    assert fl.clients[0].test_set is None
+    assert fl.clients[0].test_set is not None
+    assert fl.clients[1].test_set is not None
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
 
     hparams = DDict(
@@ -62,8 +64,11 @@ def test_centralized_fl():
         server=DDict(weighted=True)
     )
     mnist = Datasets.MNIST("../data")
-    splitter = DataSplitter(mnist)
+    splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(2, splitter, hparams)
+
+    GlobalSettings().set_evaluator(ClassificationEval(1, 10))
+    GlobalSettings().set_eval_cfg(DDict(post_fit=True))
 
     assert isinstance(fl.server.model, MNIST_2NN)
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
@@ -72,7 +77,7 @@ def test_centralized_fl():
     assert fl.get_client_class() == Client
     assert fl.get_server_class() == Server
 
-    class Observer(ServerObserver, ChannelObserver):
+    class Observer(ClientObserver, ServerObserver, ChannelObserver):
         def __init__(self):
             super().__init__()
             self.called_start = False
@@ -80,33 +85,51 @@ def test_centralized_fl():
             self.called_selected = False
             self.called_error = False
             self.called_finished = False
+            self.called_client_eval = False
+            self.called_server_eval = False
+            self.called_start_fit = False
+            self.called_end_fit = False
 
         def start_round(self, round, global_model):
             assert round == 1
             assert global_model is not None
             self.called_start = True
 
-        def end_round(self,
-                      round,
-                      evals,
-                      client_evals):
+        def end_round(self, round):
             assert round == 1
-            assert len(client_evals) == 0
-            assert "accuracy" in evals
             self.called_end = True
+
+        def server_evaluation(self, round, type, evals) -> None:
+            assert round == 1
+            assert type == "global"
+            assert "accuracy" in evals
+            self.called_server_eval = True
+
+        def client_evaluation(self, round, client_id, phase, evals, **kwargs):
+            assert round == 1
+            assert phase == "post-fit"
+            assert client_id == 0 or client_id == 1
+            self.called_client_eval = True
 
         def selected_clients(self, round, clients):
             assert len(clients) == 1
             assert round == 1
             self.called_selected = True
 
-        def error(self, error):
-            assert error == "error"
-            self.called_error = True
-
-        def finished(self, evals, client_evals):
-            assert len(client_evals) == 0
+        def finished(self, round):
+            assert round == 2
             self.called_finished = True
+
+        def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
+            assert round == 1
+            assert client_id == 0 or client_id == 1
+            self.called_start_fit = True
+
+        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
+            assert round == 1
+            assert client_id == 0 or client_id == 1
+            assert loss >= 0.0
+            self.called_end_fit = True
 
         def message_received(self, message: Message):
             pass
@@ -130,6 +153,10 @@ def test_centralized_fl():
     assert obs.called_end
     assert obs.called_selected
     assert obs.called_finished
+    assert obs.called_start_fit
+    assert obs.called_end_fit
+    assert obs.called_client_eval
+    assert obs.called_server_eval
 
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",

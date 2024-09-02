@@ -87,3 +87,6 @@ Xin-Chun Li and De-Chuan Zhan. FedRS: Federated Learning with Restricted Softmax
 
 <a id="29">[FedSAM 2022]</a>
 Caldarola, D., Caputo, B., & Ciccone, M. Improving Generalization in Federated Learning by Seeking Flat Minima. ECCV 2022. URL: https://arxiv.org/abs/2203.11834
+
+<a id="30">[FedROD 2022]</a>
+Hong-You Chen and Wei-Lun Chao. On Bridging Generic and Personalized Federated Learning for Image Classification. ICLR 2022. URL: https://openreview.net/pdf?id=I1hQbx10Kxn

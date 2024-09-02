@@ -45,7 +45,7 @@ class FedNovaClient(Client):
         else:
             return self.optimizer.param_groups[0]["momentum"]
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         super().fit(override_local_epochs)
         self.tau += self.hyper_params.local_epochs * self.train_set.n_batches
         rho = self._get_momentum()

@@ -23,16 +23,15 @@ from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 class FedOptServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  mode: str = "fedadam",
                  lr: float = 0.001,
                  beta1: float = 0.9,
                  beta2: float = 0.999,
                  tau: float = 0.0001,
                  weighted: bool = True):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         assert mode in {"adam", "yogi", "adagrad"}, \
             "'mode' must be one of {'adam', 'yogi', 'adagrad'}"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"

@@ -4,13 +4,13 @@ The module ``fluke.server`` provides the base classes for the servers in ``fluke
 from __future__ import annotations
 from rich.progress import track
 import numpy as np
-from typing import Any, Iterable
+from typing import Any, Iterable, Union
 from collections import OrderedDict
 import torch
 from torch import device
 from torch.nn import Module
 
-from .evaluation import ClassificationEval  # NOQA
+from .evaluation import Evaluator  # NOQA
 from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
@@ -46,14 +46,16 @@ class Server(ObserverSubject):
         clients (Iterable[Client]): The clients that will participate in the federated learning
           process.
         rounds (int): The number of rounds that have been executed.
-        test_data (FastDataLoader): The test data to evaluate the model. If None, the model
+        test_set (FastDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
+        evaluator (Evaluator): The evaluator to compute the evaluation metrics.
 
     Args:
         model (torch.nn.Module): The federated model to be trained.
-        test_data (FastDataLoader): The test data to evaluate the model.
+        test_set (FastDataLoader): The test data to evaluate the model.
         clients (Iterable[Client]): The clients that will participate in the federated learning
           process.
+        evaluator (Evaluator): The evaluator to compute the evaluation metrics.
         eval_every (int): The number of rounds between evaluations. Defaults to 1.
         weighted (bool): A boolean indicating if the clients should be weighted by the
           number of samples when aggregating the models. Defaults to False.
@@ -61,9 +63,8 @@ class Server(ObserverSubject):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False):
         super().__init__()
         self.hyper_params = DDict(
@@ -75,8 +76,7 @@ class Server(ObserverSubject):
         self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
-        self.test_data: FastDataLoader = test_data
-        self._eval_every: int = eval_every
+        self.test_set: FastDataLoader = test_set
         self._participants: set[int] = set()
 
         for client in self.clients:
@@ -102,7 +102,7 @@ class Server(ObserverSubject):
         Returns:
             bool: True if the server can evaluate the model, False otherwise.
         """
-        return self.test_data is not None
+        return self.test_set is not None
 
     @property
     def has_model(self) -> bool:
@@ -155,21 +155,15 @@ class Server(ObserverSubject):
                 eligible = self.get_eligible_clients(eligible_perc)
                 self._notify_selected_clients(round + 1, eligible)
                 self.broadcast_model(eligible)
+
                 for c, client in enumerate(eligible):
-                    client.fit()
+                    client.local_update(round + 1)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
+
                 self.aggregate(eligible)
-
-                client_evals, evals = [], {}
-                if (round + 1) % self._eval_every == 0:
-                    for client in eligible:
-                        client_eval = client.evaluate()
-                        if client_eval:
-                            client_evals.append(client_eval)
-                    evals = self.evaluate()
-
-                self._notify_end_round(round + 1, evals, client_evals)
+                self._compute_evaluation(round, eligible)
+                self._notify_end_round(round + 1)
                 self.rounds += 1
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
@@ -177,23 +171,28 @@ class Server(ObserverSubject):
         if finalize:
             self.finalize()
 
-    def evaluate(self) -> dict[str, float]:
+    def _compute_evaluation(self, round: int, eligible: Iterable[Client]) -> None:
+        evaluator = GlobalSettings().get_evaluator()
+
+        if GlobalSettings().get_eval_cfg().locals:
+            client_evals = {client.index: client.evaluate(evaluator, self.test_set)
+                            for client in eligible}
+            self._notify_evaluation(round + 1, "locals", client_evals)
+
+        if GlobalSettings().get_eval_cfg().server:
+            evals = self.evaluate(evaluator, self.test_set)
+            self._notify_evaluation(round + 1, "global", evals)
+
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the global federated model on the ``test_set``.
         If the test set is not set, the method returns an empty dictionary.
-
-        Warning:
-            To date, only classification tasks are supported.
 
         Returns:
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
-        if self.test_data is not None:
-            return ClassificationEval(None,  # self.clients[0].hyper_params.loss_fn,
-                                      #   self.model.output_size,
-                                      self.test_data.num_labels,
-                                      device=self.device).evaluate(self.model,
-                                                                   self.test_data)
+        if test_set is not None:
+            return evaluator.evaluate(self.rounds + 1, self.model, test_set)
         return {}
 
     def finalize(self) -> None:
@@ -201,16 +200,12 @@ class Server(ObserverSubject):
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
-        client_evals = []
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
             client.finalize()
-            client_eval = client.evaluate()
-            if client_eval:
-                client_evals.append(client_eval)
-        evals = self.evaluate()
-        self._notify_finalize(evals, client_evals)
+        # self._compute_evaluation(self.rounds, client_to_eval)
+        self._notify_finalize()
 
     def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
@@ -321,10 +316,10 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.start_round(round, global_model)
 
-    def _notify_end_round(self,
-                          round: int,
-                          evals: dict[str, float],
-                          client_evals: Iterable[Any]) -> None:
+    def _notify_evaluation(self,
+                           round: int,
+                           type: str,
+                           evals: Union[dict[str, float], dict[int, dict[str, float]]]) -> None:
         """Notify the observers that a round has ended.
 
         Args:
@@ -334,7 +329,19 @@ class Server(ObserverSubject):
             client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
-            observer.end_round(round, evals, client_evals)
+            observer.server_evaluation(round, type, evals)
+
+    def _notify_end_round(self, round: int) -> None:
+        """Notify the observers that a round has ended.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+            data (FastDataLoader): The test data.
+            client_evals (Iterable[Any]): The evaluation metrics of the clients.
+        """
+        for observer in self._observers:
+            observer.end_round(round)
 
     def _notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
         """Notify the observers that the clients have been selected for the current round.
@@ -346,16 +353,7 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.selected_clients(round, clients)
 
-    def _notify_error(self, error: str) -> None:
-        """Notify the observers that an error has occurred.
-
-        Args:
-            error (str): The error message.
-        """
-        for observer in self._observers:
-            observer.error(error)
-
-    def _notify_finalize(self, evals: dict[str, float], client_evals: Iterable[Any]) -> None:
+    def _notify_finalize(self) -> None:
         """Notify the observers that the federated learning process has ended.
 
         Args:
@@ -363,7 +361,7 @@ class Server(ObserverSubject):
             client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
-            observer.finished(evals, client_evals)
+            observer.finished(self.rounds + 1)
 
     def __str__(self) -> str:
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])

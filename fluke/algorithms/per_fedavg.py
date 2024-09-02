@@ -113,18 +113,16 @@ class PerFedAVGClient(Client):
             grads = torch.autograd.grad(loss, model.parameters())
             return grads
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.model.train()
         self.model.to(self.device)
         if self.optimizer is None:
             self.optimizer, _ = self.optimizer_cfg(self.model)
 
         iterations = len(self.train_set) * epochs
+        running_loss = 0.0
         for _ in range(iterations):
-            loss = None
-
             batch_1 = self._get_next_batch()
             batch_2 = self._get_next_batch()
 
@@ -135,6 +133,7 @@ class PerFedAVGClient(Client):
             loss = self.hyper_params.loss_fn(y_hat, y)
             loss.backward()
             self.optimizer.step(self.model.parameters())
+            running_loss += loss.item()
 
             if self.hyper_params.mode == "FO":
                 X, y = batch_2
@@ -158,8 +157,9 @@ class PerFedAVGClient(Client):
             else:
                 raise ValueError(f"Invalid mode: {self.hyper_params.mode}")
 
+        running_loss /= iterations
         self.model.to("cpu")
-        self.send_model()
+        return running_loss
 
 
 class PerFedAVG(CentralizedFL):

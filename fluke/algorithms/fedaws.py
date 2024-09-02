@@ -52,17 +52,15 @@ class FedAwSServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False,
                  aws_lr: float = 0.1,
                  aws_steps: int = 100,
                  margin: float = 0.5,
                  last_layer_name: str = "classifier",
                  **kwargs):
-        super().__init__(model=model, test_data=test_data,
-                         clients=clients, eval_every=eval_every, weighted=weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         assert (last_layer_name + ".weight") in model.state_dict().keys(), \
             f"Invalid last_layer_name: {last_layer_name}. Make sure that the last layer \
                 is named as {last_layer_name}"

@@ -18,12 +18,10 @@ def test_classification_eval():
                             shuffle=False,
                             skip_singleton=False)
 
-    clf_eval = ClassificationEval(loss_fn=torch.nn.CrossEntropyLoss(),
-                                  n_classes=3,
-                                  device=torch.device("cpu"))
+    clf_eval = ClassificationEval(eval_every=1, n_classes=3)
 
     assert clf_eval.n_classes == 3
-    assert clf_eval.device == torch.device("cpu")
+    assert clf_eval.eval_every == 1
 
     # model that only classifies with 0
     class ModelZero(torch.nn.Module):
@@ -43,8 +41,8 @@ def test_classification_eval():
                 return torch.FloatTensor([[0, 0, 1]])
 
     # test with model that only classifies with 0
-    zero_eval = clf_eval.evaluate(ModelZero(), loader)
-    perfect_eval = clf_eval.evaluate(ModelPerfect(), loader)
+    zero_eval = clf_eval.evaluate(1, ModelZero(), loader, loss_fn=torch.nn.CrossEntropyLoss())
+    perfect_eval = clf_eval.evaluate(1, ModelPerfect(), loader, loss_fn=torch.nn.CrossEntropyLoss())
 
     assert zero_eval["accuracy"] == 0.5
     assert zero_eval["micro_precision"] == 0.5
@@ -64,10 +62,10 @@ def test_classification_eval():
     assert perfect_eval["macro_f1"] == 1
     assert perfect_eval["loss"] < 1
 
-    assert clf_eval.evaluate(None, None) == {}
+    assert clf_eval.evaluate(1, None, None) == {}
 
-    assert str(clf_eval) == "ClassificationEval(n_classes=3, device=cpu)" + \
-        "[accuracy, precision, recall, f1, CrossEntropyLoss]"
+    assert str(clf_eval) == "ClassificationEval(eval_every=1, n_classes=3)" + \
+        "[accuracy, precision, recall, f1]"
     assert repr(clf_eval) == str(clf_eval)
 
 

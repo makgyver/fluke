@@ -51,9 +51,8 @@ class SCAFFOLDClient(Client):
             safe_load_state_dict(self.model, model.state_dict())
         self.server_model = deepcopy(model.state_dict())
 
-    def fit(self, override_local_epochs: int = 0):
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.model.to(self.device)
         self.model.train()
 
@@ -61,6 +60,7 @@ class SCAFFOLDClient(Client):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
         K = 0
+        running_loss = 0.0
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -75,6 +75,7 @@ class SCAFFOLDClient(Client):
                     p.grad.data = p.grad.data + (self.server_control[n].to(self.device) -
                                                  self.control[n].to(self.device))
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
         self.model.to("cpu")
@@ -95,8 +96,9 @@ class SCAFFOLDClient(Client):
             self.control = deepcopy(c_plus)
             self.delta_control = c_delta
 
+        running_loss /= (epochs * len(self.train_set))
         clear_cache()
-        self.send_model()
+        return running_loss
 
     def send_model(self):
         self.channel.send(Message(self.model, "model", self), self.server)
@@ -106,16 +108,14 @@ class SCAFFOLDClient(Client):
 class SCAFFOLDServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  global_step: float = 1.,
                  **kwargs):
         super().__init__(model=model,
-                         test_data=test_data,
+                         test_set=test_set,
                          clients=clients,
-                         eval_every=eval_every,
                          weighted=weighted,
                          **kwargs)
         self.device = GlobalSettings().get_device()

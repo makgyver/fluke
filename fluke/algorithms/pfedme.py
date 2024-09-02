@@ -67,9 +67,8 @@ class PFedMeClient(PFLClient):
         else:
             safe_load_state_dict(self.personalized_model, model.state_dict())
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.personalized_model.train()
         self.personalized_model.to(self.device)
         self.model.to(self.device)
@@ -78,8 +77,8 @@ class PFedMeClient(PFLClient):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
 
         lamda = self.optimizer.defaults["lamda"]
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 for _ in range(self.hyper_params.k):
@@ -93,12 +92,13 @@ class PFedMeClient(PFLClient):
                 params = zip(self.personalized_model.parameters(), self.model.parameters())
                 for param_p, param_l in params:
                     param_l.data = param_l.data - lamda * lr * (param_l.data - param_p.data)
-
+                running_loss += loss.item()
             self.scheduler.step()
+        running_loss /= (epochs * len(self.train_set))
         self.model.load_state_dict(self.personalized_model.state_dict())
         self.model.to("cpu")
         self.personalized_model.to("cpu")
-        self.send_model()
+        return running_loss
 
     def send_model(self):
         self.channel.send(Message(self.model, "model", self), self.server)
@@ -107,12 +107,11 @@ class PFedMeClient(PFLClient):
 class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False,
                  beta: float = 0.5):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()

@@ -52,11 +52,10 @@ class FedPerServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,  # test_data is not used
+                 test_set: FastDataLoader,  # test_set is not used
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 
 class FedPer(PersonalizedFL):

@@ -21,7 +21,7 @@ from ..client import PFLClient  # NOQA
 
 
 class PerturbedGradientDescent(Optimizer):
-    def __init__(self, params: Iterator[Parameter], lr: float = 0.01, lam: float = 0.0):
+    def __init__(self, params: Iterator[Parameter], lr: float = 0.01, lam: float = 0.0, **kwargs):
         default = dict(lr=lr, lam=lam)
         super().__init__(params, default)
 
@@ -67,7 +67,6 @@ class DittoClient(PFLClient):
 
     def fit(self, override_local_epochs: int = 0) -> dict:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
 
         w_prev = deepcopy(self.model)
 
@@ -104,8 +103,8 @@ class DittoClient(PFLClient):
                 **self.optimizer_cfg.scheduler_cfg
             )
 
+        running_loss = 0.0
         for _ in range(self.hyper_params.tau):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.pers_optimizer.zero_grad()
@@ -113,12 +112,15 @@ class DittoClient(PFLClient):
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
                 self.pers_optimizer.step(w_prev.parameters())
+                running_loss += loss.item()
             self.pers_scheduler.step()
 
+        running_loss /= (self.hyper_params.tau * len(self.train_set))
         self.personalized_model.to("cpu")
         w_prev.to("cpu")
         clear_cache()
-        self.send_model()
+
+        return running_loss
 
 
 class Ditto(PersonalizedFL):

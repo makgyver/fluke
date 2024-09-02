@@ -20,6 +20,8 @@ def test_settings():
     settings.set_device("mps")
     assert settings.get_device() == torch.device("mps")
     settings.set_device("auto")
+    settings.set_eval_cfg(DDict(pre_fit=True))
+    assert settings.get_eval_cfg().pre_fit
     if torch.cuda.is_available():
         assert settings.get_device() == torch.device("cuda")
     elif torch.backends.mps.is_available():

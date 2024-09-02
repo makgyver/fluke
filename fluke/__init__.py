@@ -2,13 +2,17 @@
 The ``fluke`` module is the entry module of the ``fluke`` framework. Here are defined generic
 classes used by the other modules.
 """
+from __future__ import annotations
 import re
 import torch
 import random
 import numpy as np
 from rich.console import Group
 from rich.progress import Progress, Live
-from typing import Any, Union, Iterable
+from typing import Any, Union, Iterable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .evaluation import Evaluator
 
 
 __all__ = [
@@ -193,9 +197,20 @@ class GlobalSettings(metaclass=Singleton):
 
     """
 
+    # general settings
     _device: str = 'cpu'
     _seed: int = 0
 
+    # evaluation settings
+    _evaluator: Evaluator = None
+    _eval_cfg: DDict = DDict(
+        pre_fit=False,
+        post_fit=False,
+        locals=False,
+        server=True
+    )
+
+    # progress bars
     _progress_FL: Progress = None
     _progress_clients: Progress = None
     _progress_server: Progress = None
@@ -217,6 +232,39 @@ class GlobalSettings(metaclass=Singleton):
             int: The seed.
         """
         return self._seed
+
+    def get_eval_cfg(self) -> DDict:
+        """Get the evaluation configuration.
+
+        Returns:
+            DDict: The evaluation configuration.
+        """
+        return self._eval_cfg
+
+    def set_eval_cfg(self, cfg: DDict) -> None:
+        """Set the evaluation configuration.
+
+        Args:
+            cfg (DDict): The evaluation configuration.
+        """
+        for key, value in cfg.items():
+            self._eval_cfg[key] = value
+
+    def get_evaluator(self) -> Evaluator:
+        """Get the evaluator.
+
+        Returns:
+            Evaluator: The evaluator.
+        """
+        return self._evaluator
+
+    def set_evaluator(self, evaluator: Evaluator) -> None:
+        """Set the evaluator.
+
+        Args:
+            evaluator (Evaluator): The evaluator.
+        """
+        self._evaluator = evaluator
 
     def set_seed(self, seed: int) -> None:
         """Set seed for reproducibility. The seed is used to set the random seed for the following
@@ -266,7 +314,11 @@ class GlobalSettings(metaclass=Singleton):
         if device == "auto":
             return GlobalSettings().auto_device()
 
-        self._device = torch.device(device)
+        if device.startswith('cuda') and ":" in device:
+            idx = int(device.split(":")[1])
+            self._device = torch.device(device, idx)
+        else:
+            self._device = torch.device(device)
         return self._device
 
     def get_device(self) -> torch.device:

@@ -50,22 +50,23 @@ class FedAMPClient(PFLClient):
         return (self.hyper_params.lam / (2 * self._alpha())) * proximal_term
 
     def receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
-
-    def fit(self, override_local_epochs: int = 0):
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         try:
-            self.receive_model()
+            msg = self.channel.receive(self, self.server, msg_type="model")
+            safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
         except ValueError:
             pass
+
+    def fit(self, override_local_epochs: int = 0) -> float:
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.model.to(self.device)
         self.personalized_model.to(self.device)
         self.model.train()
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -74,24 +75,26 @@ class FedAMPClient(PFLClient):
                     y_hat, y) + self._proximal_loss(self.model, self.personalized_model)
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         self.personalized_model.to("cpu")
         clear_cache()
-        self.send_model()
+
+        return running_loss
 
 
 class FedAMPServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  sigma: float = 0.1,
                  alpha: float = 0.1):
-        super().__init__(model, None, clients, eval_every, False)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=False)
         self.hyper_params.update(
             sigma=sigma,
             alpha=alpha

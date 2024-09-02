@@ -10,7 +10,7 @@ import numpy as np
 from torch.optim import Optimizer
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal, Union
 # from enum import Enum
 import importlib
 import inspect
@@ -32,6 +32,7 @@ __all__ = [
     'model',
     'Configuration',
     'OptimizerConfigurator',
+    'ClientObserver',
     'ServerObserver',
     'clear_cache',
     'get_class_from_str',
@@ -44,14 +45,62 @@ __all__ = [
 ]
 
 
+class ClientObserver():
+    """Client observer interface.
+    This interface is used to observe the client during the federated learning process.
+    For example, it can be used to log the performance of the local model, as it is done by the
+    ``Log`` class.
+    """
+
+    def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
+        """This method is called when the client starts the local training process.
+
+        Args:
+            round (int): The round number.
+            client_id (int):  The client ID.
+            model (Module): The local model before training.
+        """
+        pass
+
+    def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
+        """This method is called when the client ends the local training process.
+
+        Args:
+            round (int): The round number.
+            client_id (int): The client ID.
+            model (Module): The local model after training.
+            loss (float): The loss of the local model.
+        """
+        pass
+
+    def client_evaluation(self,
+                          round: int,
+                          client_id: int,
+                          phase: Literal["pre-fit", "post-fit"],
+                          evals: dict[str, float],
+                          **kwargs):
+        """This method is called when the client evaluates the local model.
+        The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
+        training process.
+
+        Args:
+            round (int): The round number.
+            client_id (int): The client ID.
+            phase (Literal['pre-fit', 'post-fit']): Whether the evaluation is done before or after
+                the local training process.
+            evals (dict[str, float]): The evaluation metrics.
+        """
+        pass
+
+
 class ServerObserver():
     """Server observer interface.
     This interface is used to observe the server during the federated learning process.
     For example, it can be used to log the performance of the global model and the communication
-    costs, as it is done in the ``Log`` class.
+    costs, as it is done by the ``Log`` class.
     """
 
-    def start_round(self, round: int, global_model: Any):
+    def start_round(self, round: int, global_model: Any) -> None:
         """This method is called when a new round starts.
 
         Args:
@@ -60,20 +109,15 @@ class ServerObserver():
         """
         pass
 
-    def end_round(self,
-                  round: int,
-                  evals: dict[str, float],
-                  client_evals: Iterable[Any]):
+    def end_round(self, round: int) -> None:
         """This method is called when a round ends.
 
         Args:
             round (int): The round number.
-            evals (dict[str, float]): The evaluation results of the global model.
-            client_evals (Iterable[Any]): The evaluation rstuls of the clients.
         """
         pass
 
-    def selected_clients(self, round: int, clients: Iterable):
+    def selected_clients(self, round: int, clients: Iterable) -> None:
         """This method is called when the clients have been selected for the current round.
 
         Args:
@@ -82,20 +126,30 @@ class ServerObserver():
         """
         pass
 
-    def error(self, error: str):
-        """This method is called when an error occurs.
+    def server_evaluation(self,
+                          type: Literal["global", "locals"],
+                          evals: Union[dict[str, float], dict[int, dict[str, float]]],
+                          **kwargs) -> None:
+        """This method is called when the server evaluates the global or the local models on its
+        test set.
 
         Args:
-            error (str): The error message.
+
+            type (Literal['global', 'locals']): The type of evaluation. If 'global', the evaluation
+                is done on the global model. If 'locals', the evaluation is done on the local models
+                of the clients on the test set of the server.
+            evals (dict[str, float] | dict[int, dict[str, float]]): The evaluation metrics. In case
+                of 'global' evaluation, it is a dictionary with the evaluation metrics. In case of
+                'locals' evaluation, it is a dictionary of dictionaries where the keys are the
+                client IDs and the values are the evaluation metrics.
         """
         pass
 
-    def finished(self,  evals: dict[str, float], client_evals: Iterable[Any]):
+    def finished(self, round: int) -> None:
         """This method is called when the federated learning process has ended.
 
         Args:
-            evals (dict[str, float]): The evaluation results of the global model.
-            client_evals (Iterable[Any]): The evaluation metrics of the clients.
+            round (int): The last round number.
         """
         pass
 
@@ -421,8 +475,18 @@ class Configuration(DDict):
             "name": "Log"
         }
 
+        EVAL_OPT_KEYS = {
+            "task": "classification",
+            "eval_every": 1,
+            "pre_fit": False,
+            "post_fit": True,
+            "server": True,
+            "locals": False
+        }
+
         FIRST_LVL_KEYS = ["data", "protocol", "method"]
         FIRST_LVL_OPT_KEYS = {
+            "eval": EVAL_OPT_KEYS,
             "exp": EXP_OPT_KEYS,
             "logger": LOG_OPT_KEYS
         }
@@ -451,7 +515,7 @@ class Configuration(DDict):
 
         for k, v in FIRST_LVL_OPT_KEYS.items():
             if k not in self:
-                self[k] = DDict(v)
+                self[k] = DDict(**v)
 
         for k in PROTO_REQUIRED_KEYS:
             if k not in self.protocol:
@@ -466,6 +530,10 @@ class Configuration(DDict):
         for k, v in DATA_OPT_KEYS.items():
             if k not in self.data:
                 self.data[k] = v
+
+        for k, v in EVAL_OPT_KEYS.items():
+            if k not in self.data:
+                self.eval[k] = v
 
         for k, v in EXP_OPT_KEYS.items():
             if k not in self.exp:
