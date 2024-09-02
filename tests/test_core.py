@@ -69,6 +69,11 @@ def test_ddict():
     assert "a" not in dd_nota
     assert dd_nota.b == 2
 
+    dd = DDict({"a": 1, "b": 2}, c=3)
+    assert dd.a == 1
+    assert dd.b == 2
+    assert dd.c == 3
+
 
 if __name__ == "__main__":
     test_settings()

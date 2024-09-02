@@ -172,7 +172,7 @@ def analyze(folder: str = typer.Argument(..., help='Folder containing \
     for k in sorted(list(files.keys())):
         v = files[k]
         rich.print(f"Round: {k+1}")
-        data = torch.load(f"{folder}/{v}")
+        data = torch.load(f"{folder}/{v}", weights_only=False)
         repr_clients = data['repr_clients']
         # norm_clients = data['norm_clients']
         # dists = data['dists']
@@ -190,7 +190,7 @@ def analyze(folder: str = typer.Argument(..., help='Folder containing \
             rich.print(f"Similarity: {layers_sim[-1]}\n")
 
 
-@ app.callback()
+@app.callback()
 def repr(config: str = typer.Option(CONFIG_FNAME, help="Configuration file")) -> None:
     global CONFIG_FNAME
     CONFIG_FNAME = config

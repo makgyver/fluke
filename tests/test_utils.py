@@ -1,6 +1,7 @@
 from torch.nn import Linear, CrossEntropyLoss
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
+from unittest.mock import patch
 import pytest
 import json
 import tempfile
@@ -14,15 +15,19 @@ from fluke import DDict  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
 from fluke.comm import Message  # NOQA
 from fluke.client import Client  # NOQA
+from fluke.data import DataSplitter  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
+from fluke.algorithms import CentralizedFL  # NOQA
 from fluke.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
            get_class_from_str, get_model, get_class_from_qualified_name,  # NOQA
            get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
-           ServerObserver)  # NOQA
+           ServerObserver, ClientObserver, plot_distribution)  # NOQA
 from fluke.utils.log import get_logger, Log, WandBLog  # NOQA
 
 from fluke.utils.model import (merge_models, diff_model, mix_networks, batch_norm_to_group_norm,  # NOQA
                                   get_local_model_dict, get_global_model_dict, set_lambda_model,   # NOQA
-                                  safe_load_state_dict, STATE_DICT_KEYS_TO_IGNORE, MMMixin)  # NOQA
+                                  safe_load_state_dict, STATE_DICT_KEYS_TO_IGNORE, MMMixin,  # NOQA
+                                  check_model_fit_mem, AllLayerOutputModel, flatten_parameters)  # NOQA
 
 
 def test_optimcfg():
@@ -437,10 +442,75 @@ def test_mixing():
 def test_serverobs():
     sobs = ServerObserver()
     sobs.start_round(1, None)
-    sobs.server_evaluation("global", {"accuracy": 1})
+    sobs.server_evaluation(1, "global", {"accuracy": 1})
     sobs.end_round(1)
     sobs.finished(1)
     sobs.selected_clients(1, [1, 2, 3])
+
+
+def test_clientobs():
+    sobs = ClientObserver()
+    sobs.start_fit(1, 17, None)
+    sobs.client_evaluation(1, 17, "pre-fit", {"accuracy": 1})
+    sobs.end_fit(1, 17, None, 0.1)
+
+
+@patch("matplotlib.pyplot.show")
+def test_plot_dist(mock_show):
+    hparams = DDict(
+        # model="fluke.nets.MNIST_2NN",
+        model=MNIST_2NN(),
+        client=DDict(batch_size=32,
+                     local_epochs=1,
+                     loss=CrossEntropyLoss,
+                     optimizer=DDict(
+                         lr=0.1,
+                         momentum=0.9),
+                     scheduler=DDict(
+                         step_size=1,
+                         gamma=0.1)
+                     ),
+        server=DDict(weighted=True)
+    )
+    mnist = Datasets.MNIST("../data")
+    splitter = DataSplitter(mnist, client_split=0.1)
+    fl = CentralizedFL(10, splitter, hparams)
+    plot_distribution(fl.clients, "ball")
+    plot_distribution(fl.clients, "bar")
+    plot_distribution(fl.clients, "mat")
+
+
+def test_check_mem():
+    net = MNIST_2NN()
+    assert check_model_fit_mem(net, (28 * 28,), 100, "mps", True)
+
+    if torch.cuda.is_available():
+        assert check_model_fit_mem(net, (28 * 28,), 100, "cuda")
+
+
+def test_alllayeroutput():
+    net = MNIST_2NN()
+    all_out = AllLayerOutputModel(net)
+    x = torch.randn(1, 28 * 28)
+    all_out(x)
+    assert "_encoder.fc1" in all_out.activations_in
+    assert "_encoder.fc2" in all_out.activations_in
+    assert "_head.fc3" in all_out.activations_in
+    assert "_encoder.fc1" in all_out.activations_out
+    assert "_encoder.fc2" in all_out.activations_out
+    assert "_head.fc3" in all_out.activations_out
+
+    all_out.deactivate()
+    all_out(x)
+    assert all_out.activations_in == {}
+    assert all_out.activations_out == {}
+
+
+def test_flatten():
+    net = MNIST_2NN()
+    W = flatten_parameters(net)
+    print(W.shape)
+    assert W.shape[0] == 178110
 
 
 if __name__ == "__main__":
@@ -451,6 +521,11 @@ if __name__ == "__main__":
     # test_wandb_log()
     test_models()
     test_mixing()
+    test_serverobs()
+    test_clientobs()
+    test_plot_dist()
+    test_check_mem()
+    test_alllayeroutput()
 
     # 91% coverage utils.__init__
     # 95% coverage utils.model

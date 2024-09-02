@@ -126,6 +126,7 @@ class ServerObserver():
         pass
 
     def server_evaluation(self,
+                          round: int,
                           type: Literal["global", "locals"],
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
                           **kwargs) -> None:
@@ -133,7 +134,7 @@ class ServerObserver():
         test set.
 
         Args:
-
+            round (int): The round number.
             type (Literal['global', 'locals']): The type of evaluation. If 'global', the evaluation
                 is done on the global model. If 'locals', the evaluation is done on the local models
                 of the clients on the test set of the server.

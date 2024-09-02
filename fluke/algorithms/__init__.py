@@ -273,7 +273,8 @@ class PersonalizedFL(CentralizedFL):
         model = get_model(mname=config.model) if isinstance(config.model, str) else config.model
         if not self.can_override_optimizer() and \
                 config.optimizer.name != self.get_optimizer_class().__name__:
-            warnings.warn(f"The algorithm does not support the optimizer {config.optimizer.name}. "
+            opt_name = "SGD" if config.optimizer.name is None else config.optimizer.name
+            warnings.warn(f"The algorithm does not support the optimizer {opt_name}. "
                           f"Using {self.get_optimizer_class().__name__} instead.")
 
         if "name" not in config.optimizer or not self.can_override_optimizer():
