@@ -6,6 +6,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from fluke import GlobalSettings  # NOQA
 from fluke.server import Server  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.data import FastDataLoader  # NOQA
@@ -30,8 +31,9 @@ def test_server():
             assert len(clients) == 2
             assert round == 1
 
-        def server_evaluation(self, type, evals, **kwargs) -> None:
-            assert type == "test"
+        def server_evaluation(self, round, type, evals, **kwargs) -> None:
+            assert round == 1
+            assert type == "global"
             assert "accuracy" in evals
 
         def finished(self, round):
@@ -79,6 +81,7 @@ def test_server():
     assert server.has_model
 
     evaluator = ClassificationEval(1, 2)
+    GlobalSettings().set_evaluator(evaluator)
     obs = Observer()
     server.attach(obs)
     ev0 = server.evaluate(evaluator, server.test_set)

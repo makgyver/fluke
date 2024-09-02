@@ -10,6 +10,7 @@ import numpy as np
 from rich.console import Group
 from rich.progress import Progress, Live
 from typing import Any, Union, Iterable, TYPE_CHECKING
+import warnings
 
 if TYPE_CHECKING:
     from .evaluation import Evaluator
@@ -74,13 +75,14 @@ class DDict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
 
-    def __init__(self, **kwargs):
-        self.update(**kwargs)
+    def __init__(self, *args: dict, **kwargs):
+        self.update(*args, **kwargs)
 
-    def update(self, **kwargs):
+    def update(self, *args: dict, **kwargs):
         """Update the ``DDict`` with the specified key-value pairs.
 
         Args:
+            *args (dict): Dictionary with the key-value pairs.
             **kwargs: The key-value pairs.
 
         Example:
@@ -93,6 +95,16 @@ class DDict(dict):
                 print(d) # {'a': 1, 'b': 2, 'c': 3}
 
         """
+        for arg in args:
+            if isinstance(arg, dict):
+                for k, v in arg.items():
+                    if isinstance(v, dict):
+                        self[k] = DDict(**v)
+                    else:
+                        self[k] = v
+            else:
+                warnings.warn(f"Argument {arg} is not a dictionary and will be ignored.")
+
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 self[k] = DDict(**v)

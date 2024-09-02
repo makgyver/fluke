@@ -2,9 +2,9 @@
 This module contains the definition of several neural networks used in state-of-the-art
 federated learning papers.
 """
-from torch.nn.utils import spectral_norm
+# from torch.nn.utils import spectral_norm
 from abc import abstractmethod
-from collections import OrderedDict
+# from collections import OrderedDict
 import string
 import torch
 import torch.nn as nn
@@ -304,13 +304,13 @@ class MNIST_2NN(EncoderHeadNet):
     References:
         .. [FedAvg] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y
             Arcas. "Communication-Efficient Learning of Deep Networks from Decentralized Data".
-            In: AISTATS (2017).
+            In AISTATS (2017).
         .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-            Personalized Federated Learning. In: KDD (2022).
+            Personalized Federated Learning. In KDD (2022).
         .. [pFedMe] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
-            Learning with Moreau Envelopes. In: NeurIPS (2020).
+            Learning with Moreau Envelopes. In NeurIPS (2020).
         .. [FedDyn] S. Wang, T. Liu, and M. Hong. "FedDyn: A Dynamic Federated Learning Framework".
-            In: ICLR (2021).
+            In ICLR (2021).
     """
 
     def __init__(self,
@@ -456,7 +456,7 @@ class FedBN_CNN(EncoderHeadNet):
 
     References:
         .. [FedBN] Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN:
-            Federated Learning on Non-IID Features via Local Batch Normalization. In: ICLR (2021).
+            Federated Learning on Non-IID Features via Local Batch Normalization. In ICLR (2021).
     """
 
     def __init__(self, channels: int = 1):
@@ -466,9 +466,6 @@ class FedBN_CNN(EncoderHeadNet):
 # FedNH: https://arxiv.org/abs/2212.02758 (CIFAR-10)
 class CifarConv2_E(nn.Module):
     """Encoder for the :class:`CifarConv2` network.
-
-    Args:
-        output_size (int, optional): Size of the output, i.e., the embedding size. Defaults to 100.
 
     See Also:
         - :class:`CifarConv2`
@@ -541,7 +538,7 @@ class CifarConv2(EncoderHeadNet):
     References:
         .. [FedNH] Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu.
             Tackling Data Heterogeneity in Federated Learning with Class Prototypes.
-            In: AAAI (2023).
+            In AAAI (2023).
     """
 
     def __init__(self):
@@ -560,7 +557,7 @@ class MNIST_LR(nn.Module):
     References:
         .. [FedProx] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and
             Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
-            Learning Workshop. In: Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
+            Learning Workshop. In Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
     """
 
     def __init__(self, num_classes: int = 10):
@@ -745,7 +742,7 @@ class FEMNIST_CNN(EncoderHeadNet):
 
     References:
         .. [DITTO] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia Smith. Ditto: Fair and Robust
-            Federated Learning Through Personalization. In: ICML (2021).
+            Federated Learning Through Personalization. In ICML (2021).
     """
 
     def __init__(self):
@@ -1071,11 +1068,11 @@ class LeNet5(EncoderHeadNet):
 
     References:
         .. [FedRep] Liam Collins, Hamed Hassani, Aryan Mokhtari, and Sanjay Shakkottai.
-            Exploiting shared representations for personalized federated learning. In: ICML (2021).
+            Exploiting shared representations for personalized federated learning. In ICML (2021).
         .. [LG-FedAvg] Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach,
             David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally:
             Federated Learning with Local and Global Representations.
-            In: arXiv https://arxiv.org/abs/2001.01523 (2020).
+            In arXiv https://arxiv.org/abs/2001.01523 (2020).
     """
 
     def __init__(self, output_size=100):
@@ -1209,7 +1206,7 @@ class MoonCNN(EncoderHeadNet):
 
     References:
         .. [MOON] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
-            In: CVPR (2021).
+            In CVPR (2021).
     """
 
     def __init__(self):
@@ -1271,125 +1268,182 @@ class MoonCNN(EncoderHeadNet):
 # https://github.com/tianyuzeke/pFedLHN/
 
 
-class CNNHyper(nn.Module):
+# class CNNHyper(nn.Module):
 
-    class CNNTarget(nn.Module):
-        def __init__(self, in_channels, n_kernels, out_dim):
-            super(CNNHyper.CNNTarget, self).__init__()
+#     class CNNTarget(nn.Module):
+#         def __init__(self, in_channels, n_kernels, out_dim):
+#             super(CNNHyper.CNNTarget, self).__init__()
 
-            self.conv1 = nn.Conv2d(in_channels, n_kernels, 5)
-            self.pool = nn.MaxPool2d(2, 2)
-            self.conv2 = nn.Conv2d(n_kernels, 2 * n_kernels, 5)
-            self.fc1 = nn.Linear(2 * n_kernels * 5 * 5, 120)
-            self.fc2 = nn.Linear(120, 84)
-            self.fc3 = nn.Linear(84, out_dim)
+#             self.conv1 = nn.Conv2d(in_channels, n_kernels, 5)
+#             self.pool = nn.MaxPool2d(2, 2)
+#             self.conv2 = nn.Conv2d(n_kernels, 2 * n_kernels, 5)
+#             self.fc1 = nn.Linear(2 * n_kernels * 5 * 5, 120)
+#             self.fc2 = nn.Linear(120, 84)
+#             self.fc3 = nn.Linear(84, out_dim)
 
-        def forward(self, x):
-            x = self.pool(F.relu(self.conv1(x)))
-            x = self.pool(F.relu(self.conv2(x)))
-            x = x.view(x.shape[0], -1)
-            x = F.relu(self.fc1(x))
-            x = F.relu(self.fc2(x))
-            x = self.fc3(x)
-            return x
+#         def forward(self, x):
+#             x = self.pool(F.relu(self.conv1(x)))
+#             x = self.pool(F.relu(self.conv2(x)))
+#             x = x.view(x.shape[0], -1)
+#             x = F.relu(self.fc1(x))
+#             x = F.relu(self.fc2(x))
+#             x = self.fc3(x)
+#             return x
 
-    def __init__(
-            self,
-            n_nodes: int,
-            embedding_dim: int,
-            in_channels: int = 3,
-            out_dim: int = 10,
-            n_kernels: int = 16,
-            hidden_dim: int = 100,
-            spec_norm: bool = False,
-            n_hidden: int = 1):
-        super(CNNHyper, self).__init__()
+#     def __init__(
+#             self,
+#             n_nodes: int,
+#             embedding_dim: int,
+#             in_channels: int = 3,
+#             out_dim: int = 10,
+#             n_kernels: int = 16,
+#             hidden_dim: int = 100,
+#             spec_norm: bool = False,
+#             n_hidden: int = 1):
+#         super(CNNHyper, self).__init__()
 
-        self.in_channels = in_channels
-        self.out_dim = out_dim
-        self.n_kernels = n_kernels
-        self.embeddings = nn.Embedding(num_embeddings=n_nodes, embedding_dim=embedding_dim)
+#         self.in_channels = in_channels
+#         self.out_dim = out_dim
+#         self.n_kernels = n_kernels
+#         self.embeddings = nn.Embedding(num_embeddings=n_nodes, embedding_dim=embedding_dim)
 
-        layers = [
-            spectral_norm(nn.Linear(embedding_dim, hidden_dim)
-                          ) if spec_norm else nn.Linear(embedding_dim, hidden_dim),
-        ]
-        for _ in range(n_hidden):
-            layers.append(nn.ReLU(inplace=True))
-            layers.append(
-                spectral_norm(nn.Linear(hidden_dim, hidden_dim)
-                              ) if spec_norm else nn.Linear(hidden_dim, hidden_dim),
-            )
+#         layers = [
+#             spectral_norm(nn.Linear(embedding_dim, hidden_dim)
+#                           ) if spec_norm else nn.Linear(embedding_dim, hidden_dim),
+#         ]
+#         for _ in range(n_hidden):
+#             layers.append(nn.ReLU(inplace=True))
+#             layers.append(
+#                 spectral_norm(nn.Linear(hidden_dim, hidden_dim)
+#                               ) if spec_norm else nn.Linear(hidden_dim, hidden_dim),
+#             )
 
-        self.mlp = nn.Sequential(*layers)
+#         self.mlp = nn.Sequential(*layers)
 
-        self.c1_weights = nn.Linear(hidden_dim, self.n_kernels * self.in_channels * 5 * 5)
-        self.c1_bias = nn.Linear(hidden_dim, self.n_kernels)
-        self.c2_weights = nn.Linear(hidden_dim, 2 * self.n_kernels * self.n_kernels * 5 * 5)
-        self.c2_bias = nn.Linear(hidden_dim, 2 * self.n_kernels)
-        self.l1_weights = nn.Linear(hidden_dim, 120 * 2 * self.n_kernels * 5 * 5)
-        self.l1_bias = nn.Linear(hidden_dim, 120)
-        self.l2_weights = nn.Linear(hidden_dim, 84 * 120)
-        self.l2_bias = nn.Linear(hidden_dim, 84)
-        self.l3_weights = nn.Linear(hidden_dim, self.out_dim * 84)
-        self.l3_bias = nn.Linear(hidden_dim, self.out_dim)
+#         self.c1_weights = nn.Linear(hidden_dim, self.n_kernels * self.in_channels * 5 * 5)
+#         self.c1_bias = nn.Linear(hidden_dim, self.n_kernels)
+#         self.c2_weights = nn.Linear(hidden_dim, 2 * self.n_kernels * self.n_kernels * 5 * 5)
+#         self.c2_bias = nn.Linear(hidden_dim, 2 * self.n_kernels)
+#         self.l1_weights = nn.Linear(hidden_dim, 120 * 2 * self.n_kernels * 5 * 5)
+#         self.l1_bias = nn.Linear(hidden_dim, 120)
+#         self.l2_weights = nn.Linear(hidden_dim, 84 * 120)
+#         self.l2_bias = nn.Linear(hidden_dim, 84)
+#         self.l3_weights = nn.Linear(hidden_dim, self.out_dim * 84)
+#         self.l3_bias = nn.Linear(hidden_dim, self.out_dim)
 
-        if spec_norm:
-            self.c1_weights = spectral_norm(self.c1_weights)
-            self.c1_bias = spectral_norm(self.c1_bias)
-            self.c2_weights = spectral_norm(self.c2_weights)
-            self.c2_bias = spectral_norm(self.c2_bias)
-            self.l1_weights = spectral_norm(self.l1_weights)
-            self.l1_bias = spectral_norm(self.l1_bias)
-            self.l2_weights = spectral_norm(self.l2_weights)
-            self.l2_bias = spectral_norm(self.l2_bias)
-            self.l3_weights = spectral_norm(self.l3_weights)
-            self.l3_bias = spectral_norm(self.l3_bias)
+#         if spec_norm:
+#             self.c1_weights = spectral_norm(self.c1_weights)
+#             self.c1_bias = spectral_norm(self.c1_bias)
+#             self.c2_weights = spectral_norm(self.c2_weights)
+#             self.c2_bias = spectral_norm(self.c2_bias)
+#             self.l1_weights = spectral_norm(self.l1_weights)
+#             self.l1_bias = spectral_norm(self.l1_bias)
+#             self.l2_weights = spectral_norm(self.l2_weights)
+#             self.l2_bias = spectral_norm(self.l2_bias)
+#             self.l3_weights = spectral_norm(self.l3_weights)
+#             self.l3_bias = spectral_norm(self.l3_bias)
 
-    def get_target_network(self):
-        return self.CNNTarget(self.in_channels, self.n_kernels, self.out_dim)
+#     def get_target_network(self):
+#         return self.CNNTarget(self.in_channels, self.n_kernels, self.out_dim)
 
-    def forward(self, idx):
-        emd = self.embeddings(idx)
-        features = self.mlp(emd)
+#     def forward(self, idx):
+#         emd = self.embeddings(idx)
+#         features = self.mlp(emd)
 
-        weights = OrderedDict({
-            "conv1.weight": self.c1_weights(features).view(self.n_kernels, self.in_channels, 5, 5),
-            "conv1.bias": self.c1_bias(features).view(-1),
-            "conv2.weight": self.c2_weights(features).view(2 * self.n_kernels,
-                                                           self.n_kernels, 5, 5),
-            "conv2.bias": self.c2_bias(features).view(-1),
-            "fc1.weight": self.l1_weights(features).view(120, 2 * self.n_kernels * 5 * 5),
-            "fc1.bias": self.l1_bias(features).view(-1),
-            "fc2.weight": self.l2_weights(features).view(84, 120),
-            "fc2.bias": self.l2_bias(features).view(-1),
-            "fc3.weight": self.l3_weights(features).view(self.out_dim, 84),
-            "fc3.bias": self.l3_bias(features).view(-1),
-        })
-        return weights
+#         weights = OrderedDict({
+#             "conv1.weight": self.c1_weights(features).view(self.n_kernels, self.in_channels,5,5),
+#             "conv1.bias": self.c1_bias(features).view(-1),
+#             "conv2.weight": self.c2_weights(features).view(2 * self.n_kernels,
+#                                                            self.n_kernels, 5, 5),
+#             "conv2.bias": self.c2_bias(features).view(-1),
+#             "fc1.weight": self.l1_weights(features).view(120, 2 * self.n_kernels * 5 * 5),
+#             "fc1.bias": self.l1_bias(features).view(-1),
+#             "fc2.weight": self.l2_weights(features).view(84, 120),
+#             "fc2.bias": self.l2_bias(features).view(-1),
+#             "fc3.weight": self.l3_weights(features).view(self.out_dim, 84),
+#             "fc3.bias": self.l3_bias(features).view(-1),
+#         })
+#         return weights
 
 
-class CifarConv2_Margin(nn.Module):
+# class CifarConv2_Margin(nn.Module):
 
-    def __init__(self):
-        super().__init__()
-        self.output_size = 10
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.linear1 = nn.Linear(1600, 512)
-        self.linear2 = nn.Linear(512, self.output_size)
-        self.bn3 = nn.BatchNorm1d(512)
+#     def __init__(self):
+#         super().__init__()
+#         self.output_size = 10
+#         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
+#         self.bn1 = nn.BatchNorm2d(64)
+#         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
+#         self.bn2 = nn.BatchNorm2d(64)
+#         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+#         self.linear1 = nn.Linear(1600, 512)
+#         self.linear2 = nn.Linear(512, self.output_size)
+#         self.bn3 = nn.BatchNorm1d(512)
 
-    def forward(self, x, all_layers=False):
-        x1 = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x2 = self.pool(F.relu(self.bn2(self.conv2(x1))))
-        # x1 = x1.view(-1, 64 * 14 * 14)
-        x2 = x2.view(-1, 64 * 5 * 5)
-        x3 = F.relu(self.bn3(self.linear1(x2)))
-        logits = self.linear2(x3)
-        if all_layers:
-            return logits, [x1, x2, x3]
-        return logits
+#     def forward(self, x, all_layers=False):
+#         x1 = self.pool(F.relu(self.bn1(self.conv1(x))))
+#         x2 = self.pool(F.relu(self.bn2(self.conv2(x1))))
+#         # x1 = x1.view(-1, 64 * 14 * 14)
+#         x2 = x2.view(-1, 64 * 5 * 5)
+#         x3 = F.relu(self.bn3(self.linear1(x2)))
+#         logits = self.linear2(x3)
+#         if all_layers:
+#             return logits, [x1, x2, x3]
+#         return logits
+
+
+# class MNIST_CNN2_E(nn.Module):
+#     """Encoder for the :class:`MNIST_CNN` network.
+
+#     See Also:
+#         - :class:`MNIST_CNN`
+#         - :class:`MNIST_CNN_D`
+#     """
+
+#     def __init__(self):
+#         super(MNIST_CNN2_E, self).__init__()
+#         self.output_size = 320
+#         self.conv1 = nn.Conv2d(1, 10, 5, 1)
+#         self.conv2 = nn.Conv2d(10, 20, 5, 1)
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         x = F.relu(self.conv1(x))
+#         x = F.max_pool2d(x, 2, 2)
+#         x = F.relu(self.conv2(x))
+#         x = F.max_pool2d(x, 2, 2)
+#         return x.view(-1, 320)
+
+
+# class MNIST_CNN2_D(nn.Module):
+#     """Head for the :class:`MNIST_CNN` network.
+
+#     See Also:
+#         - :class:`MNIST_CNN`
+#         - :class:`MNIST_CNN_E`
+#     """
+
+#     def __init__(self):
+#         super(MNIST_CNN2_D, self).__init__()
+#         self.output_size = 10
+#         self.fc1 = nn.Linear(320, 50)
+#         self.fc2 = nn.Linear(50, 10)
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         x = F.relu(self.fc1(x))
+#         return self.fc2(x)
+
+
+# # FedAvg: https://arxiv.org/pdf/1602.05629.pdf
+# # SuPerFed - https://arxiv.org/pdf/2109.07628v3.pdf
+# # works with 1 channel input - MNIST4D
+# class MNIST_CNN2(EncoderHeadNet):
+#     """Convolutional Neural Network for MNIST. This is a simple CNN for MNIST classification
+#     first introduced in the [FedAvg]_ paper, where the architecture consists of two convolutional
+#     layers with 32 and 64 filters, respectively, followed by two fully connected layers with 512
+#     and 10 neurons, respectively.
+
+#     Very same architecture is also used in the [SuPerFed]_ paper.
+#     """
+
+#     def __init__(self):
+#         super(MNIST_CNN2, self).__init__(MNIST_CNN2_E(), MNIST_CNN2_D())

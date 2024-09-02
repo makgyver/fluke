@@ -635,7 +635,7 @@ def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
     return params
 
 
-def check_model_fit_mem(model: torch.Tensor,
+def check_model_fit_mem(model: torch.nn.Module,
                         input_size: tuple[int, ...],
                         num_clients: int,
                         device: str = 'cuda',
@@ -650,7 +650,7 @@ def check_model_fit_mem(model: torch.Tensor,
         a way to estimate the memory usage of a model on an MPS device.
 
     Args:
-        model (torch.Tensor): The model to check.
+        model (torch.nn.Module): The model to check.
         input_size (tuple[int, ...]): The input size of the model.
         num_clients (int): The number of clients in the federation.
         device (str, optional): The device to check. Defaults to 'cuda'.
@@ -661,8 +661,9 @@ def check_model_fit_mem(model: torch.Tensor,
     assert device in ["cuda", "mps"] or device.startswith("cuda:"), \
         "Invalid argument 'device'. Must be 'cuda', 'mps' or 'cuda:<device_id>'."
 
-    if device == "mps" and not torch.backends.mps.is_available():
-        raise RuntimeError("MPS is not available.")
+    if device == "mps":
+        if not torch.backends.mps.is_available():
+            raise RuntimeError("MPS is not available.")
     elif not torch.cuda.is_available():
         raise RuntimeError(f"CUDA is not available on device: {device}")
 
@@ -672,7 +673,7 @@ def check_model_fit_mem(model: torch.Tensor,
         return _check_model_fit_mem_cuda(model, input_size, num_clients, device)
 
 
-def _check_model_fit_mem_cuda(model: torch.Tensor,
+def _check_model_fit_mem_cuda(model: torch.nn.Module,
                               input_size: tuple[int, ...],
                               num_clients: int,
                               device: torch.device):
