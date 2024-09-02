@@ -1,3 +1,10 @@
+"""Implementation of the FedROD [FedROD22]_ algorithm.
+
+References:
+    .. [FedROD22] Hong-You Chen and Wei-Lun Chao. On Bridging Generic and Personalized Federated
+       Learning for Image Classification. In ICLR (2022).
+       URL: https://openreview.net/pdf?id=I1hQbx10Kxn
+"""
 import sys
 import torch
 from copy import deepcopy

@@ -168,8 +168,8 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 .. autosummary::
    :nosignatures:
    
-   model
    log
+   model
 
 ```
 

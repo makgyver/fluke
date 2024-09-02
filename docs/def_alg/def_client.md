@@ -104,7 +104,7 @@ The client receives the global model from the server, trains the local model on 
 
 - `send_model`: this method sends the updated model back to the server.
 
-Usualy, most of the logic of a federated learning algorithm is implemented in this `fit` method!
+Usualy, most of the logic of a federated learning algorithm is implemented in the `fit` method, where the training loop happens!
 
 ### The training loop
 
@@ -193,7 +193,7 @@ Likewise the `Server` class, you should follow the following best practices:
       :linenos:
   
       def send_model(self) -> None:
-        self.channel.send(Message(self.model, "model", self), self.server)
+          self.channel.send(Message(self.model, "model", self), self.server)
   ```
 
 - **Minimal changes principle**: this principle universally applies to software development but it is particularly important when overriding the `fit` method. Start by copying the standard implementation of the `fit` method and then modify only the parts that are specific to your federated protocol. This will help you to keep the code clean and to avoid introducing nasty bugs.
@@ -204,7 +204,7 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
 
 .. code-block:: python
     :linenos:
-    :emphasize-lines: 23,35
+    :emphasize-lines: 22,34
 
     class FedProxClient(Client):
         def __init__(self,
@@ -227,7 +227,6 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
 
         def fit(self, override_local_epochs: int = 0) -> float
             epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-            self.receive_model()
             W = deepcopy(self.model)
             self.model.to(self.device)
             self.model.train()
@@ -247,5 +246,21 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
 
             self.model.to("cpu")
             clear_cache()
-            self.send_model()
+```
+
+## Observer pattern
+
+The `Client` class triggers callbacks to the observers that have been registered to the client.
+The default notifications are:
+
+- `_notify_start_fit`: triggered at the beginning of the `fit` method. It calls `ClientObserver.start_fit` on each observer;
+- `_notify_end_fit`: triggered at the end of the `fit` method. It calls `ClientObserver.end_fit` on each observer;
+- `_notify_evaluation`: it should be triggered after an evaluation has been performed. It calls `ClientObserver.evaluation` on each observer;
+
+```{eval-rst}
+
+.. hint::
+    
+    Refer to the API documentation of the :ref:`ClientObserver <fluke.utils.ClientObserver>` inerface and the :ref:`ObserverSubject <fluke.ObserverSubject>` intarface for more details.
+
 ```

@@ -72,8 +72,8 @@ The default notifications are:
 
 - `_notify_start_round`: triggered at the beginning of each round. It calls `ServerObserver.start_round` on each observer;
 - `_notify_selected_clients`: triggered after the clients have been selected for the round. It calls `ServerObserver.selected_clients` on each observer;
-- `_notify_error`: this notification should be used to notify the observers of any error that occurred during the round. Currently, it is not used in the standard implementation. It calls `ServerObserver.error` on each observer;
 - `_notify_end_round`: triggered at the end a round. It calls `ServerObserver.end_round` on each observer;
+- `_notify_evaluation`: it should be triggered after an evaluation has been performed. It calls `ServerObserver.evaluation` on each observer;
 - `_notify_finalize`: triggered at the end of the `finalize` method. It calls `ServerObserver.finished` on each observer.
 
 ```{eval-rst}

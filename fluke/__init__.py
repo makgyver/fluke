@@ -192,6 +192,7 @@ class GlobalSettings(metaclass=Singleton):
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
     - The ``seed`` for reproducibility;
+    - The evaluation configuration;
     - The progress bars for the federated learning process, clients and the server;
     - The live renderer, which is used to render the progress bars.
 

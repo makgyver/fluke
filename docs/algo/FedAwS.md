@@ -22,12 +22,42 @@ Classes included in ``fluke.algorithms.fedaws``
 .. autosummary::
    :nosignatures:
 
-   FedAVG
+   SpreadModel
+   SpreadLoss
+   FedAwSServer
+   FedAwS
    
 ```
 
 
 ## Classes
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedaws.SpreadModel
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedaws.SpreadLoss
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedaws.FedAwSServer
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
 
 ```{eval-rst}
 
