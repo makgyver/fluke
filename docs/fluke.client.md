@@ -42,7 +42,6 @@ Classes included in ``fluke.client``
 
 .. autosummary:: 
    :nosignatures:
-   :show-inheritance:
 
    index
    n_examples
@@ -62,6 +61,7 @@ Classes included in ``fluke.client``
 
 .. autoclass:: fluke.client.Client
    :member-order: bysource
+   :show-inheritance:
    :members: index, n_examples, channel, server, set_server, local_update, fit, receive_model, send_model, evaluate, finalize
 
 ```

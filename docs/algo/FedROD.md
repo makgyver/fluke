@@ -22,12 +22,42 @@ Classes included in ``fluke.algorithms.fedrod``
 .. autosummary::
    :nosignatures:
 
-   FedAVG
+   RODModel
+   BalancedSoftmaxLoss
+   FedRODClient
+   FedROD
    
 ```
 
 
 ## Classes
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedrod.RODModel
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedrod.BalancedSoftmaxLoss
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedrod.FedRODClient
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
 
 ```{eval-rst}
 

@@ -1,7 +1,7 @@
 """Implementation of the FedALA [FedALA23]_ algorithm.
 
 References:
-    .. [FedAVG17] Jianqing Zhang, Yang Hua, Hao Wang, Tao Song, Zhengui Xue, Ruhui Ma, Haibing Guan.
+    .. [FedALA23] Jianqing Zhang, Yang Hua, Hao Wang, Tao Song, Zhengui Xue, Ruhui Ma, Haibing Guan.
        FedALA: Adaptive Local Aggregation for Personalized Federated Learning
        In AAAI (2023). URL: https://arxiv.org/pdf/2212.01197v4
 

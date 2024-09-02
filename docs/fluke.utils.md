@@ -163,7 +163,7 @@ Functions included in ``fluke.utils``
    :maxdepth: 3
    :hidden:
 
-   fluke.utils.model
    fluke.utils.log
+   fluke.utils.model
 
 ```

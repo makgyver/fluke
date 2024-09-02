@@ -21,14 +21,13 @@ sys.path.append(".")
 sys.path.append("..")
 
 if TYPE_CHECKING:
-    from client import Client
+    from client import Client  # NOQA
 
 from .. import DDict  # NOQA
-from ..comm import ChannelObserver, Message  # NOQA
-# from ..data.datasets import DatasetsEnum  # NOQA
 
 
 __all__ = [
+    'log',
     'model',
     'Configuration',
     'OptimizerConfigurator',

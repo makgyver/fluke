@@ -22,12 +22,23 @@ Classes included in ``fluke.algorithms.fedala``
 .. autosummary::
    :nosignatures:
 
-   FedAVG
+   FedALAClient
+   FedALA
    
 ```
 
 
 ## Classes
+
+
+```{eval-rst}
+
+.. autoclass:: fluke.algorithms.fedala.FedALAClient
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
 
 ```{eval-rst}
 
