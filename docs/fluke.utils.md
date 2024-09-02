@@ -39,6 +39,7 @@ Classes included in ``fluke.utils``
 
    Configuration
    OptimizerConfigurator
+   ClientObserver
    ServerObserver
 
 ```
@@ -94,6 +95,22 @@ Functions included in ``fluke.utils``
 
 .. autoclass:: fluke.utils.OptimizerConfigurator
    :members: __call__
+
+```
+
+<h3>
+
+{bdg-secondary}`interface` ``fluke.utils.ClientObserver``
+
+</h3>
+
+(fluke.utils.ClientObserver)=
+
+```{eval-rst}
+
+.. autoclass:: fluke.utils.ClientObserver
+   :members:
+   :show-inheritance:
 
 ```
 

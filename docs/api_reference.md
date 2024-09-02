@@ -137,6 +137,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    
    OptimizerConfigurator
    Configuration
+   ClientObserver
    ServerObserver
 
 ```
@@ -214,9 +215,11 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    apfl
    ccvr
    ditto
+   fedala
    fedamp
    fedavg
    fedavgm
+   fedaws
    fedbabu
    fedbn
    feddyn
@@ -230,6 +233,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    fedproto
    fedprox
    fedrep
+   fedrod
    fedsgd
    lg_fedavg
    moon

@@ -64,18 +64,17 @@ class RelativeProjectionModel(nn.Module):
 class FedRelativeServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  n_anchors_class: int = 5,
                  weighted: bool = True):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(n_anchors_class=n_anchors_class)
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
         if self.rounds == 0:
             # Select random anchors from test set. n_anchors per class
-            X, y = self.test_data.tensors
+            X, y = self.test_set.tensors
             anch_X, anch_y = None, None
             for c in set(y.tolist()):
                 idx = torch.where(y == c)[0]

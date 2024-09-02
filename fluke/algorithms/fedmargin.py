@@ -4,14 +4,13 @@ import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss  # , CosineSimilarity
 # from copy import deepcopy
 
-from ..evaluation import ClassificationEval  # NOQA
 from ..client import Client  # NOQA
-from ..utils import clear_cache, OptimizerConfigurator  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 
-from ..algorithms import CentralizedFL, PersonalizedFL  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
 from .fedavgm import FedAVGM  # NOQA
 from .fedexp import FedExP  # NOQA
 from .fedopt import FedOpt  # NOQA
@@ -191,7 +190,7 @@ class FedLCMargin(FedLC):
 # FedNova + FedMargin
 class FedNovaMarginClient(FedNovaClient, FedMarginClient):
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         FedMarginClient.fit(self, override_local_epochs)
         self.tau += self.hyper_params.local_epochs * self.train_set.n_batches
         rho = self._get_momentum()

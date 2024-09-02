@@ -49,9 +49,8 @@ class SuPerFedClient(PFLClient):
         self.internal_model = None
         self.mixed = False
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
 
         if self.hyper_params.mu > 0:
             prev_global_model = deepcopy(self.model).to(self.device)
@@ -80,6 +79,7 @@ class SuPerFedClient(PFLClient):
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.internal_model)
 
+        running_loss = 0.0
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -120,9 +120,11 @@ class SuPerFedClient(PFLClient):
 
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
 
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.internal_model.to("cpu")
         clear_cache()
 
@@ -133,7 +135,7 @@ class SuPerFedClient(PFLClient):
             self.model.load_state_dict(self.internal_model.state_dict())
             self.personalized_model.load_state_dict(self.internal_model.state_dict())
 
-        self.send_model()
+        return running_loss
 
 
 class SuPerFed(PersonalizedFL):

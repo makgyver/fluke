@@ -68,14 +68,13 @@ class CCVRServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False,
                  lr: float = 0.1,
                  batch_size: int = 64,
                  sample_per_class: int = 100):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(
             lr=lr,
             batch_size=batch_size,

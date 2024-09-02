@@ -201,6 +201,8 @@ class CentralizedFL():
         """
         self.server.attach(callbacks)
         self.server.channel.attach(callbacks)
+        for client in self.clients:
+            client.attach(callbacks)
 
     def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs):
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)

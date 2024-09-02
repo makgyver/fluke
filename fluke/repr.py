@@ -94,8 +94,8 @@ def extract(alg_cfg: str = typer.Argument(..., help='Config file for the algorit
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
 
-    X = fl_algo.server.test_data.tensors[0].clone()
-    y = fl_algo.server.test_data.tensors[1].clone()
+    X = fl_algo.server.test_set.tensors[0].clone()
+    y = fl_algo.server.test_set.tensors[1].clone()
     X, y = _sample_data(X, y, sample_class)
 
     # rounds x layer x clients x activations

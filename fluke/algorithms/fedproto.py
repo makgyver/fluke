@@ -15,7 +15,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from ..evaluation import ClassificationEval  # NOQA
+from ..evaluation import Evaluator  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
@@ -89,10 +89,10 @@ class FedProtoClient(PFLClient):
         for label, prts in protos.items():
             self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self.receive_model()
+
         self.model.train()
         self.model.to(self.device)
 
@@ -101,8 +101,8 @@ class FedProtoClient(PFLClient):
 
         mse_loss = torch.nn.MSELoss()
         protos = defaultdict(list)
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -131,20 +131,19 @@ class FedProtoClient(PFLClient):
 
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
         self._update_protos(protos)
-        self.send_model()
+        return running_loss
 
-    def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None and self.prototypes[0] is not None:
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+        if test_set is not None and self.prototypes[0] is not None:
             model = FedProtoModel(self.model, self.prototypes, self.device)
-            return ClassificationEval(self.hyper_params.loss_fn,
-                                      self.hyper_params.n_protos,
-                                      self.device).evaluate(model,
-                                                            self.test_set)
+            return evaluator.evaluate(self._last_round, model, test_set)
         return {}
 
     def finalize(self) -> None:
@@ -155,12 +154,11 @@ class FedProtoServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10):
-        super().__init__(None, None, clients, eval_every, weighted)
+        super().__init__(model=None, test_set=None, clients=clients, weighted=weighted)
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 

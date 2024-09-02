@@ -118,7 +118,7 @@ The configuration file of the algorithm must be structured as follows (please ma
       class MyClient(Client):
 
          # we override the fit method to implement our training "strategy"
-         def fit(self, override_local_epochs: int = 0) -> None:
+         def fit(self, override_local_epochs: int = 0) -> float:
             # we can override the number of local epochs and call the parent class method
             new_local_epochs = np.random.randint(1, self.hyper_params.local_epochs + 1)
             return super().fit(new_local_epochs)

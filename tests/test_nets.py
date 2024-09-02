@@ -29,7 +29,7 @@ def test_mnist_2nn():
     z = model.forward_encoder(x)
     y2 = model.forward_head(z)
 
-    assert z.shape == (1, 200)
+    assert z.shape == (1, 100)
     assert torch.allclose(y, y1)
     assert torch.allclose(y, y2)
 
@@ -49,7 +49,7 @@ def test_mnist_lr():
     assert torch.allclose(y.sum(), torch.tensor(1.0))
 
 
-def test_covnets():
+def test_convnets():
     model = MNIST_CNN()
     x = torch.randn(1, 1, 28, 28)
     y1 = model(x)
@@ -115,12 +115,12 @@ def test_covnets():
     assert torch.allclose(y1, y2)
 
     model = CifarConv2()
-    x = torch.randn(1, 3, 32, 32)
+    x = torch.randn(2, 3, 32, 32)
     z = model.forward_encoder(x)
-    y1 = model(x)
     y2 = model.forward_head(z)
-    assert y1.shape == (1, 10)
-    assert z.shape == (1, 100)
+    y1 = model(x)
+    assert y1.shape == (2, 10)
+    assert z.shape == (2, 1600)
     assert torch.allclose(y1, y2)
 
     model = ResNet9()
@@ -179,7 +179,7 @@ def test_global_local():
 if __name__ == "__main__":
     test_mnist_2nn()
     test_mnist_lr()
-    test_covnets()
+    test_convnets()
     test_recurrent()
     test_global_local()
     # 99% coverage on nets.py

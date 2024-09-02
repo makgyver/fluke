@@ -55,11 +55,10 @@ class LGFedAVGServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 
 class LGFedAVG(PersonalizedFL):

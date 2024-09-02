@@ -73,10 +73,12 @@ class SAMOptimizer(torch.optim.Optimizer):
             but it was not provided"
         closure = torch.enable_grad()(closure)  # the closure should do a full forward-backward pass
 
-        closure()
+        loss1 = closure()
         self.first_step(zero_grad=True)
-        closure()
+        loss2 = closure()
         self.second_step()
+
+        return (loss1.item() + loss2.item()) / 2
 
     def _grad_norm(self):
         # put everything on the same device, in case of model parallelism
@@ -121,24 +123,25 @@ class FedSAMClient(Client):
             return loss
         return closure
 
-    def fit(self, override_local_epochs: int = 0):
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model,
                                                                 rho=self.hyper_params.rho)
+        running_loss = 0.0
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                self.optimizer.step(self._get_closure(X, y))
+                running_loss += self.optimizer.step(self._get_closure(X, y))
 
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 
 
 class FedSAM(CentralizedFL):

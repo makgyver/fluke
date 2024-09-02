@@ -40,9 +40,8 @@ class APFLClient(PFLClient):
         self.internal_model = deepcopy(model)
         self.hyper_params.update(lam=lam)
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
 
         self.model.train()
         self.personalized_model.train()
@@ -57,9 +56,8 @@ class APFLClient(PFLClient):
         if self.pers_optimizer is None:
             self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.internal_model)
 
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
-            local_loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
 
@@ -69,6 +67,7 @@ class APFLClient(PFLClient):
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
 
                 # Local
                 self.pers_optimizer.zero_grad()
@@ -80,6 +79,7 @@ class APFLClient(PFLClient):
             self.scheduler.step()
             self.pers_scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         self.personalized_model.to("cpu")
         self.internal_model.to("cpu")
@@ -88,24 +88,19 @@ class APFLClient(PFLClient):
         self.personalized_model = merge_models(
             self.model, self.internal_model, self.hyper_params.lam)
 
-        self.send_model()
-
-    # def get_model(self):
-    #     return self.send_model()
+        return running_loss
 
 
 class APFLServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False,
                  tau: int = 3,
                  **kwargs):
-        super().__init__(model=model, test_data=test_data,
-                         clients=clients, eval_every=eval_every, weighted=weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(tau=tau)
 
     @torch.no_grad()

@@ -10,6 +10,7 @@ from fluke.client import Client, PFLClient  # NOQA
 from fluke.server import Server  # NOQA
 from fluke.utils import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
+from fluke.evaluation import ClassificationEval  # NOQA
 from fluke import DDict  # NOQA
 
 
@@ -66,7 +67,7 @@ def test_client():
 
     server = Server(
         model=Model(),
-        test_data=None,
+        test_set=None,
         clients=[client]
     )
 
@@ -75,9 +76,10 @@ def test_client():
     assert client.channel == server.channel
     server.broadcast_model([client])
 
-    ev0 = client.evaluate()
-    client.fit()
-    ev1 = client.evaluate()
+    evaluator = ClassificationEval(1, 2)
+    ev0 = client.evaluate(evaluator, client.test_set)
+    client.local_update(1)
+    ev1 = client.evaluate(evaluator, client.test_set)
     assert server.channel._buffer[server]
     assert not ev0
     assert ev1
@@ -86,7 +88,7 @@ def test_client():
         "batch_size=10, loss_fn=CrossEntropyLoss(), local_epochs=10)"
 
     client.test_set = None  # THIS IS NOT ALLOWED
-    assert client.evaluate() == {}
+    assert client.evaluate(evaluator, client.test_set) == {}
 
     server.broadcast_model([client])
     client.receive_model()
@@ -100,7 +102,7 @@ def test_client():
     assert m is not client.model
 
     server.broadcast_model([client])
-    client.fit()
+    client.local_update(1)
     server.broadcast_model([client])
     client.finalize()
     assert client.model.weight.data.sum() == 0
@@ -148,12 +150,13 @@ def test_pflclient():
     assert client.model is None
     assert client.personalized_model is not None, isinstance(client.personalized_model, Model)
 
+    evaluator = ClassificationEval(1, 2)
     try:
-        client.evaluate()
+        client.evaluate(evaluator, client.test_set)
     except Exception:
         pytest.fail("Unexpected exception!")
     client.test_set = None  # THIS IS NOT ALLOWED
-    assert client.evaluate() == {}
+    assert client.evaluate(evaluator, client.test_set) == {}
 
 
 if __name__ == "__main__":

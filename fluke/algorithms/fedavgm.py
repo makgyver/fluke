@@ -25,7 +25,7 @@ class FedAVGMServer(Server):
 
     Args:
         model (Module): The model to be trained.
-        test_data (FastDataLoader): The test data.
+        test_set (FastDataLoader): The test data.
         clients (Iterable[Client]): The clients participating in the federated learning process.
         eval_every (int, optional): Evaluate the model every `eval_every` rounds. Defaults to 1.
         weighted (bool, optional): Use weighted averaging. Defaults to True.
@@ -34,13 +34,12 @@ class FedAVGMServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  momentum: float = 0.9,
                  **kwargs):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(momentum=momentum)
         self.momentum_vector = None
 

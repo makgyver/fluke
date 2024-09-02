@@ -41,9 +41,8 @@ class FedRepClient(PFLClient):
         self.pers_scheduler = None
         self.hyper_params.update(tau=tau)
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -56,8 +55,8 @@ class FedRepClient(PFLClient):
         if self.pers_optimizer is None:
             self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.get_local())
 
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.pers_optimizer.zero_grad()
@@ -65,6 +64,7 @@ class FedRepClient(PFLClient):
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
                 self.pers_optimizer.step()
+                running_loss += loss.item()
             self.pers_scheduler.step()
 
         # update encoder layers
@@ -77,7 +77,6 @@ class FedRepClient(PFLClient):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model.get_global())
 
         for _ in range(self.hyper_params.tau):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -87,9 +86,10 @@ class FedRepClient(PFLClient):
                 self.optimizer.step()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 
     def send_model(self):
         self.channel.send(Message(self.model.get_global(), "model", self), self.server)
@@ -105,11 +105,10 @@ class FedRepServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,  # test_data is not used
+                 test_set: FastDataLoader,  # test_set is not used
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 
 class FedRep(PersonalizedFL):

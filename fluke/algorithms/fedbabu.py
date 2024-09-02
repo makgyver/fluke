@@ -12,6 +12,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import GlobalSettings  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
@@ -56,7 +57,9 @@ class FedBABUClient(PFLClient):
         for param in self.personalized_model.head.parameters():
             param.requires_grad = False
 
-    def fine_tune(self):
+    def fine_tune(self) -> None:
+        """Fine-tune the personalized model."""
+
         if self.hyper_params.mode == "full":
             for param in self.personalized_model.parameters():
                 param.requires_grad = True
@@ -89,16 +92,20 @@ class FedBABUClient(PFLClient):
         self.personalized_model.to("cpu")
         clear_cache()
 
+    def finalize(self) -> None:
+        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        if metrics:
+            self._notify_evaluation(-1, "post-fit", metrics)
+
 
 class FedBABUServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
     def finalize(self) -> None:
 
@@ -106,10 +113,10 @@ class FedBABUServer(Server):
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
                 client.fine_tune()
+                client.finalize()
                 progress.update(task, advance=1)
 
-        client_evals = [client.evaluate() for client in self.clients]
-        self._notify_finalize(None, client_evals if client_evals[0] else None)
+        self._notify_finalize()
 
 
 class FedBABU(PersonalizedFL):

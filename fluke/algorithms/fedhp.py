@@ -25,7 +25,7 @@ from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..evaluation import ClassificationEval  # NOQA
+from ..evaluation import Evaluator  # NOQA
 
 
 class ProtoNet(nn.Module):
@@ -93,20 +93,20 @@ class FedHPClient(PFLClient):
         msg = self.channel.receive(self, self.server, msg_type="protos")
         self.initial_prototypes = msg.payload
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
         if self.initial_prototypes is None:
             self._receive_protos()
-        self.receive_model()
+
         self.model.train()
         self.model.to(self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -117,36 +117,41 @@ class FedHPClient(PFLClient):
                 loss += self.hyper_params.lam * loss_proto
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 
-    def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None and self.initial_prototypes is not None:
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+        if test_set is not None and self.initial_prototypes is not None:
             model = FedHPModel(self.model)
-            return ClassificationEval(None,
-                                      self.hyper_params.n_protos,
-                                      self.device).evaluate(model,
-                                                            self.test_set)
+            return evaluator.evaluate(self._last_round, model, test_set)
         return {}
 
     def finalize(self) -> None:
         self.fit()
+
+        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        if metrics:
+            self._notify_evaluation(-1, "post-fit", metrics)
 
 
 class FedHPServer(Server):
 
     def __init__(self,
                  model: nn.Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10,
                  embedding_size: int = 100):
-        super().__init__(ProtoNet(model, n_protos), None, clients, eval_every, weighted)
+        super().__init__(model=ProtoNet(model, n_protos),
+                         test_set=None,
+                         clients=clients,
+                         weighted=weighted)
         self.hyper_params.update(n_protos=n_protos,
                                  embedding_size=embedding_size)
         self.device = GlobalSettings().get_device()

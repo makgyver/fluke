@@ -15,7 +15,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from ..evaluation import ClassificationEval  # NOQA
+from .. import GlobalSettings  # NOQA
+from ..evaluation import Evaluator  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from ..data import FastDataLoader  # NOQA
@@ -93,18 +94,18 @@ class FedNHClient(PFLClient):
                 self.model.prototypes.data[label] = torch.zeros_like(
                     self.model.prototypes.data[label])
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self.receive_model()
+
         self.model.train()
         self.model.to(self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -112,9 +113,11 @@ class FedNHClient(PFLClient):
                 loss = self.hyper_params.loss_fn(logits, y)
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
         self.model.to("cpu")
         clear_cache()
+        running_loss /= (epochs * len(self.train_set))
 
         protos = defaultdict(list)
         for label in range(self.hyper_params.n_protos):
@@ -122,37 +125,35 @@ class FedNHClient(PFLClient):
             protos[label] = self.model(Xlbl)[0].detach().data
 
         self._update_protos(protos)
-        self.send_model()
+        return running_loss
 
-    def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None and self.model is not None:
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+        if test_set is not None and self.model is not None:
             model = ArgMaxModule(self.model)
-            return ClassificationEval(None,
-                                      self.hyper_params.n_protos,
-                                      self.device).evaluate(model,
-                                                            self.test_set)
+            return evaluator.evaluate(self._last_round, model, test_set)
         return {}
 
     def finalize(self) -> None:
         self.fit()
+        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        if metrics:
+            self._notify_evaluation(-1, "post-fit", metrics)
 
 
 class FedNHServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  n_protos: int = 10,
                  rho: float = 0.1,
                  proto_norm: bool = True):
-        super().__init__(ProtoNet(model, n_protos, proto_norm),
-                         test_data,
-                         clients,
-                         eval_every,
-                         weighted)
+        super().__init__(model=ProtoNet(model, n_protos, proto_norm),
+                         test_set=test_set,
+                         clients=clients,
+                         weighted=weighted)
         self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
 
     @torch.no_grad()
@@ -213,13 +214,10 @@ class FedNHServer(Server):
                         avg_model_sd[key] += weight * client_sd[key].clone()
             self.model.encoder.load_state_dict(avg_model_sd)
 
-    def evaluate(self) -> dict[str, float]:
-        if self.test_data is not None:
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+        if self.test_set is not None:
             model = ArgMaxModule(self.model)
-            return ClassificationEval(None,
-                                      self.hyper_params.n_protos,
-                                      self.device).evaluate(model,
-                                                            self.test_data)
+            return evaluator.evaluate(self.rounds + 1, model, self.test_set)
         return {}
 
 

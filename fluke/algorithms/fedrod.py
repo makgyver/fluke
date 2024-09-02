@@ -13,7 +13,7 @@ from ..nets import EncoderHeadNet  # NOQA
 from ..utils import clear_cache  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.evaluation import Evaluator  # NOQA
 
 
 class RODModel(torch.nn.Module):
@@ -77,10 +77,9 @@ class FedRODClient(Client):
         if self.inner_model is None:
             self.inner_model = deepcopy(self.model.head)
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self.receive_model()
         self.model.train()
         self.inner_model.train()
         self.model.to(self.device)
@@ -91,8 +90,8 @@ class FedRODClient(Client):
             self.optimizer_head, self.scheduler_head = self.optimizer_cfg(self.inner_model)
 
         bsm_loss = BalancedSoftmaxLoss(self.sample_per_class)
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
 
@@ -102,6 +101,7 @@ class FedRODClient(Client):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
 
                 out_p = self.inner_model(rep.detach())
                 loss = self.hyper_params.loss_fn(out_g.detach() + out_p, y)
@@ -112,20 +112,17 @@ class FedRODClient(Client):
             self.scheduler.step()
             self.scheduler_head.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         self.inner_model.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 
-    def evaluate(self) -> dict[str, float]:
-        if self.test_set is not None and \
-                self.model is not None and \
-                self.inner_model is not None:
-            evaluator = ClassificationEval(self.hyper_params.loss_fn,
-                                           self.train_set.num_labels,
-                                           self.device)
-            return evaluator.evaluate(RODModel(self.model, self.inner_model), self.test_set)
-
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+        if test_set is not None and self.model is not None and self.inner_model is not None:
+            return evaluator.evaluate(self._last_round,
+                                      RODModel(self.model, self.inner_model),
+                                      test_set)
         return {}
 
 
