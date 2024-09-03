@@ -7,6 +7,7 @@ References:
 """
 import torch
 import numpy as np
+from typing import Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -48,7 +49,7 @@ class FedRSClient(Client):
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
-                         **kwargs: dict[str, Any])
+                         **kwargs)
         self.hyper_params.update(alpha=alpha, count_as_missing=count_as_missing)
         uniq_val, uniq_cnt = np.unique(self.train_set.tensors[1], return_counts=True)
         class_scaling = torch.ones(self.train_set.num_labels) * \
