@@ -202,24 +202,6 @@ class FastDataLoader:
         return self.n_batches
 
 
-# class DistributionEnum(Enum):
-#     """Enum for data distribution across clients."""
-#     IID = "iid"  # : Independent and Identically Distributed data.
-#     QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
-#     CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
-#     LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
-#     LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
-#     # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
-#     LABEL_PATHOLOGICAL_SKEWED = "path"
-#     COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
-
-#     def __hash__(self) -> int:
-#         return self.value.__hash__()
-
-#     def __eq__(self, other) -> bool:
-#         return self.value == other.value
-
-
 class DataSplitter:
     """Utility class for splitting the data across clients."""
 
@@ -480,8 +462,7 @@ class DataSplitter:
 
         Returns:
             list[torch.Tensor]: The examples' ids assignment.
-        """  # noqa: W605
-        # The abow comment is to avoid flake8 error W605 (invalid escape sequence)
+        """
         assert min_quantity * \
             n <= X_train.shape[0], "# of training instances must be > than min_quantity*n"
         assert X_test is None or min_quantity * \
