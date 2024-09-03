@@ -11,7 +11,7 @@ from fluke.server import Server  # NOQA
 from fluke.utils import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
-from fluke import DDict  # NOQA
+from fluke import DDict, GlobalSettings  # NOQA
 
 
 def test_client():
@@ -77,6 +77,7 @@ def test_client():
     server.broadcast_model([client])
 
     evaluator = ClassificationEval(1, 2)
+    GlobalSettings().set_evaluator(evaluator)
     ev0 = client.evaluate(evaluator, client.test_set)
     client.local_update(1)
     ev1 = client.evaluate(evaluator, client.test_set)
