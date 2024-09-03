@@ -62,7 +62,7 @@ __all__ = [
 
 
 class EncoderHeadNet(nn.Module):
-    """Encoder (aka backbone) + Head Network [Base Class]
+    r"""Encoder (aka backbone) + Head Network [Base Class]
     This type of networks are defined as two subnetworks, where one is meant to be the
     encoder/backbone network that learns a latent representation of the input, and the head network
     that is the classifier part of the model. The forward method should work as usual (i.e.,
@@ -77,7 +77,7 @@ class EncoderHeadNet(nn.Module):
     Args:
         encoder (nn.Module): Encoder subnetwork.
         head (nn.Module): Head subnetwork.
-    """  # noqa: W605
+    """
 
     def __init__(self, encoder: nn.Module, head: nn.Module):
         super(EncoderHeadNet, self).__init__()

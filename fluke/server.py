@@ -272,12 +272,12 @@ class Server(ObserverSubject):
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        """Aggregate the models of the clients.
+        r"""Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
-        The method directly updates the model of the server. Formally, let :math:`\\theta` be the
-        model of the server, :math:`\\theta_i` the model of client :math:`i`, and :math:`w_i` the
-        weight of client :math:`i` such that :math:`\\sum_{i=1}^{N} w_i = 1`. The aggregation is
+        The method directly updates the model of the server. Formally, let :math:`\theta` be the
+        model of the server, :math:`\theta_i` the model of client :math:`i`, and :math:`w_i` the
+        weight of client :math:`i` such that :math:`\sum_{i=1}^{N} w_i = 1`. The aggregation is
         done as follows [FedAVG]_:
 
         .. math::
