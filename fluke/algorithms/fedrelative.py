@@ -1,7 +1,7 @@
 from torch import nn
 import torch
 import torch.nn.functional as F
-from typing import Iterable
+from typing import Iterable, Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -46,7 +46,7 @@ class RelativeProjectionModel(nn.Module):
         x = self.bridge_layer(dotZH)
         return self.model.head(x)
 
-    def to(self, *args, **kwargs):
+    def to(self, *args, **kwargs: dict[str, Any]):
         self.anchors = self.anchors.to(*args, **kwargs)
         return super().to(*args, **kwargs)
 
@@ -66,8 +66,8 @@ class FedRelativeServer(Server):
                  model: torch.nn.Module,
                  test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 n_anchors_class: int = 5,
-                 weighted: bool = True):
+                 weighted: bool = True,
+                 n_anchors_class: int = 5):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(n_anchors_class=n_anchors_class)
 

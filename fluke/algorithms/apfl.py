@@ -7,7 +7,7 @@ References:
 from copy import deepcopy
 from torch.nn import Module
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -32,7 +32,7 @@ class APFLClient(PFLClient):
                  loss_fn: Module,
                  local_epochs: int = 3,
                  lam: float = 0.25,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs)
         self.pers_optimizer = None
@@ -99,7 +99,7 @@ class APFLServer(Server):
                  clients: Iterable[Client],
                  weighted: bool = False,
                  tau: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(tau=tau)
 

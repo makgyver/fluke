@@ -8,7 +8,7 @@ References:
 from collections import OrderedDict
 import torch
 from torch.nn import Module, Parameter, CrossEntropyLoss
-from typing import Iterable
+from typing import Iterable, Any
 from collections import defaultdict
 import sys
 
@@ -74,7 +74,7 @@ class FedNHClient(PFLClient):
                  local_epochs: int,
                  n_protos: int,
                  proto_norm: bool = True,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=ProtoNet(model, n_protos, proto_norm),
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
                          loss_fn=CrossEntropyLoss(), local_epochs=local_epochs, **kwargs)

@@ -4,7 +4,7 @@ from torchmetrics import Accuracy, Precision, Recall, F1Score
 from torch.nn import Module
 import torch
 import numpy as np
-from typing import Optional, Union, Iterable
+from typing import Optional, Union, Iterable, Any
 from abc import ABC, abstractmethod
 import sys
 sys.path.append(".")
@@ -38,7 +38,7 @@ class Evaluator(ABC):
                  model: Module,
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
-                 **kwargs) -> dict:
+                 **kwargs: dict[str, Any]) -> dict:
         """Evaluate the model.
 
         Args:
@@ -55,7 +55,7 @@ class Evaluator(ABC):
                  model: Module,
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
-                 **kwargs) -> dict:
+                 **kwargs: dict[str, Any]) -> dict:
         """Evaluate the model.
 
         Note:

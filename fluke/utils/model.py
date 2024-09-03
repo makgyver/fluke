@@ -3,6 +3,7 @@ from torch.nn import Module
 from torch.nn import functional as F
 from torch import nn
 import torch
+from typing import Any
 from copy import deepcopy
 from collections import OrderedDict
 from functools import partial
@@ -55,7 +56,7 @@ class MMMixin:
 
             # C is a class that extends torch.nn.Module
             class M(MMMixin, C):
-                def __init__(self, *args, **kwargs):
+                def __init__(self, *args, **kwargs: dict[str, Any]):
                     super().__init__(*args, **kwargs)
                     self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
 
@@ -115,7 +116,7 @@ class LinesLinear(MMMixin, nn.Linear):
         bias_local (torch.Tensor): The local bias.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: dict[str, Any]):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
@@ -149,7 +150,7 @@ class LinesConv2d(MMMixin, nn.Conv2d):
         bias_local (torch.Tensor): The local bias.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: dict[str, Any]):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
@@ -198,7 +199,7 @@ class LinesLSTM(MMMixin, nn.LSTM):
         bias_ih_l{layer}_local (torch.Tensor): The local input-hidden biases of layer ``layer``.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: dict[str, Any]):
         super().__init__(*args, **kwargs)
         for layer in range(self.num_layers):
             setattr(self, f'weight_hh_l{layer}_local', nn.Parameter(
@@ -262,7 +263,7 @@ class LinesEmbedding(MMMixin, nn.Embedding):
         weight_local (torch.Tensor): The local weights.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: dict[str, Any]):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
 
@@ -286,7 +287,7 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
         bias_local (torch.Tensor): The local bias.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs: dict[str, Any]):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.Tensor(self.num_features))
         self.bias_local = nn.Parameter(torch.Tensor(self.num_features))

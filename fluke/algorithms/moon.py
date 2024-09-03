@@ -7,6 +7,7 @@ References:
 from torch.nn import CosineSimilarity
 import torch
 from copy import deepcopy
+from typing import Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -28,7 +29,7 @@ class MOONClient(Client):
                  local_epochs: int,
                  mu: float,
                  tau: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

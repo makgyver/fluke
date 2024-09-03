@@ -12,6 +12,7 @@ from copy import deepcopy
 import torch
 from torch import nn
 from fluke.client import Client
+from typing import Any
 sys.path.append(".")
 sys.path.append("..")
 
@@ -36,7 +37,7 @@ class FedALAClient(Client):
                  eta: float = 1.0,
                  conergence_threshold: float = 0.001,
                  loss_window_size: int = 10,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

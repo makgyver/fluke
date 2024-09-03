@@ -4,7 +4,7 @@ References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype
        Learning. In ESANN (2024)
 """
-from typing import Iterable
+from typing import Iterable, Any
 import torch
 from torch import nn
 # from torch.optim import Adam
@@ -81,7 +81,7 @@ class FedHPClient(PFLClient):
                  local_epochs: int,
                  n_protos: int,
                  lam: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=ProtoNet(model, n_protos), train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, **kwargs)

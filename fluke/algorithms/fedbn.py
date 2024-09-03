@@ -12,7 +12,6 @@ sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
-from ..comm import Message  # NOQA
 
 # Same idea in https://link.springer.com/chapter/10.1007/978-3-030-60548-3_13
 
@@ -53,12 +52,6 @@ class FedBNClient(Client):
 
 
 class FedBN(CentralizedFL):
-    """
-    This class implements the FedBN algorithm from the paper:
-    Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN: Federated Learning
-    on Non-IID Features via Local Batch Normalization. ICLR 2021.
-    URL: https://openreview.net/pdf?id=6YEQUn0QICG
-    """
 
     def get_client_class(self) -> Client:
         return FedBNClient

@@ -6,7 +6,7 @@ References:
        In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
 import sys
-from typing import Iterable
+from typing import Iterable, Any
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -59,7 +59,7 @@ class FedAwSServer(Server):
                  aws_steps: int = 100,
                  margin: float = 0.5,
                  last_layer_name: str = "classifier",
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         assert (last_layer_name + ".weight") in model.state_dict().keys(), \
             f"Invalid last_layer_name: {last_layer_name}. Make sure that the last layer \

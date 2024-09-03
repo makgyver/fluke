@@ -9,6 +9,7 @@ import sys
 import torch
 from copy import deepcopy
 import numpy as np
+from typing import Any
 from torch.nn import functional as F
 
 sys.path.append(".")
@@ -20,7 +21,7 @@ from ..nets import EncoderHeadNet  # NOQA
 from ..utils import clear_cache  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from fluke.evaluation import Evaluator  # NOQA
+from ..evaluation import Evaluator  # NOQA
 
 
 class RODModel(torch.nn.Module):
@@ -68,7 +69,7 @@ class FedRODClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

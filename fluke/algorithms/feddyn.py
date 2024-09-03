@@ -8,7 +8,7 @@ References:
 from torch.nn import Module
 import numpy as np
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -59,7 +59,7 @@ class FedDynClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  alpha: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
 
         self.hyper_params.update(alpha=alpha)

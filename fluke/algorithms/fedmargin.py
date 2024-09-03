@@ -2,14 +2,13 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss  # , CosineSimilarity
-# from copy import deepcopy
+from typing import Literal, Any
 
 from ..client import Client  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
-
 from ..algorithms import CentralizedFL  # NOQA
 from .fedavgm import FedAVGM  # NOQA
 from .fedexp import FedExP  # NOQA
@@ -45,7 +44,7 @@ class LargeMarginLoss(torch.nn.Module):
     def __init__(self,
                  base_loss: torch.nn.Module = CrossEntropyLoss(),
                  margin_lam: float = 0.2,
-                 reduce: str = "mean",  # "max"
+                 reduce: Literal["mean", "max"] = "mean",
                  num_labels: int = 10):
         super().__init__()
         self.base_loss = base_loss
@@ -86,12 +85,16 @@ class FedMarginClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  margin_lam: float = 0.2,
-                 **kwargs):
-        super().__init__(index, train_set, test_set, optimizer_cfg,
-                         LargeMarginLoss(base_loss=loss_fn,
-                                         margin_lam=margin_lam,
-                                         num_labels=train_set.num_labels),
-                         local_epochs)
+                 **kwargs: dict[str, Any]):
+        super().__init__(index=index,
+                         train_set=train_set,
+                         test_set=test_set,
+                         optimizer_cfg=optimizer_cfg,
+                         loss_fn=LargeMarginLoss(base_loss=loss_fn,
+                                                 margin_lam=margin_lam,
+                                                 num_labels=train_set.num_labels),
+                         local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(margin_lam=margin_lam)
 
 
@@ -128,7 +131,7 @@ class SCAFFOLDMarginClient(SCAFFOLDClient, FedMarginClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  margin_lam: float = 0.2,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index,
                          train_set=train_set,
                          test_set=test_set,
@@ -157,7 +160,7 @@ class LGFedAVGMarginClient(LGFedAVGClient, FedMarginClient):
                  loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
                  margin_lam: float = 0.2,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index,
                          model=model,
                          train_set=train_set,
@@ -167,7 +170,8 @@ class LGFedAVGMarginClient(LGFedAVGClient, FedMarginClient):
                                                  margin_lam=margin_lam,
                                                  num_labels=train_set.num_labels),
                          local_epochs=local_epochs,
-                         margin_lam=margin_lam)
+                         margin_lam=margin_lam,
+                         **kwargs)
 
 
 class LGFedAVGMargin(LGFedAVG):
@@ -191,11 +195,12 @@ class FedLCMargin(FedLC):
 class FedNovaMarginClient(FedNovaClient, FedMarginClient):
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        FedMarginClient.fit(self, override_local_epochs)
+        running_loss = FedMarginClient.fit(self, override_local_epochs)
         self.tau += self.hyper_params.local_epochs * self.train_set.n_batches
         rho = self._get_momentum()
         self.a = (self.tau - rho * (1.0 - pow(rho, self.tau)) / (1.0 - rho)) / (1.0 - rho)
         self.channel.send(Message(self.a, "local_a", self), self.server)
+        return running_loss
 
 
 class FedNovaMargin(FedNova):

@@ -125,7 +125,7 @@ class Server(ObserverSubject):
             n_rounds: int = 10,
             eligible_perc: float = 0.1,
             finalize: bool = True,
-            **kwargs) -> None:
+            **kwargs: dict[str, Any]) -> None:
         """Run the federated learning algorithm.
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to

@@ -12,7 +12,7 @@ import json
 import time
 import os
 from torch.nn import Module
-from typing import Literal, Union
+from typing import Literal, Union, Any
 
 import sys
 sys.path.append(".")
@@ -52,7 +52,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         current_round (int): The current round.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: dict[str, Any]):
         self.global_eval: dict = {}  # round -> evals
         self.locals_eval: dict = {}  # round -> {client_id -> evals}
         self.prefit_eval: dict = {}  # round -> {client_id -> evals}
@@ -63,7 +63,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         self.comm_costs: dict = {0: 0}
         self.current_round: int = 0
 
-    def init(self, **kwargs) -> None:
+    def init(self, **kwargs: dict[str, Any]) -> None:
         """Initialize the logger.
         The initialization is done by printing the configuration in the console.
 
@@ -121,7 +121,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
                           client_id: int,
                           phase: Literal['pre-fit', 'post-fit'],
                           evals: dict[str, float],
-                          **kwargs) -> None:
+                          **kwargs: dict[str, Any]) -> None:
 
         if round == -1:
             round = self.current_round + 1
@@ -132,7 +132,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
                           round: int,
                           type: Literal['global', 'locals'],
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs) -> None:
+                          **kwargs: dict[str, Any]) -> None:
 
         if type == 'global':
             self.global_eval[round] = evals
@@ -276,7 +276,7 @@ class WandBLog(Log):
         super().__init__(**config)
         self.config = config
 
-    def init(self, **kwargs) -> None:
+    def init(self, **kwargs: dict[str, Any]) -> None:
         super().init(**kwargs)
         self.config["config"] = kwargs
         self.run = wandb.init(**self.config)
@@ -335,13 +335,13 @@ class ClearMLLog(TensorBoardLog):
         super().__init__(name=config['name'])
         self.config = DDict(**config)
 
-    def init(self, **kwargs) -> None:
+    def init(self, **kwargs: dict[str, Any]) -> None:
         super().init(**kwargs)
         self.task = Task.init(task_name=self.config.name, **self.config.exclude("name"))
         self.task.connect(kwargs)
 
 
-def get_logger(lname: str, **kwargs) -> Log:
+def get_logger(lname: str, **kwargs: dict[str, Any]) -> Log:
     """Get a logger from its name.
     This function is used to get a logger from its name. It is used to dynamically import loggers.
     The supported loggers are the ones defined in the ``fluke.utils.log`` module.

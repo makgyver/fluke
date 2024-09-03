@@ -51,17 +51,23 @@ class ClientObserver():
     ``Log`` class.
     """
 
-    def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
+    def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
         """This method is called when the client starts the local training process.
 
         Args:
             round (int): The round number.
             client_id (int):  The client ID.
             model (Module): The local model before training.
+            **kwargs (dict): Additional keyword arguments.
         """
         pass
 
-    def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
+    def end_fit(self,
+                round: int,
+                client_id: int,
+                model: Module,
+                loss: float,
+                **kwargs: dict[str, Any]):
         """This method is called when the client ends the local training process.
 
         Args:
@@ -69,6 +75,7 @@ class ClientObserver():
             client_id (int): The client ID.
             model (Module): The local model after training.
             loss (float): The loss of the local model.
+            **kwargs (dict): Additional keyword arguments.
         """
         pass
 
@@ -77,7 +84,7 @@ class ClientObserver():
                           client_id: int,
                           phase: Literal["pre-fit", "post-fit"],
                           evals: dict[str, float],
-                          **kwargs):
+                          **kwargs: dict[str, Any]):
         """This method is called when the client evaluates the local model.
         The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
         training process.
@@ -88,6 +95,7 @@ class ClientObserver():
             phase (Literal['pre-fit', 'post-fit']): Whether the evaluation is done before or after
                 the local training process.
             evals (dict[str, float]): The evaluation metrics.
+            **kwargs (dict): Additional keyword arguments.
         """
         pass
 
@@ -129,7 +137,7 @@ class ServerObserver():
                           round: int,
                           type: Literal["global", "locals"],
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs) -> None:
+                          **kwargs: dict[str, Any]) -> None:
         """This method is called when the server evaluates the global or the local models on its
         test set.
 
@@ -316,7 +324,7 @@ def get_loss(lname: str) -> Module:
     return get_class_from_str("torch.nn", lname)()
 
 
-def get_model(mname: str, **kwargs) -> Module:
+def get_model(mname: str, **kwargs: dict[str, Any]) -> Module:
     """Get a model from its name.
     This function is used to get a torch model from its name and the name of the module where it is
     defined. It is used to dynamically import models. If ``mname`` is not a fully qualified name,

@@ -6,6 +6,7 @@ References:
        In AISTATS (2017). URL: https://arxiv.org/abs/1602.05629
 """
 import torch
+from typing import Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -24,7 +25,7 @@ class ClientSGD(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

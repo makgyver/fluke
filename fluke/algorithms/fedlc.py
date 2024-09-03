@@ -7,6 +7,7 @@ References:
 """
 import torch
 import numpy as np
+from typing import Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -45,7 +46,7 @@ class FedLCClient(Client):
                  loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
                  tau: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
                          **kwargs)

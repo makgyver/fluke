@@ -7,7 +7,7 @@ References:
 """
 from torch.optim import Optimizer
 import torch
-from typing import Union
+from typing import Union, Any
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -56,7 +56,7 @@ class PerFedAVGClient(Client):
                  local_epochs: int,
                  mode: str,
                  beta: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
 
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(

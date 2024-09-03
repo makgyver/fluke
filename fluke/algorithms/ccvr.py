@@ -8,7 +8,7 @@ References:
 import torch
 import numpy as np
 import sys
-from typing import Iterable
+from typing import Iterable, Any
 
 from torch.nn.modules import Module
 
@@ -73,7 +73,8 @@ class CCVRServer(Server):
                  weighted: bool = False,
                  lr: float = 0.1,
                  batch_size: int = 64,
-                 sample_per_class: int = 100):
+                 sample_per_class: int = 100,
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(
             lr=lr,

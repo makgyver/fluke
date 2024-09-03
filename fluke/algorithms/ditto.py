@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2012.04221
 """
 from copy import deepcopy
-from typing import Iterator
+from typing import Iterator, Any
 from torch.optim import Optimizer
 from torch.nn.parameter import Parameter
 import torch
@@ -21,7 +21,11 @@ from ..client import PFLClient  # NOQA
 
 
 class PerturbedGradientDescent(Optimizer):
-    def __init__(self, params: Iterator[Parameter], lr: float = 0.01, lam: float = 0.0, **kwargs):
+    def __init__(self,
+                 params: Iterator[Parameter],
+                 lr: float = 0.01,
+                 lam: float = 0.0,
+                 **kwargs: dict[str, Any]):
         default = dict(lr=lr, lam=lam)
         super().__init__(params, default)
 
@@ -46,7 +50,7 @@ class DittoClient(PFLClient):
                  local_epochs: int = 3,
                  tau: int = 3,
                  lam: float = 0.1,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

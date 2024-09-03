@@ -6,7 +6,7 @@ References:
        In NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
 """
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -30,7 +30,7 @@ class FedNovaClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

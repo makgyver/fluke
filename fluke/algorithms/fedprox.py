@@ -7,6 +7,7 @@ References:
 """
 from copy import deepcopy
 import torch
+from typing import Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -26,7 +27,7 @@ class FedProxClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  mu: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)
