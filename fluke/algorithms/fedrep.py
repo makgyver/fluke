@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2102.07078
 """
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -33,7 +33,7 @@ class FedRepClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  tau: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=EncoderGlobalHeadLocalNet(model), train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, **kwargs)

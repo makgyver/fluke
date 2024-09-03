@@ -1,5 +1,6 @@
 from torch.nn import CrossEntropyLoss, Module
 from torch.optim import SGD
+from typing import Any
 import tempfile
 import sys
 sys.path.append(".")
@@ -104,7 +105,7 @@ def test_centralized_fl():
             assert "accuracy" in evals
             self.called_server_eval = True
 
-        def client_evaluation(self, round, client_id, phase, evals, **kwargs):
+        def client_evaluation(self, round, client_id, phase, evals, **kwargs: dict[str, Any]):
             assert round == 1 or (round == -1 and phase == "pre-fit")
             assert phase == "post-fit" or phase == "pre-fit"
             assert client_id == 0 or client_id == 1
@@ -119,12 +120,12 @@ def test_centralized_fl():
             assert round == 2
             self.called_finished = True
 
-        def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
+        def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
             assert round == 1
             assert client_id == 0 or client_id == 1
             self.called_start_fit = True
 
-        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
+        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs: dict[str, Any]):
             assert round == 1
             assert client_id == 0 or client_id == 1
             assert loss >= 0.0

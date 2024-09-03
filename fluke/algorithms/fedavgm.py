@@ -8,7 +8,7 @@ References:
 from copy import deepcopy
 from torch.nn import Module
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -38,7 +38,7 @@ class FedAVGMServer(Server):
                  clients: Iterable[Client],
                  weighted: bool = True,
                  momentum: float = 0.9,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(momentum=momentum)
         self.momentum_vector = None

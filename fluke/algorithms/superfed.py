@@ -6,6 +6,7 @@ References:
 """
 from torch.nn.modules import Module
 import numpy as np
+from typing import Any
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -35,10 +36,11 @@ class SuPerFedClient(PFLClient):
                  start_mix: int = 10,
                  mu: float = 0.1,
                  nu: float = 0.1,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         assert mode in ["mm", "lm"]
 
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs)
         self.hyper_params.update(
             mode=mode,
             start_mix=start_mix,

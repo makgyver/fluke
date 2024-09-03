@@ -8,7 +8,7 @@ References:
 """
 # from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
-from typing import Iterable
+from typing import Iterable, Any
 import sys
 sys.path.append(".")
 sys.path.append("..")
@@ -36,7 +36,7 @@ class LGFedAVGClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,  # In the paper it is fixed to CrossEntropyLoss
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=HeadGlobalEncoderLocalNet(model), train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, **kwargs)

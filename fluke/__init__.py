@@ -52,7 +52,7 @@ class Singleton(type):
     """
     _instances = {}
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args, **kwargs: dict[str, Any]):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
@@ -75,10 +75,10 @@ class DDict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
 
-    def __init__(self, *args: dict, **kwargs):
+    def __init__(self, *args: dict, **kwargs: dict[str, Any]):
         self.update(*args, **kwargs)
 
-    def update(self, *args: dict, **kwargs):
+    def update(self, *args: dict, **kwargs: dict[str, Any]):
         """Update the ``DDict`` with the specified key-value pairs.
 
         Args:

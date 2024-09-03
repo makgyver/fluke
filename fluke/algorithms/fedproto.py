@@ -7,7 +7,7 @@ References:
 """
 import torch
 from torch.nn import Module
-from typing import Iterable
+from typing import Iterable, Any
 from collections import defaultdict
 from copy import deepcopy
 import sys
@@ -66,7 +66,7 @@ class FedProtoClient(PFLClient):
                  local_epochs: int,
                  n_protos: int,
                  lam: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, **kwargs)

@@ -7,7 +7,7 @@ from torch import device
 from torch.nn import Module
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
-from typing import Literal
+from typing import Literal, Any
 import sys
 sys.path.append(".")
 
@@ -76,7 +76,7 @@ class Client(ObserverSubject):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__()
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
@@ -355,7 +355,7 @@ class PFLClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.personalized_model: Module = model
 

@@ -7,7 +7,7 @@ References:
 """
 from torch.nn import Module
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 from copy import deepcopy
 import sys
 sys.path.append(".")
@@ -32,7 +32,7 @@ class FedAMPClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  lam: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

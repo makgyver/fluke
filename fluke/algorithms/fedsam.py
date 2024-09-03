@@ -28,7 +28,7 @@ class SAMOptimizer(torch.optim.Optimizer):
                  base_optimizer: Optimizer = torch.optim.SGD,
                  rho: float = 0.05,
                  adaptive: bool = False,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         assert rho >= 0.0, f"Invalid rho, should be non-negative: {rho}"
 
         defaults = dict(rho=rho, adaptive=adaptive, **kwargs)
@@ -109,7 +109,7 @@ class FedSAMClient(Client):
                  loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
                  rho: float = 0.05,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)

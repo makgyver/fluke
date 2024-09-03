@@ -45,10 +45,10 @@ class FedRSClient(Client):
                  local_epochs: int,
                  alpha: float,
                  count_as_missing: int = 2,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
-                         **kwargs)
+                         **kwargs: dict[str, Any])
         self.hyper_params.update(alpha=alpha, count_as_missing=count_as_missing)
         uniq_val, uniq_cnt = np.unique(self.train_set.tensors[1], return_counts=True)
         class_scaling = torch.ones(self.train_set.num_labels) * \

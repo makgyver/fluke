@@ -7,7 +7,7 @@ References:
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, Any
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -54,7 +54,7 @@ class PFedMeClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  k: int,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
 
         super().__init__(index, None, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
         self.hyper_params.update(k=k)

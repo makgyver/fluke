@@ -204,7 +204,11 @@ class CentralizedFL():
         for client in self.clients:
             client.attach(callbacks)
 
-    def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs):
+    def run(self,
+            n_rounds: int,
+            eligible_perc: float,
+            finalize: bool = True,
+            **kwargs: dict[str, Any]):
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
 
     def __str__(self) -> str:

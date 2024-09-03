@@ -8,7 +8,7 @@ References:
 # from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Iterable
+from typing import Iterable, Any
 from copy import deepcopy
 from collections import OrderedDict
 import sys
@@ -33,7 +33,7 @@ class SCAFFOLDClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)
@@ -112,7 +112,7 @@ class SCAFFOLDServer(Server):
                  clients: Iterable[Client],
                  weighted: bool = True,
                  global_step: float = 1.,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model,
                          test_set=test_set,
                          clients=clients,
