@@ -221,5 +221,6 @@ It must be structured as follows:
     :hidden:
 
     config_data
+    config_log
 
 ```
