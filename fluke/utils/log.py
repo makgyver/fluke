@@ -29,7 +29,7 @@ wandb.require("core")
 
 __all__ = [
     "Log",
-    "TensorBoardLog",
+    "TensorboardLog",
     "WandBLog",
     "ClearMLLog",
     "get_logger"
@@ -194,7 +194,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             json.dump(json_to_save, f, indent=4)
 
 
-class TensorBoardLog(Log):
+class TensorboardLog(Log):
     """TensorBoard logger.
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process on TensorBoard
@@ -315,7 +315,7 @@ class WandBLog(Log):
         self.run.finish()
 
 
-class ClearMLLog(TensorBoardLog):
+class ClearMLLog(TensorboardLog):
     """ClearML logger.
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process on ClearML.
@@ -352,6 +352,6 @@ def get_logger(lname: str, **kwargs: dict[str, Any]) -> Log:
         **kwargs: The keyword arguments to pass to the logger's constructor.
 
     Returns:
-        Log | WandBLog | ClearMLLog | TensorBoardLog: The logger.
+        Log | WandBLog | ClearMLLog | TensorboardLog: The logger.
     """
     return get_class_from_str("fluke.utils.log", lname)(**kwargs)

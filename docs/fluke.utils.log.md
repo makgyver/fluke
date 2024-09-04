@@ -26,7 +26,7 @@ Classes included in ``fluke.utils.log``
    
    Log
    WandBLog
-   TensorBoardLog
+   TensorboardLog
    ClearMLLog
 
 ```
@@ -60,13 +60,13 @@ Classes included in ``fluke.utils.log``
 
 <h3>
 
-{bdg-primary}`class` ``fluke.utils.log.TensorBoardLog``
+{bdg-primary}`class` ``fluke.utils.log.TensorboardLog``
 
 </h3>
 
 ```{eval-rst}
 
-.. autoclass:: fluke.utils.log.TensorBoardLog
+.. autoclass:: fluke.utils.log.TensorboardLog
    :members:
    :show-inheritance:
 
