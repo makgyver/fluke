@@ -6,22 +6,23 @@ References:
        URL: https://openreview.net/pdf?id=I1hQbx10Kxn
 """
 import sys
-import torch
 from copy import deepcopy
-import numpy as np
 from typing import Any
+
+import numpy as np
+import torch
 from torch.nn import functional as F
 
 sys.path.append(".")
 sys.path.append("..")
 
-from . import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
-from ..nets import EncoderHeadNet  # NOQA
-from ..utils import clear_cache  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..utils import clear_cache  # NOQA
+from . import CentralizedFL  # NOQA
 
 
 class RODModel(torch.nn.Module):

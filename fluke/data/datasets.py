@@ -2,24 +2,27 @@
 This module contains the :class:`Datasets` for loading the supported datasets.
 """
 from __future__ import annotations
-from torchvision.transforms import ToTensor, Lambda
-from torchvision import datasets
-from torchvision.datasets import VisionDataset
-from datasets import load_dataset
-from rich.progress import track
-from numpy.random import permutation
-from typing import Optional
-# from enum import Enum
-import string
-import torch
+
 import json
 import os
+# from enum import Enum
+import string
 import sys
+from typing import Optional
+
+import torch
+from datasets import load_dataset
+from numpy.random import permutation
+from rich.progress import track
+from torchvision import datasets
+from torchvision.datasets import VisionDataset
+from torchvision.transforms import Lambda, ToTensor
+
 sys.path.append(".")
 sys.path.append("..")
 
-from . import DataContainer, FastDataLoader, support  # NOQA
 from ..utils import get_class_from_qualified_name  # NOQA
+from . import DataContainer, FastDataLoader, support  # NOQA
 
 
 def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:

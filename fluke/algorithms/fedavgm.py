@@ -5,19 +5,21 @@ References:
        Non-Identical Data Distribution for Federated Visual Classification. In arXiv (2019).
        URL: https://arxiv.org/abs/1909.06335
 """
-from copy import deepcopy
-from torch.nn import Module
-import torch
-from typing import Iterable, Any
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..utils.model import state_dict_zero_like  # NOQA
-from ..server import Server  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils.model import state_dict_zero_like  # NOQA
 
 
 class FedAVGMServer(Server):

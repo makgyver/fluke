@@ -1,20 +1,23 @@
 """This module contains (as submodules) the implementation of several the federated learning
 algorithms."""
 from __future__ import annotations
+
 import os
-import torch
-from typing import Union, Any, Iterable
-from copy import deepcopy
-import warnings
 import sys
+import warnings
+from copy import deepcopy
+from typing import Any, Iterable, Union
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import DDict  # NOQA
-from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
+from ..client import Client, PFLClient  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import Client, PFLClient  # NOQA
+from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
 
 __all__ = [
     'CentralizedFL',

@@ -5,23 +5,23 @@ References:
        Tackling Data Heterogeneity in Federated Learning with Class Prototypes. In AAAI (2023).
        URL: https://arxiv.org/abs/2212.02758
 """
-from collections import OrderedDict
-import torch
-from torch.nn import Module, Parameter, CrossEntropyLoss
-from typing import Iterable, Any
-from collections import defaultdict
 import sys
+from collections import OrderedDict, defaultdict
+from typing import Any, Iterable
+
+import torch
+from torch.nn import CrossEntropyLoss, Module, Parameter
 
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import GlobalSettings  # NOQA
+from ..client import PFLClient  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-from ..data import FastDataLoader  # NOQA
-from ..client import PFLClient  # NOQA
-from ..server import Server  # NOQA
 from . import PersonalizedFL  # NOQA
 
 

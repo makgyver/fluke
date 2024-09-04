@@ -1,22 +1,25 @@
+import sys
+import tempfile
+from typing import Any
+
 from torch.nn import CrossEntropyLoss, Module
 from torch.optim import SGD
-from typing import Any
-import tempfile
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
 from fluke import DDict, GlobalSettings  # NOQA
+from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
+from fluke.client import Client, PFLClient  # NOQA
+from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
-from fluke.client import Client, PFLClient  # NOQA
-from fluke.server import Server  # NOQA
-from fluke.nets import MNIST_2NN  # NOQA
-from fluke.comm import ChannelObserver, Message  # NOQA
-from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
-from fluke.utils import Configuration, get_class_from_qualified_name, ServerObserver, ClientObserver  # NOQA
-from fluke.utils.log import Log  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.nets import MNIST_2NN  # NOQA
+from fluke.server import Server  # NOQA
+from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
+                         get_class_from_qualified_name)
+from fluke.utils.log import Log  # NOQA
 
 
 def test_centralized_fl():

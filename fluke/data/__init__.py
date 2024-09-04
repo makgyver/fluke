@@ -1,12 +1,15 @@
 """This module contains the data utilities for ``fluke``."""
 from __future__ import annotations
-from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
+
+import sys
+from typing import Optional, Sequence
+
 import numpy as np
-from typing import Sequence, Optional
 import rich
 import torch
+from numpy.random import (choice, dirichlet, permutation, power, randint,
+                          shuffle)
 from sklearn.model_selection import train_test_split
-import sys
 
 sys.path.append(".")
 sys.path.append("..")

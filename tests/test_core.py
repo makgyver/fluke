@@ -1,12 +1,15 @@
 from __future__ import annotations
+
+import sys
+
+import torch
 from rich.live import Live
 from rich.progress import Progress
-import torch
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke import GlobalSettings, ObserverSubject, DDict  # NOQA
+from fluke import DDict, GlobalSettings, ObserverSubject  # NOQA
 
 
 def test_settings():

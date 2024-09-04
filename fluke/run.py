@@ -1,23 +1,26 @@
 """`fluke` command line interface."""
-from rich.pretty import Pretty
-from rich.panel import Panel
-from rich.progress import track
-import rich
-from typing import Any
-import typer
-import pandas as pd
-import numpy as np
-import torch
 import sys
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import rich
+import torch
+import typer
+from rich.panel import Panel
+from rich.pretty import Pretty
+from rich.progress import track
+
 sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
-from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model, plot_distribution)  # NOQA
-from .utils.log import get_logger  # NOQA
 from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
+from .utils import (Configuration, OptimizerConfigurator,  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model,
+                    plot_distribution)
+from .utils.log import get_logger  # NOQA
 
 app = typer.Typer()
 

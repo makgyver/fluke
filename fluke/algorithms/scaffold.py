@@ -5,24 +5,26 @@ References:
        Sebastian U. Stich, Ananda Theertha Suresh. SCAFFOLD: Stochastic Controlled Averaging for
        Federated Learning. In ICML (2020). URL: https://arxiv.org/abs/1910.06378
 """
+import sys
+from collections import OrderedDict
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
 # from torch.optim import Optimizer
 from torch.nn import Module
-import torch
-from typing import Iterable, Any
-from copy import deepcopy
-from collections import OrderedDict
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import GlobalSettings  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
 
 
 class SCAFFOLDClient(Client):

@@ -4,23 +4,26 @@ References:
     .. [pFedMe20] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
        Learning with Moreau Envelopes. In NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
 """
-from torch.optim import Optimizer
-from torch.nn import Module
-import torch
-from typing import Iterable, Optional, Any
+import sys
 from collections import OrderedDict
 from copy import deepcopy
-import sys
+from typing import Any, Iterable, Optional
+
+import torch
+from torch.nn import Module
+from torch.optim import Optimizer
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..server import Server  # NOQA
 from ..client import Client, PFLClient  # NOQA
 from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
+                           safe_load_state_dict)
 
 
 class PFedMeOptimizer(Optimizer):

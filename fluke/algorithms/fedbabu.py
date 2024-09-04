@@ -5,22 +5,24 @@ References:
     .. [FedBABU22] Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation
        for Federated Image Classification. In ICLR (2022). URL: https://arxiv.org/abs/2106.06042
 """
-from rich.progress import Progress
-from typing import Iterable, Any
-from torch.nn import Module
 import sys
+from typing import Any, Iterable
+
+from rich.progress import Progress
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import GlobalSettings  # NOQA
+from ..algorithms import PersonalizedFL  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
-from ..client import PFLClient  # NOQA
-from ..algorithms import PersonalizedFL  # NOQA
-from ..server import Server  # NOQA
-from ..comm import Message  # NOQA
 
 
 class FedBABUClient(PFLClient):

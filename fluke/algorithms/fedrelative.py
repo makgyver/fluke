@@ -1,16 +1,18 @@
-from torch import nn
+import sys
+from typing import Any, Iterable
+
 import torch
 import torch.nn.functional as F
-from typing import Iterable, Any
-import sys
+from torch import nn
+
 sys.path.append(".")
 sys.path.append("..")
 
-from . import CentralizedFL  # NOQA
-from ..nets import EncoderHeadNet  # NOQA
 from ..client import Client  # NOQA
-from ..server import Server  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
+from . import CentralizedFL  # NOQA
 
 
 class RelativeProjectionModel(nn.Module):

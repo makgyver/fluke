@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import sys
+
 # import numpy as np
 import pytest
 import torch
 from torchvision.transforms import v2
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataContainer, FastDataLoader, DataSplitter, DummyDataSplitter  # NOQA
-from fluke.data.datasets import Datasets  # NOQA
 from fluke import DDict  # NOQA
+from fluke.data import (DataContainer, DataSplitter, DummyDataSplitter,  # NOQA
+                        FastDataLoader)
+from fluke.data.datasets import Datasets  # NOQA
 
 
 def test_container():

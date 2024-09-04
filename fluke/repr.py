@@ -1,24 +1,26 @@
 """`fluke` command line interface."""
-from .utils.model import AllLayerOutputModel
-from rich.pretty import Pretty
-from rich.panel import Panel
-from rich.progress import track
-import rich
-from typing import Any
-import typer
-import torch
-from copy import deepcopy
-import sys
 import os
+import sys
 import time
+from copy import deepcopy
+from typing import Any
+
+import rich
+import torch
+import typer
+from rich.panel import Panel
+from rich.pretty import Pretty
+from rich.progress import track
+
+from .utils.model import AllLayerOutputModel
+
 sys.path.append(".")
 
 from . import GlobalSettings  # NOQA
-from .utils import (Configuration, get_class_from_qualified_name)  # NOQA
-from .utils.log import get_logger  # NOQA
 from .data import DataSplitter  # NOQA
 from .data.datasets import Datasets  # NOQA
-
+from .utils import Configuration, get_class_from_qualified_name  # NOQA
+from .utils.log import get_logger  # NOQA
 
 app = typer.Typer()
 

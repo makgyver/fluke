@@ -1,10 +1,10 @@
 """`fluke-get` command line interface."""
-import typer
-import rich
-import requests
-import yaml
 import os
 
+import requests
+import rich
+import typer
+import yaml
 
 app = typer.Typer()
 

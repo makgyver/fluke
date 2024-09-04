@@ -5,8 +5,10 @@ References:
        Federated Learning on Non-IID Features via Local Batch Normalization. In ICLR (2021).
        URL: https://openreview.net/pdf?id=6YEQUn0QICG
 """
-import torch
 import sys
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 

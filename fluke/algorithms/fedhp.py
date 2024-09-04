@@ -4,28 +4,25 @@ References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype
        Learning. In ESANN (2024)
 """
-from typing import Iterable, Any
-import torch
-from torch import nn
-# from torch.optim import Adam
-from rich.progress import track
 import sys
+from typing import Any, Iterable
 
+import torch
+from rich.progress import track
+from torch import nn
 from torch.optim.optimizer import Optimizer as Optimizer
-
-# from torch.optim.optimizer import Optimizer as Optimizer
 
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import GlobalSettings  # NOQA
-from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..evaluation import Evaluator  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..evaluation import Evaluator  # NOQA
 
 
 class ProtoNet(nn.Module):

@@ -5,19 +5,21 @@ References:
        Federated Learning Through Personalization. In ICML (2021).
        URL: https://arxiv.org/abs/2012.04221
 """
-from copy import deepcopy
-from typing import Iterator, Any
-from torch.optim import Optimizer
-from torch.nn.parameter import Parameter
-import torch
 import sys
+from copy import deepcopy
+from typing import Any, Iterator
+
+import torch
+from torch.nn.parameter import Parameter
+from torch.optim import Optimizer
+
 sys.path.append(".")
 sys.path.append("..")
 
-from . import PersonalizedFL  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from . import PersonalizedFL  # NOQA
 
 
 class PerturbedGradientDescent(Optimizer):

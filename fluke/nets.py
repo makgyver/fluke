@@ -2,21 +2,22 @@
 This module contains the definition of several neural networks used in state-of-the-art
 federated learning papers.
 """
-# from torch.nn.utils import spectral_norm
-from abc import abstractmethod
 # from collections import OrderedDict
 import string
+import sys
+# from torch.nn.utils import spectral_norm
+from abc import abstractmethod
+
 import torch
 import torch.nn as nn
 from torch.functional import F
-from torchvision.models import resnet50, resnet18, resnet34
+from torchvision.models import resnet18, resnet34, resnet50
 
-import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from .utils.model import batch_norm_to_group_norm  # NOQA
 from . import GlobalSettings  # NOQA
+from .utils.model import batch_norm_to_group_norm  # NOQA
 
 __all__ = [
     'EncoderHeadNet',

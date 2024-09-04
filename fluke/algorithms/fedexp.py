@@ -5,17 +5,19 @@ References:
        FedExP: Speeding Up Federated Averaging via Extrapolation. In ICLR (2023).
        URL: https://arxiv.org/abs/2301.09604
 """
-from typing import Iterable
-import torch
-from copy import deepcopy
 import sys
+from copy import deepcopy
+from typing import Iterable
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, flatten_parameters  # NOQA
-from ..server import Server  # NOQA
 from ..client import Client  # NOQA
+from ..server import Server  # NOQA
+from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, flatten_parameters  # NOQA
 
 
 class FedExPServer(Server):

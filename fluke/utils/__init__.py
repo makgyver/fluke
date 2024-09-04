@@ -1,22 +1,24 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import rich
-import torch
-import numpy as np
-from torch.optim import Optimizer
-from torch.nn import Module
-from torch.optim.lr_scheduler import LRScheduler
-from typing import Any, Iterable, Literal, Union
+
 # from enum import Enum
 import importlib
 import inspect
-import warnings
-import yaml
 import sys
+import warnings
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Union
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rich
+import seaborn as sns
+import torch
+import yaml
+from torch.nn import Module
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -24,7 +26,6 @@ if TYPE_CHECKING:
     from client import Client  # NOQA
 
 from .. import DDict  # NOQA
-
 
 __all__ = [
     'log',

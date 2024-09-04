@@ -5,16 +5,18 @@ References:
        and Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
        Learning Workshop. URL: https://openreview.net/pdf?id=SkgwE5Ss3N
 """
-from copy import deepcopy
-import torch
-from typing import Any
 import sys
+from copy import deepcopy
+from typing import Any
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 

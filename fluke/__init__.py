@@ -3,14 +3,16 @@ The ``fluke`` module is the entry module of the ``fluke`` framework. Here are de
 classes used by the other modules.
 """
 from __future__ import annotations
-import re
-import torch
+
 import random
-import numpy as np
-from rich.console import Group
-from rich.progress import Progress, Live
-from typing import Any, Union, Iterable, TYPE_CHECKING
+import re
 import warnings
+from typing import TYPE_CHECKING, Any, Iterable, Union
+
+import numpy as np
+import torch
+from rich.console import Group
+from rich.progress import Live, Progress
 
 if TYPE_CHECKING:
     from .evaluation import Evaluator

@@ -1,18 +1,21 @@
 from __future__ import annotations
+
+import sys
+
+import pytest
 import torch
 from torch.nn import Linear
-import pytest
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
+from fluke import DDict  # NOQA
 from fluke import GlobalSettings  # NOQA
-from fluke.server import Server  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.data import FastDataLoader  # NOQA
-from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
-from fluke import DDict  # NOQA
+from fluke.server import Server  # NOQA
+from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
 
 
 def test_server():
