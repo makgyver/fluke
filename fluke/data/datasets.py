@@ -572,7 +572,7 @@ class Datasets:
 
         Important:
             Differently from the other datasets (but :meth:`SHAKESPEARE`), the FEMNIST dataset can
-            not be downloaded directly from the ``fluke`` but it must be downloaded from the
+            not be downloaded directly from ``fluke`` but it must be downloaded from the
             `Leaf project <https://leaf.cmu.edu/>`_ and stored in the ``path`` folder.
             The datasets must also be created according to the instructions provided by the Leaf
             project. The expected folder structure is:
@@ -662,7 +662,7 @@ class Datasets:
                     num_labels=num_classes,
                     batch_size=batch_size,
                     shuffle=True,
-                    transform=onthefly_transforms,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
@@ -680,7 +680,7 @@ class Datasets:
                     num_labels=num_classes,
                     batch_size=64,
                     shuffle=True,
-                    transform=onthefly_transforms,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
@@ -703,7 +703,7 @@ class Datasets:
 
         Important:
             Differently from the other datasets (but :meth:`FEMNIST`), the ``SHAKESPEARE`` dataset
-            can not be downloaded directly from the ``fluke`` but it must be downloaded from the
+            can not be downloaded directly from ``fluke`` but it must be downloaded from the
             `Leaf project <https://leaf.cmu.edu/>`_ and stored in the ``path`` folder.
             The datasets must also be created according to the instructions provided by the Leaf
             project. The expected folder structure is:
@@ -777,7 +777,7 @@ class Datasets:
                     num_labels=100,
                     batch_size=batch_size,
                     shuffle=True,
-                    transform=onthefly_transforms,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
@@ -800,7 +800,7 @@ class Datasets:
                     num_labels=100,
                     batch_size=batch_size,
                     shuffle=True,
-                    transform=onthefly_transforms,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
