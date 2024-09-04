@@ -73,8 +73,8 @@ class ClientObserver():
         Args:
             round (int): The round number.
             client_id (int): The client ID.
-            model (Module): The local model after training.
-            loss (float): The loss of the local model.
+            model (Module): The local model after the local training.
+            loss (float): The average loss incurred by the local model during training.
             **kwargs (dict): Additional keyword arguments.
         """
         pass
@@ -87,14 +87,16 @@ class ClientObserver():
                           **kwargs: dict[str, Any]):
         """This method is called when the client evaluates the local model.
         The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
-        training process.
+        training process. The 'pre-fit' evlauation is usually the evaluation of the global model on
+        the local test set, and the 'post-fit' evaluation is the evaluation of the just updated
+        local model on the local test set.
 
         Args:
             round (int): The round number.
             client_id (int): The client ID.
             phase (Literal['pre-fit', 'post-fit']): Whether the evaluation is done before or after
                 the local training process.
-            evals (dict[str, float]): The evaluation metrics.
+            evals (dict[str, float]): The evaluation results.
             **kwargs (dict): Additional keyword arguments.
         """
         pass
