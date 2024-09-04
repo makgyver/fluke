@@ -1,6 +1,5 @@
 """This module contains the data utilities for ``fluke``."""
 from __future__ import annotations
-from sklearn.preprocessing import StandardScaler
 from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
 import numpy as np
 from typing import Sequence, Optional
@@ -34,6 +33,8 @@ class DataContainer:
         X_test (torch.Tensor): The test data.
         y_test (torch.Tensor): The test labels.
         num_classes (int): The number of classes.
+        transforms (Optional[callable], optional): The transformation to be applied to the data
+          when loaded. Defaults to None.
     """
 
     def __init__(self,
@@ -41,22 +42,13 @@ class DataContainer:
                  y_train: torch.Tensor,
                  X_test: torch.Tensor,
                  y_test: torch.Tensor,
-                 num_classes: int):
+                 num_classes: int,
+                 transforms: Optional[callable] = None):
         self.train = (X_train, y_train)
         self.test = (X_test, y_test)
         self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
         self.num_classes = num_classes
-
-    def standardize(self):
-        """Standardize the data.
-        The data is standardized using the ``StandardScaler`` from ``sklearn``. The method modifies
-        the :attr:`train` and :attr:`test` attributes.
-        """
-        data_train, data_test = self.train[0], self.test[0]
-        scaler = StandardScaler()
-        scaler.fit(data_train)
-        self.train = (torch.FloatTensor(scaler.transform(data_train)), self.train[1])
-        self.test = (torch.FloatTensor(scaler.transform(data_test)), self.test[1])
+        self.transforms = transforms
 
 
 class FastDataLoader:
@@ -64,12 +56,6 @@ class FastDataLoader:
     A DataLoader-like object for a set of tensors that can be much faster than
     TensorDataset + DataLoader because dataloader grabs individual indices of
     the dataset and calls cat (slow).
-
-    Important:
-        This type of data loader does not support the application of different transformations
-        to the data at each iteration. If you need to apply different transformations to the data
-        at each iteration, you should use the standard PyTorch ``DataLoader``.
-
 
     Note:
         This implementation is based on the following discussion:
@@ -79,6 +65,8 @@ class FastDataLoader:
         *tensors (Sequence[torch.Tensor]): tensors to be loaded.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled.
+        transforms (Optional[callable]): the transformation to be applied to the data. Defaults to
+            None.
         percentage (float): the percentage of the data to be used.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
             layers, you might want to set this to ``True``.
@@ -97,14 +85,14 @@ class FastDataLoader:
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled at each epoch. If ``True``, the data is
             shuffled at each iteration.
+        transforms (callable): the transformation to be applied to the data.
         percentage (float): the percentage of the data to be used. If `1.0`, all the data is used.
-            Otherwise, the data is sampled according to the given percentage. **Note that the
-            sampled data varies at each epoch.**
+            Otherwise, the data is sampled according to the given percentage.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
             layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
         size (int): the size of the dataset according to the percentage of the data to be used.
-        max_size (int): the total size of the dataset.
+        max_size (int): the total size (regardless of the sampling percentage) of the dataset.
 
     Raises:
         AssertionError: if the tensors do not have the same size along the first dimension.
@@ -115,6 +103,7 @@ class FastDataLoader:
                  num_labels: int,
                  batch_size: int = 32,
                  shuffle: bool = False,
+                 transforms: Optional[callable] = None,
                  percentage: float = 1.0,
                  skip_singleton: bool = True,
                  single_batch: bool = False):
@@ -128,6 +117,7 @@ class FastDataLoader:
         self.skip_singleton: bool = skip_singleton
         self.batch_size: int = batch_size if batch_size > 0 else self.size
         self.single_batch: bool = single_batch
+        self.transforms: callable = transforms
         self.__i: int = 0
 
     def __getitem__(self, index: int) -> tuple:
@@ -144,6 +134,9 @@ class FastDataLoader:
         """
         if index >= self.max_size:
             raise IndexError("Index out of bounds.")
+        if self.transforms is not None:
+            return (*[self.transforms(t[index])
+                      for t in self.tensors[:-1]], self.tensors[-1][index])
         return tuple(t[index] for t in self.tensors)
 
     def set_sample_size(self, percentage: float) -> int:
@@ -191,7 +184,13 @@ class FastDataLoader:
             raise StopIteration
         if self.__i >= self.size:
             raise StopIteration
-        batch = tuple(t[self.__i: self.__i+self._batch_size] for t in self.tensors)
+
+        if self.transforms is not None:
+            batch = (*[self.transforms(t[self.__i: self.__i+self._batch_size])
+                       for t in self.tensors[:-1]],
+                     self.tensors[-1][self.__i: self.__i+self._batch_size])
+        else:
+            batch = tuple(t[self.__i: self.__i+self._batch_size] for t in self.tensors)
         # Useful in case of batch norm layers
         if self.skip_singleton and batch[0].shape[0] == 1:
             raise StopIteration
@@ -319,10 +318,10 @@ class DataSplitter:
             batch_size (Optional[int], optional): The batch size. Defaults to 32.
 
         Returns:
-            tuple[tuple[FastDataLoader, Optional[FastDataLoader]],
-                  FastDataLoader]: The clients' training and testing assignments and the
-                  server's testing assignment.
+            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]:
+              The clients' training and testing assignments and the server's testing assignment.
         """
+        tranforms = self.data_container.transforms
         if self.server_test and self.keep_test:
             server_X, server_Y = self.data_container.test
             client_X, client_Y = self.data_container.train
@@ -372,6 +371,7 @@ class DataSplitter:
                                                         num_labels=self.num_classes,
                                                         batch_size=batch_size,
                                                         shuffle=True,
+                                                        transforms=tranforms,
                                                         percentage=self.sampling_perc))
             if assignments_te is not None:
                 Xte_client = client_Xte[assignments_te[c]]
@@ -389,8 +389,7 @@ class DataSplitter:
                                    num_labels=self.num_classes,
                                    batch_size=128,
                                    shuffle=True,
-                                   percentage=self.sampling_perc) if self.server_test \
-            else None
+                                   percentage=self.sampling_perc) if self.server_test else None
         return (client_tr_assignments, client_te_assignments), server_te
 
     def iid(self,

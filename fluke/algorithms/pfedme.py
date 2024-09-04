@@ -7,7 +7,7 @@ References:
 from torch.optim import Optimizer
 from torch.nn import Module
 import torch
-from typing import Callable, Iterable, Optional, Any
+from typing import Iterable, Optional, Any
 from collections import OrderedDict
 from copy import deepcopy
 import sys
@@ -30,7 +30,7 @@ class PFedMeOptimizer(Optimizer):
 
     def step(self,
              local_parameters: list[torch.nn.Parameter],
-             closure: Callable = None) -> Optional[float]:
+             closure: callable = None) -> Optional[float]:
         loss = None
         if closure is not None:
             with torch.enable_grad():

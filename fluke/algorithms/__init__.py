@@ -3,7 +3,7 @@ algorithms."""
 from __future__ import annotations
 import os
 import torch
-from typing import Callable, Union, Any, Iterable
+from typing import Union, Any, Iterable
 from copy import deepcopy
 import warnings
 import sys
@@ -193,11 +193,11 @@ class CentralizedFL():
         """
         self.server = self.get_server_class()(model, data, self.clients, **config)
 
-    def set_callbacks(self, callbacks: Union[Callable, Iterable[Callable]]):
+    def set_callbacks(self, callbacks: Union[callable, Iterable[callable]]):
         """Set the callbacks.
 
         Args:
-            callbacks (Union[Callable, Iterable[Callable]]): Callbacks to attach to the algorithm.
+            callbacks (Union[callable, Iterable[callable]]): Callbacks to attach to the algorithm.
         """
         self.server.attach(callbacks)
         self.server.channel.attach(callbacks)
