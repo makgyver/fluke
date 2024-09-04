@@ -189,7 +189,7 @@ class ClassificationEval(Evaluator):
         }
 
         if loss_fn is not None:
-            result["loss"] = np.round(sum(losses) / len(losses), 5)
+            result["loss"] = np.round(sum(losses) / len(losses), 5).item()
 
         return result
 

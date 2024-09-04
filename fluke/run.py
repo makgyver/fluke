@@ -18,8 +18,7 @@ from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model,
-                    plot_distribution)
+                    get_class_from_qualified_name, get_loss, get_model)  # NOQA
 from .utils.log import get_logger  # NOQA
 
 app = typer.Typer()
@@ -74,8 +73,9 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     for e in range(epochs):
         model.train()
         rich.print(f"Epoch {e+1}")
-        loss = None
-        for _, (X, y) in track(enumerate(train_loader), total=train_loader.n_batches):
+        for _, (X, y) in track(enumerate(train_loader),
+                               total=train_loader.n_batches,
+                               transient=True):
             X, y = X.to(device), y.to(device)
             optimizer.zero_grad()
             y_hat = model(X)
@@ -84,7 +84,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
             optimizer.step()
         scheduler.step()
 
-        epoch_eval = evaluator.evaluate(model, test_loader, criterion)
+        epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
         history.append(epoch_eval)
         rich.print(Panel(Pretty(epoch_eval, expand_all=True), title="Performance"))
         rich.print()
@@ -187,7 +187,6 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
         model.to(device)
         for _ in range(epochs):
             model.train()
-            loss = None
             for _, (X, y) in enumerate(train_loader):
                 X, y = X.to(device), y.to(device)
                 optimizer.zero_grad()
@@ -197,7 +196,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                 optimizer.step()
             scheduler.step()
 
-        client_eval = evaluator.evaluate(model, test_loader, criterion)
+        client_eval = evaluator.evaluate(0, model, test_loader, criterion)
         rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))
         client_evals.append(client_eval)
         model.to("cpu")
