@@ -6,16 +6,18 @@ References:
        In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
 import sys
-from typing import Iterable, Any
+from typing import Any, Iterable
+
 import torch
 from torch import nn
 from torch.nn import functional as F
+
 sys.path.append(".")
 sys.path.append("..")
 
+from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import Client  # NOQA
 from . import CentralizedFL  # NOQA
 
 

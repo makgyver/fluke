@@ -1,24 +1,25 @@
+from typing import Any, Literal
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss  # , CosineSimilarity
-from typing import Literal, Any
 
-from ..client import Client  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
-from ..data import FastDataLoader  # NOQA
-from ..comm import Message  # NOQA
-from ..nets import EncoderHeadNet  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
 from .fedavgm import FedAVGM  # NOQA
 from .fedexp import FedExP  # NOQA
+from .fedlc import FedLC, FedLCClient  # NOQA
+from .fednova import FedNova, FedNovaClient  # NOQA
 from .fedopt import FedOpt  # NOQA
-from .scaffold import SCAFFOLDClient, SCAFFOLD  # NOQA
-from .fedlc import FedLCClient, FedLC  # NOQA
-from .fednova import FedNovaClient, FedNova  # NOQA
-from .fedprox import FedProxClient, FedProx  # NOQA
-from .moon import MOONClient   # NOQA
-from .lg_fedavg import LGFedAVGClient, LGFedAVG  # NOQA
+from .fedprox import FedProx, FedProxClient  # NOQA
+from .lg_fedavg import LGFedAVG, LGFedAVGClient  # NOQA
+from .moon import MOONClient  # NOQA
+from .scaffold import SCAFFOLD, SCAFFOLDClient  # NOQA
 
 
 class LargeMarginLoss(torch.nn.Module):

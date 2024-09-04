@@ -5,16 +5,18 @@ References:
        y Arcas. Communication-efficient learning of deep networks from decentralized data.
        In AISTATS (2017). URL: https://arxiv.org/abs/1602.05629
 """
-import torch
-from typing import Any
 import sys
+from typing import Any
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
-from ..client import Client  # NOQA
 
 
 class ClientSGD(Client):

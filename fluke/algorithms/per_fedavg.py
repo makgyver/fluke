@@ -5,20 +5,21 @@ References:
        Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach.
        In NeurIPS (2020). URL: https://arxiv.org/abs/2002.07948
 """
-from torch.optim import Optimizer
-import torch
-from typing import Union, Any
+import sys
 from collections import OrderedDict
 from copy import deepcopy
-import sys
+from typing import Any, Union
+
+import torch
+from torch.optim import Optimizer
 
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
 
 
 class PerFedAVGOptimizer(Optimizer):

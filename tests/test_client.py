@@ -1,17 +1,19 @@
-import torch
-from torch.nn import Linear, CrossEntropyLoss
-from torch.optim import SGD
-import pytest
 import sys
+
+import pytest
+import torch
+from torch.nn import CrossEntropyLoss, Linear
+from torch.optim import SGD
+
 sys.path.append(".")
 sys.path.append("..")
 
+from fluke import DDict, GlobalSettings  # NOQA
 from fluke.client import Client, PFLClient  # NOQA
-from fluke.server import Server  # NOQA
-from fluke.utils import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
-from fluke import DDict, GlobalSettings  # NOQA
+from fluke.server import Server  # NOQA
+from fluke.utils import OptimizerConfigurator  # NOQA
 
 
 def test_client():

@@ -1,27 +1,28 @@
 """This submodule provides logging utilities."""
-from rich.pretty import Pretty
-from rich.panel import Panel
-import rich
-import wandb
-from torch.utils.tensorboard import SummaryWriter
-from clearml import Task
-import psutil
-import pandas as pd
-import numpy as np
 import json
-import time
 import os
-from torch.nn import Module
-from typing import Literal, Union, Any
-
 import sys
+import time
+from typing import Any, Literal, Union
+
+import numpy as np
+import pandas as pd
+import psutil
+import rich
+from clearml import Task
+from rich.panel import Panel
+from rich.pretty import Pretty
+from torch.nn import Module
+from torch.utils.tensorboard import SummaryWriter
+
+import wandb
+
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
-from . import ServerObserver, ClientObserver, get_class_from_str  # NOQA
-
+from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
 wandb.require("core")
 

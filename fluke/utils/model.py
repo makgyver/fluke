@@ -1,14 +1,16 @@
 """This submodule provides utilities for pytorch model manipulation."""
+import sys
+from collections import OrderedDict
+from copy import deepcopy
+from functools import partial
+from typing import Any
+
+import numpy as np
+import torch
+from torch import nn
 from torch.nn import Module
 from torch.nn import functional as F
-from torch import nn
-import torch
-from typing import Any
-from copy import deepcopy
-from collections import OrderedDict
-from functools import partial
-import numpy as np
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 

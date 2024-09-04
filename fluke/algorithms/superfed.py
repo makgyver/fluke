@@ -4,22 +4,24 @@ References:
     .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace
        for Personalized Federated Learning. In KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
-from torch.nn.modules import Module
-import numpy as np
-from typing import Any
-from copy import deepcopy
 import sys
+from copy import deepcopy
+from typing import Any
+
+import numpy as np
+from torch.nn.modules import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import (get_global_model_dict,  # NOQA
-                           get_local_model_dict,  # NOQA
-                           mix_networks,  # NOQA
-                           set_lambda_model)  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import get_global_model_dict  # NOQA
+from ..utils.model import get_local_model_dict  # NOQA
+from ..utils.model import mix_networks  # NOQA
+from ..utils.model import set_lambda_model  # NOQA
 
 
 class SuPerFedClient(PFLClient):

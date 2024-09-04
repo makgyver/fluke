@@ -5,16 +5,18 @@ References:
        Softmax for Label Distribution Non-IID Data. In KDD (2021).
        URL: https://doi.org/10.1145/3447548.3467254
 """
-import torch
-import numpy as np
-from typing import Any
 import sys
+from typing import Any
+
+import numpy as np
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator  # NOQA
 from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 

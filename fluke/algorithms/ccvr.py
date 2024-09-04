@@ -5,20 +5,20 @@ References:
        Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. In NeurIPS
        (2021). URL: https://arxiv.org/abs/2106.05001
 """
-import torch
-import numpy as np
 import sys
-from typing import Iterable, Any
+from typing import Any, Iterable
 
+import numpy as np
+import torch
 from torch.nn.modules import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
-from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
 
 

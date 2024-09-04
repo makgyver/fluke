@@ -5,20 +5,22 @@ References:
        Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization.
        In NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
 """
-import torch
-from typing import Iterable, Any
-from copy import deepcopy
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import Client  # NOQA
-from ..algorithms import CentralizedFL  # NOQA
-from ..comm import Message  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 
 class FedNovaClient(Client):

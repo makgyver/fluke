@@ -5,24 +5,25 @@ References:
        Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. In AAAI (2022).
        URL: https://arxiv.org/abs/2105.00243
 """
-import torch
-from torch.nn import Module
-from typing import Iterable, Any
+import sys
 from collections import defaultdict
 from copy import deepcopy
-import sys
+from typing import Any, Iterable
+
+import torch
+from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
-from ..evaluation import Evaluator  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
-from ..server import Server  # NOQA
-from ..nets import EncoderHeadNet  # NOQA
-from . import PersonalizedFL  # NOQA
 from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..evaluation import Evaluator  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from . import PersonalizedFL  # NOQA
 
 
 class FedProtoModel(Module):

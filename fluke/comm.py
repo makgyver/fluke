@@ -1,12 +1,15 @@
 """This module contains the classes for the communication between the clients and the server."""
 from __future__ import annotations
-from collections import defaultdict
-from typing import Any, Optional
+
 import sys
+import warnings
+from collections import defaultdict
 from copy import deepcopy
+from typing import Any, Optional
+
 import numpy as np
 import torch
-import warnings
+
 sys.path.append(".")
 
 from . import ObserverSubject  # NOQA

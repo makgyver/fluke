@@ -2,22 +2,25 @@
 The module ``fluke.client`` provides the base classes for the clients in ``fluke``.
 """
 from __future__ import annotations
+
+import sys
+from typing import Any, Literal
+
 import torch
 from torch import device
 from torch.nn import Module
-from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
-from typing import Literal, Any
-import sys
+from torch.optim.lr_scheduler import LRScheduler
+
 sys.path.append(".")
 
-from . import GlobalSettings, DDict, ObserverSubject  # NOQA
-from .evaluation import Evaluator  # NOQA
+from . import DDict, GlobalSettings, ObserverSubject  # NOQA
+from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
+from .evaluation import Evaluator  # NOQA
+from .server import Server  # NOQA
 from .utils import OptimizerConfigurator, clear_cache  # NOQA
 from .utils.model import safe_load_state_dict  # NOQA
-from .comm import Channel, Message  # NOQA
-from .server import Server  # NOQA
 
 
 class Client(ObserverSubject):

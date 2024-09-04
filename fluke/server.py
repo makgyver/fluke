@@ -2,21 +2,22 @@
 The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
 """
 from __future__ import annotations
-from rich.progress import track
-import numpy as np
-from typing import Any, Iterable, Union
+
 from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Iterable, Union
+
+import numpy as np
 import torch
+from rich.progress import track
 from torch import device
 from torch.nn import Module
 
-from .evaluation import Evaluator  # NOQA
+from . import DDict, GlobalSettings, ObserverSubject  # NOQA
 from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
+from .evaluation import Evaluator  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-from . import GlobalSettings, ObserverSubject, DDict  # NOQA
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .client import Client
 

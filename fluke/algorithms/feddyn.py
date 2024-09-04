@@ -5,23 +5,26 @@ References:
        and Venkatesh Saligrama. Federated Learning with Dynamic Regularization.
        In ICLR (2021). URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
 """
-from torch.nn import Module
-import numpy as np
-import torch
-from typing import Iterable, Any
+import sys
 from collections import OrderedDict
 from copy import deepcopy
-import sys
+from typing import Any, Iterable
+
+import numpy as np
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..data import FastDataLoader  # NOQA
-from ..client import Client  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
-from ..server import Server  # NOQA
-from ..comm import Message  # NOQA
 from .. import GlobalSettings  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
+                           safe_load_state_dict)
 from . import CentralizedFL  # NOQA
 
 

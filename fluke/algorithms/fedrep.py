@@ -5,20 +5,22 @@ References:
        Exploiting shared representations for personalized federated learning. In ICML (2021).
        URL: https://arxiv.org/abs/2102.07078
 """
-import torch
-from typing import Iterable, Any
 import sys
+from typing import Any, Iterable
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..server import Server  # NOQA
-from ..client import PFLClient  # NOQA
-from ..data import FastDataLoader  # NOQA
-from ..comm import Message  # NOQA
-from ..nets import EncoderHeadNet, EncoderGlobalHeadLocalNet  # NOQA
 
 
 # https://arxiv.org/abs/2102.07078

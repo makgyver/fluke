@@ -5,21 +5,23 @@ References:
        Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In AAAI (2021).
        URL: https://arxiv.org/abs/2007.03797
 """
-from torch.nn import Module
-import torch
-from typing import Iterable, Any
-from copy import deepcopy
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import PFLClient  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..comm import Message  # NOQA
 
 
 class FedAMPClient(PFLClient):

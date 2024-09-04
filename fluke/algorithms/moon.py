@@ -4,19 +4,21 @@ References:
     .. [Moon21] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
        In CVPR (2021). URL: https://arxiv.org/abs/2103.16257
 """
-from torch.nn import CosineSimilarity
-import torch
+import sys
 from copy import deepcopy
 from typing import Any
-import sys
+
+import torch
+from torch.nn import CosineSimilarity
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 
 
 class MOONClient(Client):

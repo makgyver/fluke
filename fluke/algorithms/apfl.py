@@ -4,20 +4,22 @@ References:
     .. [APFL20] Yuyang Deng, Mohammad Mahdi Kamani, and Mehrdad Mahdavi. Adaptive Personalized
        Federated Learning. In arXiv (2020). URL: https://arxiv.org/abs/2003.13461
 """
-from copy import deepcopy
-from torch.nn import Module
-import torch
-from typing import Iterable, Any
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils.model import merge_models  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client, PFLClient  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import merge_models  # NOQA
 
 
 # https://arxiv.org/pdf/2012.04221.pdf

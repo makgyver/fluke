@@ -1,10 +1,12 @@
-import torch
 import sys
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from fluke.data import FastDataLoader  # NOQA
-from fluke.evaluation import Evaluator, ClassificationEval  # NOQA
+from fluke.evaluation import ClassificationEval, Evaluator  # NOQA
 
 
 def test_classification_eval():

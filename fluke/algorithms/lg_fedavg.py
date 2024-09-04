@@ -6,21 +6,23 @@ References:
        Federated Learning with Local and Global Representations. In arXiv (2020).
        URL: https://arxiv.org/abs/2001.01523
 """
+import sys
+from typing import Any, Iterable
+
 # from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
-from typing import Iterable, Any
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
+from ..algorithms import PersonalizedFL  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..nets import EncoderHeadNet, HeadGlobalEncoderLocalNet  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
-from ..client import PFLClient  # NOQA
-from ..algorithms import PersonalizedFL  # NOQA
-from ..server import Server  # NOQA
-from ..comm import Message  # NOQA
-from ..nets import EncoderHeadNet, HeadGlobalEncoderLocalNet  # NOQA
 
 
 # The implementation is almost identical to FedPerClient

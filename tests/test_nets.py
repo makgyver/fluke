@@ -1,6 +1,9 @@
 from __future__ import annotations
-import torch
+
 import sys
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -11,11 +14,12 @@ sys.path.append("..")
 # 'EncoderGlobalHeadLocalNet',
 
 
-from fluke.nets import (MNIST_2NN, MNIST_LR, MNIST_CNN, FEMNIST_CNN,  # NOQA
-                           VGG9, FedavgCNN, LeNet5, MoonCNN, CifarConv2,  # NOQA
-                           ResNet9, ResNet18, ResNet34, ResNet50, Shakespeare_LSTM,  # NOQA
-                           FedBN_CNN, ResNet18GN, HeadGlobalEncoderLocalNet,  # NOQA
-                           EncoderGlobalHeadLocalNet)  # NOQA
+from fluke.nets import EncoderGlobalHeadLocalNet  # NOQA
+from fluke.nets import (FEMNIST_CNN, MNIST_2NN, MNIST_CNN, MNIST_LR,  # NOQA
+                        VGG9, CifarConv2, FedavgCNN, FedBN_CNN,
+                        HeadGlobalEncoderLocalNet, LeNet5, MoonCNN, ResNet9,
+                        ResNet18, ResNet18GN, ResNet34, ResNet50,
+                        Shakespeare_LSTM)
 
 
 def test_mnist_2nn():

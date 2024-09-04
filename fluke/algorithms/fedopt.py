@@ -5,17 +5,19 @@ References:
        Jakub Konečný, Sanjiv Kumar, H. Brendan McMahan. Adaptive Federated Optimization.
        In ICLR (2021). URL: https://openreview.net/pdf?id=LkFG3lB13U5
 """
-from torch.nn import Module
-import torch
+import sys
 from collections import OrderedDict
 from typing import Iterable
-import sys
+
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 

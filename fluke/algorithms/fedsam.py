@@ -5,16 +5,18 @@ References:
        Learning by Seeking Flat Minima. In ECCV (2022).
        URL: https://arxiv.org/abs/2203.11834
 """
+import sys
+from typing import Any, Iterable, Union
+
 import torch
 from torch.optim import Optimizer
-from typing import Union, Iterable, Any
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 # This implementation is based on

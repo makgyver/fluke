@@ -1,12 +1,14 @@
 """This module contains the definition of the evaluation classes used to perform the evaluation
 of the model client-side and server-side."""
-from torchmetrics import Accuracy, Precision, Recall, F1Score
-from torch.nn import Module
-import torch
-import numpy as np
-from typing import Optional, Union, Iterable, Any
-from abc import ABC, abstractmethod
 import sys
+from abc import ABC, abstractmethod
+from typing import Any, Iterable, Optional, Union
+
+import numpy as np
+import torch
+from torch.nn import Module
+from torchmetrics import Accuracy, F1Score, Precision, Recall
+
 sys.path.append(".")
 sys.path.append("..")
 

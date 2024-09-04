@@ -1,14 +1,18 @@
 from __future__ import annotations
-import torch
-import pytest
-from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, ToTensor, Normalize
+
 import sys
+
+import pytest
+import torch
+from torchvision.transforms import (Compose, Normalize, RandomCrop,
+                                    RandomHorizontalFlip, ToTensor)
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data.datasets import Datasets  # NOQA
-from fluke.data.support import MNISTM, CINIC10  # NOQA
 from fluke.data import DataSplitter  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
+from fluke.data.support import CINIC10, MNISTM  # NOQA
 
 
 # ### MNIST

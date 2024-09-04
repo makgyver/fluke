@@ -7,21 +7,24 @@ References:
 
 """
 import sys
-import numpy as np
 from copy import deepcopy
+from typing import Any
+
+import numpy as np
 import torch
 from torch import nn
+
 from fluke.client import Client
-from typing import Any
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..nets import EncoderHeadNet  # NOQA
+from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..nets import EncoderHeadNet  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
-from ..client import Client  # NOQA
 
 
 class FedALAClient(Client):

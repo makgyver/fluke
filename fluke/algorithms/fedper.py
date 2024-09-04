@@ -5,21 +5,23 @@ References:
        Sunav Choudhary. Federated learning with personalization layers.
        In arXiv (2019). URL:https://arxiv.org/abs/1912.00818
 """
-from typing import Iterable, Any
-from copy import deepcopy
-import torch
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
-from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
-from ..nets import EncoderHeadNet, EncoderGlobalHeadLocalNet  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 
 
 # https://arxiv.org/abs/1912.00818
