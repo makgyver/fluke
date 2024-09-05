@@ -68,7 +68,10 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
     epochs = epochs if epochs > 0 else int(
         max(1, cfg.protocol.n_rounds * cfg.protocol.eligible_perc))
 
-    rich.print(f"Centralized Learning [ #Epochs = {epochs} ]\n")
+    exp_name = f"Centralized_{cfg.data.dataset.name}_E{epochs}_S{cfg.exp.seed}"
+    log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
+    log.init(**cfg)
+    log.log(f"Centralized Learning [ #Epochs = {epochs} ]\n")
 
     for e in range(epochs):
         model.train()
@@ -86,7 +89,10 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
         epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
         history.append(epoch_eval)
-        rich.print(Panel(Pretty(epoch_eval, expand_all=True), title="Performance"))
+        # rich.print(Panel(Pretty(epoch_eval, expand_all=True), title="Performance"))
+        for k, v in epoch_eval.items():
+            log.add_scalar(k, v, e+1)
+        log.pretty_log(epoch_eval, title=f"Performance [Epoch {e+1}]")
         rich.print()
     model.to("cpu")
 
@@ -175,8 +181,14 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
     progress = track(enumerate(zip(clients_tr_data, clients_te_data)),
                      total=len(clients_tr_data),
                      description="Clients training...")
+    exp_name = "Clients-only_" + "_".join(str(cfg).split("_")[1:])
+    log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
+    log.init(**cfg)
+
+    running_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in progress:
-        rich.print(f"Client [{i}/{cfg.protocol.n_clients}]")
+        # rich.print(f"Client [{i}/{cfg.protocol.n_clients}]")
+        log.log(f"Client [{i}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
         hp.client.optimizer.name = torch.optim.SGD
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
@@ -185,7 +197,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
         evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                        n_classes=data_container.num_classes)
         model.to(device)
-        for _ in range(epochs):
+        for e in range(epochs):
             model.train()
             for _, (X, y) in enumerate(train_loader):
                 X, y = X.to(device), y.to(device)
@@ -196,15 +208,23 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                 optimizer.step()
             scheduler.step()
 
-        client_eval = evaluator.evaluate(0, model, test_loader, criterion)
-        rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))
+            client_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
+            # log.add_scalars(f"Client[{i}]", client_eval, e+1)
+            running_evals[i].append(client_eval)
+        # rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))
+        log.pretty_log(client_eval, title=f"Client [{i}] Performance")
         client_evals.append(client_eval)
         model.to("cpu")
 
+    for e in range(epochs):
+        for c in running_evals:
+            log.add_scalars(f"Client[{c}]", running_evals[c][e], e+1)
+
     client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
     client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
-    rich.print(Panel(Pretty(client_mean, expand_all=True),
-                     title="Overall local performance"))
+    # rich.print(Panel(Pretty(client_mean, expand_all=True),
+    #                  title="Overall local performance"))
+    log.pretty_log(client_mean, title="Overall local performance")
 
 
 @app.callback()

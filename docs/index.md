@@ -67,6 +67,7 @@ Check out the tutorials to get acquainted with **``fluke``**.
 
     install
     first_run
+    examples/run
     configuration
     add_algorithm
     tutorials

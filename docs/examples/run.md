@@ -50,8 +50,13 @@ Since the learning is centralized, some of the parameters in the configuration f
 To run a the federated learning algorithm, use the following command:
 
 ```bash
-fluke --config <EXP_CONFIG_FILE> federation <ALG_CONFIG_FILE>
+fluke --config <EXP_CONFIG_FILE> federation <ALG_CONFIG_FILE> [OPTIONS]
 ```
+
+where `[OPTIONS]` are the following:
+- `--save=<PATH>`: `<PATH>` must be the path to a directory where the state of the experiment will be saved. If not specified, the state is not saved.
+- `--resume=<PATH>`: `<PATH>` must be the path to a directory where the state of a previous experiment is saved. If specified, the experiment will resume from the saved state. If not specified, the experiment starts from scratch.
+- `--seed=<SEED>`: `<SEED>` is the seed for the random number generator, it overrides the seed in the configuration file. If not specified, the seed in the configuration file is used.
 
 ### Clients only
 

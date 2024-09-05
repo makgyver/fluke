@@ -64,6 +64,43 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         self.comm_costs: dict = {0: 0}
         self.current_round: int = 0
 
+    def log(self, message: str) -> None:
+        """Log a message.
+
+        Args:
+            message (str): The message to log.
+        """
+        rich.print(message)
+
+    def add_scalar(self, key: Any, value: float, round: int) -> None:
+        """Add a scalar to the logger.
+
+        Args:
+            key (Any): The key of the scalar.
+            value (float): The value of the scalar.
+            round (int): The round.
+        """
+        pass
+
+    def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
+        """Add scalars to the logger.
+
+        Args:
+            key (Any): The main key of the scalars.
+            values (dict[str, float]): The key-value pairs of the scalars.
+            round (int): The round.
+        """
+        pass
+
+    def pretty_log(self, data: Any, title: str) -> None:
+        """Log a pretty-printed data.
+
+        Args:
+            data (Any): The data to log.
+            title (str): The title of the data.
+        """
+        rich.print(Panel(Pretty(data, expand_all=True), title=title))
+
     def init(self, **kwargs: dict[str, Any]) -> None:
         """Initialize the logger.
         The initialization is done by printing the configuration in the console.
@@ -217,6 +254,12 @@ class TensorboardLog(Log):
             ts_config.log_dir = f"./runs/{exp_name}" + "_" + time.strftime("%Y%m%dh%H%M%S")
         self._writer = SummaryWriter(**ts_config)
 
+    def add_scalar(self, key: Any, value: float, round: int) -> None:
+        return self._writer.add_scalars(key, value, round)
+
+    def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
+        return self._writer.add_scalars(key, values, round)
+
     def start_round(self, round: int, global_model: Module) -> None:
         super().start_round(round, global_model)
         if round == 1 and self.comm_costs[0] > 0:
@@ -281,6 +324,12 @@ class WandBLog(Log):
         super().init(**kwargs)
         self.config["config"] = kwargs
         self.run = wandb.init(**self.config)
+
+    def add_scalar(self, key: Any, value: float, round: int) -> None:
+        return self.run.log({key: value}, step=round)
+
+    def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
+        return self.run.log({f"{key}/{k}": v for k, v in values.items()}, step=round)
 
     def start_round(self, round: int, global_model: Module) -> None:
         super().start_round(round, global_model)
