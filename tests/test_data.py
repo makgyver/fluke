@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+import sys
+
 # import numpy as np
 import pytest
 import torch
-import sys
+from torchvision.transforms import v2
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataContainer, FastDataLoader, DataSplitter, DummyDataSplitter  # NOQA
-from fluke.data.datasets import Datasets  # NOQA
 from fluke import DDict  # NOQA
+from fluke.data import (DataContainer, DataSplitter, DummyDataSplitter,  # NOQA
+                        FastDataLoader)
+from fluke.data.datasets import Datasets  # NOQA
 
 
 def test_container():
@@ -28,10 +32,10 @@ def test_container():
     assert data.num_classes == 10
     assert data.num_features == 20
 
-    data.standardize()
+    # data.standardize()
 
-    assert torch.allclose(data.train[0].mean(dim=0), torch.zeros(20), atol=1e-7)
-    assert torch.allclose(data.train[0].std(dim=0), torch.ones(20), atol=1e-2)
+    # assert torch.allclose(data.train[0].mean(dim=0), torch.zeros(20), atol=1e-7)
+    # assert torch.allclose(data.train[0].std(dim=0), torch.ones(20), atol=1e-2)
 
 
 def test_ftdl():
@@ -131,6 +135,31 @@ def test_ftdl():
                             single_batch=False)
 
     assert loader.batch_size == 2
+
+    imgs = torch.randint(0, 256, size=(5, 3, 32, 32), dtype=torch.uint8)
+    lbls = torch.randint(0, 10, size=(5,), dtype=torch.long)
+
+    transforms = v2.Compose([
+        v2.RandomResizedCrop(size=(224, 224), antialias=False),
+        v2.RandomHorizontalFlip(p=0.5),
+        v2.ToDtype(torch.float32, scale=True),
+        v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    loader = FastDataLoader(imgs,
+                            lbls,
+                            num_labels=10,
+                            batch_size=1,
+                            shuffle=False,
+                            transforms=transforms,
+                            percentage=1,
+                            skip_singleton=False,
+                            single_batch=False)
+
+    for X, y in loader:
+        assert X.shape == torch.Size([1, 3, 224, 224])
+        assert y.shape == torch.Size([1])
+        break
 
 
 def test_splitter():

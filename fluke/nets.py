@@ -2,19 +2,20 @@
 This module contains the definition of several neural networks used in state-of-the-art
 federated learning papers.
 """
-from abc import abstractmethod
 import string
+import sys
+from abc import abstractmethod
+
 import torch
 import torch.nn as nn
 from torch.functional import F
-from torchvision.models import resnet50, resnet18, resnet34
+from torchvision.models import resnet18, resnet34, resnet50
 
-import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from .utils.model import batch_norm_to_group_norm  # NOQA
 from . import GlobalSettings  # NOQA
+from .utils.model import batch_norm_to_group_norm  # NOQA
 
 __all__ = [
     'EncoderHeadNet',
@@ -55,12 +56,12 @@ __all__ = [
     'LeNet5',
     'Shakespeare_LSTM_E',
     'Shakespeare_LSTM_D',
-    'Shakespeare_LSTM',
+    'Shakespeare_LSTM'
 ]
 
 
 class EncoderHeadNet(nn.Module):
-    """Encoder (aka backbone) + Head Network [Base Class]
+    r"""Encoder (aka backbone) + Head Network [Base Class]
     This type of networks are defined as two subnetworks, where one is meant to be the
     encoder/backbone network that learns a latent representation of the input, and the head network
     that is the classifier part of the model. The forward method should work as usual (i.e.,
@@ -75,7 +76,7 @@ class EncoderHeadNet(nn.Module):
     Args:
         encoder (nn.Module): Encoder subnetwork.
         head (nn.Module): Head subnetwork.
-    """  # noqa: W605
+    """
 
     def __init__(self, encoder: nn.Module, head: nn.Module):
         super(EncoderHeadNet, self).__init__()
@@ -231,10 +232,10 @@ class MNIST_2NN_E(nn.Module):
     """
 
     def __init__(self,
-                 hidden_size: tuple[int, int] = (200, 200)):
+                 hidden_size: tuple[int, int] = (200, 100)):
         super(MNIST_2NN_E, self).__init__()
         self.input_size = 28*28
-        self.output_size = 200
+        self.output_size = hidden_size[1]
 
         self.fc1 = nn.Linear(28*28, hidden_size[0])
         self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
@@ -260,7 +261,7 @@ class MNIST_2NN_D(nn.Module):
     """
 
     def __init__(self,
-                 hidden_size: int = 200,
+                 hidden_size: int = 100,
                  use_softmax: bool = False):
         super(MNIST_2NN_D, self).__init__()
         self.output_size = 10
@@ -271,6 +272,7 @@ class MNIST_2NN_D(nn.Module):
         if self.use_softmax:
             return F.softmax(self.fc3(x), dim=1)
         else:
+            # return torch.sigmoid(self.fc3(x))
             return self.fc3(x)
 
 
@@ -301,17 +303,17 @@ class MNIST_2NN(EncoderHeadNet):
     References:
         .. [FedAvg] H. Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, Blaise Aguera y
             Arcas. "Communication-Efficient Learning of Deep Networks from Decentralized Data".
-            In: AISTATS (2017).
+            In AISTATS (2017).
         .. [SuPerFed] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace for
-            Personalized Federated Learning. In: KDD (2022).
+            Personalized Federated Learning. In KDD (2022).
         .. [pFedMe] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
-            Learning with Moreau Envelopes. In: NeurIPS (2020).
+            Learning with Moreau Envelopes. In NeurIPS (2020).
         .. [FedDyn] S. Wang, T. Liu, and M. Hong. "FedDyn: A Dynamic Federated Learning Framework".
-            In: ICLR (2021).
+            In ICLR (2021).
     """
 
     def __init__(self,
-                 hidden_size: tuple[int, int] = (200, 200),
+                 hidden_size: tuple[int, int] = (200, 100),
                  softmax: bool = False):
         super(MNIST_2NN, self).__init__(
             MNIST_2NN_E(hidden_size),
@@ -453,7 +455,7 @@ class FedBN_CNN(EncoderHeadNet):
 
     References:
         .. [FedBN] Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN:
-            Federated Learning on Non-IID Features via Local Batch Normalization. In: ICLR (2021).
+            Federated Learning on Non-IID Features via Local Batch Normalization. In ICLR (2021).
     """
 
     def __init__(self, channels: int = 1):
@@ -464,29 +466,28 @@ class FedBN_CNN(EncoderHeadNet):
 class CifarConv2_E(nn.Module):
     """Encoder for the :class:`CifarConv2` network.
 
-    Args:
-        output_size (int, optional): Size of the output, i.e., the embedding size. Defaults to 100.
-
     See Also:
         - :class:`CifarConv2`
         - :class:`CifarConv2_D`
     """
 
-    def __init__(self, output_size=100):
+    def __init__(self):  # , output_size: int = 1600):
         super().__init__()
-        self.output_size = output_size
+        self.output_size = 1600
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
+        self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
+        self.bn2 = nn.BatchNorm2d(64)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.linear1 = nn.Linear(64 * 5 * 5, 384)
-        self.linear2 = nn.Linear(384, self.output_size)
+        # self.linear1 = nn.Linear(64 * 5 * 5, 512)
+        # self.linear2 = nn.Linear(512, self.output_size)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
         x = x.view(-1, 64 * 5 * 5)
-        x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
+        # x = F.relu(self.linear1(x))
+        # x = F.relu(self.linear2(x))
         return x
 
 
@@ -502,14 +503,18 @@ class CifarConv2_D(nn.Module):
         - :class:`CifarConv2_E`
     """
 
-    def __init__(self, input_size=100, num_classes=10):
+    def __init__(self):
         super().__init__()
-        self.input_size = input_size
-        self.output_size = num_classes
-        self.linear3 = nn.Linear(self.input_size, self.output_size, bias=False)
+        self.input_size = 1600
+        self.output_size = 10
+        # self.linear2 = nn.Linear(self.input_size, self.output_size, bias=False)
+        self.linear1 = nn.Linear(self.input_size, 512)
+        self.linear2 = nn.Linear(512, self.output_size)
+        self.bn3 = nn.BatchNorm1d(512)
 
     def forward(self, x):
-        logits = self.linear3(x)
+        x = F.relu(self.bn3(self.linear1(x)))
+        logits = self.linear2(x)
         return logits
 
 
@@ -532,13 +537,11 @@ class CifarConv2(EncoderHeadNet):
     References:
         .. [FedNH] Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu.
             Tackling Data Heterogeneity in Federated Learning with Class Prototypes.
-            In: AAAI (2023).
+            In AAAI (2023).
     """
 
-    def __init__(self, embedding_size=100, num_classes=10):
-        super().__init__(CifarConv2_E(embedding_size),
-                         CifarConv2_D(input_size=embedding_size,
-                                      num_classes=num_classes))
+    def __init__(self):
+        super().__init__(CifarConv2_E(), CifarConv2_D())
 
 
 # FedProx: https://openreview.net/pdf?id=SkgwE5Ss3N (MNIST and FEMNIST)
@@ -553,7 +556,7 @@ class MNIST_LR(nn.Module):
     References:
         .. [FedProx] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and
             Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
-            Learning Workshop. In: Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
+            Learning Workshop. In Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
     """
 
     def __init__(self, num_classes: int = 10):
@@ -738,7 +741,7 @@ class FEMNIST_CNN(EncoderHeadNet):
 
     References:
         .. [DITTO] Tian Li, Shengyuan Hu, Ahmad Beirami, and Virginia Smith. Ditto: Fair and Robust
-            Federated Learning Through Personalization. In: ICML (2021).
+            Federated Learning Through Personalization. In ICML (2021).
     """
 
     def __init__(self):
@@ -1064,11 +1067,11 @@ class LeNet5(EncoderHeadNet):
 
     References:
         .. [FedRep] Liam Collins, Hamed Hassani, Aryan Mokhtari, and Sanjay Shakkottai.
-            Exploiting shared representations for personalized federated learning. In: ICML (2021).
+            Exploiting shared representations for personalized federated learning. In ICML (2021).
         .. [LG-FedAvg] Paul Pu Liang, Terrance Liu, Liu Ziyin, Nicholas B. Allen, Randy P. Auerbach,
             David Brent, Ruslan Salakhutdinov, Louis-Philippe Morency. Think Locally, Act Globally:
             Federated Learning with Local and Global Representations.
-            In: arXiv https://arxiv.org/abs/2001.01523 (2020).
+            In arXiv https://arxiv.org/abs/2001.01523 (2020).
     """
 
     def __init__(self, output_size=100):
@@ -1202,61 +1205,8 @@ class MoonCNN(EncoderHeadNet):
 
     References:
         .. [MOON] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
-            In: CVPR (2021).
+            In CVPR (2021).
     """
 
     def __init__(self):
         super(MoonCNN, self).__init__(MoonCNN_E(), MoonCNN_D())
-
-
-# class SimpleCNN_E(nn.Module):
-#     # Expected input size: 32x32x3
-#     def __init__(self, hidden_dims=(100, 100), output_dim=10):
-#         super(SimpleCNN_E, self).__init__()
-#         self.output_size = 400
-#         self.conv1 = nn.Conv2d(3, 6, 5)
-#         self.pool = nn.MaxPool2d(2, 2)
-#         self.conv2 = nn.Conv2d(6, 16, 5)
-
-#     def forward(self, x) -> torch.Tensor:
-#         x = self.pool(F.relu(self.conv1(x)))
-#         x = self.pool(F.relu(self.conv2(x)))
-#         x = x.view(-1, 16 * 5 * 5)
-#         return x
-
-
-# class SimpleCNN_D(nn.Module):
-#     def __init__(self, hidden_dims=(100, 100), output_dim=10):
-#         super(SimpleCNN_D, self).__init__()
-#         self.output_size = output_dim
-#         self.fc1 = nn.Linear(16*5*5, hidden_dims[0])
-#         self.fc2 = nn.Linear(hidden_dims[0], hidden_dims[1])
-#         self.fc3 = nn.Linear(hidden_dims[1], output_dim)
-
-#     def forward(self, x) -> torch.Tensor:
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
-
-
-# class SimpleCNN(EncoderHeadNet):
-#     def __init__(self, hidden_dims=(100, 100), output_dim=10):
-#         super(SimpleCNN, self).__init__(SimpleCNN_E(), SimpleCNN_D(hidden_dims, output_dim))
-
-
-# FedPer: https://arxiv.org/pdf/1912.00818.pdf (FEMNIST - meant to be used by FedPer)
-# class FedPer_VGG9(EncoderGlobalHeadLocalNet, VGG9):
-#     pass
-
-
-# class LG_FedAvg_VGG9(HeadGlobalEncoderLocalNet, VGG9):
-#     pass
-
-
-# class MNIST_2NN_GlobalD(HeadGlobalEncoderLocalNet, MNIST_2NN):
-#     pass
-
-
-# class MNIST_2NN_GlobalE(EncoderGlobalHeadLocalNet, MNIST_2NN):
-#     pass

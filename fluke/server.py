@@ -2,23 +2,31 @@
 The module ``fluke.server`` provides the base classes for the servers in ``fluke``.
 """
 from __future__ import annotations
-from rich.progress import track, open as openprg
-import numpy as np
-from typing import Any, Iterable
+
 from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Iterable, Union
+
+import numpy as np
 import torch
+from rich.progress import track
 from torch import device
 from torch.nn import Module
 
-from .evaluation import ClassificationEval  # NOQA
+from . import DDict, GlobalSettings, ObserverSubject  # NOQA
 from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
+from .evaluation import Evaluator  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
-from . import GlobalSettings, ObserverSubject, DDict  # NOQA
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .client import Client
+
+
+__all__ = [
+    "Server"
+]
+
+torch.serialization.add_safe_globals([set])
 
 
 class Server(ObserverSubject):
@@ -44,14 +52,16 @@ class Server(ObserverSubject):
         clients (Iterable[Client]): The clients that will participate in the federated learning
           process.
         rounds (int): The number of rounds that have been executed.
-        test_data (FastDataLoader): The test data to evaluate the model. If None, the model
+        test_set (FastDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
+        evaluator (Evaluator): The evaluator to compute the evaluation metrics.
 
     Args:
         model (torch.nn.Module): The federated model to be trained.
-        test_data (FastDataLoader): The test data to evaluate the model.
+        test_set (FastDataLoader): The test data to evaluate the model.
         clients (Iterable[Client]): The clients that will participate in the federated learning
           process.
+        evaluator (Evaluator): The evaluator to compute the evaluation metrics.
         eval_every (int): The number of rounds between evaluations. Defaults to 1.
         weighted (bool): A boolean indicating if the clients should be weighted by the
           number of samples when aggregating the models. Defaults to False.
@@ -59,9 +69,8 @@ class Server(ObserverSubject):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False):
         super().__init__()
         self.hyper_params = DDict(
@@ -73,8 +82,7 @@ class Server(ObserverSubject):
         self._channel: Channel = Channel()
         self.n_clients: int = len(clients)
         self.rounds: int = 0
-        self.test_data: FastDataLoader = test_data
-        self._eval_every: int = eval_every
+        self.test_set: FastDataLoader = test_set
         self._participants: set[int] = set()
 
         for client in self.clients:
@@ -100,7 +108,7 @@ class Server(ObserverSubject):
         Returns:
             bool: True if the server can evaluate the model, False otherwise.
         """
-        return self.test_data is not None
+        return self.test_set is not None
 
     @property
     def has_model(self) -> bool:
@@ -117,13 +125,13 @@ class Server(ObserverSubject):
         Args:
             eligible (Iterable[Client]): The clients that will receive the global model.
         """
-        self._channel.broadcast(Message(self.model, "model", self), eligible)
+        self.channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self,
             n_rounds: int = 10,
             eligible_perc: float = 0.1,
             finalize: bool = True,
-            **kwargs) -> None:
+            **kwargs: dict[str, Any]) -> None:
         """Run the federated learning algorithm.
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to
@@ -153,21 +161,15 @@ class Server(ObserverSubject):
                 eligible = self.get_eligible_clients(eligible_perc)
                 self._notify_selected_clients(round + 1, eligible)
                 self.broadcast_model(eligible)
+
                 for c, client in enumerate(eligible):
-                    client.fit()
+                    client.local_update(round + 1)
                     progress_client.update(task_id=task_local, completed=c+1)
                     progress_fl.update(task_id=task_rounds, advance=1)
+
                 self.aggregate(eligible)
-
-                client_evals, evals = [], {}
-                if (round + 1) % self._eval_every == 0:
-                    for client in eligible:
-                        client_eval = client.evaluate()
-                        if client_eval:
-                            client_evals.append(client_eval)
-                    evals = self.evaluate()
-
-                self._notify_end_round(round + 1, evals, client_evals)
+                self._compute_evaluation(round, eligible)
+                self._notify_end_round(round + 1)
                 self.rounds += 1
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
@@ -175,23 +177,28 @@ class Server(ObserverSubject):
         if finalize:
             self.finalize()
 
-    def evaluate(self) -> dict[str, float]:
+    def _compute_evaluation(self, round: int, eligible: Iterable[Client]) -> None:
+        evaluator = GlobalSettings().get_evaluator()
+
+        if GlobalSettings().get_eval_cfg().locals:
+            client_evals = {client.index: client.evaluate(evaluator, self.test_set)
+                            for client in eligible}
+            self._notify_evaluation(round + 1, "locals", client_evals)
+
+        if GlobalSettings().get_eval_cfg().server:
+            evals = self.evaluate(evaluator, self.test_set)
+            self._notify_evaluation(round + 1, "global", evals)
+
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the global federated model on the ``test_set``.
         If the test set is not set, the method returns an empty dictionary.
-
-        Warning:
-            To date, only classification tasks are supported.
 
         Returns:
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
-        if self.test_data is not None:
-            return ClassificationEval(None,  # self.clients[0].hyper_params.loss_fn,
-                                      #   self.model.output_size,
-                                      self.test_data.num_labels,
-                                      device=self.device).evaluate(self.model,
-                                                                   self.test_data)
+        if test_set is not None:
+            return evaluator.evaluate(self.rounds + 1, self.model, test_set)
         return {}
 
     def finalize(self) -> None:
@@ -199,15 +206,12 @@ class Server(ObserverSubject):
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
-        client_evals = []
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
             client.finalize()
-            client_eval = client.evaluate()
-            if client_eval:
-                client_evals.append(client_eval)
-        self._notify_finalize(client_evals)
+        # self._compute_evaluation(self.rounds, client_to_eval)
+        self._notify_finalize()
 
     def get_eligible_clients(self, eligible_perc: float) -> Iterable[Client]:
         """Get the clients that will participate in the current round.
@@ -239,7 +243,7 @@ class Server(ObserverSubject):
         Returns:
             list[torch.nn.Module]: The models of the clients.
         """
-        client_models = [self._channel.receive(self, client, "model").payload
+        client_models = [self.channel.receive(self, client, "model").payload
                          for client in eligible]
         if state_dict:
             return [m.state_dict() for m in client_models]
@@ -274,12 +278,12 @@ class Server(ObserverSubject):
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[Client]) -> None:
-        """Aggregate the models of the clients.
+        r"""Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
-        The method directly updates the model of the server. Formally, let :math:`\\theta` be the
-        model of the server, :math:`\\theta_i` the model of client :math:`i`, and :math:`w_i` the
-        weight of client :math:`i` such that :math:`\\sum_{i=1}^{N} w_i = 1`. The aggregation is
+        The method directly updates the model of the server. Formally, let :math:`\theta` be the
+        model of the server, :math:`\theta_i` the model of client :math:`i`, and :math:`w_i` the
+        weight of client :math:`i` such that :math:`\sum_{i=1}^{N} w_i = 1`. The aggregation is
         done as follows [FedAVG]_:
 
         .. math::
@@ -291,7 +295,7 @@ class Server(ObserverSubject):
         References:
             .. [FedAVG] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas,
                "Communication-Efficient Learning of Deep Networks from Decentralized Data".
-               In: AISTATS (2017).
+               In AISTATS (2017).
         """
         avg_model_sd = OrderedDict()
         clients_sd = self.get_client_models(eligible)
@@ -318,10 +322,10 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.start_round(round, global_model)
 
-    def _notify_end_round(self,
-                          round: int,
-                          evals: dict[str, float],
-                          client_evals: Iterable[Any]) -> None:
+    def _notify_evaluation(self,
+                           round: int,
+                           type: str,
+                           evals: Union[dict[str, float], dict[int, dict[str, float]]]) -> None:
         """Notify the observers that a round has ended.
 
         Args:
@@ -331,7 +335,19 @@ class Server(ObserverSubject):
             client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
-            observer.end_round(round, evals, client_evals)
+            observer.server_evaluation(round, type, evals)
+
+    def _notify_end_round(self, round: int) -> None:
+        """Notify the observers that a round has ended.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+            data (FastDataLoader): The test data.
+            client_evals (Iterable[Any]): The evaluation metrics of the clients.
+        """
+        for observer in self._observers:
+            observer.end_round(round)
 
     def _notify_selected_clients(self, round: int, clients: Iterable[Any]) -> None:
         """Notify the observers that the clients have been selected for the current round.
@@ -343,23 +359,15 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.selected_clients(round, clients)
 
-    def _notify_error(self, error: str) -> None:
-        """Notify the observers that an error has occurred.
-
-        Args:
-            error (str): The error message.
-        """
-        for observer in self._observers:
-            observer.error(error)
-
-    def _notify_finalize(self, client_evals: Iterable[Any]) -> None:
+    def _notify_finalize(self) -> None:
         """Notify the observers that the federated learning process has ended.
 
         Args:
+            evals (dict[str, float]): The evaluation metrics of the global model.
             client_evals (Iterable[Any]): The evaluation metrics of the clients.
         """
         for observer in self._observers:
-            observer.finished(client_evals)
+            observer.finished(self.rounds + 1)
 
     def __str__(self) -> str:
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
@@ -368,28 +376,33 @@ class Server(ObserverSubject):
     def __repr__(self) -> str:
         return str(self)
 
-    def save(self, path: str) -> None:
-        """Save the server/s state to file.
+    def state_dict(self) -> dict:
+        """Return the server's state as a dictionary.
 
-        Args:
-            path (str): The path to save the server.
+        Returns:
+            dict: The server's state.
         """
-        state = {
+        return {
             "model": self.model.state_dict(),
             "rounds": self.rounds,
             "participants": self._participants
         }
-        torch.save(state, path)
+
+    def save(self, path: str) -> None:
+        """Save the server's state to file.
+
+        Args:
+            path (str): The path to save the server.
+        """
+        torch.save(self.state_dict(), path)
 
     def load(self, path: str) -> None:
         """Load the server's state from file.
 
         Args:
-            path (str): The path to load the server.
+            path (str): The path to load the server's state.
         """
-        with openprg(path, "rb", transient=True) as file:
-            state = torch.load(file)
-        # state = torch.load(path)
+        state = torch.load(path, weights_only=True)
         self.model.load_state_dict(state["model"])
         self.rounds = state["rounds"]
         self._participants = set(state["participants"])

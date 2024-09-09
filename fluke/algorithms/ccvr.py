@@ -1,25 +1,31 @@
-"""Implementation of the [CCVR21]_ algorithm.
+"""Implementation of the CCVR [CCVR21]_ algorithm.
 
 References:
     .. [CCVR21] Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. No Fear of
-       Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. In: NeurIPS
+       Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. In NeurIPS
        (2021). URL: https://arxiv.org/abs/2106.05001
 """
-import torch
-import numpy as np
 import sys
-from typing import Iterable
+from typing import Any, Iterable
 
+import numpy as np
+import torch
 from torch.nn.modules import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
-from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
+
+__all__ = [
+    "CCVRClient",
+    "CCVRServer",
+    "CCVR"
+]
 
 
 class CCVRClient(Client):
@@ -68,14 +74,14 @@ class CCVRServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False,
                  lr: float = 0.1,
                  batch_size: int = 64,
-                 sample_per_class: int = 100):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+                 sample_per_class: int = 100,
+                 **kwargs: dict[str, Any]):
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(
             lr=lr,
             batch_size=batch_size,

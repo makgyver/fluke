@@ -1,20 +1,21 @@
 """This module contains the data utilities for ``fluke``."""
 from __future__ import annotations
-from sklearn.preprocessing import StandardScaler
-from numpy.random import randint, shuffle, power, choice, dirichlet, permutation
+
+import sys
+from typing import Optional, Sequence
+
 import numpy as np
-from typing import Sequence, Optional
 import rich
 import torch
+from numpy.random import (choice, dirichlet, permutation, power, randint,
+                          shuffle)
 from sklearn.model_selection import train_test_split
-import sys
 
 sys.path.append(".")
 sys.path.append("..")
 
 
 from .. import DDict  # NOQA
-# from .datasets import Datasets  # NOQA
 
 __all__ = [
     'datasets',
@@ -27,7 +28,7 @@ __all__ = [
 
 
 class DataContainer:
-    """Container for train and test (classification) data.
+    """Container for train and test data.
 
     Args:
         X_train (torch.Tensor): The training data.
@@ -35,6 +36,8 @@ class DataContainer:
         X_test (torch.Tensor): The test data.
         y_test (torch.Tensor): The test labels.
         num_classes (int): The number of classes.
+        transforms (Optional[callable], optional): The transformation to be applied to the data
+          when loaded. Defaults to None.
     """
 
     def __init__(self,
@@ -42,22 +45,13 @@ class DataContainer:
                  y_train: torch.Tensor,
                  X_test: torch.Tensor,
                  y_test: torch.Tensor,
-                 num_classes: int):
+                 num_classes: int,
+                 transforms: Optional[callable] = None):
         self.train = (X_train, y_train)
         self.test = (X_test, y_test)
         self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
         self.num_classes = num_classes
-
-    def standardize(self):
-        """Standardize the data.
-        The data is standardized using the ``StandardScaler`` from ``sklearn``. The method modifies
-        the :attr:`train` and :attr:`test` attributes.
-        """
-        data_train, data_test = self.train[0], self.test[0]
-        scaler = StandardScaler()
-        scaler.fit(data_train)
-        self.train = (torch.FloatTensor(scaler.transform(data_train)), self.train[1])
-        self.test = (torch.FloatTensor(scaler.transform(data_test)), self.test[1])
+        self.transforms = transforms
 
 
 class FastDataLoader:
@@ -65,12 +59,6 @@ class FastDataLoader:
     A DataLoader-like object for a set of tensors that can be much faster than
     TensorDataset + DataLoader because dataloader grabs individual indices of
     the dataset and calls cat (slow).
-
-    Important:
-        This type of data loader does not support the application of different transformations
-        to the data at each iteration. If you need to apply different transformations to the data
-        at each iteration, you should use the standard PyTorch ``DataLoader``.
-
 
     Note:
         This implementation is based on the following discussion:
@@ -80,9 +68,11 @@ class FastDataLoader:
         *tensors (Sequence[torch.Tensor]): tensors to be loaded.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled.
+        transforms (Optional[callable]): the transformation to be applied to the data. Defaults to
+          None.
         percentage (float): the percentage of the data to be used.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-            layers, you might want to set this to ``True``.
+          layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
 
     Caution:
@@ -93,19 +83,19 @@ class FastDataLoader:
 
     Attributes:
         tensors (Sequence[torch.Tensor]): Tensors of the dataset. Ideally, the first tensor should
-            be the input data, and the second tensor should be the labels. However, this is not
-            enforced and the user is responsible for ensuring that the tensors are used correctly.
+          be the input data, and the second tensor should be the labels. However, this is not
+          enforced and the user is responsible for ensuring that the tensors are used correctly.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled at each epoch. If ``True``, the data is
-            shuffled at each iteration.
+          shuffled at each iteration.
+        transforms (callable): the transformation to be applied to the data.
         percentage (float): the percentage of the data to be used. If `1.0`, all the data is used.
-            Otherwise, the data is sampled according to the given percentage. **Note that the
-            sampled data varies at each epoch.**
+          Otherwise, the data is sampled according to the given percentage.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-            layers, you might want to set this to ``True``.
+          layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
         size (int): the size of the dataset according to the percentage of the data to be used.
-        max_size (int): the total size of the dataset.
+        max_size (int): the total size (regardless of the sampling percentage) of the dataset.
 
     Raises:
         AssertionError: if the tensors do not have the same size along the first dimension.
@@ -116,6 +106,7 @@ class FastDataLoader:
                  num_labels: int,
                  batch_size: int = 32,
                  shuffle: bool = False,
+                 transforms: Optional[callable] = None,
                  percentage: float = 1.0,
                  skip_singleton: bool = True,
                  single_batch: bool = False):
@@ -129,7 +120,8 @@ class FastDataLoader:
         self.skip_singleton: bool = skip_singleton
         self.batch_size: int = batch_size if batch_size > 0 else self.size
         self.single_batch: bool = single_batch
-        self.__i = 0
+        self.transforms: callable = transforms
+        self.__i: int = 0
 
     def __getitem__(self, index: int) -> tuple:
         """Get the entry at the given index for each tensor.
@@ -145,6 +137,9 @@ class FastDataLoader:
         """
         if index >= self.max_size:
             raise IndexError("Index out of bounds.")
+        if self.transforms is not None:
+            return (*[self.transforms(t[index])
+                      for t in self.tensors[:-1]], self.tensors[-1][index])
         return tuple(t[index] for t in self.tensors)
 
     def set_sample_size(self, percentage: float) -> int:
@@ -159,14 +154,32 @@ class FastDataLoader:
         if percentage > 1.0 or percentage <= 0.0:
             raise ValueError("percentage must be in (0, 1]")
         self.size = max(int(self.tensors[0].shape[0] * percentage), 1)
+
+        if self.size < self.max_size:
+            r = torch.randperm(self.max_size)
+            self.tensors = [t[r] for t in self.tensors]
+
         return self.size
 
     @property
     def batch_size(self) -> int:
+        """Get the batch size.
+
+        Returns:
+            int: the batch size.
+        """
         return self._batch_size
 
     @batch_size.setter
-    def batch_size(self, value: int):
+    def batch_size(self, value: int) -> None:
+        """Set the batch size.
+
+        Args:
+            value (int): the new batch size.
+
+        Raises:
+            ValueError: if the batch size is not positive.
+        """
         if value <= 0:
             raise ValueError("batch_size must be > 0")
         self._batch_size = value
@@ -187,7 +200,13 @@ class FastDataLoader:
             raise StopIteration
         if self.__i >= self.size:
             raise StopIteration
-        batch = tuple(t[self.__i: self.__i+self._batch_size] for t in self.tensors)
+
+        if self.transforms is not None:
+            batch = (*[self.transforms(t[self.__i: self.__i+self._batch_size])
+                       for t in self.tensors[:-1]],
+                     self.tensors[-1][self.__i: self.__i+self._batch_size])
+        else:
+            batch = tuple(t[self.__i: self.__i+self._batch_size] for t in self.tensors)
         # Useful in case of batch norm layers
         if self.skip_singleton and batch[0].shape[0] == 1:
             raise StopIteration
@@ -196,24 +215,6 @@ class FastDataLoader:
 
     def __len__(self) -> int:
         return self.n_batches
-
-
-# class DistributionEnum(Enum):
-#     """Enum for data distribution across clients."""
-#     IID = "iid"  # : Independent and Identically Distributed data.
-#     QUANTITY_SKEWED = "qnt"  # : Quantity skewed data.
-#     CLASSWISE_QUANTITY_SKEWED = "classqnt"  # : Class-wise quantity skewed data.
-#     LABEL_QUANTITY_SKEWED = "lblqnt"  # : Label quantity skewed data.
-#     LABEL_DIRICHLET_SKEWED = "dir"  # : Label skewed data according to the Dirichlet distribution.
-#     # : Pathological skewed data (i.e., each client has data from a small subset of the classes).
-#     LABEL_PATHOLOGICAL_SKEWED = "path"
-#     COVARIATE_SHIFT = "covshift"  # : Covariate shift skewed data.
-
-#     def __hash__(self) -> int:
-#         return self.value.__hash__()
-
-#     def __eq__(self, other) -> bool:
-#         return self.value == other.value
 
 
 class DataSplitter:
@@ -252,21 +253,21 @@ class DataSplitter:
         Args:
             dataset (DataContainer or str): The dataset.
             distribution (str, optional): The data distribution function. Defaults to
-                ``"iid"``.
+              ``"iid"``.
             client_split (float, optional): The size of the client's test set. Defaults to 0.0.
             sampling_perc (float, optional): The percentage of the data to be used. Defaults to 1.0.
             server_test (bool, optional): Whether to keep a server test set. Defaults to True.
             keep_test (bool, optional): Whether to keep the test set provided by the dataset.
-                Defaults to True.
+              Defaults to ``True``.
             server_split (float, optional): The size of the server's test set. Defaults to 0.0. This
-                parameter is used only if ``server_test`` is ``True`` and ``keep_test`` is
-                ``False``.
+              parameter is used only if ``server_test`` is ``True`` and ``keep_test`` is
+              ``False``.
             uniform_test (bool, optional): Whether to distribute the test set in a IID across the
-                clients. If ``False``, the test set is distributed according to the distribution
-                function. Defaults to False.
+              clients. If ``False``, the test set is distributed according to the distribution
+              function. Defaults to ``False``.
             builder_args (DDict, optional): The arguments for the dataset class. Defaults to None.
             dist_args (DDict, optional): The arguments for the distribution function. Defaults to
-                None.
+              ``None``.
 
         Raises:
             AssertionError: If the parameters are not in the correct range or configuration.
@@ -280,20 +281,17 @@ class DataSplitter:
         if not server_test and client_split == 0.0:
             raise AssertionError("Either client_split > 0 or server_test = True must be true.")
 
-        self.data_container = dataset
-        self.distribution = distribution
-        self.client_split = client_split
-        self.sampling_perc = sampling_perc
-        self.keep_test = keep_test
-        self.server_test = server_test
-        self.server_split = server_split
-        self.uniform_test = uniform_test
-        self.dist_args = dist_args if dist_args is not None else DDict()
+        self.data_container: DataContainer = dataset
+        self.distribution: str = distribution
+        self.client_split: float = client_split
+        self.sampling_perc: float = sampling_perc
+        self.keep_test: bool = keep_test
+        self.server_test: bool = server_test
+        self.server_split: float = server_split
+        self.uniform_test: bool = uniform_test
+        self.dist_args: DDict = dist_args if dist_args is not None else DDict()
 
-    # def num_features(self) -> int:
-    #     return self.data_container.num_features
-
-    @ property
+    @property
     def num_classes(self) -> int:
         """Return the number of classes of the dataset.
 
@@ -333,10 +331,10 @@ class DataSplitter:
             batch_size (Optional[int], optional): The batch size. Defaults to 32.
 
         Returns:
-            tuple[tuple[FastDataLoader, Optional[FastDataLoader]],
-                  FastDataLoader]: The clients' training and testing assignments and the
-                  server's testing assignment.
+            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]:
+              The clients' training and testing assignments and the server's testing assignment.
         """
+        tranforms = self.data_container.transforms
         if self.server_test and self.keep_test:
             server_X, server_Y = self.data_container.test
             client_X, client_Y = self.data_container.train
@@ -386,6 +384,7 @@ class DataSplitter:
                                                         num_labels=self.num_classes,
                                                         batch_size=batch_size,
                                                         shuffle=True,
+                                                        transforms=tranforms,
                                                         percentage=self.sampling_perc))
             if assignments_te is not None:
                 Xte_client = client_Xte[assignments_te[c]]
@@ -403,8 +402,7 @@ class DataSplitter:
                                    num_labels=self.num_classes,
                                    batch_size=128,
                                    shuffle=True,
-                                   percentage=self.sampling_perc) if self.server_test \
-            else None
+                                   percentage=self.sampling_perc) if self.server_test else None
         return (client_tr_assignments, client_te_assignments), server_te
 
     def iid(self,
@@ -476,8 +474,7 @@ class DataSplitter:
 
         Returns:
             list[torch.Tensor]: The examples' ids assignment.
-        """  # noqa: W605
-        # The abow comment is to avoid flake8 error W605 (invalid escape sequence)
+        """
         assert min_quantity * \
             n <= X_train.shape[0], "# of training instances must be > than min_quantity*n"
         assert X_test is None or min_quantity * \
@@ -743,21 +740,17 @@ class DummyDataSplitter(DataSplitter):
     """
 
     def __init__(self,
-                 dataset: tuple[FastDataLoader, Optional[FastDataLoader], Optional[FastDataLoader]],
-                 #  num_features: int,
-                 #  num_classes: int,
+                 dataset: tuple[FastDataLoader,
+                                Optional[FastDataLoader],
+                                Optional[FastDataLoader]],
                  builder_args: DDict = None,
                  **kwargs):
-        self.data_container = None
-        # self.standardize = False
-        self.distribution = "iid"
-        self.client_split = None
-        self.sampling_perc = 1.0
-        (self.client_tr_assignments,
-         self.client_te_assignments,
-         self.server_te) = dataset
-        # self._num_features = num_features
-        self._num_classes = self._compute_num_classes()
+        self.data_container: DataContainer = None
+        self.distribution: str = "iid"
+        self.client_split: float = None
+        self.sampling_perc: float = 1.0
+        (self.client_tr_assignments, self.client_te_assignments, self.server_te) = dataset
+        self._num_classes: int = self._compute_num_classes()
 
     def _compute_num_classes(self) -> int:
 

@@ -3,36 +3,42 @@
 References:
     .. [FedOpt21] Sashank Reddi, Zachary Charles, Manzil Zaheer, Zachary Garrett, Keith Rush,
        Jakub Konečný, Sanjiv Kumar, H. Brendan McMahan. Adaptive Federated Optimization.
-       In: ICLR (2021). URL: https://openreview.net/pdf?id=LkFG3lB13U5
+       In ICLR (2021). URL: https://openreview.net/pdf?id=LkFG3lB13U5
 """
-from torch.nn import Module
-import torch
+import sys
 from collections import OrderedDict
 from typing import Iterable
-import sys
+
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
+
+__all__ = [
+    "FedOptServer",
+    "FedOpt"
+]
 
 
 class FedOptServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  mode: str = "fedadam",
                  lr: float = 0.001,
                  beta1: float = 0.9,
                  beta2: float = 0.999,
                  tau: float = 0.0001,
                  weighted: bool = True):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         assert mode in {"adam", "yogi", "adagrad"}, \
             "'mode' must be one of {'adam', 'yogi', 'adagrad'}"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"

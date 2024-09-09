@@ -5,16 +5,25 @@ References:
        and Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
        Learning Workshop. URL: https://openreview.net/pdf?id=SkgwE5Ss3N
 """
-from copy import deepcopy
-import torch
 import sys
+from copy import deepcopy
+from typing import Any
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import CentralizedFL  # NOQA
+
+
+__all__ = [
+    "FedProxClient",
+    "FedProx"
+]
 
 
 class FedProxClient(Client):
@@ -26,7 +35,7 @@ class FedProxClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  mu: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)
@@ -39,14 +48,16 @@ class FedProxClient(Client):
                 proximal_term += (w - w_t).norm(2) ** 2
         return proximal_term
 
-    def fit(self, override_local_epochs: int = 0):
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         W = deepcopy(self.model).to(self.device)
         self.model.to(self.device)
         self.model.train()
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+
+        running_loss = 0.0
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -57,12 +68,14 @@ class FedProxClient(Client):
                     (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         W.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 
 
 class FedProx(CentralizedFL):

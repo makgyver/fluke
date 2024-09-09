@@ -15,11 +15,11 @@ Finally, at the end of the `fit` method, the server will finalize the federated 
 ## Server initialization
 
 The `Server` constructor is responsible for initializing the server. Usually, there is not much more to it than setting the server's attributes.
-However, there is an important notion that you should be aware of: all the server's hyperparameters should be set in the `hyper_params` attribute that is a [DDict](../fluke.md). This best practice ensure that the hyperparameters are easily accessible and stored in a single place.
+However, there is an important notion that you should be aware of: all the server's hyperparameters should be set in the `hyper_params` attribute that is a [DDict](#fluke.DDict). This best practice ensure that the hyperparameters are easily accessible and stored in a single place.
 
 ## Sequence of operations of a single round
 
-The standard behaviour of the `Server` class (as provided in the class [Server](../fluke.server.md))
+The standard behaviour of the `Server` class (as provided in the class [Server](#fluke.server.Server))
 follows the sequence of operations of a standard Federate Averaging algorithm. The main methods
 of the `Server` class involved in a single round are:
 
@@ -72,17 +72,15 @@ The default notifications are:
 
 - `_notify_start_round`: triggered at the beginning of each round. It calls `ServerObserver.start_round` on each observer;
 - `_notify_selected_clients`: triggered after the clients have been selected for the round. It calls `ServerObserver.selected_clients` on each observer;
-- `_notify_error`: this notification should be used to notify the observers of any error that occurred during the round. Currently, it is not used in the standard implementation. It calls `ServerObserver.error` on each observer;
 - `_notify_end_round`: triggered at the end a round. It calls `ServerObserver.end_round` on each observer;
+- `_notify_evaluation`: it should be triggered after an evaluation has been performed. It calls `ServerObserver.evaluation` on each observer;
 - `_notify_finalize`: triggered at the end of the `finalize` method. It calls `ServerObserver.finished` on each observer.
 
-```{eval-rst}
-
-.. hint::
+:::{hint}
     
-    Refer to the API documentation of the :ref:`ServerObserver <fluke.utils.ServerObserver>` inerface and the :ref:`ObserverSubject <fluke.ObserverSubject>` intarface for more details.
+Refer to the API documentation of the [ServerObserver](fluke.utils.ServerObserver) inerface and the [ObserverSubject](fluke.ObserverSubject) intarface for more details.
 
-```
+:::
 
 
 ## Creating your ``Server`` class
@@ -119,7 +117,7 @@ The example follows the implementation of the ``FedExP`` algorithm. We also repo
 
 ```{eval-rst}
 
-.. tab:: FedExP server
+.. tab:: FedExP Server
 
     .. code-block:: python
         :linenos:
@@ -206,7 +204,7 @@ Similar considerations can be made for the other cases when the there is no need
 Sometimes you might also need to override the ``fit`` method of the ``Server`` class. This is the case when the federated protocol
 you are implementing requires a different sequence of operations than the standard Federated Averaging protocol.
 This is quite uncommon but it can happen. Currently, in `fluke`, the only algorithms that overrides the ``fit`` method are
-[FedHP](../algo/FedHP.md) and [FedDyn](../algo/FedDyn.md). In both these cases, the protocol differs from
+[FedHP](../algo/FedHP) and [FedDyn](../algo/FedDyn). In both these cases, the protocol differs from
 the standard Federated Averaging protocol only in the starting phase of the learning and hence the ``fit`` method is overridden to
 add such additional operations and then the `super().fit()` is called to trigger the standard behaviour.
 
@@ -236,10 +234,10 @@ When overriding the ``fit`` method, you should follow the following best practic
 - **Communication**: in `fluke`, generally, clients and server should not call each other methods directly.
   There are very few exceptions to this rule, for example, when the server needs to trigger the training on the client side or when
   the server asks to perform the evaluation. In all other cases, the communication between the server and the clients should be done
-  through the `Channel` class (see the [Channel](../fluke.comm.md) API reference). The `Channel` instance is available in the `Server` class
+  through the `Channel` class (see the [Channel](#fluke.comm.Channel) API reference). The `Channel` instance is available in the `Server` class
   (`_channel` private instance or `channel` property) and it must be used to send/receive messages.
-  Messages must be encapsulated in a [Message](../fluke.comm.md) object.
-  Using a channel allows `fluke`, through the logger (see [Log](../fluke.utils.md)) to keep track of the exchanged messages and so it will 
+  Messages must be encapsulated in a [Message](#fluke.comm.Message) object.
+  Using a channel allows `fluke`, through the logger (see [Log](#fluke.utils.log.Log)) to keep track of the exchanged messages and so it will 
   automatically compute the communication cost. The following is the implementation of the `broadcast_model` method that uses the
   `Channel` to send the global model to the clients:
     
@@ -249,7 +247,7 @@ When overriding the ``fit`` method, you should follow the following best practic
       :linenos:
   
       def broadcast_model(self, eligible: Iterable[Client]) -> None:
-          self._channel.broadcast(Message(self.model, "model", self), eligible)
+          self.channel.broadcast(Message(self.model, "model", self), eligible)
   ```
 
 - **Minimal changes principle**: this principle universally applies to software development but it is particularly important when overriding the `fit` method

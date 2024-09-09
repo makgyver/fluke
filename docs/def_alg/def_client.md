@@ -45,6 +45,7 @@ The following excperts show the constructor of the [Client](../fluke.client.md) 
             self.device: device = GlobalSettings().get_device()
             self._server: Server = None
             self._channel: Channel = None
+            self._last_round: int = 0
 
 .. tab:: New client constructor
 
@@ -67,9 +68,10 @@ The following excperts show the constructor of the [Client](../fluke.client.md) 
 
 ## Client-side training 
 
-The main method that characterizes the client's behaviour is the `fit` method which is responsible for training the local model on the client's data and sending the updated model to the server.
+The main method that characterizes the client's behaviour is the `fit` method which is responsible for training the local model;
+This method is wrapped inside the method `local_update` which is also responsible of the communication with the server and to perform the evaluation.
 
-The following figure shows the sequence of operations of the `Client` class during the `fit` method.
+The following figure shows the sequence of operations of the `Client` class during the `local_update` method.
 
 
 ```{eval-rst}
@@ -86,7 +88,7 @@ Sequence of operations of the `Client` class during the `fit` method.
 This image has been created with [TikZ](https://texample.net/tikz/) [[source]](https://github.com/makgyver/fluke/blob/main/docs/_static/tex/client_sequence.tex).
 ```
 
-The `fit` method is called by the server when it is time to train the local model on the client's data. 
+The `local_update` method is called by the server when it is time to train the local model on the client's data. 
 
 ```{eval-rst}
 
@@ -96,11 +98,13 @@ The `fit` method is called by the server when it is time to train the local mode
 
 ```
 
-The client receives the global model from the server, trains the local model on its data, and sends the updated model back to the server. Most of the logic of a federated learning algorithm is implemented in this `fit` method. The main methods that are called during the `fit` method are:
+The client receives the global model from the server, trains the local model on its data, and sends the updated model back to the server:
 
 - `receive_model`: this method simply retrieves the global model sent by the server. It is indeed important to make sure that the server has sent the model before calling this method. Although it is named `receive_model`, the message may also contain additional information that the client may need to process/use (for example, see [SCAFFOLD](../algo/SCAFFOLD.md)).
 
 - `send_model`: this method sends the updated model back to the server.
+
+Usualy, most of the logic of a federated learning algorithm is implemented in the `fit` method, where the training loop happens!
 
 ### The training loop
 
@@ -123,18 +127,17 @@ The following code snippet shows the ``fit`` method of the ``Client`` class.
 .. code-block:: python
     :linenos:
 
-    def fit(self, override_local_epochs: int = 0) -> None:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
+        running_loss: float = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -142,11 +145,13 @@ The following code snippet shows the ``fit`` method of the ``Client`` class.
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 ```
 
 ## Finalization
@@ -188,7 +193,7 @@ Likewise the `Server` class, you should follow the following best practices:
       :linenos:
   
       def send_model(self) -> None:
-        self.channel.send(Message(self.model, "model", self), self.server)
+          self.channel.send(Message(self.model, "model", self), self.server)
   ```
 
 - **Minimal changes principle**: this principle universally applies to software development but it is particularly important when overriding the `fit` method. Start by copying the standard implementation of the `fit` method and then modify only the parts that are specific to your federated protocol. This will help you to keep the code clean and to avoid introducing nasty bugs.
@@ -199,7 +204,7 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
 
 .. code-block:: python
     :linenos:
-    :emphasize-lines: 23,35
+    :emphasize-lines: 22,34
 
     class FedProxClient(Client):
         def __init__(self,
@@ -220,9 +225,8 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
                 proximal_term += torch.norm(w - w_t)**2
             return proximal_term
 
-        def fit(self, override_local_epochs: int = 0):
+        def fit(self, override_local_epochs: int = 0) -> float
             epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-            self.receive_model()
             W = deepcopy(self.model)
             self.model.to(self.device)
             self.model.train()
@@ -242,5 +246,19 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
 
             self.model.to("cpu")
             clear_cache()
-            self.send_model()
 ```
+
+## Observer pattern
+
+The `Client` class triggers callbacks to the observers that have been registered to the client.
+The default notifications are:
+
+- `_notify_start_fit`: triggered at the beginning of the `fit` method. It calls `ClientObserver.start_fit` on each observer;
+- `_notify_end_fit`: triggered at the end of the `fit` method. It calls `ClientObserver.end_fit` on each observer;
+- `_notify_evaluation`: it should be triggered after an evaluation has been performed. It calls `ClientObserver.evaluation` on each observer;
+
+:::{hint}
+    
+Refer to the API documentation of the [ClientObserver](fluke.utils.ClientObserver) inerface and the [ObserverSubject](fluke.ObserverSubject) intarface for more details.
+
+:::

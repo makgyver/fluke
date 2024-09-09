@@ -1,28 +1,39 @@
-from torch.nn import Linear, CrossEntropyLoss
+import json
+import sys
+import tempfile
+from unittest.mock import patch
+
+import pytest
+import torch
+from torch.nn import CrossEntropyLoss, Linear
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
-import pytest
-import json
-import tempfile
-import torch
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
 
 from fluke import DDict  # NOQA
-from fluke.nets import MNIST_2NN, VGG9, Shakespeare_LSTM, FedBN_CNN  # NOQA
-from fluke.comm import Message  # NOQA
+from fluke.algorithms import CentralizedFL  # NOQA
 from fluke.client import Client  # NOQA
-from fluke.utils import (OptimizerConfigurator, import_module_from_str,  # NOQA
-           get_class_from_str, get_model, get_class_from_qualified_name,  # NOQA
-           get_full_classname, get_loss, get_scheduler, clear_cache, Configuration,  # NOQA
-           ServerObserver)  # NOQA
-from fluke.utils.log import get_logger, Log, WandBLog  # NOQA
-
-from fluke.utils.model import (merge_models, diff_model, mix_networks, batch_norm_to_group_norm,  # NOQA
-                                  get_local_model_dict, get_global_model_dict, set_lambda_model,   # NOQA
-                                  safe_load_state_dict, STATE_DICT_KEYS_TO_IGNORE, MMMixin)  # NOQA
+from fluke.comm import Message  # NOQA
+from fluke.data import DataSplitter  # NOQA
+from fluke.data.datasets import Datasets  # NOQA
+from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
+from fluke.utils import (ClientObserver, Configuration,  # NOQA
+                         OptimizerConfigurator, ServerObserver, clear_cache,
+                         get_class_from_qualified_name, get_class_from_str,
+                         get_full_classname, get_loss, get_model,
+                         get_scheduler, import_module_from_str,
+                         plot_distribution)
+from fluke.utils.log import Log, get_logger  # NOQA
+from fluke.utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
+                               AllLayerOutputModel, MMMixin,
+                               batch_norm_to_group_norm, check_model_fit_mem,
+                               diff_model, flatten_parameters,
+                               get_global_model_dict, get_local_model_dict,
+                               merge_models, mix_networks,
+                               safe_load_state_dict, set_lambda_model)
 
 
 def test_optimcfg():
@@ -261,9 +272,10 @@ def test_log():
         log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
         log.message_received(Message("test", "test", None))
-        log.error("test")
-        log.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
-        log.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
+        log.server_evaluation(1, "global", {"accuracy": 1})
+        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.end_round(1)
+        log.finished(1)
         temp = tempfile.NamedTemporaryFile(mode="w")
         log.save(temp.name)
     except Exception:
@@ -272,11 +284,18 @@ def test_log():
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
         assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
-            '0': 0, '1': 4}, 'perf_local': {'1': {'accuracy': 0.6}, '2': {'accuracy': 0.6}}}
+            '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
+            'perf_postfit': {}}
 
-    assert log.history[1] == {"accuracy": 1}
-    assert log.client_history[1] == {"accuracy": 0.6}
-    assert log.comm_costs[1] == 4
+    assert log.global_eval == {1: {"accuracy": 1}}
+    assert log.locals_eval == {}
+    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}}}
+    assert log.postfit_eval == {}
+    assert log.locals_eval_summary == {}
+    assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
+    assert log.postfit_eval_summary == {}
+    assert log.comm_costs == {0: 0, 1: 4}
+    assert log.current_round == 1
 
 
 # def test_wandb_log():
@@ -429,10 +448,75 @@ def test_mixing():
 def test_serverobs():
     sobs = ServerObserver()
     sobs.start_round(1, None)
-    sobs.end_round(1, {"accuracy": 1}, [{"accuracy": 0.7}, {"accuracy": 0.5}])
-    sobs.finished([{"accuracy": 0.7}, {"accuracy": 0.5}, {"accuracy": 0.6}])
-    sobs.error("test")
+    sobs.server_evaluation(1, "global", {"accuracy": 1})
+    sobs.end_round(1)
+    sobs.finished(1)
     sobs.selected_clients(1, [1, 2, 3])
+
+
+def test_clientobs():
+    sobs = ClientObserver()
+    sobs.start_fit(1, 17, None)
+    sobs.client_evaluation(1, 17, "pre-fit", {"accuracy": 1})
+    sobs.end_fit(1, 17, None, 0.1)
+
+
+@patch("matplotlib.pyplot.show")
+def test_plot_dist(mock_show):
+    hparams = DDict(
+        # model="fluke.nets.MNIST_2NN",
+        model=MNIST_2NN(),
+        client=DDict(batch_size=32,
+                     local_epochs=1,
+                     loss=CrossEntropyLoss,
+                     optimizer=DDict(
+                         lr=0.1,
+                         momentum=0.9),
+                     scheduler=DDict(
+                         step_size=1,
+                         gamma=0.1)
+                     ),
+        server=DDict(weighted=True)
+    )
+    mnist = Datasets.MNIST("../data")
+    splitter = DataSplitter(mnist, client_split=0.1)
+    fl = CentralizedFL(10, splitter, hparams)
+    plot_distribution(fl.clients, "ball")
+    plot_distribution(fl.clients, "bar")
+    plot_distribution(fl.clients, "mat")
+
+
+def test_check_mem():
+    net = MNIST_2NN()
+    assert check_model_fit_mem(net, (28 * 28,), 100, "mps", True)
+
+    if torch.cuda.is_available():
+        assert check_model_fit_mem(net, (28 * 28,), 100, "cuda")
+
+
+def test_alllayeroutput():
+    net = MNIST_2NN()
+    all_out = AllLayerOutputModel(net)
+    x = torch.randn(1, 28 * 28)
+    all_out(x)
+    assert "_encoder.fc1" in all_out.activations_in
+    assert "_encoder.fc2" in all_out.activations_in
+    assert "_head.fc3" in all_out.activations_in
+    assert "_encoder.fc1" in all_out.activations_out
+    assert "_encoder.fc2" in all_out.activations_out
+    assert "_head.fc3" in all_out.activations_out
+
+    all_out.deactivate()
+    all_out(x)
+    assert all_out.activations_in == {}
+    assert all_out.activations_out == {}
+
+
+def test_flatten():
+    net = MNIST_2NN()
+    W = flatten_parameters(net)
+    print(W.shape)
+    assert W.shape[0] == 178110
 
 
 if __name__ == "__main__":
@@ -443,6 +527,11 @@ if __name__ == "__main__":
     # test_wandb_log()
     test_models()
     test_mixing()
+    test_serverobs()
+    test_clientobs()
+    test_plot_dist()
+    test_check_mem()
+    test_alllayeroutput()
 
     # 91% coverage utils.__init__
     # 95% coverage utils.model

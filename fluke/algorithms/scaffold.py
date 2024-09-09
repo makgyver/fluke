@@ -3,33 +3,34 @@
 References:
     .. [SCAFFOLD20] Sai Praneeth Karimireddy, Satyen Kale, Mehryar Mohri, Sashank J. Reddi,
        Sebastian U. Stich, Ananda Theertha Suresh. SCAFFOLD: Stochastic Controlled Averaging for
-       Federated Learning. In: ICML (2020). URL: https://arxiv.org/abs/1910.06378
+       Federated Learning. In ICML (2020). URL: https://arxiv.org/abs/1910.06378
 """
+import sys
+from collections import OrderedDict
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
 # from torch.optim import Optimizer
 from torch.nn import Module
-import torch
-from typing import Iterable
-from copy import deepcopy
-from collections import OrderedDict
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import GlobalSettings  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..server import Server  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
 
-
-def _zero_like(state_dict: OrderedDict) -> OrderedDict:
-    output = OrderedDict()
-    for k, v in state_dict.items():
-        output[k] = torch.zeros_like(v)
-    return output
+__all__ = [
+    "SCAFFOLDClient",
+    "SCAFFOLDServer",
+    "SCAFFOLD"
+]
 
 
 class SCAFFOLDClient(Client):
@@ -40,7 +41,7 @@ class SCAFFOLDClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)
@@ -53,14 +54,13 @@ class SCAFFOLDClient(Client):
         self.server_control = self.channel.receive(self, self.server, msg_type="control").payload
         if self.model is None:
             self.model = model
-            self.control = _zero_like(model.state_dict())
+            self.control = state_dict_zero_like(model.state_dict())
         else:
             safe_load_state_dict(self.model, model.state_dict())
         self.server_model = deepcopy(model.state_dict())
 
-    def fit(self, override_local_epochs: int = 0):
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.model.to(self.device)
         self.model.train()
 
@@ -68,6 +68,7 @@ class SCAFFOLDClient(Client):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
         K = 0
+        running_loss = 0.0
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -82,14 +83,15 @@ class SCAFFOLDClient(Client):
                     p.grad.data = p.grad.data + (self.server_control[n].to(self.device) -
                                                  self.control[n].to(self.device))
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
         self.model.to("cpu")
         # This happens on CPU!
 
         with torch.no_grad():
-            c_plus = _zero_like(self.control)
-            c_delta = _zero_like(self.control)
+            c_plus = state_dict_zero_like(self.control)
+            c_delta = state_dict_zero_like(self.control)
             model_params = self.model.state_dict()
             for key in model_params:
                 c_plus[key] = self.control[key] - self.server_control[key] + \
@@ -102,8 +104,9 @@ class SCAFFOLDClient(Client):
             self.control = deepcopy(c_plus)
             self.delta_control = c_delta
 
+        running_loss /= (epochs * len(self.train_set))
         clear_cache()
-        self.send_model()
+        return running_loss
 
     def send_model(self):
         self.channel.send(Message(self.model, "model", self), self.server)
@@ -113,20 +116,18 @@ class SCAFFOLDClient(Client):
 class SCAFFOLDServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  global_step: float = 1.,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model,
-                         test_data=test_data,
+                         test_set=test_set,
                          clients=clients,
-                         eval_every=eval_every,
                          weighted=weighted,
                          **kwargs)
         self.device = GlobalSettings().get_device()
-        self.control = _zero_like(self.model.state_dict())
+        self.control = state_dict_zero_like(self.model.state_dict())
         self.hyper_params.update(global_step=global_step)
 
     def broadcast_model(self, eligible: Iterable[Client]) -> None:
@@ -144,7 +145,7 @@ class SCAFFOLDServer(Server):
     def aggregate(self, eligible: Iterable[Client]) -> None:
         self.model.to(self.device)
 
-        total_delta = _zero_like(self.model.state_dict())
+        total_delta = state_dict_zero_like(self.model.state_dict())
         delta_params = [self.channel.receive(self, client, "control").payload
                         for client in eligible]
 

@@ -3,23 +3,25 @@
 References:
     .. [FedPer19] Manoj Ghuhan Arivazhagan, Vinay Aggarwal, Aaditya Kumar Singh, and
        Sunav Choudhary. Federated learning with personalization layers.
-       In: arXiv (2019). URL:https://arxiv.org/abs/1912.00818
+       In arXiv (2019). URL:https://arxiv.org/abs/1912.00818
 """
-from typing import Iterable
-from copy import deepcopy
-import torch
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
-from ..server import Server  # NOQA
 from ..client import PFLClient  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
-from ..nets import EncoderHeadNet, EncoderGlobalHeadLocalNet  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 
 
 # https://arxiv.org/abs/1912.00818
@@ -33,7 +35,7 @@ class FedPerClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=EncoderGlobalHeadLocalNet(model),
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
                          loss_fn=loss_fn, local_epochs=local_epochs, **kwargs)
@@ -52,11 +54,10 @@ class FedPerServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_data: FastDataLoader,  # test_data is not used
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 
 class FedPer(PersonalizedFL):

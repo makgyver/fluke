@@ -1,25 +1,27 @@
-"""Implementation of the [FedAMP21]_ algorithm.
+"""Implementation of the FedAMP [FedAMP21]_ algorithm.
 
 References:
     .. [FedAMP21] Yutao Huang, Lingyang Chu, Zirui Zhou, Lanjun Wang, Jiangchuan Liu, Jian Pei, Yong
-       Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In: AAAI (2021).
+       Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In AAAI (2021).
        URL: https://arxiv.org/abs/2007.03797
 """
-from torch.nn import Module
-import torch
-from typing import Iterable
-from copy import deepcopy
 import sys
+from copy import deepcopy
+from typing import Any, Iterable
+
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import PFLClient  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import safe_load_state_dict  # NOQA
 from . import PersonalizedFL  # NOQA
-from ..comm import Message  # NOQA
 
 
 class FedAMPClient(PFLClient):
@@ -32,13 +34,12 @@ class FedAMPClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  lam: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          **kwargs)
         self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)
-        # self.personalized_model = u_model
 
     def _alpha(self):
         return self.optimizer.param_groups[0]["lr"]
@@ -50,22 +51,23 @@ class FedAMPClient(PFLClient):
         return (self.hyper_params.lam / (2 * self._alpha())) * proximal_term
 
     def receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
-
-    def fit(self, override_local_epochs: int = 0):
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         try:
-            self.receive_model()
+            msg = self.channel.receive(self, self.server, msg_type="model")
+            safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
         except ValueError:
             pass
+
+    def fit(self, override_local_epochs: int = 0) -> float:
+        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
         self.model.to(self.device)
         self.personalized_model.to(self.device)
         self.model.train()
+
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -74,24 +76,26 @@ class FedAMPClient(PFLClient):
                     y_hat, y) + self._proximal_loss(self.model, self.personalized_model)
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         self.personalized_model.to("cpu")
         clear_cache()
-        self.send_model()
+
+        return running_loss
 
 
 class FedAMPServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  sigma: float = 0.1,
                  alpha: float = 0.1):
-        super().__init__(model, None, clients, eval_every, False)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=False)
         self.hyper_params.update(
             sigma=sigma,
             alpha=alpha

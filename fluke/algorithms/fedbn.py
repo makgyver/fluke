@@ -1,20 +1,26 @@
-"""Implementation of the [FedBN21]_ algorithm.
+"""Implementation of the FedBN [FedBN21]_ algorithm.
 
 References:
     .. [FedBN21] Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN:
-       Federated Learning on Non-IID Features via Local Batch Normalization. In: ICLR (2021).
+       Federated Learning on Non-IID Features via Local Batch Normalization. In ICLR (2021).
        URL: https://openreview.net/pdf?id=6YEQUn0QICG
 """
-import torch
 import sys
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
-from ..comm import Message  # NOQA
 
 # Same idea in https://link.springer.com/chapter/10.1007/978-3-030-60548-3_13
+
+__all__ = [
+    "FedBNClient",
+    "FedBN"
+]
 
 
 class FedBNClient(Client):
@@ -53,12 +59,6 @@ class FedBNClient(Client):
 
 
 class FedBN(CentralizedFL):
-    """
-    This class implements the FedBN algorithm from the paper:
-    Xiaoxiao Li, Meirui JIANG, Xiaofei Zhang, Michael Kamp, and Qi Dou. FedBN: Federated Learning
-    on Non-IID Features via Local Batch Normalization. ICLR 2021.
-    URL: https://openreview.net/pdf?id=6YEQUn0QICG
-    """
 
     def get_client_class(self) -> Client:
         return FedBNClient
