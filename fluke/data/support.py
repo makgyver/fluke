@@ -13,6 +13,11 @@ from torchvision.transforms import ToTensor
 sys.path.append(".")
 sys.path.append("..")
 
+__all__ = [
+    "MNISTM",
+    "CINIC10"
+]
+
 
 class MNISTM(VisionDataset):
     """MNIST-M Dataset.

@@ -25,6 +25,7 @@ __all__ = [
     'apfl',
     'ccvr',
     'ditto',
+    'fedala',
     'fedamp',
     'fedavg',
     'fedavgm',
@@ -35,7 +36,6 @@ __all__ = [
     'fedexp',
     'fedhp',
     'fedlc',
-    'fedmargin',
     'fednh',
     'fednova',
     'fedopt',
@@ -43,6 +43,7 @@ __all__ = [
     'fedproto',
     'fedprox',
     'fedrep',
+    'fedrod',
     'fedrs',
     'fedsam',
     'fedsgd',
@@ -212,6 +213,17 @@ class CentralizedFL():
             eligible_perc: float,
             finalize: bool = True,
             **kwargs: dict[str, Any]):
+        """Run the federated algorithm.
+        This method will call the :meth:`Server.fit` method which will orchestrate the training
+        process.
+
+        Args:
+            n_rounds (int): Number of rounds.
+            eligible_perc (float): Percentage of eligible clients.
+            finalize (bool, optional): Whether to finalize the training process.
+              Defaults to ``True``.
+            **kwargs (dict[str, Any]): Additional keyword arguments.
+        """
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
 
     def __str__(self) -> str:
@@ -226,7 +238,7 @@ class CentralizedFL():
     def __repr__(self) -> str:
         return str(self)
 
-    def save(self, path: str):
+    def save(self, path: str) -> None:
         """Save the algorithm state into files in the specified directory.
 
         Args:
@@ -239,7 +251,7 @@ class CentralizedFL():
         for i, client in enumerate(self.clients):
             client.save(os.path.join(path, f"client_{i}.pth"))
 
-    def load(self, path: str):
+    def load(self, path: str) -> None:
         """Load the algorithm state from the specified folder
 
         Args:

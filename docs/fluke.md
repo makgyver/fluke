@@ -99,7 +99,6 @@ Classes included in ``fluke``
 
 </h3>
 
-(fluke.ObserverSubject)=
 
 ```{eval-rst}
 

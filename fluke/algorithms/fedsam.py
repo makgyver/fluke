@@ -22,6 +22,12 @@ from . import CentralizedFL  # NOQA
 # This implementation is based on
 # https://github.com/bytedance/FedDecorr/blob/master/approach/fedsam.py
 
+__all__ = [
+    "SAMOptimizer",
+    "FedSAMClient",
+    "FedSAM"
+]
+
 
 class SAMOptimizer(torch.optim.Optimizer):
 

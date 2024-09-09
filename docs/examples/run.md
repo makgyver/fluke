@@ -60,6 +60,7 @@ where `[OPTIONS]` are the following:
 
 ### Clients only
 
+Performing the training on the clients only is useful to evaluate the performance of the algorithm on the clients' data without the federation.
 To run a the learning only on the clients, use the following command:
 
 ```bash
@@ -68,6 +69,12 @@ fluke --config <EXP_CONFIG_FILE> clients-only <ALG_CONFIG_FILE> [--epochs=<EPOCH
 
 where `<EPOCHS>` is the number of epochs to train the model (default is 0). If not specified (=0), the number of epochs are calculated according to the algorithm configuration. Specifically, `EPOCHS = n_rounds * eligible_perc * local_epochs`, but in any case no less than 100.
 The hyper-parameters related to the server are ignored in this case.
+
+```{eval-rst}
+
+.. important::
+    When running in `clients-only` mode, the logging on services like `wandb` happens at the end of training of all clients.
+```
 
 ## `fluke-get`
 

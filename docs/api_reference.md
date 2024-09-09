@@ -234,6 +234,8 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    fedprox
    fedrep
    fedrod
+   fedrs
+   fedsam
    fedsgd
    lg_fedavg
    moon

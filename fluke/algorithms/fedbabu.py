@@ -104,7 +104,7 @@ class FedBABUServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_set: FastDataLoader,
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

@@ -12,5 +12,5 @@ hyperparameters:
       step_size: 1
   server:
     weighted: true
-  model: CifarConv2
+  model: MNIST_2NN
 name: fluke.algorithms.fedavg.FedAVG

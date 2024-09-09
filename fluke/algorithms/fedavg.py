@@ -13,6 +13,10 @@ sys.path.append("..")
 
 from . import CentralizedFL  # NOQA
 
+__all__ = [
+    "FedAVG"
+]
+
 
 class FedAVG(CentralizedFL):
     pass

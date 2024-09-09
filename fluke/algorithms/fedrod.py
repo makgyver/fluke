@@ -24,6 +24,13 @@ from ..utils import OptimizerConfigurator  # NOQA
 from ..utils import clear_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
+__all__ = [
+    "RODModel",
+    "BalancedSoftmaxLoss",
+    "FedRODClient",
+    "FedROD"
+]
+
 
 class RODModel(torch.nn.Module):
     def __init__(self, global_model: EncoderHeadNet, local_head: EncoderHeadNet):
@@ -53,7 +60,7 @@ class BalancedSoftmaxLoss(torch.nn.Module):
     def forward(self,
                 y: torch.LongTensor,
                 logits: torch.FloatTensor,
-                reduction: str = "mean"):
+                reduction: str = "mean") -> torch.Tensor:
         spc = self.sample_per_class.type_as(logits)
         spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
         logits = logits + spc.log()

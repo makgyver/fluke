@@ -49,6 +49,12 @@
    MoonCNN_E
    MoonCNN_D
    MoonCNN
+   LeNet5_E
+   LeNet5_D
+   LeNet5
+   Shakespeare_LSTM_E
+   Shakespeare_LSTM_D
+   Shakespeare_LSTM
 
 ```
 

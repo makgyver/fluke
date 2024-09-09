@@ -63,6 +63,7 @@ Functions included in ``fluke.utils``
    get_full_classname
    get_loss
    get_model
+   get_optimizer
    get_scheduler
    import_module_from_str
    plot_distribution
@@ -104,7 +105,7 @@ Functions included in ``fluke.utils``
 
 </h3>
 
-(fluke.utils.ClientObserver)=
+
 
 ```{eval-rst}
 
@@ -120,7 +121,6 @@ Functions included in ``fluke.utils``
 
 </h3>
 
-(fluke.utils.ServerObserver)=
 
 ```{eval-rst}
 
