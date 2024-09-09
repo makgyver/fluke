@@ -1,37 +1,38 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-import rich
-import torch
-import numpy as np
-from torch.optim import Optimizer
-from torch.nn import Module
-from torch.optim.lr_scheduler import LRScheduler
-from typing import Any, Iterable
+
 # from enum import Enum
 import importlib
 import inspect
-import warnings
-import yaml
 import sys
+import warnings
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Union
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rich
+import seaborn as sns
+import torch
+import yaml
+from torch.nn import Module
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
+
 sys.path.append(".")
 sys.path.append("..")
 
 if TYPE_CHECKING:
-    from client import Client
+    from client import Client  # NOQA
 
 from .. import DDict  # NOQA
-from ..comm import ChannelObserver, Message  # NOQA
-# from ..data.datasets import DatasetsEnum  # NOQA
-
 
 __all__ = [
+    'log',
     'model',
     'Configuration',
     'OptimizerConfigurator',
+    'ClientObserver',
     'ServerObserver',
     'clear_cache',
     'get_class_from_str',
@@ -39,19 +40,79 @@ __all__ = [
     'get_full_classname',
     'get_loss',
     'get_model',
+    'get_optimizer',
     'get_scheduler',
-    'import_module_from_str'
+    'import_module_from_str',
+    'plot_distribution'
 ]
+
+
+class ClientObserver():
+    """Client observer interface.
+    This interface is used to observe the client during the federated learning process.
+    For example, it can be used to log the performance of the local model, as it is done by the
+    ``Log`` class.
+    """
+
+    def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+        """This method is called when the client starts the local training process.
+
+        Args:
+            round (int): The round number.
+            client_id (int):  The client ID.
+            model (Module): The local model before training.
+            **kwargs (dict): Additional keyword arguments.
+        """
+        pass
+
+    def end_fit(self,
+                round: int,
+                client_id: int,
+                model: Module,
+                loss: float,
+                **kwargs: dict[str, Any]):
+        """This method is called when the client ends the local training process.
+
+        Args:
+            round (int): The round number.
+            client_id (int): The client ID.
+            model (Module): The local model after the local training.
+            loss (float): The average loss incurred by the local model during training.
+            **kwargs (dict): Additional keyword arguments.
+        """
+        pass
+
+    def client_evaluation(self,
+                          round: int,
+                          client_id: int,
+                          phase: Literal["pre-fit", "post-fit"],
+                          evals: dict[str, float],
+                          **kwargs: dict[str, Any]):
+        """This method is called when the client evaluates the local model.
+        The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
+        training process. The 'pre-fit' evlauation is usually the evaluation of the global model on
+        the local test set, and the 'post-fit' evaluation is the evaluation of the just updated
+        local model on the local test set.
+
+        Args:
+            round (int): The round number.
+            client_id (int): The client ID.
+            phase (Literal['pre-fit', 'post-fit']): Whether the evaluation is done before or after
+                the local training process.
+            evals (dict[str, float]): The evaluation results.
+            **kwargs (dict): Additional keyword arguments.
+        """
+        pass
 
 
 class ServerObserver():
     """Server observer interface.
     This interface is used to observe the server during the federated learning process.
     For example, it can be used to log the performance of the global model and the communication
-    costs, as it is done in the ``Log`` class.
+    costs, as it is done by the ``Log`` class.
     """
 
-    def start_round(self, round: int, global_model: Any):
+    def start_round(self, round: int, global_model: Any) -> None:
         """This method is called when a new round starts.
 
         Args:
@@ -60,20 +121,15 @@ class ServerObserver():
         """
         pass
 
-    def end_round(self,
-                  round: int,
-                  evals: dict[str, float],
-                  client_evals: Iterable[Any]):
+    def end_round(self, round: int) -> None:
         """This method is called when a round ends.
 
         Args:
             round (int): The round number.
-            evals (dict[str, float]): The evaluation results of the global model.
-            client_evals (Iterable[Any]): The evaluation rstuls of the clients.
         """
         pass
 
-    def selected_clients(self, round: int, clients: Iterable):
+    def selected_clients(self, round: int, clients: Iterable) -> None:
         """This method is called when the clients have been selected for the current round.
 
         Args:
@@ -82,19 +138,31 @@ class ServerObserver():
         """
         pass
 
-    def error(self, error: str):
-        """This method is called when an error occurs.
+    def server_evaluation(self,
+                          round: int,
+                          type: Literal["global", "locals"],
+                          evals: Union[dict[str, float], dict[int, dict[str, float]]],
+                          **kwargs: dict[str, Any]) -> None:
+        """This method is called when the server evaluates the global or the local models on its
+        test set.
 
         Args:
-            error (str): The error message.
+            round (int): The round number.
+            type (Literal['global', 'locals']): The type of evaluation. If 'global', the evaluation
+                is done on the global model. If 'locals', the evaluation is done on the local models
+                of the clients on the test set of the server.
+            evals (dict[str, float] | dict[int, dict[str, float]]): The evaluation metrics. In case
+                of 'global' evaluation, it is a dictionary with the evaluation metrics. In case of
+                'locals' evaluation, it is a dictionary of dictionaries where the keys are the
+                client IDs and the values are the evaluation metrics.
         """
         pass
 
-    def finished(self,  client_evals: Iterable[Any]):
+    def finished(self, round: int) -> None:
         """This method is called when the federated learning process has ended.
 
         Args:
-            client_evals (Iterable[Any]): The evaluation metrics of the clients.
+            round (int): The last round number.
         """
         pass
 
@@ -129,6 +197,11 @@ class OptimizerConfigurator:
                 and a gamma of 1. Defaults to ``None``.
         """
 
+        self.optimizer_cfg: DDict = None
+        self.scheduler_cfg: DDict = None
+        self.optimizer: type[Optimizer] = None
+        self.scheduler: type[LRScheduler] = None
+
         if isinstance(optimizer_cfg, DDict):
             self.optimizer_cfg = optimizer_cfg
         elif isinstance(optimizer_cfg, dict):
@@ -146,7 +219,7 @@ class OptimizerConfigurator:
             raise ValueError("Invalid scheduler configuration.")
 
         if isinstance(self.optimizer_cfg.name, str):
-            self.optimizer: type[Optimizer] = get_optimizer(self.optimizer_cfg.name)
+            self.optimizer = get_optimizer(self.optimizer_cfg.name)
         elif inspect.isclass(self.optimizer_cfg.name) and \
                 issubclass(self.optimizer_cfg.name, Optimizer):
             self.optimizer = self.optimizer_cfg.name
@@ -156,7 +229,7 @@ class OptimizerConfigurator:
         if "name" not in self.scheduler_cfg:
             self.scheduler = get_scheduler("StepLR")
         elif isinstance(self.scheduler_cfg.name, str):
-            self.scheduler: type[LRScheduler] = get_scheduler(self.scheduler_cfg.name)
+            self.scheduler = get_scheduler(self.scheduler_cfg.name)
         elif inspect.isclass(self.scheduler_cfg.name) and \
                 issubclass(self.scheduler_cfg.name, LRScheduler):
             self.scheduler = self.scheduler_cfg.name
@@ -256,7 +329,7 @@ def get_loss(lname: str) -> Module:
     return get_class_from_str("torch.nn", lname)()
 
 
-def get_model(mname: str, **kwargs) -> Module:
+def get_model(mname: str, **kwargs: dict[str, Any]) -> Module:
     """Get a model from its name.
     This function is used to get a torch model from its name and the name of the module where it is
     defined. It is used to dynamically import models. If ``mname`` is not a fully qualified name,
@@ -415,8 +488,18 @@ class Configuration(DDict):
             "name": "Log"
         }
 
+        EVAL_OPT_KEYS = {
+            "task": "classification",
+            "eval_every": 1,
+            "pre_fit": False,
+            "post_fit": True,
+            "server": True,
+            "locals": False
+        }
+
         FIRST_LVL_KEYS = ["data", "protocol", "method"]
         FIRST_LVL_OPT_KEYS = {
+            "eval": EVAL_OPT_KEYS,
             "exp": EXP_OPT_KEYS,
             "logger": LOG_OPT_KEYS
         }
@@ -445,7 +528,7 @@ class Configuration(DDict):
 
         for k, v in FIRST_LVL_OPT_KEYS.items():
             if k not in self:
-                self[k] = DDict(v)
+                self[k] = DDict(**v)
 
         for k in PROTO_REQUIRED_KEYS:
             if k not in self.protocol:
@@ -460,6 +543,10 @@ class Configuration(DDict):
         for k, v in DATA_OPT_KEYS.items():
             if k not in self.data:
                 self.data[k] = v
+
+        for k, v in EVAL_OPT_KEYS.items():
+            if k not in self.data:
+                self.eval[k] = v
 
         for k, v in EXP_OPT_KEYS.items():
             if k not in self.exp:

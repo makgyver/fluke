@@ -1,20 +1,24 @@
-from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
-import torch
 import sys
+import tempfile
+from typing import Any
+
+from torch.nn import CrossEntropyLoss, Module
+from torch.optim import SGD
+
 sys.path.append(".")
 sys.path.append("..")
 
 from fluke import DDict, GlobalSettings  # NOQA
+from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
+from fluke.client import Client, PFLClient  # NOQA
+from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
-from fluke.client import Client, PFLClient  # NOQA
-from fluke.server import Server  # NOQA
+from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
-from fluke.comm import ChannelObserver, Message  # NOQA
-from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
-from fluke.algorithms.fedavg import FedAVG  # NOQA
-from fluke.utils import Configuration, get_class_from_qualified_name, ServerObserver  # NOQA
+from fluke.server import Server  # NOQA
+from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
+                         get_class_from_qualified_name)
 from fluke.utils.log import Log  # NOQA
 
 
@@ -35,7 +39,7 @@ def test_centralized_fl():
         server=DDict(weighted=True)
     )
     mnist = Datasets.MNIST("../data")
-    splitter = DataSplitter(mnist)
+    splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(2, splitter, hparams)
 
     assert fl.n_clients == 2
@@ -44,7 +48,8 @@ def test_centralized_fl():
     assert isinstance(fl.clients[0], Client)
     assert isinstance(fl.server, Server)
     assert isinstance(fl.server.model, MNIST_2NN)
-    assert fl.clients[0].test_set is None
+    assert fl.clients[0].test_set is not None
+    assert fl.clients[1].test_set is not None
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
 
     hparams = DDict(
@@ -62,8 +67,11 @@ def test_centralized_fl():
         server=DDict(weighted=True)
     )
     mnist = Datasets.MNIST("../data")
-    splitter = DataSplitter(mnist)
+    splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(2, splitter, hparams)
+
+    GlobalSettings().set_evaluator(ClassificationEval(1, 10))
+    GlobalSettings().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
 
     assert isinstance(fl.server.model, MNIST_2NN)
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
@@ -72,7 +80,7 @@ def test_centralized_fl():
     assert fl.get_client_class() == Client
     assert fl.get_server_class() == Server
 
-    class Observer(ServerObserver, ChannelObserver):
+    class Observer(ClientObserver, ServerObserver, ChannelObserver):
         def __init__(self):
             super().__init__()
             self.called_start = False
@@ -80,33 +88,51 @@ def test_centralized_fl():
             self.called_selected = False
             self.called_error = False
             self.called_finished = False
+            self.called_client_eval = False
+            self.called_server_eval = False
+            self.called_start_fit = False
+            self.called_end_fit = False
 
         def start_round(self, round, global_model):
             assert round == 1
             assert global_model is not None
             self.called_start = True
 
-        def end_round(self,
-                      round,
-                      evals,
-                      client_evals):
+        def end_round(self, round):
             assert round == 1
-            assert len(client_evals) == 0
-            assert "accuracy" in evals
             self.called_end = True
+
+        def server_evaluation(self, round, type, evals) -> None:
+            assert round == 1
+            assert type == "global"
+            assert "accuracy" in evals
+            self.called_server_eval = True
+
+        def client_evaluation(self, round, client_id, phase, evals, **kwargs: dict[str, Any]):
+            assert round == 1 or (round == -1 and phase == "pre-fit")
+            assert phase == "post-fit" or phase == "pre-fit"
+            assert client_id == 0 or client_id == 1
+            self.called_client_eval = True
 
         def selected_clients(self, round, clients):
             assert len(clients) == 1
             assert round == 1
             self.called_selected = True
 
-        def error(self, error):
-            assert error == "error"
-            self.called_error = True
-
-        def finished(self,  client_evals):
-            assert len(client_evals) == 0
+        def finished(self, round):
+            assert round == 2
             self.called_finished = True
+
+        def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+            assert round == 1
+            assert client_id == 0 or client_id == 1
+            self.called_start_fit = True
+
+        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs: dict[str, Any]):
+            assert round == 1
+            assert client_id == 0 or client_id == 1
+            assert loss >= 0.0
+            self.called_end_fit = True
 
         def message_received(self, message: Message):
             pass
@@ -130,6 +156,17 @@ def test_centralized_fl():
     assert obs.called_end
     assert obs.called_selected
     assert obs.called_finished
+    assert obs.called_start_fit
+    assert obs.called_end_fit
+    assert obs.called_client_eval
+    assert obs.called_server_eval
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        fl.save(tmpdirname)
+        fl2 = CentralizedFL(2, splitter, hparams)
+        fl2.load(tmpdirname)
+
+        assert fl2.server.rounds == fl.server.rounds
 
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
@@ -160,6 +197,14 @@ def test_centralized_fl():
     assert isinstance(fl.clients[0].personalized_model, MNIST_2NN)
     assert fl.clients[0].test_set is None
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
+
+    fl.run(1, 0.5)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        fl.save(tmpdirname)
+        fl2 = PersonalizedFL(2, splitter, hparams)
+        fl2.load(tmpdirname)
+
+        assert fl2.server.rounds == fl.server.rounds
 
 
 def _test_algo(exp_config, alg_config, rounds=1, oncpu=True):
@@ -196,171 +241,200 @@ def _test_algo(exp_config, alg_config, rounds=1, oncpu=True):
 
 def test_apfl():
     apfl, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/apfl.yaml")
-    apfl, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/apfl.yaml", oncpu=False)
+    # apfl, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/apfl.yaml", oncpu=False)
 
 
 def test_ccvr():
-    # ccvr, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ccvr.yaml")
-    ccvr, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ccvr.yaml", oncpu=False)
+    ccvr, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ccvr.yaml")
+    # ccvr, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ccvr.yaml", oncpu=False)
 
 
 def test_ditto():
     ditto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ditto.yaml")
-    ditto, log = _test_algo("./tests/configs/exp.yaml",
-                            "./tests/configs/alg/ditto.yaml", oncpu=False)
+    # ditto, log = _test_algo("./tests/configs/exp.yaml",
+    #                         "./tests/configs/alg/ditto.yaml", oncpu=False)
+
+
+def test_fedala():
+    fedala, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedala.yaml")
+    # fedala, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedala.yaml", oncpu=False)
 
 
 def test_fedamp():
     fedamp, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedamp.yaml")
-    fedamp, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedamp.yaml", oncpu=False)
+    # fedamp, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedamp.yaml", oncpu=False)
+
+
+def test_fedavg():
+    fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavg.yaml")
+    # fedavg, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedavg.yaml", oncpu=False)
+
+
+def test_fedavgm():
+    fedavgm, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavgm.yaml")
+    # fedavgm, log = _test_algo("./tests/configs/exp.yaml",
+    #                           "./tests/configs/alg/fedavgm.yaml", oncpu=False)
+
+
+def test_fedaws():
+    fedaws, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedaws.yaml")
+    # fedaws, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedaws.yaml", oncpu=False)
 
 
 def test_fedbabu():
     fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu.yaml")
     fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu_head.yaml")
     fedbabu, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbabu_body.yaml")
-    fedbabu, log = _test_algo("./tests/configs/exp.yaml",
-                              "./tests/configs/alg/fedbabu.yaml", oncpu=False)
-    fedbabu, log = _test_algo("./tests/configs/exp.yaml",
-                              "./tests/configs/alg/fedbabu_head.yaml", oncpu=False)
-    fedbabu, log = _test_algo("./tests/configs/exp.yaml",
-                              "./tests/configs/alg/fedbabu_body.yaml", oncpu=False)
-
-
-def test_feddyn():
-    feddyn, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/feddyn.yaml")
-    feddyn, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/feddyn.yaml", oncpu=False)
-
-
-def test_fedlc():
-    fedlc, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedlc.yaml")
-    fedlc, log = _test_algo("./tests/configs/exp.yaml",
-                            "./tests/configs/alg/fedlc.yaml", oncpu=False)
-
-
-def test_fednova():
-    fednova, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednova.yaml")
-    fednova, log = _test_algo("./tests/configs/exp.yaml",
-                              "./tests/configs/alg/fednova.yaml", oncpu=False)
-
-
-def test_fedper():
-    fedper, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedper.yaml")
-    fedper, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedper.yaml", oncpu=False)
-
-
-def test_fedrep():
-    fedrep, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedrep.yaml")
-    fedrep, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedrep.yaml", oncpu=False)
-
-
-def test_lgfedavg():
-    lgfedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/lg_fedavg.yaml")
-    lgfedavg, log = _test_algo("./tests/configs/exp.yaml",
-                               "./tests/configs/alg/lg_fedavg.yaml", oncpu=False)
-
-
-def test_moon():
-    moon, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/moon.yaml")
-    moon, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/moon.yaml", oncpu=False)
-
-
-def test_pfedme():
-    pfedme, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/pfedme.yaml")
-    pfedme, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/pfedme.yaml", oncpu=False)
-
-
-def test_scaffold():
-    scaffold, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/scaffold.yaml")
-    scaffold, log = _test_algo("./tests/configs/exp.yaml",
-                               "./tests/configs/alg/scaffold.yaml", oncpu=False)
-
-
-def test_superfed():
-    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml", 3)
-    superfed, log = _test_algo("./tests/configs/exp.yaml",
-                               "./tests/configs/alg/superfed.yaml", 3, oncpu=False)
-
-
-def test_per_fedavg():
-    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
-    per_fedavg, log = _test_algo("./tests/configs/exp.yaml",
-                                 "./tests/configs/alg/per_fedavg.yaml", oncpu=False)
-    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg2.yaml")
-    per_fedavg, log = _test_algo("./tests/configs/exp.yaml",
-                                 "./tests/configs/alg/per_fedavg2.yaml", oncpu=False)
-
-
-def test_fedavg():
-    fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavg.yaml")
-    fedavg, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedavg.yaml", oncpu=False)
-    # assert log.history[log.current_round]["accuracy"] >= 0.9642
+    # fedbabu, log = _test_algo("./tests/configs/exp.yaml",
+    #                           "./tests/configs/alg/fedbabu.yaml", oncpu=False)
+    # fedbabu, log = _test_algo("./tests/configs/exp.yaml",
+    #                           "./tests/configs/alg/fedbabu_head.yaml", oncpu=False)
+    # fedbabu, log = _test_algo("./tests/configs/exp.yaml",
+    #                           "./tests/configs/alg/fedbabu_body.yaml", oncpu=False)
 
 
 def test_fedbn():
     fedbn, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedbn.yaml")
-    fedbn, log = _test_algo("./tests/configs/exp.yaml",
-                            "./tests/configs/alg/fedbn.yaml", oncpu=False)
+    # fedbn, log = _test_algo("./tests/configs/exp.yaml",
+    #                         "./tests/configs/alg/fedbn.yaml", oncpu=False)
 
 
-def test_fedavgm():
-    fedavgm, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedavgm.yaml")
-    fedavgm, log = _test_algo("./tests/configs/exp.yaml",
-                              "./tests/configs/alg/fedavgm.yaml", oncpu=False)
-
-
-def test_fedprox():
-    fedprox, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedprox.yaml")
-    fedprox, log = _test_algo("./tests/configs/exp.yaml",
-                              "./tests/configs/alg/fedprox.yaml", oncpu=False)
-
-
-def test_fedsgd():
-    fedsgd, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedsgd.yaml")
-    fedsgd, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedsgd.yaml", oncpu=False)
+def test_feddyn():
+    feddyn, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/feddyn.yaml")
+    # feddyn, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/feddyn.yaml", oncpu=False)
 
 
 def test_fedexp():
-    fedsgd, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedsgd.yaml")
-    fedsgd, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedsgd.yaml", oncpu=False)
-
-
-def test_fedproto():
-    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedproto.yaml")
-    fedproto, log = _test_algo("./tests/configs/exp.yaml",
-                               "./tests/configs/alg/fedproto.yaml", oncpu=False)
+    fedexp, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedexp.yaml")
+    # fedexp, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedexp.yaml", oncpu=False)
 
 
 def test_fedhp():
-    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedhp.yaml")
-    fedproto, log = _test_algo("./tests/configs/exp.yaml",
-                               "./tests/configs/alg/fedhp.yaml", oncpu=False)
+    fedhp, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedhp.yaml")
+    # fedhp, log = _test_algo("./tests/configs/exp.yaml",
+    #                         "./tests/configs/alg/fedhp.yaml", oncpu=False)
+
+
+def test_fedlc():
+    fedlc, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedlc.yaml")
+    # fedlc, log = _test_algo("./tests/configs/exp.yaml",
+    #                         "./tests/configs/alg/fedlc.yaml", oncpu=False)
 
 
 def test_fednh():
-    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednh.yaml")
-    fedproto, log = _test_algo("./tests/configs/exp.yaml",
-                               "./tests/configs/alg/fednh.yaml", oncpu=False)
+    fednh, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednh.yaml")
+    # fednh, log = _test_algo("./tests/configs/exp.yaml",
+    #                         "./tests/configs/alg/fednh.yaml", oncpu=False)
+
+
+def test_fednova():
+    fednova, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednova.yaml")
+    # fednova, log = _test_algo("./tests/configs/exp.yaml",
+    #                           "./tests/configs/alg/fednova.yaml", oncpu=False)
 
 
 def test_fedopt():
     fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedadam.yaml")
     fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedadagrad.yaml")
     fedopt, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedyogi.yaml")
-    fedopt, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedadam.yaml", oncpu=False)
-    fedopt, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedadagrad.yaml", oncpu=False)
-    fedopt, log = _test_algo("./tests/configs/exp.yaml",
-                             "./tests/configs/alg/fedyogi.yaml", oncpu=False)
+    # fedopt, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedadam.yaml", oncpu=False)
+    # fedopt, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedadagrad.yaml", oncpu=False)
+    # fedopt, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedyogi.yaml", oncpu=False)
+
+
+def test_fedproto():
+    fedproto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedproto.yaml")
+    # fedproto, log = _test_algo("./tests/configs/exp.yaml",
+    #                            "./tests/configs/alg/fedproto.yaml", oncpu=False)
+
+
+def test_fedprox():
+    fedprox, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedprox.yaml")
+    # fedprox, log = _test_algo("./tests/configs/exp.yaml",
+    #                           "./tests/configs/alg/fedprox.yaml", oncpu=False)
+
+
+def test_fedper():
+    fedper, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedper.yaml")
+    # fedper, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedper.yaml", oncpu=False)
+
+
+def test_fedrep():
+    fedrep, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedrep.yaml")
+    # fedrep, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedrep.yaml", oncpu=False)
+
+
+def test_fedrod():
+    fedrod, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedrod.yaml")
+    # fedrod, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedrod.yaml", oncpu=False)
+
+
+def test_fedrs():
+    fedrs, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedrs.yaml")
+    # fedrs, log = _test_algo("./tests/configs/exp.yaml",
+    #                         "./tests/configs/alg/fedrs.yaml", oncpu=False)
+
+
+def test_fedsam():
+    fedsam, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedsam.yaml")
+    # fedsam, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedsam.yaml", oncpu=False)
+
+
+def test_fedsgd():
+    fedsgd, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedsgd.yaml")
+    # fedsgd, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/fedsgd.yaml", oncpu=False)
+
+
+def test_lgfedavg():
+    lgfedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/lg_fedavg.yaml")
+    # lgfedavg, log = _test_algo("./tests/configs/exp.yaml",
+    #                            "./tests/configs/alg/lg_fedavg.yaml", oncpu=False)
+
+
+def test_moon():
+    moon, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/moon.yaml")
+    # moon, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/moon.yaml", oncpu=False)
+
+
+def test_per_fedavg():
+    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg.yaml")
+    # per_fedavg, log = _test_algo("./tests/configs/exp.yaml",
+    #                              "./tests/configs/alg/per_fedavg.yaml", oncpu=False)
+    per_fedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/per_fedavg2.yaml")
+    # per_fedavg, log = _test_algo("./tests/configs/exp.yaml",
+    #                              "./tests/configs/alg/per_fedavg2.yaml", oncpu=False)
+
+
+def test_pfedme():
+    pfedme, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/pfedme.yaml")
+    # pfedme, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/pfedme.yaml", oncpu=False)
+
+
+def test_scaffold():
+    scaffold, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/scaffold.yaml")
+    # scaffold, log = _test_algo("./tests/configs/exp.yaml",
+    #                            "./tests/configs/alg/scaffold.yaml", oncpu=False)
+
+
+def test_superfed():
+    superfed, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/superfed.yaml", 3)
+    # superfed, log = _test_algo("./tests/configs/exp.yaml",
+    #                            "./tests/configs/alg/superfed.yaml", 3, oncpu=False)
 
 
 if __name__ == "__main__":

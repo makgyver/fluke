@@ -2,24 +2,31 @@
 The ``fluke`` module is the entry module of the ``fluke`` framework. Here are defined generic
 classes used by the other modules.
 """
-import re
-import torch
+from __future__ import annotations
+
 import random
+import re
+import warnings
+from typing import TYPE_CHECKING, Any, Iterable, Union
+
 import numpy as np
+import torch
 from rich.console import Group
-from rich.progress import Progress, Live
-from typing import Any, Union, Iterable
+from rich.progress import Live, Progress
+
+if TYPE_CHECKING:
+    from .evaluation import Evaluator
 
 
 __all__ = [
     'algorithms',
     'client',
-    'data',
     'comm',
+    'data',
     'evaluation',
+    'get',
     'nets',
     'run',
-    'get',
     'server',
     'utils',
     'DDict',
@@ -47,7 +54,7 @@ class Singleton(type):
     """
     _instances = {}
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args, **kwargs: dict[str, Any]):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
@@ -70,13 +77,14 @@ class DDict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
 
-    def __init__(self, **kwargs):
-        self.update(**kwargs)
+    def __init__(self, *args: dict, **kwargs: dict[str, Any]):
+        self.update(*args, **kwargs)
 
-    def update(self, **kwargs):
+    def update(self, *args: dict, **kwargs: dict[str, Any]):
         """Update the ``DDict`` with the specified key-value pairs.
 
         Args:
+            *args (dict): Dictionary with the key-value pairs.
             **kwargs: The key-value pairs.
 
         Example:
@@ -89,6 +97,16 @@ class DDict(dict):
                 print(d) # {'a': 1, 'b': 2, 'c': 3}
 
         """
+        for arg in args:
+            if isinstance(arg, dict):
+                for k, v in arg.items():
+                    if isinstance(v, dict):
+                        self[k] = DDict(**v)
+                    else:
+                        self[k] = v
+            else:
+                warnings.warn(f"Argument {arg} is not a dictionary and will be ignored.")
+
         for k, v in kwargs.items():
             if isinstance(v, dict):
                 self[k] = DDict(**v)
@@ -188,14 +206,26 @@ class GlobalSettings(metaclass=Singleton):
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
     - The ``seed`` for reproducibility;
+    - The evaluation configuration;
     - The progress bars for the federated learning process, clients and the server;
     - The live renderer, which is used to render the progress bars.
 
     """
 
+    # general settings
     _device: str = 'cpu'
     _seed: int = 0
 
+    # evaluation settings
+    _evaluator: Evaluator = None
+    _eval_cfg: DDict = DDict(
+        pre_fit=False,
+        post_fit=False,
+        locals=False,
+        server=True
+    )
+
+    # progress bars
     _progress_FL: Progress = None
     _progress_clients: Progress = None
     _progress_server: Progress = None
@@ -217,6 +247,39 @@ class GlobalSettings(metaclass=Singleton):
             int: The seed.
         """
         return self._seed
+
+    def get_eval_cfg(self) -> DDict:
+        """Get the evaluation configuration.
+
+        Returns:
+            DDict: The evaluation configuration.
+        """
+        return self._eval_cfg
+
+    def set_eval_cfg(self, cfg: DDict) -> None:
+        """Set the evaluation configuration.
+
+        Args:
+            cfg (DDict): The evaluation configuration.
+        """
+        for key, value in cfg.items():
+            self._eval_cfg[key] = value
+
+    def get_evaluator(self) -> Evaluator:
+        """Get the evaluator.
+
+        Returns:
+            Evaluator: The evaluator.
+        """
+        return self._evaluator
+
+    def set_evaluator(self, evaluator: Evaluator) -> None:
+        """Set the evaluator.
+
+        Args:
+            evaluator (Evaluator): The evaluator.
+        """
+        self._evaluator = evaluator
 
     def set_seed(self, seed: int) -> None:
         """Set seed for reproducibility. The seed is used to set the random seed for the following
@@ -266,7 +329,11 @@ class GlobalSettings(metaclass=Singleton):
         if device == "auto":
             return GlobalSettings().auto_device()
 
-        self._device = torch.device(device)
+        if device.startswith('cuda') and ":" in device:
+            idx = int(device.split(":")[1])
+            self._device = torch.device(device, idx)
+        else:
+            self._device = torch.device(device)
         return self._device
 
     def get_device(self) -> torch.device:

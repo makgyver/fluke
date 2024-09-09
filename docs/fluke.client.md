@@ -49,17 +49,20 @@ Classes included in ``fluke.client``
    server
    set_server
    fit
+   local_update
    receive_model
    send_model
    evaluate
    finalize
+
 ```
 
 ```{eval-rst}
 
 .. autoclass:: fluke.client.Client
    :member-order: bysource
-   :members: index, n_examples, channel, server, set_server, fit, receive_model, send_model, evaluate, finalize
+   :show-inheritance:
+   :members: index, n_examples, channel, server, set_server, local_update, fit, receive_model, send_model, evaluate, finalize
 
 ```
 

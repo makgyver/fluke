@@ -1,28 +1,37 @@
-"""Implementation of the [FedDyn21]_ algorithm.
+"""Implementation of the FedDyn [FedDyn21]_ algorithm.
 
 References:
     .. [FedDyn21] Durmus Alp Emre Acar, Yue Zhao, Ramon Matas, Matthew Mattina, Paul Whatmough,
        and Venkatesh Saligrama. Federated Learning with Dynamic Regularization.
-       In: ICLR (2021). URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
+       In ICLR (2021). URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
 """
-from torch.nn import Module
-import numpy as np
-import torch
-from typing import Iterable
+import sys
 from collections import OrderedDict
 from copy import deepcopy
-import sys
+from typing import Any, Iterable
+
+import numpy as np
+import torch
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..data import FastDataLoader  # NOQA
-from ..client import Client  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
-from ..server import Server  # NOQA
-from ..comm import Message  # NOQA
 from .. import GlobalSettings  # NOQA
+from ..client import Client  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
+                           safe_load_state_dict)
 from . import CentralizedFL  # NOQA
+
+__all__ = [
+    "FedDynClient",
+    "FedDynServer",
+    "FedDyn"
+]
 
 
 def get_all_params_of(model: torch.Tensor, copy: bool = True) -> torch.Tensor:
@@ -59,7 +68,7 @@ class FedDynClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  alpha: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
 
         self.hyper_params.update(alpha=alpha)
@@ -82,9 +91,9 @@ class FedDynClient(Client):
     def _send_weight(self) -> None:
         self.channel.send(Message(self.train_set.tensors[0].shape[0], "weight", self), self.server)
 
-    def fit(self, override_local_epochs: int = 0):
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
+
         self.model.train()
         self.model.to(self.device)
 
@@ -100,8 +109,8 @@ class FedDynClient(Client):
                                                                 # this override the weight_decay
                                                                 # in the optimizer_cfg
                                                                 weight_decay=w_dec)
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
@@ -119,6 +128,7 @@ class FedDynClient(Client):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(parameters=self.model.parameters(), max_norm=10)
                 self.optimizer.step()
+                running_loss += loss.item()
 
             self.scheduler.step()
 
@@ -126,20 +136,20 @@ class FedDynClient(Client):
         curr_params = get_all_params_of(self.model).to(self.device)
         self.prev_grads += alpha_coef_adpt * (server_params - curr_params)
 
+        running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
-        self.send_model()
+        return running_loss
 
 
 class FedDynServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = True,
                  alpha: float = 0.01):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.alpha = alpha
         self.device = GlobalSettings().get_device()
         self.cld_mdl = deepcopy(self.model).to(self.device)

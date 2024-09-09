@@ -15,9 +15,9 @@
 .. autosummary:: 
    :nosignatures:
 
-   fluke.comm.Message
-   fluke.comm.Channel
-   fluke.comm.ChannelObserver
+   Message
+   Channel
+   ChannelObserver
 
 ```
 

@@ -1,0 +1,18 @@
+hyperparameters:
+  client:
+    batch_size: 32
+    local_epochs: 5
+    loss: CrossEntropyLoss
+    optimizer:
+      lr: 0.1
+      # momentum: 0.9
+      # weight_decay: 0.0001
+    scheduler:
+      gamma: 1
+      step_size: 1
+    alpha: 0.1
+    count_as_missing: 0
+  server:
+    weighted: true
+  model: MNIST_2NN
+name: fluke.algorithms.fedrs.FedRS

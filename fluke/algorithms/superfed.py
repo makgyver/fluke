@@ -2,24 +2,31 @@
 
 References:
     .. [SuPerFed22] Seok-Ju Hahn, Minwoo Jeong, and Junghye Lee. Connecting Low-Loss Subspace
-       for Personalized Federated Learning. In: KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
+       for Personalized Federated Learning. In KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
-from torch.nn.modules import Module
-from typing import Any, Callable
-import numpy as np
-from copy import deepcopy
 import sys
+from copy import deepcopy
+from typing import Any
+
+import numpy as np
+from torch.nn.modules import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import (get_global_model_dict,  # NOQA
-                           get_local_model_dict,  # NOQA
-                           mix_networks,  # NOQA
-                           set_lambda_model)  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import PFLClient  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import get_global_model_dict  # NOQA
+from ..utils.model import get_local_model_dict  # NOQA
+from ..utils.model import mix_networks  # NOQA
+from ..utils.model import set_lambda_model  # NOQA
+
+__all__ = [
+    "SuPerFedClient",
+    "SuPerFed"
+]
 
 
 class SuPerFedClient(PFLClient):
@@ -30,16 +37,18 @@ class SuPerFedClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: Module,
                  local_epochs: int = 3,
                  mode: str = "global",
                  start_mix: int = 10,
                  mu: float = 0.1,
                  nu: float = 0.1,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         assert mode in ["mm", "lm"]
 
-        super().__init__(index, model, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(
             mode=mode,
             start_mix=start_mix,
@@ -50,9 +59,8 @@ class SuPerFedClient(PFLClient):
         self.internal_model = None
         self.mixed = False
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
 
         if self.hyper_params.mu > 0:
             prev_global_model = deepcopy(self.model).to(self.device)
@@ -81,6 +89,7 @@ class SuPerFedClient(PFLClient):
         if self.optimizer is None:
             self.optimizer, self.scheduler = self.optimizer_cfg(self.internal_model)
 
+        running_loss = 0.0
         for _ in range(epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
@@ -121,9 +130,11 @@ class SuPerFedClient(PFLClient):
 
                 loss.backward()
                 self.optimizer.step()
+                running_loss += loss.item()
 
             self.scheduler.step()
 
+        running_loss /= (epochs * len(self.train_set))
         self.internal_model.to("cpu")
         clear_cache()
 
@@ -134,7 +145,7 @@ class SuPerFedClient(PFLClient):
             self.model.load_state_dict(self.internal_model.state_dict())
             self.personalized_model.load_state_dict(self.internal_model.state_dict())
 
-        self.send_model()
+        return running_loss
 
 
 class SuPerFed(PersonalizedFL):

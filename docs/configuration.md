@@ -73,6 +73,18 @@ each field (there is also a version without the comments).
             device: cpu
             # The seed (reproducibility)
             seed: 42
+        # Evaluation configuration
+        eval:
+            # The task to perform which determines the evaluation metric (only classification is currently supported)
+            task: classification
+            # Whether to evaluate the client model before the client local training starts
+            pre_fit: false
+            # Whether to evaluate the client model after the client local training
+            post_fit: false
+            # Whether to evaluate the global model on the server-side test set
+            server: true
+            # Whether to evaluate the client local models on the server-side test set
+            locals: false
         # Logger configuration
         logger:
             # `Log` is the standard output, `WandBLog` logs everything on weights and bias
@@ -105,6 +117,12 @@ each field (there is also a version without the comments).
         exp:
             device: cpu
             seed: 42
+        eval:
+            task: classification
+            pre_fit: false
+            post_fit: false
+            server: true
+            locals: false
         logger:
             name: Log
         protocol:
@@ -203,5 +221,6 @@ It must be structured as follows:
     :hidden:
 
     config_data
+    config_log
 
 ```

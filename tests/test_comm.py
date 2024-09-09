@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import numpy as np
-import torch
-import warnings
-import pytest
 import sys
+import warnings
+
+import numpy as np
+import pytest
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.comm import Message, Channel, ChannelObserver  # NOQA
+from fluke.comm import Channel, ChannelObserver, Message  # NOQA
 
 
 def test_message():

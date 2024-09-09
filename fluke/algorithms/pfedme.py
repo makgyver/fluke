@@ -2,25 +2,35 @@
 
 References:
     .. [pFedMe20] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
-       Learning with Moreau Envelopes. In: NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
+       Learning with Moreau Envelopes. In NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
 """
-from torch.optim import Optimizer
-from torch.nn import Module
-import torch
-from typing import Callable, Iterable, Optional
+import sys
 from collections import OrderedDict
 from copy import deepcopy
-import sys
+from typing import Any, Iterable, Optional
+
+import torch
+from torch.nn import Module
+from torch.optim import Optimizer
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
-from ..server import Server  # NOQA
 from ..client import Client, PFLClient  # NOQA
 from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
+from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
+                           safe_load_state_dict)
+
+__all__ = [
+    "PFedMeOptimizer",
+    "PFedMeClient",
+    "PFedMeServer",
+    "PFedMe"
+]
 
 
 class PFedMeOptimizer(Optimizer):
@@ -30,7 +40,7 @@ class PFedMeOptimizer(Optimizer):
 
     def step(self,
              local_parameters: list[torch.nn.Parameter],
-             closure: Callable = None) -> Optional[float]:
+             closure: callable = None) -> Optional[float]:
         loss = None
         if closure is not None:
             with torch.enable_grad():
@@ -54,9 +64,11 @@ class PFedMeClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  k: int,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
 
-        super().__init__(index, None, test_set, train_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=None, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(k=k)
 
     def receive_model(self) -> None:
@@ -67,9 +79,8 @@ class PFedMeClient(PFLClient):
         else:
             safe_load_state_dict(self.personalized_model, model.state_dict())
 
-    def fit(self, override_local_epochs: int = 0) -> dict:
+    def fit(self, override_local_epochs: int = 0) -> float:
         epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
-        self.receive_model()
         self.personalized_model.train()
         self.personalized_model.to(self.device)
         self.model.to(self.device)
@@ -78,8 +89,8 @@ class PFedMeClient(PFLClient):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
 
         lamda = self.optimizer.defaults["lamda"]
+        running_loss = 0.0
         for _ in range(epochs):
-            loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 for _ in range(self.hyper_params.k):
@@ -93,12 +104,13 @@ class PFedMeClient(PFLClient):
                 params = zip(self.personalized_model.parameters(), self.model.parameters())
                 for param_p, param_l in params:
                     param_l.data = param_l.data - lamda * lr * (param_l.data - param_p.data)
-
+                running_loss += loss.item()
             self.scheduler.step()
+        running_loss /= (epochs * len(self.train_set))
         self.model.load_state_dict(self.personalized_model.state_dict())
         self.model.to("cpu")
         self.personalized_model.to("cpu")
-        self.send_model()
+        return running_loss
 
     def send_model(self):
         self.channel.send(Message(self.model, "model", self), self.server)
@@ -107,12 +119,12 @@ class PFedMeClient(PFLClient):
 class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 eval_every: int = 1,
                  weighted: bool = False,
-                 beta: float = 0.5):
-        super().__init__(model, test_data, clients, eval_every, weighted)
+                 beta: float = 0.5,
+                 **kwargs: dict[str, Any]):
+        super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
@@ -137,6 +149,9 @@ class PFedMeServer(Server):
 
 
 class PFedMe(CentralizedFL):
+
+    def can_override_optimizer(self) -> bool:
+        return False
 
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         return PFedMeOptimizer

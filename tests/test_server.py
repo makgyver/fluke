@@ -1,16 +1,21 @@
 from __future__ import annotations
+
+import sys
+
+import pytest
 import torch
 from torch.nn import Linear
-import pytest
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.server import Server  # NOQA
+from fluke import DDict  # NOQA
+from fluke import GlobalSettings  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.data import FastDataLoader  # NOQA
+from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.server import Server  # NOQA
 from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
-from fluke import DDict  # NOQA
 
 
 def test_server():
@@ -22,22 +27,20 @@ def test_server():
             assert global_model is not None
 
         def end_round(self,
-                      round,
-                      evals,
-                      client_evals):
+                      round):
             assert round == 1
-            assert len(client_evals) == 1
-            assert "accuracy" in evals
 
         def selected_clients(self, round, clients):
             assert len(clients) == 2
             assert round == 1
 
-        def error(self, error):
-            assert error == "error"
+        def server_evaluation(self, round, type, evals, **kwargs) -> None:
+            assert round == 1
+            assert type == "global"
+            assert "accuracy" in evals
 
-        def finished(self,  client_evals):
-            assert len(client_evals) == 1
+        def finished(self, round):
+            assert round == 1 or round == 2
 
     class Model(Linear):
         def __init__(self):
@@ -68,30 +71,30 @@ def test_server():
 
     server = Server(clients=clients,
                     model=Model(),
-                    test_data=ftdl_server,
-                    eval_every=1,
+                    test_set=ftdl_server,
                     weighted=True)
 
     assert server.clients == clients
     assert isinstance(server.model, Model)
-    assert server.test_data == ftdl_server
+    assert server.test_set == ftdl_server
     assert server.hyper_params.weighted
     assert server.channel == clients[0].channel
     assert server.rounds == 0
     assert server.has_test
     assert server.has_model
 
+    evaluator = ClassificationEval(1, 2)
+    GlobalSettings().set_evaluator(evaluator)
     obs = Observer()
     server.attach(obs)
-    ev0 = server.evaluate()
+    ev0 = server.evaluate(evaluator, server.test_set)
     server.fit(1, 1)
-    ev1 = server.evaluate()
+    ev1 = server.evaluate(evaluator, server.test_set)
 
     # assert ev0["loss"] >= ev1["loss"]
     assert server.rounds == 1
     assert str(server) == "Server(weighted=True)"
 
-    server._notify_error("error")  # test error
     server.detach(obs)
     server.hyper_params.weighted = False
     try:
@@ -105,8 +108,8 @@ def test_server():
     assert len(cmodels) == 2
     assert isinstance(cmodels[0], Model)
 
-    server.test_data = None
-    assert not server.evaluate()
+    server.test_set = None
+    assert not server.evaluate(evaluator, server.test_set)
 
     server.broadcast_model(clients)
 

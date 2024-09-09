@@ -1,12 +1,15 @@
 from __future__ import annotations
+
+import sys
+
+import torch
 from rich.live import Live
 from rich.progress import Progress
-import torch
-import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke import GlobalSettings, ObserverSubject, DDict  # NOQA
+from fluke import DDict, GlobalSettings, ObserverSubject  # NOQA
 
 
 def test_settings():
@@ -20,6 +23,8 @@ def test_settings():
     settings.set_device("mps")
     assert settings.get_device() == torch.device("mps")
     settings.set_device("auto")
+    settings.set_eval_cfg(DDict(pre_fit=True))
+    assert settings.get_eval_cfg().pre_fit
     if torch.cuda.is_available():
         assert settings.get_device() == torch.device("cuda")
     elif torch.backends.mps.is_available():
@@ -66,6 +71,11 @@ def test_ddict():
     dd_nota = dd.exclude("a")
     assert "a" not in dd_nota
     assert dd_nota.b == 2
+
+    dd = DDict({"a": 1, "b": 2}, c=3)
+    assert dd.a == 1
+    assert dd.b == 2
+    assert dd.c == 3
 
 
 if __name__ == "__main__":

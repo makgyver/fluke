@@ -1,15 +1,22 @@
 """This module contains utility classes for loading datasets."""
-from rich.progress import track
-from typing import Any
-from torchvision.datasets.utils import download_and_extract_archive
-from torchvision.datasets import VisionDataset, ImageFolder
-from torchvision.transforms import ToTensor
-from PIL import Image
-import torch
 import os
 import sys
+from typing import Any
+
+import torch
+from PIL import Image
+from rich.progress import track
+from torchvision.datasets import ImageFolder, VisionDataset
+from torchvision.datasets.utils import download_and_extract_archive
+from torchvision.transforms import ToTensor
+
 sys.path.append(".")
 sys.path.append("..")
+
+__all__ = [
+    "MNISTM",
+    "CINIC10"
+]
 
 
 class MNISTM(VisionDataset):

@@ -1,18 +1,23 @@
 """This module contains (as submodules) the implementation of several the federated learning
 algorithms."""
 from __future__ import annotations
-import torch
-from typing import Callable, Union, Any, Iterable
-from copy import deepcopy
+
+import os
 import sys
+import warnings
+from copy import deepcopy
+from typing import Any, Iterable, Union
+
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import DDict  # NOQA
-from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
+from ..client import Client, PFLClient  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..client import Client, PFLClient  # NOQA
+from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
 
 __all__ = [
     'CentralizedFL',
@@ -20,9 +25,11 @@ __all__ = [
     'apfl',
     'ccvr',
     'ditto',
+    'fedala',
     'fedamp',
     'fedavg',
     'fedavgm',
+    'fedaws',
     'fedbabu',
     'fedbn',
     'feddyn',
@@ -36,6 +43,9 @@ __all__ = [
     'fedproto',
     'fedprox',
     'fedrep',
+    'fedrod',
+    'fedrs',
+    'fedsam',
     'fedsgd',
     'lg_fedavg',
     'moon',
@@ -96,6 +106,16 @@ class CentralizedFL():
         self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
         self.init_server(model, server_data, hyper_params.server)
 
+    def can_override_optimizer(self) -> bool:
+        """Return whether the optimizer can be changed user-side.
+        Generally, the optimizer can be configured by the user. However, in some cases, the
+        algorithm may require a specific optimizer and the user should not be able to change it.
+
+        Returns:
+            bool: Whether the optimizer can be changed user-side.
+        """
+        return True
+
     def get_optimizer_class(self) -> torch.optim.Optimizer:
         """Get the optimizer class.
 
@@ -145,8 +165,14 @@ class CentralizedFL():
             :class:`fluke.client.Client`
         """
 
-        if "name" not in config.optimizer:
+        if not self.can_override_optimizer() and \
+                config.optimizer.name != self.get_optimizer_class().__name__:
+            warnings.warn(f"The algorithm does not support the optimizer {config.optimizer.name}. "
+                          f"Using {self.get_optimizer_class().__name__} instead.")
+
+        if "name" not in config.optimizer or not self.can_override_optimizer():
             config.optimizer.name = self.get_optimizer_class()
+
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
@@ -156,7 +182,7 @@ class CentralizedFL():
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
-                loss_fn=self.loss,
+                loss_fn=deepcopy(self.loss),
                 **config.exclude('optimizer', 'loss', 'batch_size', 'scheduler')
             )
             for i in range(self.n_clients)]
@@ -171,16 +197,33 @@ class CentralizedFL():
         """
         self.server = self.get_server_class()(model, data, self.clients, **config)
 
-    def set_callbacks(self, callbacks: Union[Callable, Iterable[Callable]]):
+    def set_callbacks(self, callbacks: Union[callable, Iterable[callable]]):
         """Set the callbacks.
 
         Args:
-            callbacks (Union[Callable, Iterable[Callable]]): Callbacks to attach to the algorithm.
+            callbacks (Union[callable, Iterable[callable]]): Callbacks to attach to the algorithm.
         """
         self.server.attach(callbacks)
         self.server.channel.attach(callbacks)
+        for client in self.clients:
+            client.attach(callbacks)
 
-    def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs):
+    def run(self,
+            n_rounds: int,
+            eligible_perc: float,
+            finalize: bool = True,
+            **kwargs: dict[str, Any]):
+        """Run the federated algorithm.
+        This method will call the :meth:`Server.fit` method which will orchestrate the training
+        process.
+
+        Args:
+            n_rounds (int): Number of rounds.
+            eligible_perc (float): Percentage of eligible clients.
+            finalize (bool, optional): Whether to finalize the training process.
+              Defaults to ``True``.
+            **kwargs (dict[str, Any]): Additional keyword arguments.
+        """
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
 
     def __str__(self) -> str:
@@ -195,21 +238,29 @@ class CentralizedFL():
     def __repr__(self) -> str:
         return str(self)
 
-    def save(self, path: str):
-        """Save the algorithm state to a file.
+    def save(self, path: str) -> None:
+        """Save the algorithm state into files in the specified directory.
 
         Args:
-            path (str): Path to the file where the algorithm state will be saved.
+            path (str): Path to the folder where the algorithm state will be saved.
         """
-        self.server.save(path)
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-    def load(self, path: str):
-        """Load the algorithm state from a file.
+        self.server.save(os.path.join(path, "server.pth"))
+        for i, client in enumerate(self.clients):
+            client.save(os.path.join(path, f"client_{i}.pth"))
+
+    def load(self, path: str) -> None:
+        """Load the algorithm state from the specified folder
 
         Args:
-            path (str): Path to the file where the algorithm state is saved.
+            path (str): Path to the folder where the algorithm state is saved.
         """
-        self.server.load(path)
+        self.server.load(os.path.join(path, "server.pth"))
+        for i, client in enumerate(self.clients):
+            client.model = deepcopy(self.server.model)
+            client.load(os.path.join(path, f"client_{i}.pth"))
 
 
 class PersonalizedFL(CentralizedFL):
@@ -239,7 +290,13 @@ class PersonalizedFL(CentralizedFL):
                      config: DDict) -> None:
 
         model = get_model(mname=config.model) if isinstance(config.model, str) else config.model
-        if "name" not in config.optimizer:
+        if not self.can_override_optimizer() and \
+                config.optimizer.name != self.get_optimizer_class().__name__:
+            opt_name = "SGD" if config.optimizer.name is None else config.optimizer.name
+            warnings.warn(f"The algorithm does not support the optimizer {opt_name}. "
+                          f"Using {self.get_optimizer_class().__name__} instead.")
+
+        if "name" not in config.optimizer or not self.can_override_optimizer():
             config.optimizer.name = self.get_optimizer_class()
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
@@ -251,7 +308,7 @@ class PersonalizedFL(CentralizedFL):
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
-                loss_fn=self.loss,
+                loss_fn=deepcopy(self.loss),
                 **config.exclude('optimizer', 'loss', 'batch_size', 'model', 'scheduler')
             )
             for i in range(self.n_clients)]

@@ -2,22 +2,38 @@
 
 References:
     .. [FedLC22] Jie Zhang, Zhiqi Li, Bo Li, Jianghe Xu, Shuang Wu, Shouhong Ding, Chao Wu.
-       Federated Learning with Label Distribution Skew via Logits Calibration. In: ICML (2022).
+       Federated Learning with Label Distribution Skew via Logits Calibration. In ICML (2022).
        URL: https://arxiv.org/abs/2209.00189
 """
-from collections import Counter
-import torch
 import sys
+from typing import Any
+
+import numpy as np
+import torch
+
 sys.path.append(".")
 sys.path.append("..")
 
-from ..utils import OptimizerConfigurator  # NOQA
 from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
+from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 
+__all__ = [
+    "CalibratedLoss",
+    "FedLCClient",
+    "FedLC"
+]
+
+
 class CalibratedLoss(torch.nn.Module):
+    """Calibrated Loss function.
+
+    Args:
+        tau (float): calibration parameter.
+        label_distrib (torch.Tensor): Label distribution.
+    """
 
     def __init__(self, tau: float, label_distrib: torch.Tensor):
         super().__init__()
@@ -25,18 +41,14 @@ class CalibratedLoss(torch.nn.Module):
         self.label_distrib = label_distrib
 
     def forward(self, logit: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        cal_logit = torch.exp(
-            logit
-            - (
-                self.tau
-                * torch.pow(self.label_distrib, -1 / 4)
-                .unsqueeze(0)
-                .expand((logit.shape[0], -1))
-            )
-        )
-        y_logit = torch.gather(cal_logit, dim=-1, index=y.unsqueeze(1))
-        loss = -torch.log(y_logit / cal_logit.sum(dim=-1, keepdim=True))
-        return loss.sum() / logit.shape[0]
+        out = logit - self.tau * self.label_distrib**(-0.25)
+        return torch.nn.functional.cross_entropy(out, y)
+
+    def __str__(self):
+        return f"CalibratedLoss(tau={self.tau})"
+
+    def __repr__(self):
+        return str(self)
 
 
 class FedLCClient(Client):
@@ -46,21 +58,20 @@ class FedLCClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,  # ignored
+                 loss_fn: torch.nn.Module,  # not used
                  local_epochs: int,
                  tau: float,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
                          **kwargs)
         self.hyper_params.update(tau=tau)
-        all_labels = self.train_set.tensors[1].tolist()
-        label_counter = Counter(all_labels)
-        self.label_distrib = torch.zeros(self.train_set.num_labels, device=self.device)
-        for cls, count in label_counter.items():
-            self.label_distrib[cls] = max(1e-8, count)
-
-        self.hyper_params.loss_fn = CalibratedLoss(tau, self.label_distrib)
+        label_counter = torch.zeros(self.train_set.num_labels)
+        uniq_val, uniq_count = np.unique(self.train_set.tensors[1], return_counts=True)
+        for i, c in enumerate(uniq_val.tolist()):
+            label_counter[c] = max(1e-8, uniq_count[i])
+        label_counter = label_counter.unsqueeze(dim=0).to(self.device)
+        self.hyper_params.loss_fn = CalibratedLoss(tau, label_counter)
 
 
 class FedLC(CentralizedFL):

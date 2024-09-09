@@ -97,9 +97,11 @@ Classes included in ``fluke.algorithms``
    algo/APFL
    algo/CCVR
    algo/DITTO
+   algo/FedALA
    algo/FedAMP
    algo/FedAVG
    algo/FedAVGM
+   algo/FedAwS
    algo/FedBABU
    algo/FedBN
    algo/FedDyn
@@ -113,6 +115,9 @@ Classes included in ``fluke.algorithms``
    algo/FedProto
    algo/FedProx
    algo/FedRep
+   algo/FedROD
+   algo/FedRS
+   algo/FedSAM
    algo/FedSGD
    algo/LG-FedAvg
    algo/MOON

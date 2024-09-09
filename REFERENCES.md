@@ -74,4 +74,19 @@ Mi Luo, Fei Chen, Dapeng Hu, Yifan Zhang, Jian Liang, Jiashi Feng. No Fear of He
 Yutong Dai, Zeyuan Chen, Junnan Li, Shelby Heinecke, Lichao Sun, Ran Xu. Tackling Data Heterogeneity in Federated Learning with Class Prototypes. AAAI 2023. URL: https://arxiv.org/abs/2212.02758
 
 <a id="25">[FedHP 2024]</a>
-Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype Learning. In: ESANN 2024 (to appear)
+Samuele Fonio, Mirko Polato, Roberto Esposito. Federated Hyperbolic Prototype Learning. ESANN 2024 (to appear)
+
+<a id="26">[FedALA 2023]</a>
+Jianqing Zhang, Yang Hua, Hao Wang, Tao Song, Zhengui Xue, Ruhui Ma, Haibing Guan. FedALA: Adaptive Local Aggregation for Personalized Federated Learning. AAAI 2023. URL: https://arxiv.org/pdf/2212.01197v4
+
+<a id="27">[FedAwS 2020]</a>
+Felix X. Yu, Ankit Singh Rawat, Aditya Krishna Menon, Sanjiv Kumar. Federated Learning with Only Positive Labels. ICML 2020. URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
+
+<a id="28">[FedRS 2021]</a>
+Xin-Chun Li and De-Chuan Zhan. FedRS: Federated Learning with Restricted Softmax for Label Distribution Non-IID Data. KDD 2021. URL: https://doi.org/10.1145/3447548.3467254
+
+<a id="29">[FedSAM 2022]</a>
+Caldarola, D., Caputo, B., & Ciccone, M. Improving Generalization in Federated Learning by Seeking Flat Minima. ECCV 2022. URL: https://arxiv.org/abs/2203.11834
+
+<a id="30">[FedROD 2022]</a>
+Hong-You Chen and Wei-Lun Chao. On Bridging Generic and Personalized Federated Learning for Image Classification. ICLR 2022. URL: https://openreview.net/pdf?id=I1hQbx10Kxn

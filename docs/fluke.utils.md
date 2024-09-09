@@ -39,6 +39,7 @@ Classes included in ``fluke.utils``
 
    Configuration
    OptimizerConfigurator
+   ClientObserver
    ServerObserver
 
 ```
@@ -62,6 +63,7 @@ Functions included in ``fluke.utils``
    get_full_classname
    get_loss
    get_model
+   get_optimizer
    get_scheduler
    import_module_from_str
    plot_distribution
@@ -99,11 +101,26 @@ Functions included in ``fluke.utils``
 
 <h3>
 
+{bdg-secondary}`interface` ``fluke.utils.ClientObserver``
+
+</h3>
+
+
+
+```{eval-rst}
+
+.. autoclass:: fluke.utils.ClientObserver
+   :members:
+   :show-inheritance:
+
+```
+
+<h3>
+
 {bdg-secondary}`interface` ``fluke.utils.ServerObserver``
 
 </h3>
 
-(fluke.utils.ServerObserver)=
 
 ```{eval-rst}
 
@@ -146,6 +163,7 @@ Functions included in ``fluke.utils``
    :maxdepth: 3
    :hidden:
 
+   fluke.utils.log
    fluke.utils.model
    fluke.utils.log
 

@@ -2,27 +2,33 @@
 This module contains the :class:`Datasets` for loading the supported datasets.
 """
 from __future__ import annotations
-from torchvision.transforms import ToTensor, Lambda
-from torchvision import datasets
-from torchvision.datasets import VisionDataset
-from datasets import load_dataset
-from rich.progress import track
-from numpy.random import permutation
-from typing import Optional, Callable
-# from enum import Enum
-import string
-import torch
+
 import json
 import os
+import string
 import sys
+from typing import Optional
+
+import torch
+from datasets import load_dataset
+from numpy.random import permutation
+from rich.progress import track
+from torchvision import datasets
+from torchvision.datasets import VisionDataset
+from torchvision.transforms import Lambda, ToTensor
+
 sys.path.append(".")
 sys.path.append("..")
 
-from . import DataContainer, FastDataLoader, support  # NOQA
 from ..utils import get_class_from_qualified_name  # NOQA
+from . import DataContainer, FastDataLoader, support  # NOQA
+
+__all__ = [
+    "Datasets"
+]
 
 
-def _apply_transforms(dataset: VisionDataset, transforms: Optional[Callable]) -> VisionDataset:
+def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:
     if transforms is not None:
         new_data = []
         for i in range(len(dataset)):
@@ -36,7 +42,17 @@ def _apply_transforms(dataset: VisionDataset, transforms: Optional[Callable]) ->
 
 class Datasets:
     """Static class for loading datasets.
-    Each dataset is loaded as a :class:`fluke.data.DataContainer` object.
+    Datasets are downloaded (if needed) into the ``path`` folder. The supported datasets are:
+    ``MNIST``, ``MNISTM``, ``SVHN``, ``FEMNIST``, ``EMNIST``, ``CIFAR10``, ``CIFAR100``,
+    ``Tiny Imagenet``, ``Shakespear``, ``Fashion MNIST``, and ``CINIC10``.
+    Each dataset but ``femnist`` and ``shakespeare`` can be transformed using the ``transforms``
+    argument. Each dataset is returned as a :class:`fluke.data.DataContainer` object.
+
+    .. important::
+        ``onthefly_transforms`` are transformations that are applied on-the-fly to the data
+        through the data loader. This is useful when the transformations are stochastic and
+        should be applied at each iteration. These transformations cannot be configured through
+        the configuration file.
     """
 
     @classmethod
@@ -45,7 +61,7 @@ class Datasets:
         Supported datasets are: ``mnist``, ``mnistm``, ``svhn``, ``femnist``, ``emnist``,
         ``cifar10``, ``cifar100``, ``tiny_imagenet``, ``shakespeare``, ``fashion_mnist``, and
         ``cinic10``. If `name` is not in the supported datasets, it is assumed to be a fully
-        qualified name of a custom dataset function (``Callable[..., DataContainer]``).
+        qualified name of a custom dataset function (``callable[..., DataContainer]``).
 
         Args:
             name (str): The name of the dataset to load or the fully qualified name of a custom
@@ -74,7 +90,8 @@ class Datasets:
     @classmethod
     def MNIST(cls,
               path: str = "../data",
-              transforms: Optional[Callable] = None,
+              transforms: Optional[callable] = None,
+              onthefly_transforms: Optional[callable] = None,
               channel_dim: bool = False) -> DataContainer:
         """Load the MNIST dataset.
         The dataset is split into training and testing sets according to the default split of the
@@ -85,10 +102,12 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
             channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
-                shape of the an example becomes (1, 28, 28). Defaults to ``False``.
+              shape of the an example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The MNIST dataset.
@@ -116,12 +135,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data if not channel_dim else test_data.data[:, None, :, :],
                              test_data.targets,
-                             10)
+                             10,
+                             onthefly_transforms)
 
     @classmethod
     def MNISTM(cls,
                path: str = "../data",
-               transforms: Optional[Callable] = None) -> DataContainer:
+               transforms: Optional[callable] = None,
+               onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """Load the MNIST-M dataset. MNIST-M is a dataset where the MNIST digits are placed on
         random color patches. The dataset is split into training and testing sets according to the
         default split of the data at https://github.com/liyxi/mnist-m/releases/download/data/.
@@ -130,8 +151,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The MNIST-M dataset.
@@ -162,12 +185,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             10)
+                             10,
+                             onthefly_transforms)
 
     @classmethod
     def EMNIST(cls,
                path: str = "../data",
-               transforms: Optional[Callable] = None) -> DataContainer:
+               transforms: Optional[callable] = None,
+               onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """Load the Extended MNIST (EMNIST) dataset. The dataset is split into training and testing
         sets according to the default split of the data at
         https://www.westernsydney.edu.au/bens/home/reproducible_research/emnist as provided by
@@ -177,8 +202,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The EMNIST dataset.
@@ -209,12 +236,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             47)
+                             47,
+                             onthefly_transforms)
 
     @classmethod
     def SVHN(cls,
              path: str = "../data",
-             transforms: Optional[Callable] = None) -> DataContainer:
+             transforms: Optional[callable] = None,
+             onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the Street View House Numbers (SVHN) dataset. The dataset is split into training and
         testing sets according to the default split of the :class:`torchvision.datasets.SVHN` class.
@@ -223,8 +252,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The SVHN dataset.
@@ -256,12 +287,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             10)
+                             10,
+                             onthefly_transforms)
 
     @classmethod
     def CIFAR10(cls,
                 path: str = "../data",
-                transforms: Optional[Callable] = None) -> DataContainer:
+                transforms: Optional[callable] = None,
+                onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the CIFAR-10 dataset. The dataset is split into training and testing sets according to
         the default split of the :class:`torchvision.datasets.CIFAR10` class.
@@ -273,8 +306,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CIFAR-10 dataset.
@@ -305,12 +340,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             10)
+                             10,
+                             onthefly_transforms)
 
     @classmethod
     def CINIC10(cls,
                 path: str = "../data",
-                transforms: Optional[Callable] = None) -> DataContainer:
+                transforms: Optional[callable] = None,
+                onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the CINIC-10 dataset. `CINIC-10 <http://dx.doi.org/10.7488/ds/2448>`_ is an
         augmented extension of CIFAR-10. It contains the images from CIFAR-10
@@ -321,8 +358,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CINIC-10 dataset.
@@ -347,12 +386,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             10)
+                             10,
+                             onthefly_transforms)
 
     @classmethod
     def CIFAR100(cls,
                  path: str = "../data",
-                 transforms: Optional[Callable] = None) -> DataContainer:
+                 transforms: Optional[callable] = None,
+                 onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the CIFAR-100 dataset. The dataset is split into training and testing sets according to
         the default split of the :class:`torchvision.datasets.CIFAR100` class.
@@ -362,8 +403,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CIFAR-100 dataset.
@@ -394,12 +437,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             100)
+                             100,
+                             onthefly_transforms)
 
     @classmethod
     def FASHION_MNIST(cls,
                       path: str = "../data",
-                      transforms: Optional[Callable] = None) -> DataContainer:
+                      transforms: Optional[callable] = None,
+                      onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the Fashion MNIST dataset. The dataset is split into training and testing sets
         according to the default split of the :class:`torchvision.datasets.FashionMNIST` class.
@@ -408,8 +453,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CIFAR-100 dataset.
@@ -433,12 +480,14 @@ class Datasets:
                              train_data.targets,
                              test_data.data,
                              test_data.targets,
-                             10)
+                             10,
+                             onthefly_transforms)
 
     @classmethod
     def TINY_IMAGENET(cls,
                       path: str = "../data",
-                      transforms: Optional[Callable] = None) -> DataContainer:
+                      transforms: Optional[callable] = None,
+                      onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the Tiny-ImageNet dataset.
         This version of the dataset is the one offered by the
@@ -449,8 +498,10 @@ class Datasets:
 
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
-            transforms (Callable, optional): The transformations to apply to the data. Defaults to
+            transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+              data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The Tiny-ImageNet dataset.
@@ -512,13 +563,15 @@ class Datasets:
                              y_train,
                              test_data,
                              y_test,
-                             200)
+                             200,
+                             onthefly_transforms)
 
     @classmethod
     def FEMNIST(cls,
                 path: str = "./data",
                 batch_size: int = 10,
-                filter: str = "all"):
+                filter: str = "all",
+                onthefly_transforms: Optional[callable] = None) -> DataContainer:
         """
         Load the Federated EMNIST (FEMNIST) dataset.
         This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
@@ -535,7 +588,7 @@ class Datasets:
 
         Important:
             Differently from the other datasets (but :meth:`SHAKESPEARE`), the FEMNIST dataset can
-            not be downloaded directly from the ``fluke`` but it must be downloaded from the
+            not be downloaded directly from ``fluke`` but it must be downloaded from the
             `Leaf project <https://leaf.cmu.edu/>`_ and stored in the ``path`` folder.
             The datasets must also be created according to the instructions provided by the Leaf
             project. The expected folder structure is:
@@ -625,6 +678,7 @@ class Datasets:
                     num_labels=num_classes,
                     batch_size=batch_size,
                     shuffle=True,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
@@ -642,6 +696,7 @@ class Datasets:
                     num_labels=num_classes,
                     batch_size=64,
                     shuffle=True,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
@@ -654,7 +709,8 @@ class Datasets:
     @classmethod
     def SHAKESPEARE(cls,
                     path: str = "./data",
-                    batch_size: int = 10):
+                    batch_size: int = 10,
+                    onthefly_transforms: Optional[callable] = None) -> tuple:
         """Load the Federated Shakespeare dataset.
         This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
         Shakespeare is a text dataset containing dialogues from Shakespeare's plays.
@@ -663,7 +719,7 @@ class Datasets:
 
         Important:
             Differently from the other datasets (but :meth:`FEMNIST`), the ``SHAKESPEARE`` dataset
-            can not be downloaded directly from the ``fluke`` but it must be downloaded from the
+            can not be downloaded directly from ``fluke`` but it must be downloaded from the
             `Leaf project <https://leaf.cmu.edu/>`_ and stored in the ``path`` folder.
             The datasets must also be created according to the instructions provided by the Leaf
             project. The expected folder structure is:
@@ -737,6 +793,7 @@ class Datasets:
                     num_labels=100,
                     batch_size=batch_size,
                     shuffle=True,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )
@@ -759,6 +816,7 @@ class Datasets:
                     num_labels=100,
                     batch_size=batch_size,
                     shuffle=True,
+                    transforms=onthefly_transforms,
                     percentage=1.0
                 )
             )

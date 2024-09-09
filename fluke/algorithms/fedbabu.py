@@ -1,24 +1,28 @@
-"""Implementation of the [FedBABU22]_ algorithm.
+"""Implementation of the Federated Averaging with Body Aggregation and Body Update [FedBABU22]_
+algorithm.
 
 References:
     .. [FedBABU22] Jaehoon Oh, Sangmook Kim, Se-Young Yun. FedBABU: Towards Enhanced Representation
-       for Federated Image Classification. In: ICLR (2022). URL: https://arxiv.org/abs/2106.06042
+       for Federated Image Classification. In ICLR (2022). URL: https://arxiv.org/abs/2106.06042
 """
-from rich.progress import Progress
-from typing import Any, Callable, Iterable
-from torch.nn import Module
 import sys
+from typing import Any, Iterable
+
+from rich.progress import Progress
+from torch.nn import Module
+
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import GlobalSettings  # NOQA
+from ..algorithms import PersonalizedFL  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
+from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
-from ..data import FastDataLoader  # NOQA
-from ..client import PFLClient  # NOQA
-from ..algorithms import PersonalizedFL  # NOQA
-from ..server import Server  # NOQA
-from ..comm import Message  # NOQA
 
 
 class FedBABUClient(PFLClient):
@@ -29,11 +33,11 @@ class FedBABUClient(PFLClient):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Callable[..., Any],
+                 loss_fn: Module,
                  local_epochs: int,
                  mode: str,
                  fine_tune_epochs: int,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         assert mode in ["head", "body", "full"]
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
@@ -45,19 +49,19 @@ class FedBABUClient(PFLClient):
         self.model = self.personalized_model
 
     def send_model(self):
-        self.channel.send(Message(self.personalized_model.encoder,
-                          "model", self), self.server)
+        self.channel.send(Message(self.personalized_model.encoder, "model", self), self.server)
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model.encoder,
-                             msg.payload.state_dict())
+        safe_load_state_dict(self.personalized_model.encoder, msg.payload.state_dict())
 
         # Deactivate gradient
         for param in self.personalized_model.head.parameters():
             param.requires_grad = False
 
-    def fine_tune(self):
+    def fine_tune(self) -> None:
+        """Fine-tune the personalized model."""
+
         if self.hyper_params.mode == "full":
             for param in self.personalized_model.parameters():
                 param.requires_grad = True
@@ -90,16 +94,20 @@ class FedBABUClient(PFLClient):
         self.personalized_model.to("cpu")
         clear_cache()
 
+    def finalize(self) -> None:
+        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        if metrics:
+            self._notify_evaluation(-1, "post-fit", metrics)
+
 
 class FedBABUServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_data: FastDataLoader,
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
-                 eval_every: int = 1,
                  weighted: bool = False):
-        super().__init__(model, None, clients, eval_every, weighted)
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
     def finalize(self) -> None:
 
@@ -107,10 +115,10 @@ class FedBABUServer(Server):
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
             for client in self.clients:
                 client.fine_tune()
+                client.finalize()
                 progress.update(task, advance=1)
 
-        client_evals = [client.evaluate() for client in self.clients]
-        self._notify_finalize(client_evals if client_evals[0] else None)
+        self._notify_finalize()
 
 
 class FedBABU(PersonalizedFL):
