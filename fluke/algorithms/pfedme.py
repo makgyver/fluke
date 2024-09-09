@@ -25,6 +25,13 @@ from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
                            safe_load_state_dict)
 
+__all__ = [
+    "PFedMeOptimizer",
+    "PFedMeClient",
+    "PFedMeServer",
+    "PFedMe"
+]
+
 
 class PFedMeOptimizer(Optimizer):
     def __init__(self, params, lr=0.01, lamda=0.1, mu=0.001):
@@ -59,7 +66,9 @@ class PFedMeClient(PFLClient):
                  k: int,
                  **kwargs: dict[str, Any]):
 
-        super().__init__(index, None, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, model=None, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(k=k)
 
     def receive_model(self) -> None:
@@ -113,7 +122,8 @@ class PFedMeServer(Server):
                  test_set: FastDataLoader,
                  clients: Iterable[Client],
                  weighted: bool = False,
-                 beta: float = 0.5):
+                 beta: float = 0.5,
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(beta=beta)
 

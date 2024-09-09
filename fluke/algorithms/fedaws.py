@@ -20,6 +20,13 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
 
+__all__ = [
+    "SpreadModel",
+    "SpreadLoss",
+    "FedAwSServer",
+    "FedAwS"
+]
+
 
 class SpreadModel(nn.Module):
     def __init__(self, weights: torch.Tensor):

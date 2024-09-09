@@ -34,7 +34,7 @@ fluke --config=EXP_CONFIG_FILE federation ALG_CONFIG_FILE
 ```
 
 For the purpose of this introductory page, we will use the configuration files provided in the 
-[configs folder](https://github.com/makgyver/fluke/tree/main/configs) of the ``fluke`` repository.
+[configs folder](https://github.com/makgyver/fluke/tree/main/configs) of the `fluke` repository.
 
 ```{eval-rst}
 
@@ -51,7 +51,7 @@ For the purpose of this introductory page, we will use the configuration files p
 ```
 
 In particular, we will use the configuration files [exp.yaml](https://github.com/makgyver/fluke/tree/main/configs/exp.yaml)
-and [fedavg.yaml](https://github.com/makgyver/fluke/tree/main/configs/fedavg.yaml) to run the classic `FedAvg` algorithm on the `MNIST` dataset.
+and [fedavg.yaml](https://github.com/makgyver/fluke/tree/main/configs/fedavg.yaml) to run the classic [`FedAvg`](#fluke.algorithms.fedavg.FedAVG) algorithm on the [`MNIST`](#fluke.data.datasets.Datasets) dataset.
 
 ```bash
 fluke --config=path_to_configs/exp.yaml federation path_to_configs/fedavg.yaml

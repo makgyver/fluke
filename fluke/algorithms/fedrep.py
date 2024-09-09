@@ -22,8 +22,15 @@ from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
+__all__ = [
+    "FedRepClient",
+    "FedRepServer",
+    "FedRep"
+]
 
 # https://arxiv.org/abs/2102.07078
+
+
 class FedRepClient(PFLClient):
 
     def __init__(self,

@@ -20,7 +20,20 @@ from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 
+__all__ = [
+    "CalibratedLoss",
+    "FedLCClient",
+    "FedLC"
+]
+
+
 class CalibratedLoss(torch.nn.Module):
+    """Calibrated Loss function.
+
+    Args:
+        tau (float): calibration parameter.
+        label_distrib (torch.Tensor): Label distribution.
+    """
 
     def __init__(self, tau: float, label_distrib: torch.Tensor):
         super().__init__()
@@ -45,7 +58,7 @@ class FedLCClient(Client):
                  train_set: FastDataLoader,
                  test_set: FastDataLoader,
                  optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,  # ignored
+                 loss_fn: torch.nn.Module,  # not used
                  local_epochs: int,
                  tau: float,
                  **kwargs: dict[str, Any]):

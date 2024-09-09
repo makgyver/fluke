@@ -40,8 +40,10 @@ __all__ = [
     'get_full_classname',
     'get_loss',
     'get_model',
+    'get_optimizer',
     'get_scheduler',
-    'import_module_from_str'
+    'import_module_from_str',
+    'plot_distribution'
 ]
 
 

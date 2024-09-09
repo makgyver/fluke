@@ -26,6 +26,11 @@ from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
 
+__all__ = [
+    "FedALAClient",
+    "FedALA"
+]
+
 
 class FedALAClient(Client):
 

@@ -18,8 +18,17 @@ from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)  # NOQA
+                    get_class_from_qualified_name, get_loss, get_model)
 from .utils.log import get_logger  # NOQA
+
+__version__ = "0.3.0"
+
+
+def version_callback(value: bool):
+    if value:
+        print(f"fluke: {__version__}")
+        raise typer.Exit()
+
 
 app = typer.Typer()
 
@@ -30,13 +39,8 @@ CONFIG_FNAME = ""
 @app.command()
 def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
-    """Run a centralized learning experiment.
+    """Run a centralized learning experiment."""
 
-    Args:
-        alg_cfg (str): Configuration file for the algorithm to run.
-        epochs (int, optional): Number of learning epochs. If set to 0, the number of epochs
-            is computed as `n_rounds * eligible_perc`. Defaults to 0.
-    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -89,7 +93,6 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
         epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
         history.append(epoch_eval)
-        # rich.print(Panel(Pretty(epoch_eval, expand_all=True), title="Performance"))
         for k, v in epoch_eval.items():
             log.add_scalar(k, v, e+1)
         log.pretty_log(epoch_eval, title=f"Performance [Epoch {e+1}]")
@@ -102,15 +105,8 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
                resume: str = typer.Option(None, help='Path to the checkpoint file to load.'),
                save: str = typer.Option(None, help='Path to the checkpoint file to save.'),
                seed: int = typer.Option(None, help='Seed for reproducibility.')) -> None:
-    """Run a federated learning experiment.
+    """Run a federated learning experiment."""
 
-    Args:
-        alg_cfg (str): Configuration file for the algorithm to run.
-        resume (str): Path to the checkpoint folder to load.
-        save (str): Path to the checkpoint folder to save.
-        seed (int, optional): Seed for reproducibility, defaults to None. If None, the seed
-            is taken from the configuration file.
-    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     if seed is not None:
         cfg.exp.seed = seed
@@ -150,13 +146,8 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
 @app.command()
 def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                  epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
-    """Run a local training (for all clients) experiment.
+    """Run a local training (for all clients) experiment."""
 
-    Args:
-        alg_cfg (str): Configuration file for the algorithm to run.
-        epochs (int, optional): Number of learning epochs. If set to 0, the number of epochs
-            is computed as `max(100, n_rounds * eligible_perc * local_epochs)`. Defaults to 0.
-    """
     cfg = Configuration(CONFIG_FNAME, alg_cfg)
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
@@ -187,7 +178,6 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     running_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in progress:
-        # rich.print(f"Client [{i}/{cfg.protocol.n_clients}]")
         log.log(f"Client [{i}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model)  # , **hp.net_args)
         hp.client.optimizer.name = torch.optim.SGD
@@ -209,9 +199,8 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
             scheduler.step()
 
             client_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
-            # log.add_scalars(f"Client[{i}]", client_eval, e+1)
             running_evals[i].append(client_eval)
-        # rich.print(Panel(Pretty(client_eval, expand_all=True), title=f"Client [{i}] Performance"))
+
         log.pretty_log(client_eval, title=f"Client [{i}] Performance")
         client_evals.append(client_eval)
         model.to("cpu")
@@ -222,13 +211,13 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     client_mean = pd.DataFrame(client_evals).mean(numeric_only=True).to_dict()
     client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
-    # rich.print(Panel(Pretty(client_mean, expand_all=True),
-    #                  title="Overall local performance"))
     log.pretty_log(client_mean, title="Overall local performance")
 
 
 @app.callback()
-def run(config: str = typer.Option(CONFIG_FNAME, help="Configuration file")) -> None:
+def run(config: str = typer.Option(help="Configuration file"),
+        version: bool = typer.Option(None, "--version", help="Show the installed version of fluke",
+                                     callback=version_callback)) -> None:
     global CONFIG_FNAME
     CONFIG_FNAME = config
 

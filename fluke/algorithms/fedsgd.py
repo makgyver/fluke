@@ -19,7 +19,13 @@ from ..data import FastDataLoader  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 
 
-class ClientSGD(Client):
+__all__ = [
+    "ClientFedSGD",
+    "FedSGD"
+]
+
+
+class ClientFedSGD(Client):
     def __init__(self,
                  index: int,
                  train_set: FastDataLoader,
@@ -39,4 +45,4 @@ class ClientSGD(Client):
 class FedSGD(CentralizedFL):
 
     def get_client_class(self) -> Client:
-        return ClientSGD
+        return ClientFedSGD

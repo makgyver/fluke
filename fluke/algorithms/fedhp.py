@@ -56,11 +56,8 @@ class SeparationLoss(nn.Module):
     def __init__(self):
         super(SeparationLoss, self).__init__()
 
-    def forward(self, protos: torch.Tensor):
-        """
-        Args:
-            protos (torch.Tensor): (N_prototypes x Embedding_dimension)
-        """
+    def forward(self, protos: torch.Tensor) -> torch.Tensor:
+        # protos: (N_prototypes x Embedding_dimension)
         M = torch.matmul(protos, protos.transpose(0, 1)) - 2 * torch.eye(
             protos.shape[0]).to(protos.device)
         return M.max(dim=1)[0].mean()
@@ -144,7 +141,8 @@ class FedHPServer(Server):
                  clients: Iterable[PFLClient],
                  weighted: bool = True,
                  n_protos: int = 10,
-                 embedding_size: int = 100):
+                 embedding_size: int = 100,
+                 **kwargs: dict[str, Any]):
         super().__init__(model=ProtoNet(model, n_protos),
                          test_set=None,
                          clients=clients,

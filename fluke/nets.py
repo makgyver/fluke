@@ -2,10 +2,8 @@
 This module contains the definition of several neural networks used in state-of-the-art
 federated learning papers.
 """
-# from collections import OrderedDict
 import string
 import sys
-# from torch.nn.utils import spectral_norm
 from abc import abstractmethod
 
 import torch
@@ -58,7 +56,7 @@ __all__ = [
     'LeNet5',
     'Shakespeare_LSTM_E',
     'Shakespeare_LSTM_D',
-    'Shakespeare_LSTM',
+    'Shakespeare_LSTM'
 ]
 
 

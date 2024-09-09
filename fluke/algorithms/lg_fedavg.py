@@ -24,10 +24,17 @@ from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
+__all__ = [
+    "LGFedAVGClient",
+    "LGFedAVGServer",
+    "LGFedAVG"
+]
 
 # The implementation is almost identical to FedPerClient
 # The difference lies in the part of the network that is local and the part that is global.
 # One is the inverse of the other.
+
+
 class LGFedAVGClient(PFLClient):
 
     def __init__(self,
@@ -57,7 +64,7 @@ class LGFedAVGServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_set: FastDataLoader,
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

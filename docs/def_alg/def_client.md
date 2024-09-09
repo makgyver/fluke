@@ -257,10 +257,8 @@ The default notifications are:
 - `_notify_end_fit`: triggered at the end of the `fit` method. It calls `ClientObserver.end_fit` on each observer;
 - `_notify_evaluation`: it should be triggered after an evaluation has been performed. It calls `ClientObserver.evaluation` on each observer;
 
-```{eval-rst}
-
-.. hint::
+:::{hint}
     
-    Refer to the API documentation of the :ref:`ClientObserver <fluke.utils.ClientObserver>` inerface and the :ref:`ObserverSubject <fluke.ObserverSubject>` intarface for more details.
+Refer to the API documentation of the [ClientObserver](fluke.utils.ClientObserver) inerface and the [ObserverSubject](fluke.ObserverSubject) intarface for more details.
 
-```
+:::

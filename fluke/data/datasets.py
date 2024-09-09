@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import os
-# from enum import Enum
 import string
 import sys
 from typing import Optional
@@ -24,6 +23,10 @@ sys.path.append("..")
 from ..utils import get_class_from_qualified_name  # NOQA
 from . import DataContainer, FastDataLoader, support  # NOQA
 
+__all__ = [
+    "Datasets"
+]
+
 
 def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:
     if transforms is not None:
@@ -39,7 +42,17 @@ def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) ->
 
 class Datasets:
     """Static class for loading datasets.
-    Each dataset is loaded as a :class:`fluke.data.DataContainer` object.
+    Datasets are downloaded (if needed) into the ``path`` folder. The supported datasets are:
+    ``MNIST``, ``MNISTM``, ``SVHN``, ``FEMNIST``, ``EMNIST``, ``CIFAR10``, ``CIFAR100``,
+    ``Tiny Imagenet``, ``Shakespear``, ``Fashion MNIST``, and ``CINIC10``.
+    Each dataset but ``femnist`` and ``shakespeare`` can be transformed using the ``transforms``
+    argument. Each dataset is returned as a :class:`fluke.data.DataContainer` object.
+
+    .. important::
+        ``onthefly_transforms`` are transformations that are applied on-the-fly to the data
+        through the data loader. This is useful when the transformations are stochastic and
+        should be applied at each iteration. These transformations cannot be configured through
+        the configuration file.
     """
 
     @classmethod
@@ -94,7 +107,7 @@ class Datasets:
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
               data through the data loader. Defaults to ``None``.
             channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
-                shape of the an example becomes (1, 28, 28). Defaults to ``False``.
+              shape of the an example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The MNIST dataset.

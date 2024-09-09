@@ -28,7 +28,7 @@ __all__ = [
 
 
 class DataContainer:
-    """Container for train and test (classification) data.
+    """Container for train and test data.
 
     Args:
         X_train (torch.Tensor): The training data.
@@ -69,10 +69,10 @@ class FastDataLoader:
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled.
         transforms (Optional[callable]): the transformation to be applied to the data. Defaults to
-            None.
+          None.
         percentage (float): the percentage of the data to be used.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-            layers, you might want to set this to ``True``.
+          layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
 
     Caution:
@@ -83,16 +83,16 @@ class FastDataLoader:
 
     Attributes:
         tensors (Sequence[torch.Tensor]): Tensors of the dataset. Ideally, the first tensor should
-            be the input data, and the second tensor should be the labels. However, this is not
-            enforced and the user is responsible for ensuring that the tensors are used correctly.
+          be the input data, and the second tensor should be the labels. However, this is not
+          enforced and the user is responsible for ensuring that the tensors are used correctly.
         batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled at each epoch. If ``True``, the data is
-            shuffled at each iteration.
+          shuffled at each iteration.
         transforms (callable): the transformation to be applied to the data.
         percentage (float): the percentage of the data to be used. If `1.0`, all the data is used.
-            Otherwise, the data is sampled according to the given percentage.
+          Otherwise, the data is sampled according to the given percentage.
         skip_singleton (bool): whether to skip batches with a single element. If you have batchnorm
-            layers, you might want to set this to ``True``.
+          layers, you might want to set this to ``True``.
         single_batch (bool): whether to return a single batch at each generator iteration.
         size (int): the size of the dataset according to the percentage of the data to be used.
         max_size (int): the total size (regardless of the sampling percentage) of the dataset.
@@ -163,10 +163,23 @@ class FastDataLoader:
 
     @property
     def batch_size(self) -> int:
+        """Get the batch size.
+
+        Returns:
+            int: the batch size.
+        """
         return self._batch_size
 
     @batch_size.setter
-    def batch_size(self, value: int):
+    def batch_size(self, value: int) -> None:
+        """Set the batch size.
+
+        Args:
+            value (int): the new batch size.
+
+        Raises:
+            ValueError: if the batch size is not positive.
+        """
         if value <= 0:
             raise ValueError("batch_size must be > 0")
         self._batch_size = value
@@ -240,21 +253,21 @@ class DataSplitter:
         Args:
             dataset (DataContainer or str): The dataset.
             distribution (str, optional): The data distribution function. Defaults to
-                ``"iid"``.
+              ``"iid"``.
             client_split (float, optional): The size of the client's test set. Defaults to 0.0.
             sampling_perc (float, optional): The percentage of the data to be used. Defaults to 1.0.
             server_test (bool, optional): Whether to keep a server test set. Defaults to True.
             keep_test (bool, optional): Whether to keep the test set provided by the dataset.
-                Defaults to True.
+              Defaults to ``True``.
             server_split (float, optional): The size of the server's test set. Defaults to 0.0. This
-                parameter is used only if ``server_test`` is ``True`` and ``keep_test`` is
-                ``False``.
+              parameter is used only if ``server_test`` is ``True`` and ``keep_test`` is
+              ``False``.
             uniform_test (bool, optional): Whether to distribute the test set in a IID across the
-                clients. If ``False``, the test set is distributed according to the distribution
-                function. Defaults to False.
+              clients. If ``False``, the test set is distributed according to the distribution
+              function. Defaults to ``False``.
             builder_args (DDict, optional): The arguments for the dataset class. Defaults to None.
             dist_args (DDict, optional): The arguments for the distribution function. Defaults to
-                None.
+              ``None``.
 
         Raises:
             AssertionError: If the parameters are not in the correct range or configuration.
@@ -277,9 +290,6 @@ class DataSplitter:
         self.server_split: float = server_split
         self.uniform_test: bool = uniform_test
         self.dist_args: DDict = dist_args if dist_args is not None else DDict()
-
-    # def num_features(self) -> int:
-    #     return self.data_container.num_features
 
     @property
     def num_classes(self) -> int:

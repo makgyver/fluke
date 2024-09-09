@@ -23,6 +23,11 @@ from ..utils.model import get_local_model_dict  # NOQA
 from ..utils.model import mix_networks  # NOQA
 from ..utils.model import set_lambda_model  # NOQA
 
+__all__ = [
+    "SuPerFedClient",
+    "SuPerFed"
+]
+
 
 class SuPerFedClient(PFLClient):
 
@@ -42,7 +47,8 @@ class SuPerFedClient(PFLClient):
         assert mode in ["mm", "lm"]
 
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs)
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(
             mode=mode,
             start_mix=start_mix,

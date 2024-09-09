@@ -26,6 +26,12 @@ from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
 
+__all__ = [
+    "SCAFFOLDClient",
+    "SCAFFOLDServer",
+    "SCAFFOLD"
+]
+
 
 class SCAFFOLDClient(Client):
     def __init__(self,

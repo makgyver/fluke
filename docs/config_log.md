@@ -3,13 +3,13 @@
 # Log configuration
 
 Inside the [experiment configuration file](configuration.md), the `logger` key is used to specify
-the logger to be used during the experiment. `fluke` comes with a few built-in loggers, and all of
-them are desgined to keep track of the results of the evaluation of the model(s).
+the logging class to be used during the experiment. `fluke` comes with a few built-in loggers, and
+all of them are desgined to keep track of the results of the evaluation of the model(s).
 
 ## Local logger
 
-The `local` logger, i.e., the logger that logs to the console, is implemented in the class
-`fluke.utils.log.Log`. This logger does not require any additional argument and you can set it
+The *local logger*, i.e., the logger that logs to the console, is implemented in the class
+[Log](#fluke.utils.log.Log). This logger does not require any additional argument and you can set it
 in the experiment configuration file as follows:
 
 ```yaml
@@ -23,8 +23,8 @@ logger:
 ## Weights & Biases logger
 
 Weights & Biases is a popular tool for experiment tracking and visualization. 
-`fluke` natively supports Weights & Biases logging through the `fluke.utils.lo.WandBLog` logger.
-Being a third-party tool, you need to have an account on the Weights & Biases platform and
+`fluke` natively supports Weights & Biases logging through the [WandBLog](#fluke.utils.log.WandBLog)
+logger. Being a third-party tool, you need to have an account on the Weights & Biases platform and
 configure `wandb` with your credentials. You can find more information on how to do this in the
 [Weights & Biases documentation](https://docs.wandb.ai/quickstart), in particular step 1 and 2.
 
@@ -52,8 +52,8 @@ associate with the experiment. You can also pass other parameters according to t
 Tensorboard is a popular tool for experiment tracking and visualization in the TensorFlow ecosystem.
 Please, refer to the [Tensorboard documentation](https://www.tensorflow.org/tensorboard) for more
 information. `fluke` natively supports Tensorboard logging through the
-`fluke.utils.log.TensorboardLog` logger. You can set the `tensorboard` logger in the experiment
-configuration file as follows:
+[TensorboardLog](#fluke.utils.log.TensorboardLog) logger. You can set the `tensorboard` logger in
+the experiment configuration file as follows:
 
 ```yaml
 ...
@@ -77,8 +77,8 @@ and then opening a browser and navigating to `http://localhost:6006` (by default
 ## ClearML logger
 
 [ClearML](https://clear.ml/) is another tool for experiment tracking and visualization. 
-`fluke` natively supports ClearML logging through the `fluke.utils.log.ClearMLLog` logger.
-Being a third-party tool, you need to have an account on the ClearML platform and
+`fluke` natively supports ClearML logging through the [ClearMLLog](#fluke.utils.log.ClearMLLog)
+logger. Being a third-party tool, you need to have an account on the ClearML platform and
 configure `clearml` with your credentials. You can find more information on how to do this in the
 [ClearML documentation](https://clear.ml/docs/latest/docs/).
 
@@ -115,13 +115,13 @@ In `fluke` logging happens via the Observer pattern and the observable objects a
 the clients, and the channel. Depending on your needs, you can create a custom logger by extending
 one or more of the following classes:
 
-- `fluke.utils.ServerObserver`: to log server-side events;
-- `fluke.utils.ClientObserver`: to log client-side events;
-- `fluke.comm.ChannelObserver`: to log channel events.
+- [ServerObserver](#fluke.utils.ServerObserver): to log server-side events;
+- [ClientObserver](#fluke.utils.ClientObserver): to log client-side events;
+- [ChannelObserver](#fluke.comm.ChannelObserver): to log channel events.
 
-Our suggestion is to extend the `fluke.utils.log.Log` class that already provides a set of methods
-to log to the console, and then add the custom logic you need.
+Our suggestion is to extend the [Log](#fluke.utils.log.Log) class that already provides a set of
+methods to log to the console, and then add the custom logic you need.
 Each observer class has a set of methods that can be overridden to log what you need.
 After creating your custom logger, you can attach it to the federated algorithm using the 
-method `set_callbacks` of the `fluke.algorithms.CentralizedFL` or 
-`fluke.algorithms.PersonalizedFL` class.
+method `set_callbacks` of the [CentralizedFL](#fluke.algorithms.CentralizedFL) or 
+[PersonalizedFL](#fluke.algorithms.PersonalizedFL) class.

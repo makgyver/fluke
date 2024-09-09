@@ -24,6 +24,14 @@ from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 from . import PersonalizedFL  # NOQA
 
+__all__ = [
+    "ProtoNet",
+    "ArgMaxModule",
+    "FedNHClient",
+    "FedNHServer",
+    "FedNH"
+]
+
 
 class ProtoNet(Module):
 

@@ -21,6 +21,12 @@ from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 
+__all__ = [
+    "PerFedAVGOptimizer",
+    "PerFedAVGClient",
+    "PerFedAVG"
+]
+
 
 class PerFedAVGOptimizer(Optimizer):
     def __init__(self, params, lr):
@@ -59,7 +65,9 @@ class PerFedAVGClient(Client):
                  beta: float,
                  **kwargs: dict[str, Any]):
 
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         **kwargs)
         self.hyper_params.update(
             mode=mode,
             beta=beta
