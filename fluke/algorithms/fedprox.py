@@ -20,6 +20,12 @@ from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 
+__all__ = [
+    "FedProxClient",
+    "FedProx"
+]
+
+
 class FedProxClient(Client):
     def __init__(self,
                  index: int,

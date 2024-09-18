@@ -19,8 +19,23 @@ from ..data import FastDataLoader  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
+__all__ = [
+    "RSLoss",
+    "FedRSClient",
+    "FedRS"
+]
+
 
 class RSLoss(torch.nn.Module):
+    """Restricted Softmax Loss function.
+
+    Args:
+        class_scaling (torch.Tensor): Class scaling factor.
+
+    See Also:
+        This loss function is very similar to the one used in ``FedLC``, i.e.,
+        :class:`fluke.algorithms.fedlc.CalibratedLoss`.
+    """
 
     def __init__(self, class_scaling: torch.Tensor):
         super().__init__()

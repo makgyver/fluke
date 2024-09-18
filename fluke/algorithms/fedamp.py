@@ -40,7 +40,6 @@ class FedAMPClient(PFLClient):
                          **kwargs)
         self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)
-        # self.personalized_model = u_model
 
     def _alpha(self):
         return self.optimizer.param_groups[0]["lr"]
@@ -92,7 +91,7 @@ class FedAMPServer(Server):
 
     def __init__(self,
                  model: Module,
-                 test_set: FastDataLoader,
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
                  sigma: float = 0.1,
                  alpha: float = 0.1):

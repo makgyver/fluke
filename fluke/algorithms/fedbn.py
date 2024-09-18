@@ -17,6 +17,11 @@ from ..client import Client  # NOQA
 
 # Same idea in https://link.springer.com/chapter/10.1007/978-3-030-60548-3_13
 
+__all__ = [
+    "FedBNClient",
+    "FedBN"
+]
+
 
 class FedBNClient(Client):
 

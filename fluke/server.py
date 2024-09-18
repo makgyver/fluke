@@ -21,6 +21,11 @@ from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 if TYPE_CHECKING:
     from .client import Client
 
+
+__all__ = [
+    "Server"
+]
+
 torch.serialization.add_safe_globals([set])
 
 
@@ -120,7 +125,7 @@ class Server(ObserverSubject):
         Args:
             eligible (Iterable[Client]): The clients that will receive the global model.
         """
-        self._channel.broadcast(Message(self.model, "model", self), eligible)
+        self.channel.broadcast(Message(self.model, "model", self), eligible)
 
     def fit(self,
             n_rounds: int = 10,
@@ -238,7 +243,7 @@ class Server(ObserverSubject):
         Returns:
             list[torch.nn.Module]: The models of the clients.
         """
-        client_models = [self._channel.receive(self, client, "model").payload
+        client_models = [self.channel.receive(self, client, "model").payload
                          for client in eligible]
         if state_dict:
             return [m.state_dict() for m in client_models]

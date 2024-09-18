@@ -21,6 +21,11 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
+__all__ = [
+    "FedOptServer",
+    "FedOpt"
+]
+
 
 class FedOptServer(Server):
     def __init__(self,

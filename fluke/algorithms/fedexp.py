@@ -19,6 +19,11 @@ from ..client import Client  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import STATE_DICT_KEYS_TO_IGNORE, flatten_parameters  # NOQA
 
+__all__ = [
+    "FedExPServer",
+    "FedExP"
+]
+
 
 class FedExPServer(Server):
 

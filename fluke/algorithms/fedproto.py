@@ -25,6 +25,13 @@ from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import PersonalizedFL  # NOQA
 
+__all__ = [
+    "FedProtoModel",
+    "FedProtoClient",
+    "FedProtoServer",
+    "FedProto"
+]
+
 
 class FedProtoModel(Module):
     def __init__(self,

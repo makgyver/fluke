@@ -22,6 +22,11 @@ from .server import Server  # NOQA
 from .utils import OptimizerConfigurator, clear_cache  # NOQA
 from .utils.model import safe_load_state_dict  # NOQA
 
+__all__ = [
+    "Client",
+    "PFLClient"
+]
+
 
 class Client(ObserverSubject):
     """Base ``Client`` class. This class is the base class for all clients in the ``fluke``.
@@ -39,17 +44,17 @@ class Client(ObserverSubject):
             - ``loss_fn``: The loss function.
             - ``local_epochs``: The number of local epochs.
 
-            When a new client class inherits from this class, it can add all its hyper-parameters
+            When a new client class inherits from this class, it must add all its hyper-parameters
             to this dictionary.
 
         train_set (FastDataLoader): The local training set.
         test_set (FastDataLoader): The local test set.
         optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
-            the optimizer and the learning rate scheduler.
+          the optimizer and the learning rate scheduler.
         optimizer (torch.optim.Optimizer): The optimizer.
         scheduler (torch.optim.lr_scheduler.LRScheduler): The learning rate scheduler.
         device (torch.device): The device where the client trains the model. By default, it is the
-            device defined in :class:`fluke.GlobalSettings`.
+          device defined in :class:`fluke.GlobalSettings`.
 
     Attention:
         **The client should not directly call methods of the server**. The communication between the
@@ -160,7 +165,6 @@ class Client(ObserverSubject):
             self.model = msg.payload
         else:
             safe_load_state_dict(self.model, msg.payload.state_dict())
-            # self.model.load_state_dict(msg.payload.state_dict())
 
     def send_model(self) -> None:
         """Send the current model to the server. The model is sent as a ``Message`` with

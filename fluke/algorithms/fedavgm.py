@@ -21,6 +21,11 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import state_dict_zero_like  # NOQA
 
+__all__ = [
+    "FedAVGMServer",
+    "FedAVGM"
+]
+
 
 class FedAVGMServer(Server):
     """Server class for the FedAVGM algorithm.

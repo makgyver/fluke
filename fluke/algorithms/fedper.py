@@ -54,7 +54,7 @@ class FedPerServer(Server):
 
     def __init__(self,
                  model: torch.nn.Module,
-                 test_set: FastDataLoader,  # test_set is not used
+                 test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

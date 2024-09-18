@@ -25,7 +25,8 @@ class Evaluator(ABC):
     An evaluator object should be used to perform the evaluation of a (federated) model.
 
     Args:
-        eval_every (int): The evaluation frequency. Defaults to 1.
+        eval_every (int): The evaluation frequency expressed as the number of rounds between
+          two evaluations. Defaults to 1, i.e., evaluate the model at each round.
 
     Attributes:
         eval_every (int): The evaluation frequency.

@@ -17,14 +17,14 @@ When a new federated learning algorithm is defined, its functioning can be descr
 the behavior of the server and the clients. This is exactly what you need to do to add a new algorithm 
 to be used in ``fluke``. You must define:
 
-- The `Server` class that inherits from the [fluke.server.Server](../fluke.server) class;
-- The `Client` class that inherits from the [fluke.client.Client](../fluke.client) class.
+- The `Server` class that inherits from the [fluke.server.Server](#fluke.server.Server) class;
+- The `Client` class that inherits from the [fluke.client.Client](#fluke.client.Client) class.
 
 You are not obliged to redefine both the server and the client classes, it depends on the algorithm you want to implement.
 For example, if your algorithm only differs from the standard FedAvg only in the way the clients behave, you only need to redefine the client class.
 
 After having defined the server and the client classes, you must define the class representing the federated learning algorithm itself.
-This class must inherit from the [fluke.algorithms.CentralizedFL](../fluke.algorithms) class and it is responsible for the initialization of the server and the clients. There is no much more to it, as the actual execution of the algorithm is delegated to the server.
+This class must inherit from the [CentralizedFL](#fluke.algorithms.CentralizedFL) class and it is responsible for the initialization of the server and the clients. There is no much more to it, as the actual execution of the algorithm is delegated to the server.
 However, you must override the following methods:
 
 - `get_client_class`: this method must return the client class you defined (if any);
