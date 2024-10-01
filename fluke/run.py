@@ -21,7 +21,7 @@ from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)
 from .utils.log import get_logger  # NOQA
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 
 def version_callback(value: bool):
