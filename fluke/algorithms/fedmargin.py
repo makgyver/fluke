@@ -17,6 +17,7 @@ from .fedlc import FedLC, FedLCClient  # NOQA
 from .fednova import FedNova, FedNovaClient  # NOQA
 from .fedopt import FedOpt  # NOQA
 from .fedprox import FedProx, FedProxClient  # NOQA
+from .fedrs import FedRS, FedRSClient  # NOQA
 from .lg_fedavg import LGFedAVG, LGFedAVGClient  # NOQA
 from .moon import MOONClient  # NOQA
 from .scaffold import SCAFFOLD, SCAFFOLDClient  # NOQA
@@ -67,8 +68,8 @@ class LargeMarginLoss(torch.nn.Module):
         return self.base_loss(y_pred, y_true) + self.margin_lam * loss
 
     def __str__(self):
-        return f"LargeMarginLoss(base_loss={self.base_loss}, margin_lam={self.margin_lam},\
-            reduce={self.reduce})"
+        params = f"base_loss={self.base_loss}, margin_lam={self.margin_lam}, reduce={self.reduce}"
+        return f"LargeMarginLoss({params})"
 
     def __repr__(self) -> str:
         return str(self)
@@ -89,12 +90,13 @@ class FedMarginClient(Client):
                          train_set=train_set,
                          test_set=test_set,
                          optimizer_cfg=optimizer_cfg,
-                         loss_fn=LargeMarginLoss(base_loss=loss_fn,
-                                                 margin_lam=margin_lam,
-                                                 num_labels=train_set.num_labels),
+                         loss_fn=loss_fn,
                          local_epochs=local_epochs,
                          **kwargs)
-        self.hyper_params.update(margin_lam=margin_lam)
+        self.hyper_params.update(margin_lam=margin_lam,
+                                 loss_fn=LargeMarginLoss(base_loss=self.hyper_params.loss_fn,
+                                                         margin_lam=margin_lam,
+                                                         num_labels=train_set.num_labels))
 
 
 # FedAVG + FedMargin
@@ -180,7 +182,7 @@ class LGFedAVGMargin(LGFedAVG):
 
 
 # FedLC + FedMargin
-class FedLCMarginClient(FedLCClient, FedMarginClient):
+class FedLCMarginClient(FedMarginClient, FedLCClient):
     pass
 
 
@@ -188,6 +190,17 @@ class FedLCMargin(FedLC):
 
     def get_client_class(self) -> Client:
         return FedLCMarginClient
+
+
+# FedRS + FedMargin
+class FedRSMarginClient(FedMarginClient, FedRSClient):
+    pass
+
+
+class FedRSMargin(FedRS):
+
+    def get_client_class(self) -> Client:
+        return FedRSMarginClient
 
 
 # FedNova + FedMargin

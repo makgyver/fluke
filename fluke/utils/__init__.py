@@ -545,7 +545,7 @@ class Configuration(DDict):
                 self.data[k] = v
 
         for k, v in EVAL_OPT_KEYS.items():
-            if k not in self.data:
+            if k not in self.eval:
                 self.eval[k] = v
 
         for k, v in EXP_OPT_KEYS.items():
@@ -583,11 +583,11 @@ class Configuration(DDict):
 
     def __str__(self) -> str:
         return f"{self.method.name}_data({self.data.dataset.name}, " + \
-               f"{self.data.distribution.name}(" + \
-               ", ".join([f"{k}={v}" for k, v in self.data.distribution.exclude('name').items()]) +\
-               f"))_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}, " + \
-               f"E{self.protocol.eligible_perc})" + \
-               f"_seed({self.exp.seed})"
+            f"{self.data.distribution.name}(" + \
+            ", ".join([f"{k}={v}" for k, v in self.data.distribution.exclude('name').items()]) +\
+            f"))_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}, " + \
+            f"E{self.protocol.eligible_perc})" + \
+            f"_seed({self.exp.seed})"
 
     def __repr__(self) -> str:
         return str(self)
