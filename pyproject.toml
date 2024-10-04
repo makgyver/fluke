@@ -10,7 +10,7 @@ namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project]
 name = "fluke-fl"
-version = "0.3.3"
+version = "0.3.4"
 authors = [
   { name="Mirko Polato", email="mirko.polato@unito.it" },
 ]
