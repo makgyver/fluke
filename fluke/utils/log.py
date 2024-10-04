@@ -24,8 +24,6 @@ from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
-wandb.require("core")
-
 
 __all__ = [
     "Log",
