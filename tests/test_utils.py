@@ -488,7 +488,9 @@ def test_plot_dist(mock_show):
 
 def test_check_mem():
     net = MNIST_2NN()
-    assert check_model_fit_mem(net, (28 * 28,), 100, "mps", True)
+
+    if torch.backends.mps.is_available():
+        assert check_model_fit_mem(net, (28 * 28,), 100, "mps", True)
 
     if torch.cuda.is_available():
         assert check_model_fit_mem(net, (28 * 28,), 100, "cuda")
