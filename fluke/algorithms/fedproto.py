@@ -151,7 +151,7 @@ class FedProtoClient(PFLClient):
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.prototypes[0] is not None:
             model = FedProtoModel(self.model, self.prototypes, self.device)
-            return evaluator.evaluate(self._last_round, model, test_set)
+            return evaluator.evaluate(self._last_round, model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:

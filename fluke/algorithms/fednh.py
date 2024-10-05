@@ -138,7 +138,7 @@ class FedNHClient(PFLClient):
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.model is not None:
             model = ArgMaxModule(self.model)
-            return evaluator.evaluate(self._last_round, model, test_set)
+            return evaluator.evaluate(self._last_round, model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:
@@ -225,7 +225,7 @@ class FedNHServer(Server):
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if self.test_set is not None:
             model = ArgMaxModule(self.model)
-            return evaluator.evaluate(self.rounds + 1, model, self.test_set)
+            return evaluator.evaluate(self.rounds + 1, model, self.test_set, device=self.device)
         return {}
 
 

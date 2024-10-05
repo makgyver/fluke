@@ -138,7 +138,8 @@ class FedRODClient(Client):
         if test_set is not None and self.model is not None and self.inner_model is not None:
             return evaluator.evaluate(self._last_round,
                                       RODModel(self.model, self.inner_model),
-                                      test_set)
+                                      test_set,
+                                      device=self.device)
         return {}
 
 

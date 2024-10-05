@@ -123,7 +123,7 @@ class FedHPClient(PFLClient):
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.initial_prototypes is not None:
             model = FedHPModel(self.model)
-            return evaluator.evaluate(self._last_round, model, test_set)
+            return evaluator.evaluate(self._last_round, model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:

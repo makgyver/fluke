@@ -91,7 +91,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
             optimizer.step()
         scheduler.step()
 
-        epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
+        epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
         history.append(epoch_eval)
         for k, v in epoch_eval.items():
             log.add_scalar(k, v, e+1)
@@ -198,7 +198,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                 optimizer.step()
             scheduler.step()
 
-            client_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
+            client_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
             running_evals[i].append(client_eval)
 
         log.pretty_log(client_eval, title=f"Client [{i}] Performance")

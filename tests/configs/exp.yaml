@@ -11,6 +11,10 @@ exp:
   seed: 42
 logger:
   name: local
+eval:
+  locals: true
+  pre_fit: true
+  post_fit: true
 protocol:
   eligible_perc: 1
   n_clients: 100

@@ -50,7 +50,8 @@ class MNISTM(VisionDataset):
 
         data_file = (self.training_file if self.train
                      else self.test_file)
-        self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file))
+        self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file),
+                                             weights_only=False)
 
     def __getitem__(self, index):
         """Get images and target for data loader.
