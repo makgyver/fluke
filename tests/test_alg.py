@@ -399,6 +399,10 @@ def test_fedsgd():
     #                          "./tests/configs/alg/fedsgd.yaml", oncpu=False)
 
 
+def test_kafe():
+    kafe, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/kafe.yaml")
+
+
 def test_lgfedavg():
     lgfedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/lg_fedavg.yaml")
     # lgfedavg, log = _test_algo("./tests/configs/exp.yaml",
@@ -451,7 +455,7 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_lgfedavg()
     # test_moon()
-    test_fedbn()
+    # test_fedbn()
     # test_pfedme()  # TO BE CHECKED
     # test_scaffold()
     # test_superfed()
@@ -465,3 +469,4 @@ if __name__ == "__main__":
     # test_fedavgm()
     # test_fedhp()
     # test_fednh()
+    test_kafe()
