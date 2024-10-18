@@ -16,14 +16,14 @@ from torch.optim.optimizer import Optimizer as Optimizer
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke import GlobalSettings  # NOQA
-from fluke.client import PFLClient  # NOQA
-from fluke.comm import Message  # NOQA
-from fluke.data import FastDataLoader  # NOQA
-from fluke.evaluation import Evaluator  # NOQA
-from fluke.server import Server  # NOQA
-from fluke.utils import OptimizerConfigurator, clear_cache  # NOQA
-from fluke.algorithms import PersonalizedFL  # NOQA
+from .. import GlobalSettings  # NOQA
+from ..client import PFLClient  # NOQA
+from ..comm import Message  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..evaluation import Evaluator  # NOQA
+from ..server import Server  # NOQA
+from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from . import PersonalizedFL  # NOQA
 
 import copy
 
@@ -176,7 +176,6 @@ class FedHPServer(Server):
             # Count the occurrences of each class for each client. This is "illegal" in a real scenario.
             class_counts = {client_idx: torch.bincount(client_data).tolist()
                             for client_idx, client_data in enumerate(client.values())}
-            print(class_counts)
             tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))
             for ind,val in enumerate(class_counts.values()):
                 tensor_class_counts[:,ind] = torch.tensor(val)
