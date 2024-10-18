@@ -169,9 +169,7 @@ class FedHPServer(Server):
             self.prototypes = self._hyperspherical_embedding().data
                                                  
             self.anchors = copy.deepcopy(self.prototypes)
-            client = {}
-            for c in self.clients:
-                client[c.index] = c.train_set.tensors[1]
+            client = {c.index:c.train_set.tensors[1] for c in self.clients}
 
             # Count the occurrences of each class for each client. This is "illegal" in a real scenario.
             class_counts = {client_idx: torch.bincount(client_data).tolist()
@@ -183,7 +181,6 @@ class FedHPServer(Server):
             col_sums = tensor_class_counts.sum(dim=0, keepdim=True)
             self.clients_class_weights = tensor_class_counts / col_sums 
             
-        # then keep doing the same
         return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
     def _hyperspherical_embedding(self):
@@ -244,7 +241,7 @@ class FedHPServer(Server):
         clients_anchors = self.get_clients_anchors(eligible)
         assert torch.all(torch.eq(torch.stack(clients_anchors), clients_anchors[0])), "Anchors are not the same."
         
-        clients_weights = self.clients_class_weights[:,[client.index for client in eligible]].T # select the weight of the choosen clients, this should be eligible x n_classes
+        clients_weights = self.clients_class_weights[:,[client.index for client in eligible]].T 
         weighted_proto = proto_tensor * clients_weights.unsqueeze(-1)
         self.prototypes = torch.mean(weighted_proto, dim = 0)
 
