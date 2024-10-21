@@ -6,7 +6,7 @@ import importlib
 import inspect
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Union
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -239,11 +239,13 @@ class OptimizerConfigurator:
         self.scheduler_cfg = self.scheduler_cfg.exclude("name")
         self.optimizer_cfg = self.optimizer_cfg.exclude("name")
 
-    def __call__(self, model: Module, **override_kwargs):
+    def __call__(self, model: Module, filter_fun: Optional[callable] = None, **override_kwargs):
         """Creates the optimizer and the scheduler.
 
         Args:
             model (Module): The model whose parameters will be optimized.
+            filter_fun (callable): This must be a function of the model and it must returns the set
+              of parameters that the optimizer will consider.
             override_kwargs (dict): The optimizer's keyword arguments to override the default ones.
 
         Returns:
@@ -251,8 +253,13 @@ class OptimizerConfigurator:
         """
         if override_kwargs:
             self.optimizer_cfg.update(**override_kwargs)
-        optimizer = self.optimizer(filter(lambda p: p.requires_grad, model.parameters()),
-                                   **self.optimizer_cfg)
+
+        if filter_fun is None:
+            optimizer = self.optimizer(filter(lambda p: p.requires_grad, model.parameters()),
+                                       **self.optimizer_cfg)
+        else:
+            optimizer = self.optimizer(filter_fun(model),
+                                       **self.optimizer_cfg)
         scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 
