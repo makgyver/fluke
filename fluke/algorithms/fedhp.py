@@ -1,21 +1,24 @@
 """Implementation of the FedHP: Federated Learning with Hyperspherical Prototypical Regularization
 [FedHP24]_ algorithm.
-
 References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito.
-       FedHP: Federated Learning with Hyperspherical Prototypical Regularization. In ESANN (2024)
+       FedHP: Federated Learning with Hyperspherical Prototypical Regularization. In ESANN (2024).
+       URL: https://www.esann.org/sites/default/files/proceedings/2024/ES2024-183.pdf
 """
+import copy
 import sys
 from typing import Any, Iterable
 
 import torch
+import torch.optim as optim
 from rich.progress import track
 from torch import nn
 from torch.optim.optimizer import Optimizer as Optimizer
 
+from fluke.client import Client
+
 sys.path.append(".")
 sys.path.append("..")
-
 from .. import GlobalSettings  # NOQA
 from ..client import PFLClient  # NOQA
 from ..comm import Message  # NOQA
@@ -25,10 +28,8 @@ from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from . import PersonalizedFL  # NOQA
 
-import copy
 
 class ProtoNet(nn.Module):
-
     def __init__(self, encoder: nn.Module, n_protos: int):
         super(ProtoNet, self).__init__()
         self._encoder = encoder
@@ -66,7 +67,6 @@ class SeparationLoss(nn.Module):
 
 
 class FedHPClient(PFLClient):
-
     def __init__(self,
                  index: int,
                  model: nn.Module,
@@ -84,35 +84,41 @@ class FedHPClient(PFLClient):
         self.hyper_params.update(n_protos=n_protos, lam=lam)
         self.model = self.personalized_model
         self.anchors = None
+        self.proto_opt = None
 
-    def receive_model(self):
-        msg = self.channel.receive(self, self.server, msg_type="anchors")
-        if self.anchors == None:
+    def receive_model(self) -> None:
+        if self.anchors is None:
+            msg = self.channel.receive(self, self.server, msg_type="anchors")
             self.anchors = msg.payload.data
-        
+        msg = self.channel.receive(self, self.server, msg_type="prototypes")
+        self.model.prototypes.data = msg.payload
+
     def send_model(self) -> None:
-        self.channel.send(Message(self.model.prototypes.data, "prototypes", self), self.server)
-        self.channel.send(Message(self.anchors, "anchors", self), self.server)
-    
+        self.channel.send(Message(copy.deepcopy(self.model.prototypes.data),
+                          "prototypes", self), self.server)
+
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
-        
-        msg = self.channel.receive(self, self.server, msg_type="prototypes")
-        self.model.prototypes.data = msg.payload
         self.model.train()
         self.model.to(self.device)
 
+        def filter_fun(model): return [param for name, param in model.named_parameters()
+                                       if 'prototype' not in name]
+
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self.optimizer_cfg(self.model, filter_fun=filter_fun)
+
+        if self.proto_opt is None:
+            proto_params = [p for name, p in self.model.named_parameters() if 'proto' in name]
+            self.proto_opt = optim.Adam(proto_params, lr=0.005)
 
         running_loss = 0.0
-        
         for _ in range(epochs):
-            last_epoch_prototypes = copy.deepcopy(self.model.prototypes.data)
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
+                self.proto_opt.zero_grad()
                 _, dists = self.model.forward(X)
                 loss = self.hyper_params.loss_fn(dists, y)
                 loss_proto = torch.mean(1 - nn.CosineSimilarity(dim=1)
@@ -120,10 +126,9 @@ class FedHPClient(PFLClient):
                 loss += self.hyper_params.lam * loss_proto
                 loss.backward()
                 self.optimizer.step()
+                self.proto_opt.step()
                 running_loss += loss.item()
-                assert not torch.all(torch.eq(self.model.prototypes.data, last_epoch_prototypes)), "Local prototypes are not being updated"
             self.scheduler.step()
-
         running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
@@ -137,14 +142,12 @@ class FedHPClient(PFLClient):
 
     def finalize(self) -> None:
         self.fit()
-
         metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
         if metrics:
             self._notify_evaluation(-1, "post-fit", metrics)
 
 
 class FedHPServer(Server):
-
     def __init__(self,
                  model: nn.Module,
                  test_set: FastDataLoader,
@@ -164,23 +167,25 @@ class FedHPServer(Server):
         self.prototypes = None
         self.clients_class_weights = None
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True):
+    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
         if self.rounds == 0:
-            self.prototypes = self._hyperspherical_embedding().data
-                                                 
-            self.anchors = copy.deepcopy(self.prototypes)
-            client = {c.index:c.train_set.tensors[1] for c in self.clients}
-
-            # Count the occurrences of each class for each client. This is "illegal" in a real scenario.
+            self.anchors = self._hyperspherical_embedding().data
+            self.channel.broadcast(Message(self.anchors, "anchors", self), self.clients)
+            self.prototypes = copy.deepcopy(self.anchors)
+            client = {c.index: c.train_set.tensors[1] for c in self.clients}
+            # Count the occurrences of each class for each client.
+            # This is "illegal" in fluke :)
             class_counts = {client_idx: torch.bincount(client_data).tolist()
                             for client_idx, client_data in enumerate(client.values())}
-            tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))
-            for ind,val in enumerate(class_counts.values()):
-                tensor_class_counts[:,ind] = torch.tensor(val)
-            # row_sums = tensor_class_counts.sum(dim=1, keepdim=True)
-            col_sums = tensor_class_counts.sum(dim=0, keepdim=True)
-            self.clients_class_weights = tensor_class_counts / col_sums 
-            
+            if self.hyper_params.weighted:
+                tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))
+                for ind, val in enumerate(class_counts.values()):
+                    tensor_class_counts[:, ind] = torch.tensor(val)
+                col_sums = tensor_class_counts.sum(dim=0, keepdim=True)
+                self.clients_class_weights = tensor_class_counts / col_sums
+            else:
+                self.clients_class_weights = torch.ones((len(class_counts[0]), self.n_clients))
+
         return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
     def _hyperspherical_embedding(self):
@@ -203,52 +208,28 @@ class FedHPServer(Server):
             loss = loss_fn(mapping)
             loss.backward()
             optimizer.step()
-
         with torch.no_grad():
             mapping.div_(torch.norm(mapping, dim=1, keepdim=True))
         return mapping.detach()
 
-    def broadcast_model(self, eligible):
-        """
-        The broadcast is modified to broadcast only the server's prototypes. Notice that every
-        client already has the model.
-        """
-        self.channel.broadcast(Message(self.anchors, "anchors", self), eligible) 
+    def broadcast_model(self, eligible: Iterable[FedHPClient]) -> None:
         self.channel.broadcast(Message(self.prototypes, "prototypes", self), eligible)
 
-    def get_clients_prototypes(self, eligible) -> list[Any]:
-        """
-        The receive is modified to receive only the clients' prototypes.
-        """
-        client_prototypes = [self.channel.receive(self, client, "prototypes").payload
-                         for client in eligible]
-        return client_prototypes
-    
-    def get_clients_anchors(self, eligible) -> list[Any]:
-        """
-        Sanity check to see if the anchors are maintained the same among all the clients.
-        """
-        client_anchors = [self.channel.receive(self, client, "anchors").payload
-                         for client in eligible]
-        return client_anchors
+    def get_client_models(self, eligible: Iterable[Client], state_dict: bool = False) -> list[Any]:
+        return [self.channel.receive(self, client, "prototypes").payload for client in eligible]
 
-    def aggregate(self, eligible):
-        
-        clients_prototypes = self.get_clients_prototypes(eligible)
-        proto_tensor = torch.empty((len(eligible),clients_prototypes[0].shape[0],clients_prototypes[0].shape[1]))
-        
-        clients_prototypes = []
-        clients_anchors = self.get_clients_anchors(eligible)
-        assert torch.all(torch.eq(torch.stack(clients_anchors), clients_anchors[0])), "Anchors are not the same."
-        
-        clients_weights = self.clients_class_weights[:,[client.index for client in eligible]].T 
-        weighted_proto = proto_tensor * clients_weights.unsqueeze(-1)
-        self.prototypes = torch.mean(weighted_proto, dim = 0)
+    def aggregate(self, eligible: Iterable[FedHPClient]) -> None:
+        clients_prototypes = self.get_client_models(eligible)
+        clients_weights = self.clients_class_weights[:, [client.index for client in eligible]].T
+        avg_proto = torch.zeros_like(clients_prototypes[0])
+
+        for i in range(len(clients_prototypes)):
+            avg_proto += clients_prototypes[i] * clients_weights[i, :].unsqueeze(-1)
+        avg_proto /= clients_weights.sum(dim=0).unsqueeze(-1)
+        self.prototypes = avg_proto
+
 
 class FedHP(PersonalizedFL):
-
-    def can_override_optimizer(self) -> bool:
-        return False
 
     def get_client_class(self) -> PFLClient:
         return FedHPClient

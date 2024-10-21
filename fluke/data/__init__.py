@@ -393,7 +393,7 @@ class DataSplitter:
                                                             Yte_client,
                                                             num_labels=self.num_classes,
                                                             batch_size=batch_size,
-                                                            shuffle=True,
+                                                            shuffle=False,
                                                             percentage=self.sampling_perc))
             else:
                 client_te_assignments.append(None)
@@ -401,7 +401,7 @@ class DataSplitter:
         server_te = FastDataLoader(server_X, server_Y,
                                    num_labels=self.num_classes,
                                    batch_size=128,
-                                   shuffle=True,
+                                   shuffle=False,
                                    percentage=self.sampling_perc) if self.server_test else None
         return (client_tr_assignments, client_te_assignments), server_te
 
@@ -620,47 +620,53 @@ class DataSplitter:
                                         for p, idx_j in zip(pk[c], idx_batch[iy])])
                 proportions = proportions / proportions.sum()
 
-                # fix the proportions to ensure a balanced distribution of the examples
-                fixed = []
-                samples_avg = np.ceil(samples_avg)
-                while balanced:
-                    to_fix = False
-                    proportions_int = (proportions * len(ids)).astype(int)
-                    for i in range(n):
-                        if i in fixed:
-                            continue
-
-                        # check if the client has more than the average number of examples
-                        surplus = len(idx_batch[iy][i]) + proportions_int[i] - samples_avg
-                        if surplus > 0 and proportions_int[i] > 0:
-                            to_fix = True
-                            # redistribute the surplus examples
-                            # saturate the examples for the client
-                            proportions[i] = max(
-                                (samples_avg - len(idx_batch[iy][i])) / len(ids), 0)
-                            fixed.append(i)
-
-                            # given that we have fixed the proportion for client i, we need to
-                            # redistribute the surplus examples to the other clients
-                            # so, clients with a 0 proportion will receive a small value
-                            for j in range(n):
-                                if j not in fixed and proportions[j] == 0:
-                                    proportions[j] += 1e-07
-
-                            # normalize the proportions of the clients that have not been fixed
-                            dd = np.sum([proportions[j] for j in range(n) if j not in fixed])
-                            for j in range(n):
-                                if j not in fixed:
-                                    proportions[j] = proportions[j] / dd
-
-                    if not to_fix:
-                        break
-
                 # assign the examples to the clients
                 proportions = (np.cumsum(proportions) * len(ids)).astype(int)[:-1]
                 idx_batch[iy] = [idx_j + idx.tolist()
                                  for idx_j, idx in zip(idx_batch[iy],
                                                        np.split(ids, proportions))]
+
+        if balanced:
+            for iy, y in enumerate([y_train, y_test]):
+                if y is None:
+                    continue
+                samples_avg = np.ceil(y.shape[0] / n)
+
+                to_reduce = [i for i in range(len(idx_batch[iy]))
+                             if len(idx_batch[iy][i]) - int(samples_avg) > 0]
+
+                to_fill = [i for i in range(n) if i not in to_reduce]
+
+                while to_reduce:
+                    i = to_reduce.pop(0)
+                    samples = idx_batch[iy][i]
+                    surplus_ratio = 1. - samples_avg / len(samples)
+                    try:
+                        s_keep, s_spare, _, _ = train_test_split(samples, y[samples],
+                                                                 test_size=surplus_ratio,
+                                                                 stratify=y[samples])
+                    except ValueError:
+                        s_keep, s_spare, _, _ = train_test_split(samples, y[samples],
+                                                                 test_size=surplus_ratio)
+                    idx_batch[iy][i] = s_keep
+
+                    step = int(np.ceil(len(s_spare) / len(to_fill)))
+                    shuffle(s_spare)
+                    new_reduce = []
+                    no_fill = []
+                    for jj, j in enumerate(to_fill):
+                        idx_batch[iy][j] += s_spare[step*jj: step*(jj+1)]
+                        if len(idx_batch[iy][j]) - int(samples_avg) > 0:
+                            new_reduce.append(j)
+                            no_fill.append(j)
+                        elif len(idx_batch[iy][j]) - int(samples_avg) == 0:
+                            no_fill.append(j)
+                    to_reduce += new_reduce
+                    for j in no_fill:
+                        to_fill.remove(j)
+
+                    if len(idx_batch[iy][i]) < samples_avg:
+                        to_fill.append(i)
 
         # change idx_batch according to cid_perm
         idx_batch = [[idx_batch[i][cid_perm[j]] for j in range(n)] for i in range(2)]
