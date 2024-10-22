@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 from typing import Optional, Sequence
+import warnings
 
 import numpy as np
 import rich
@@ -626,6 +627,7 @@ class DataSplitter:
                                  for idx_j, idx in zip(idx_batch[iy],
                                                        np.split(ids, proportions))]
 
+        trials = 0
         if balanced:
             for iy, y in enumerate([y_train, y_test]):
                 if y is None:
@@ -637,7 +639,7 @@ class DataSplitter:
 
                 to_fill = [i for i in range(n) if i not in to_reduce]
 
-                while to_reduce:
+                while to_reduce and trials < 10:
                     i = to_reduce.pop(0)
                     samples = idx_batch[iy][i]
                     surplus_ratio = 1. - samples_avg / len(samples)
@@ -661,6 +663,7 @@ class DataSplitter:
                             no_fill.append(j)
                         elif len(idx_batch[iy][j]) - int(samples_avg) == 0:
                             no_fill.append(j)
+
                     to_reduce += new_reduce
                     for j in no_fill:
                         to_fill.remove(j)
@@ -668,6 +671,12 @@ class DataSplitter:
                     if len(idx_batch[iy][i]) < samples_avg:
                         to_fill.append(i)
 
+                    trials += 1
+
+        if trials > 10:
+            warnings.warn(
+                "Reached maximum number of trials (10) while trying to balanced the dataset \
+                    distribution")
         # change idx_batch according to cid_perm
         idx_batch = [[idx_batch[i][cid_perm[j]] for j in range(n)] for i in range(2)]
         return idx_batch[0], idx_batch[1] if y_test is not None else None
