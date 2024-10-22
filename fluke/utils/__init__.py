@@ -641,7 +641,6 @@ def plot_distribution(clients: list[Client],
 
     _, ax = plt.subplots(figsize=(12, 6))
     ax.set_xticks(range(len(client)))
-    ax.set_yticks(range(num_classes))
 
     class_matrix = np.zeros((num_classes, len(client)))
     for client_idx, counts in class_counts.items():
@@ -651,17 +650,24 @@ def plot_distribution(clients: list[Client],
             if type == "ball":
                 size = count * 1  # Adjust the scaling factor as needed
                 ax.scatter(client_idx, class_idx, s=size, alpha=0.6)
+                ax.set_yticks(range(num_classes))
                 ax.text(client_idx, class_idx, str(count), va='center',
                         ha='center', color='black', fontsize=9)
     plt.title('Number of Examples per Class for Each Client', fontsize=12)
     ax.grid(False)
     if type == "mat":
+        ax.set_yticks(range(num_classes))
         sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix, fmt='g',
                     cbar=False, annot_kws={"fontsize": 6})
     elif type == "bar":
         df = pd.DataFrame(class_matrix.T, index=[f'{i}' for i in range(len(client))],
                           columns=[f'{i}' for i in range(num_classes)])
-        df.plot(ax=ax, kind='bar', stacked=True, color=sns.color_palette('viridis', num_classes))
+        step = int(max(1, np.ceil(len(clients) / 50)))
+        df.plot(ax=ax,
+                kind='bar',
+                stacked=True,
+                xticks=[x for x in range(0, len(clients), step)],
+                color=sns.color_palette('viridis', num_classes)).legend(loc='upper right')
     plt.xlabel('clients')
     plt.ylabel('classes')
     plt.show()
