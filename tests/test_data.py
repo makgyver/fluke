@@ -228,6 +228,10 @@ def test_splitter():
     splitter.distribution = "qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
+    splitter.distribution = "dir"
+    splitter.dist_args.balanced = False
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+
     # freq = []
     # for i in range(n_clients):
     #     arr = np.concatenate([ctr[i].tensors[1].numpy(), cte[i].tensors[1].numpy()])
