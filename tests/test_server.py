@@ -45,7 +45,6 @@ def test_server():
     class Model(Linear):
         def __init__(self):
             super().__init__(10, 2)
-            self.output_size = 2
 
     def target_function(x):
         return 0 if x[:7].sum() < 2.5 else 1

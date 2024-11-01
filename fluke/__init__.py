@@ -331,7 +331,7 @@ class GlobalSettings(metaclass=Singleton):
 
         if device.startswith('cuda') and ":" in device:
             idx = int(device.split(":")[1])
-            self._device = torch.device(device, idx)
+            self._device = torch.device("cuda", idx)
         else:
             self._device = torch.device(device)
         return self._device

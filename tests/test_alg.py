@@ -22,6 +22,10 @@ from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
 from fluke.utils.log import Log  # NOQA
 
 
+GlobalSettings().set_evaluator(ClassificationEval(1, 10))
+GlobalSettings().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
+
+
 def test_centralized_fl():
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
@@ -69,9 +73,6 @@ def test_centralized_fl():
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(2, splitter, hparams)
-
-    GlobalSettings().set_evaluator(ClassificationEval(1, 10))
-    GlobalSettings().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
 
     assert isinstance(fl.server.model, MNIST_2NN)
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
@@ -399,6 +400,10 @@ def test_fedsgd():
     #                          "./tests/configs/alg/fedsgd.yaml", oncpu=False)
 
 
+def test_kafe():
+    kafe, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/kafe.yaml")
+
+
 def test_lgfedavg():
     lgfedavg, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/lg_fedavg.yaml")
     # lgfedavg, log = _test_algo("./tests/configs/exp.yaml",
@@ -451,7 +456,7 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_lgfedavg()
     # test_moon()
-    test_fedbn()
+    # test_fedbn()
     # test_pfedme()  # TO BE CHECKED
     # test_scaffold()
     # test_superfed()
@@ -465,3 +470,4 @@ if __name__ == "__main__":
     # test_fedavgm()
     # test_fedhp()
     # test_fednh()
+    test_kafe()

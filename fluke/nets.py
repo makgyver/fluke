@@ -70,9 +70,6 @@ class EncoderHeadNet(nn.Module):
     to get the output of the encoder and head subnetworks, respectively.
     If this is not possible, they fallback to the forward method (default behavior).
 
-    Attributes:
-        output_size (int): Output size of the head subnetwork.
-
     Args:
         encoder (nn.Module): Encoder subnetwork.
         head (nn.Module): Head subnetwork.
@@ -80,7 +77,6 @@ class EncoderHeadNet(nn.Module):
 
     def __init__(self, encoder: nn.Module, head: nn.Module):
         super(EncoderHeadNet, self).__init__()
-        self.output_size = head.output_size
         self._encoder = encoder
         self._head = head
 
@@ -234,9 +230,6 @@ class MNIST_2NN_E(nn.Module):
     def __init__(self,
                  hidden_size: tuple[int, int] = (200, 100)):
         super(MNIST_2NN_E, self).__init__()
-        self.input_size = 28*28
-        self.output_size = hidden_size[1]
-
         self.fc1 = nn.Linear(28*28, hidden_size[0])
         self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
 
@@ -253,7 +246,7 @@ class MNIST_2NN_D(nn.Module):
     Args:
         hidden_size (int, optional): Size of the hidden layer. Defaults to 200.
         use_softmax (bool, optional): If True, the output is passed through a softmax layer,
-            otherwise, a sigmoid activation is used. Defaults to False.
+            otherwise, no activation will be used. Defaults to False.
 
     See Also:
         - :class:`MNIST_2NN`
@@ -264,7 +257,6 @@ class MNIST_2NN_D(nn.Module):
                  hidden_size: int = 100,
                  use_softmax: bool = False):
         super(MNIST_2NN_D, self).__init__()
-        self.output_size = 10
         self.use_softmax = use_softmax
         self.fc3 = nn.Linear(hidden_size, 10)
 
@@ -331,7 +323,6 @@ class MNIST_CNN_E(nn.Module):
 
     def __init__(self):
         super(MNIST_CNN_E, self).__init__()
-        self.output_size = 1024
         self.conv1 = nn.Conv2d(1, 32, 5, 1)
         self.conv2 = nn.Conv2d(32, 64, 5, 1)
 
@@ -353,7 +344,6 @@ class MNIST_CNN_D(nn.Module):
 
     def __init__(self):
         super(MNIST_CNN_D, self).__init__()
-        self.output_size = 10
         self.fc1 = nn.Linear(1024, 512)
         self.fc2 = nn.Linear(512, 10)
 
@@ -391,7 +381,6 @@ class FedBN_CNN_E(nn.Module):
 
     def __init__(self, channels: int = 1):
         super(FedBN_CNN_E, self).__init__()
-        self.output_size = 6272
 
         self.conv1 = nn.Conv2d(channels, 64, 5, 1, 2)
         self.bn1 = nn.BatchNorm2d(64)
@@ -423,7 +412,6 @@ class FedBN_CNN_D(nn.Module):
 
     def __init__(self):
         super(FedBN_CNN_D, self).__init__()
-        self.output_size = 10
         self.fc1 = nn.Linear(6272, 2048)
         self.bn5 = nn.BatchNorm1d(2048)
         self.fc2 = nn.Linear(2048, 512)
@@ -471,32 +459,21 @@ class CifarConv2_E(nn.Module):
         - :class:`CifarConv2_D`
     """
 
-    def __init__(self):  # , output_size: int = 1600):
+    def __init__(self):
         super().__init__()
-        self.output_size = 1600
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5)
-        self.bn1 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
-        self.bn2 = nn.BatchNorm2d(64)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        # self.linear1 = nn.Linear(64 * 5 * 5, 512)
-        # self.linear2 = nn.Linear(512, self.output_size)
 
-    def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+    def forward(self, x: torch.Tensor):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
         x = x.view(-1, 64 * 5 * 5)
-        # x = F.relu(self.linear1(x))
-        # x = F.relu(self.linear2(x))
         return x
 
 
 class CifarConv2_D(nn.Module):
     """Head for the :class:`CifarConv2` network.
-
-    Args:
-        input_size (int, optional): Size of the input. Defaults to 100.
-        num_classes (int, optional): Number of classes. Defaults to 10.
 
     See Also:
         - :class:`CifarConv2`
@@ -505,16 +482,14 @@ class CifarConv2_D(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.input_size = 1600
-        self.output_size = 10
-        # self.linear2 = nn.Linear(self.input_size, self.output_size, bias=False)
-        self.linear1 = nn.Linear(self.input_size, 512)
-        self.linear2 = nn.Linear(512, self.output_size)
-        self.bn3 = nn.BatchNorm1d(512)
+        self.linear1 = nn.Linear(1600, 384)
+        self.linear2 = nn.Linear(384, 192)
+        self.linear3 = nn.Linear(192, 10, bias=False)
 
-    def forward(self, x):
-        x = F.relu(self.bn3(self.linear1(x)))
-        logits = self.linear2(x)
+    def forward(self, x: torch.Tensor):
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
+        logits = self.linear3(x)
         return logits
 
 
@@ -550,28 +525,29 @@ class MNIST_LR(nn.Module):
     """Logistic Regression for MNIST. This is a simple logistic regression model for MNIST
     classification used in the [FedProx]_ paper for both MNIST and FEMNIST datasets.
 
-    Args:
-        num_classes (int, optional): Number of classes, i.e., the output size. Defaults to 10.
-
     References:
         .. [FedProx] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and
             Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
             Learning Workshop. In Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
     """
 
-    def __init__(self, num_classes: int = 10):
+    def __init__(self):
         super(MNIST_LR, self).__init__()
-        self.output_size = num_classes
-        self.fc = nn.Linear(784, num_classes)
+        self.fc = nn.Linear(784, 10)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, 784)
         return F.softmax(self.fc(x), dim=1)
 
 
 class _ResidualBlock(nn.Module):
 
-    def __init__(self, in_channels, out_channels, kernel_size, padding, stride):
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 kernel_size: int,
+                 padding: int,
+                 stride: int):
         super(_ResidualBlock, self).__init__()
         self.conv_res1 = nn.Conv2d(in_channels=in_channels,
                                    out_channels=out_channels,
@@ -600,7 +576,7 @@ class _ResidualBlock(nn.Module):
 
         self.relu = nn.ReLU(inplace=False)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = x
         out = self.relu(self.conv_res1_bn(self.conv_res1(x)))
         out = self.conv_res2_bn(self.conv_res2(out))
@@ -623,7 +599,6 @@ class ResNet9_E(nn.Module):
 
     def __init__(self):
         super(ResNet9_E, self).__init__()
-        self.output_size = 1024
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3,
                       stride=1, padding=1, bias=False),
@@ -649,7 +624,7 @@ class ResNet9_E(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.conv(x)
         out = out.view(-1, out.shape[1] * out.shape[2] * out.shape[3])
         return out
@@ -665,10 +640,9 @@ class ResNet9_D(nn.Module):
 
     def __init__(self):
         super(ResNet9_D, self).__init__()
-        self.output_size = 100
         self.fc = nn.Linear(in_features=1024, out_features=100, bias=True)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.fc(x)
         return out
 
@@ -700,11 +674,10 @@ class FEMNIST_CNN_E(nn.Module):
 
     def __init__(self):
         super(FEMNIST_CNN_E, self).__init__()
-        self.output_size = 3136
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5, padding=2)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=5, padding=2)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.conv1(x))
         x = F.max_pool2d(x, kernel_size=2, stride=2)
         x = F.relu(self.conv2(x))
@@ -722,11 +695,10 @@ class FEMNIST_CNN_D(nn.Module):
 
     def __init__(self):
         super(FEMNIST_CNN_D, self).__init__()
-        self.output_size = 62
         self.fc1 = nn.Linear(7 * 7 * 64, 1024)
         self.fc2 = nn.Linear(1024, 62)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -752,8 +724,6 @@ class VGG9_E(nn.Module):
     """Encoder for the :class:`VGG9` network.
 
     Args:
-        input_size (int, optional): Size of the input tensor. Defaults to 784.
-        output_size (int, optional): Number of output classes. Defaults to 62.
         seed (int, optional): Seed used for weight initialization. Defaults to 98765.
 
     See Also:
@@ -763,25 +733,22 @@ class VGG9_E(nn.Module):
 
     @classmethod
     def _conv_layer(self,
-                    in_channels,
-                    out_channels,
-                    kernel_size,
-                    stride=1,
-                    padding=0,
-                    groups=1,
-                    bias=False,
-                    seed=0) -> nn.Conv2d:
+                    in_channels: int,
+                    out_channels: int,
+                    kernel_size: int,
+                    stride: int = 1,
+                    padding: int = 0,
+                    groups: int = 1,
+                    bias: bool = False,
+                    seed: int = 0) -> nn.Conv2d:
         conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,
                          padding=padding, groups=groups, stride=stride, bias=bias)
         torch.manual_seed(seed)
         torch.nn.init.xavier_normal_(conv.weight)
         return conv
 
-    def __init__(self, input_size: int = 784, output_size: int = 62, seed: int = 98765):
+    def __init__(self, seed: int = 98765):
         super(VGG9_E, self).__init__()
-        self._seed = seed
-        self.input_size = input_size
-        self.output_size = output_size
         self.encoder = nn.Sequential(
             VGG9_E._conv_layer(in_channels=1, out_channels=16, kernel_size=3,
                                padding=1, bias=False, seed=seed),
@@ -808,7 +775,7 @@ class VGG9_E(nn.Module):
             nn.Flatten()
         )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
 
 
@@ -825,7 +792,11 @@ class VGG9_D(nn.Module):
         - :class:`VGG9_E`
     """
     @classmethod
-    def _linear_layer(cls, in_features, out_features, bias=False, seed=0):
+    def _linear_layer(cls,
+                      in_features: int,
+                      out_features: int,
+                      bias: bool = False,
+                      seed: int = 0) -> nn.Linear:
         fc = nn.Linear(in_features, out_features, bias=bias)
         torch.manual_seed(seed)
         torch.nn.init.xavier_normal_(fc.weight)
@@ -833,14 +804,13 @@ class VGG9_D(nn.Module):
 
     def __init__(self, input_size: int = 512, output_size: int = 62, seed: int = 98765):
         super(VGG9_D, self).__init__()
-        self.output_size = output_size
         self.downstream = nn.Sequential(
             VGG9_D._linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
             nn.ReLU(True),
             VGG9_D._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
         )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.downstream(x)
 
 
@@ -861,9 +831,9 @@ class VGG9(EncoderHeadNet):
         - :class:`VGG9_D`
     """
 
-    def __init__(self, input_size: int = 784, output_size: int = 62, seed: int = 98765):
+    def __init__(self, output_size: int = 62, seed: int = 98765):
         super(VGG9, self).__init__(
-            VGG9_E(input_size, output_size, seed),
+            VGG9_E(seed),
             VGG9_D(input_size=512, output_size=output_size, seed=seed)
         )
 
@@ -874,13 +844,12 @@ class VGG9(EncoderHeadNet):
 class FedavgCNN_E(nn.Module):
     def __init__(self):
         super().__init__()
-        self.output_size = 4096
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=5, stride=1, padding=2)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.conv1(x))
         x = self.pool1(x)
         x = F.relu(self.conv2(x))
@@ -890,14 +859,13 @@ class FedavgCNN_E(nn.Module):
 
 
 class FedavgCNN_D(nn.Module):
-    def __init__(self, output_size: int = 10):
+    def __init__(self):
         super().__init__()
-        self.output_size = output_size
         self.local3 = nn.Linear(4096, 384)
         self.local4 = nn.Linear(384, 192)
-        self.linear = nn.Linear(192, output_size)
+        self.linear = nn.Linear(192, 10)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.local3(x))
         x = F.relu(self.local4(x))
         x = self.linear(x)
@@ -905,9 +873,9 @@ class FedavgCNN_D(nn.Module):
 
 
 class FedavgCNN(EncoderHeadNet):
-    def __init__(self, output_size=10):
+    def __init__(self):
         super(FedavgCNN, self).__init__(FedavgCNN_E(),
-                                        FedavgCNN_D(output_size))
+                                        FedavgCNN_D())
 
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
@@ -924,10 +892,9 @@ class ResNet18(nn.Module):
 
     def __init__(self, output_size=10):
         super(ResNet18, self).__init__()
-        self.output_size = output_size
         self.resnet = resnet18(num_classes=output_size)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.resnet(x)
 
 
@@ -943,7 +910,7 @@ class ResNet18GN(ResNet18):
         output_size (int, optional): Number of output classes. Defaults to 10.
     """
 
-    def __init__(self, output_size=10):
+    def __init__(self, output_size: int = 10):
         super(ResNet18GN, self).__init__(output_size)
         batch_norm_to_group_norm(self)
 
@@ -960,12 +927,11 @@ class ResNet34(nn.Module):
         output_size (int, optional): Number of output classes. Defaults to 100.
     """
 
-    def __init__(self, output_size=100):
+    def __init__(self, output_size: int = 100):
         super(ResNet34, self).__init__()
-        self.output_size = output_size
         self.resnet = resnet34(num_classes=output_size)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.resnet(x)
 
 
@@ -981,12 +947,11 @@ class ResNet50(nn.Module):
         output_size (int, optional): Number of output classes. Defaults to 100.
     """
 
-    def __init__(self, output_size=100):
+    def __init__(self, output_size: int = 100):
         super(ResNet50, self).__init__()
-        self.output_size = output_size
         self.resnet = resnet50(num_classes=output_size)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.resnet(x)
 
 
@@ -1001,7 +966,6 @@ class LeNet5_E(nn.Module):
 
     def __init__(self):
         super(LeNet5_E, self).__init__()
-        self.output_size = 400
         self.layer1 = nn.Sequential(
             nn.Conv2d(3, 6, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(6),
@@ -1013,7 +977,7 @@ class LeNet5_E(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2))
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.layer1(x)
         out = self.layer2(out)
         out = out.reshape(out.size(0), -1)
@@ -1031,16 +995,15 @@ class LeNet5_D(nn.Module):
         - :class:`LeNet5_E`
     """
 
-    def __init__(self, output_size=100):
+    def __init__(self, output_size: int = 100):
         super(LeNet5_D, self).__init__()
-        self.output_size = output_size
         self.fc = nn.Linear(400, 120)
         self.relu = nn.ReLU()
         self.fc1 = nn.Linear(120, 84)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(84, output_size)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.fc(x)
         out = self.relu(out)
         out = self.fc1(out)
@@ -1074,7 +1037,7 @@ class LeNet5(EncoderHeadNet):
             In arXiv https://arxiv.org/abs/2001.01523 (2020).
     """
 
-    def __init__(self, output_size=100):
+    def __init__(self, output_size: int = 100):
         super(LeNet5, self).__init__(LeNet5_E(), LeNet5_D(output_size))
 
 
@@ -1089,8 +1052,7 @@ class Shakespeare_LSTM_E(nn.Module):
 
     def __init__(self):
         super(Shakespeare_LSTM_E, self).__init__()
-        self.output_size = 256
-        self.encoder = nn.Embedding(self.output_size, 8)
+        self.encoder = nn.Embedding(256, 8)
         self.rnn = nn.LSTM(
             input_size=8,
             hidden_size=256,
@@ -1099,7 +1061,7 @@ class Shakespeare_LSTM_E(nn.Module):
             bias=False
         )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.encoder(x)
         x, _ = self.rnn(x)
         return x[:, -1, :]
@@ -1115,11 +1077,11 @@ class Shakespeare_LSTM_D(nn.Module):
 
     def __init__(self):
         super(Shakespeare_LSTM_D, self).__init__()
-        self.output_size = len(string.printable)
+        self._output_size = len(string.printable)
         self.classifier = VGG9_D._linear_layer(
-            256, self.output_size, bias=False, seed=GlobalSettings().get_seed())
+            256, self._output_size, bias=False, seed=GlobalSettings().get_seed())
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.classifier(x)
 
 
@@ -1149,17 +1111,19 @@ class MoonCNN_E(nn.Module):
     # Expected input size: 32x32x3
     def __init__(self):
         super(MoonCNN_E, self).__init__()
-        self.output_size = 400
-
         self.conv1 = nn.Conv2d(3, 6, kernel_size=5)
         self.pool1 = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
         self.pool2 = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(400, 120)
+        self.fc2 = nn.Linear(120, 84)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pool1(F.relu(self.conv1(x)))
         x = self.pool2(F.relu(self.conv2(x)))
         x = x.view(-1, 400)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         return x
 
 
@@ -1173,20 +1137,9 @@ class MoonCNN_D(nn.Module):
 
     def __init__(self):
         super(MoonCNN_D, self).__init__()
-        self.output_size = 10
-        self.fc1 = nn.Linear(400, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.projection_head = nn.Linear(84, 256)
-        self.out = nn.Linear(256, self.output_size)
+        self.out = nn.Linear(84, 10)
 
-    def forward(self, x) -> torch.Tensor:
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        # The paper is not clear about the activation of
-        # the projection head (PH). We go with ReLU since they
-        # cite https://arxiv.org/pdf/2002.05709.pdf where
-        # it is shown that non-linear PHs works better.
-        x = F.relu(self.projection_head(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.out(x)
         return x
 

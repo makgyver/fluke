@@ -1,5 +1,4 @@
 """Implementation of the FedProto [FedProto22]_ algorithm.
-
 References:
     .. [FedProto22] Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi
        Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. In AAAI (2022).
@@ -47,7 +46,7 @@ class FedProtoModel(Module):
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         mse_loss = torch.nn.MSELoss()
-        Z = self.model.forward_encoder(x)
+        Z = self.model.encoder(x)
         output = float('inf') * torch.ones(x.shape[0], self.num_classes).to(self.device)
         for i, r in enumerate(Z):
             for j, proto in self.prototypes.items():
@@ -114,8 +113,8 @@ class FedProtoClient(PFLClient):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                Z = self.model.forward_encoder(X)
-                y_hat = self.model.forward_head(Z)
+                Z = self.model.encoder(X)
+                y_hat = self.model.head(Z)
                 loss = self.hyper_params.loss_fn(y_hat, y)
 
                 if self.server.rounds > 0:  # this is actually illegal in fluke :)
@@ -132,11 +131,6 @@ class FedProtoClient(PFLClient):
                     y_c = yy.item()
                     protos[y_c].append(Z[i, :].detach().data)
 
-                # for label in range(self.hyper_params.n_protos):
-                #     ids = y == label
-                #     if ids.sum() > 0:
-                #         protos[label].append(Z[ids, :].detach().data)
-
                 loss.backward()
                 self.optimizer.step()
                 running_loss += loss.item()
@@ -151,7 +145,7 @@ class FedProtoClient(PFLClient):
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.prototypes[0] is not None:
             model = FedProtoModel(self.model, self.prototypes, self.device)
-            return evaluator.evaluate(self._last_round, model, test_set)
+            return evaluator.evaluate(self._last_round, model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:
@@ -171,7 +165,7 @@ class FedProtoServer(Server):
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
     def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
-        # This funciton broadcasts the prototypes to the clients
+        # This function broadcasts the prototypes to the clients
         self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
 
     def get_client_models(self, eligible: Iterable[PFLClient], state_dict: bool = False):

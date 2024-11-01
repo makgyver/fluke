@@ -9,6 +9,7 @@ import string
 import sys
 from typing import Optional
 
+import numpy as np
 import torch
 from datasets import load_dataset
 from numpy.random import permutation
@@ -21,7 +22,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import get_class_from_qualified_name  # NOQA
-from . import DataContainer, FastDataLoader, support  # NOQA
+from . import DataContainer, DummyDataContainer, FastDataLoader, support  # NOQA
 
 __all__ = [
     "Datasets"
@@ -34,7 +35,7 @@ def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) ->
         for i in range(len(dataset)):
             new_data.append(transforms(dataset[i][0]))
         dataset.data = torch.stack(new_data)
-
+        # dataset.data = transforms(dataset.data)
     dataset.data = torch.Tensor(dataset.data)
     dataset.targets = torch.LongTensor(dataset.targets)
     return dataset
@@ -704,7 +705,7 @@ class Datasets:
         perm = permutation(len(client_tr_assignments))
         client_tr_assignments = [client_tr_assignments[i] for i in perm]
         client_te_assignments = [client_te_assignments[i] for i in perm]
-        return client_tr_assignments, client_te_assignments, None
+        return DummyDataContainer(client_tr_assignments, client_te_assignments, None, 64)
 
     @classmethod
     def SHAKESPEARE(cls,
@@ -824,7 +825,117 @@ class Datasets:
         perm = permutation(len(client_tr_assignments))
         client_tr_assignments = [client_tr_assignments[i] for i in perm]
         client_te_assignments = [client_te_assignments[i] for i in perm]
-        return client_tr_assignments, client_te_assignments, None
+        return DummyDataContainer(client_tr_assignments, client_te_assignments, None, 100)
+
+    @classmethod
+    def FCUBE(cls,
+              path: str = "./data",
+              batch_size: int = 10,
+              n_points: int = 1000,
+              test_size: int = 0.1,
+              dimensions: int = 3) -> tuple:
+        """This class creates the dataset FCUBE as described in the paper
+        https://arxiv.org/pdf/2102.02079. This implementation generalizes for $n$ dimensions.
+        The number of clients depends on the number of dimensions, i.e., the dataset will be divided
+        in a number of partitions that is equal to $2^{d-1}$ where $d$ is the number of dimensions.
+
+        Warning:
+            This procedure may become very slow for large value of `dimensions`, e.g.,
+            `dimensions > 8`.
+
+        Args:
+            path (str, optional): The path where to save or load the dataset. Defaults to "./data".
+            batch_size (int, optional): The batch size. Defaults to 10.
+            n_points (int, optional): The total number of points to generate. Defaults to 1000.
+            test_size (int, optional): The percentage of points to include in the test sets for both
+              the clients and the server. Defaults to 0.1.
+            dimensions (int, optional): The number of dimensions of the points. Defaults to 3.
+
+        Returns:
+            tuple: _description_
+        """
+
+        root = os.path.join(path, "FCUBE")
+        os.makedirs(root, exist_ok=True)
+        file_path = os.path.join(root, "fcube.pth")
+        if os.path.exists(file_path):
+            data = torch.load(file_path, weights_only=False)
+            X, y = data["X"], data["y"]
+        else:
+            X = torch.rand((n_points, dimensions)) * 2 - 1
+            y = torch.LongTensor([0 if x[0] <= 0 else 1 for x in X])
+            torch.save({"X": X, "y": y}, file_path)
+
+        n_clients = 2**(dimensions-1)
+        test_percent = int(n_points * test_size)
+        server_te = FastDataLoader(
+            X[-test_percent:],
+            y[-test_percent:],
+            num_labels=2,
+            batch_size=batch_size,
+            shuffle=False,
+            percentage=1.0
+        )
+
+        def to_bin(v):
+            return sum(map(lambda x: x[1] << x[0], enumerate(v)))
+
+        Xbin = [to_bin(x).item() for x in (X[:-test_percent] > 0)]
+
+        max_id = 2**dimensions
+        bin_to_idx = {i: [] for i in range(max_id)}
+        for i, b in enumerate(Xbin):
+            bin_to_idx[b].append(i)
+
+        clients_per_bin = [0] * len(bin_to_idx)
+        for i in range(n_clients):
+            pos_id = i % max_id
+            neg_id = max_id - pos_id - 1
+
+            clients_per_bin[pos_id] += 1
+            clients_per_bin[neg_id] += 1
+
+        point_per_bin = [int(np.ceil(len(bin_to_idx[i]) / clients_per_bin[i]))
+                         for i in range(len(bin_to_idx))]
+        cnt_bin = [0] * len(bin_to_idx)
+
+        client_tr_assignments = []
+        client_te_assignments = []
+        for i in range(n_clients):
+            pos_id = i % max_id
+            neg_id = max_id - pos_id - 1
+
+            step = point_per_bin[pos_id]
+            j = cnt_bin[pos_id]
+            idx_pos = bin_to_idx[pos_id][step * j: step * (j+1)]
+
+            step = point_per_bin[neg_id]
+            j = cnt_bin[neg_id]
+            idx_neg = bin_to_idx[neg_id][step * j: step * (j+1)]
+
+            Xc = torch.cat([X[idx_pos], X[idx_neg]])
+            yc = torch.cat([y[idx_pos], y[idx_neg]])
+
+            cut_id = int(len(yc) * test_size)
+            client_tr_assignments.append(FastDataLoader(
+                Xc[:-cut_id],
+                yc[:-cut_id],
+                num_labels=2,
+                batch_size=batch_size,
+                shuffle=True,
+                percentage=1.0
+            ))
+
+            client_te_assignments.append(FastDataLoader(
+                Xc[-cut_id:],
+                yc[-cut_id:],
+                num_labels=2,
+                batch_size=batch_size,
+                shuffle=False,
+                percentage=1.0
+            ))
+
+        return DummyDataContainer(client_tr_assignments, client_te_assignments, server_te, 2)
 
 
 Datasets._DATASET_MAP = {
@@ -838,50 +949,6 @@ Datasets._DATASET_MAP = {
     "tiny_imagenet": Datasets.TINY_IMAGENET,
     "shakespeare": Datasets.SHAKESPEARE,
     "fashion_mnist": Datasets.FASHION_MNIST,
-    "cinic10": Datasets.CINIC10
+    "cinic10": Datasets.CINIC10,
+    "fcube": Datasets.FCUBE
 }
-
-# class DatasetsEnum(Enum):
-#     MNIST = "mnist"
-#     MNISTM = "mnistm"
-#     SVHN = "svhn"
-#     FEMNIST = "femnist"
-#     EMNIST = "emnist"
-#     CIFAR10 = "cifar10"
-#     CIFAR100 = "cifar100"
-#     TINY_IMAGENET = "tiny_imagenet"
-#     SHAKESPEARE = "shakespeare"
-#     FASHION_MNIST = "fashion_mnist"
-#     CINIC10 = "cinic10"
-
-#     @classmethod
-#     def contains(cls, member: object) -> bool:
-#         if isinstance(member, str):
-#             return member in cls._value2member_map_.keys()
-#         elif isinstance(member, DatasetsEnum):
-#             return member.value in cls._member_names_
-
-#     def klass(self):
-#         DATASET_MAP = {
-#             "mnist": Datasets.MNIST,
-#             "svhn": Datasets.SVHN,
-#             "mnistm": Datasets.MNISTM,
-#             "femnist": Datasets.FEMNIST,
-#             "emnist": Datasets.EMNIST,
-#             "cifar10": Datasets.CIFAR10,
-#             "cifar100": Datasets.CIFAR100,
-#             "tiny_imagenet": Datasets.TINY_IMAGENET,
-#             "shakespeare": Datasets.SHAKESPEARE,
-#             "fashion_mnist": Datasets.FASHION_MNIST,
-#             "cinic10": Datasets.CINIC10
-#         }
-#         return DATASET_MAP[self.value]
-
-#     def splitter(self):
-#         from . import DataSplitter, DummyDataSplitter
-
-#         # LEAF datasets are already divided into clients
-#         if self.value == "femnist" or self.value == "shakespeare":
-#             return DummyDataSplitter
-#         else:
-#             return DataSplitter

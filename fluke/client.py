@@ -254,7 +254,7 @@ class Client(ObserverSubject):
             the results.
         """
         if test_set is not None and self.model is not None:
-            return evaluator.evaluate(self._last_round, self.model, test_set)
+            return evaluator.evaluate(self._last_round, self.model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:
@@ -319,7 +319,7 @@ class Client(ObserverSubject):
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = ", " + hpstr if hpstr else ""
         return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, " + \
-               f"batch_size={self.train_set._batch_size}{hpstr})"
+            f"batch_size={self.train_set._batch_size}{hpstr})"
 
     def __repr__(self) -> str:
         return str(self)
@@ -380,7 +380,10 @@ class PFLClient(Client):
             the results.
         """
         if test_set is not None and self.personalized_model is not None:
-            return evaluator.evaluate(self._last_round, self.personalized_model, test_set)
+            return evaluator.evaluate(self._last_round,
+                                      self.personalized_model,
+                                      test_set,
+                                      device=self.device)
         return {}
 
     def state_dict(self) -> dict:

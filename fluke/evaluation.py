@@ -97,6 +97,7 @@ class ClassificationEval(Evaluator):
         super().__init__(eval_every=eval_every)
         self.n_classes: int = n_classes
 
+    @torch.no_grad
     def evaluate(self,
                  round: int,
                  model: torch.nn.Module,
@@ -123,7 +124,7 @@ class ClassificationEval(Evaluator):
         """
         from .utils import clear_cache  # NOQA
 
-        if round % self.eval_every != 0:
+        if (round != 1) and (round % self.eval_every != 0):
             return {}
 
         if (model is None) or (eval_data_loader is None):
@@ -196,7 +197,7 @@ class ClassificationEval(Evaluator):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(eval_every={self.eval_every}" + \
-               f", n_classes={self.n_classes})[accuracy, precision, recall, f1]"
+            f", n_classes={self.n_classes})[accuracy, precision, recall, f1]"
 
     def __repr__(self) -> str:
         return str(self)

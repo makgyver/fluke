@@ -15,4 +15,5 @@ tests/*.ipynb
 runs/
 repr_results/
 checkpoint*/
+chk_*
 .vscode/launch.json

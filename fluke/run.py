@@ -18,10 +18,10 @@ from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)
+                    get_class_from_qualified_name, get_loss, get_model)  # , plot_distribution)
 from .utils.log import get_logger  # NOQA
 
-__version__ = "0.3.0"
+__version__ = "0.3.4"
 
 
 def version_callback(value: bool):
@@ -91,7 +91,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
             optimizer.step()
         scheduler.step()
 
-        epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
+        epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
         history.append(epoch_eval)
         for k, v in epoch_eval.items():
             log.add_scalar(k, v, e+1)
@@ -198,7 +198,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                 optimizer.step()
             scheduler.step()
 
-            client_eval = evaluator.evaluate(e+1, model, test_loader, criterion)
+            client_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
             running_evals[i].append(client_eval)
 
         log.pretty_log(client_eval, title=f"Client [{i}] Performance")

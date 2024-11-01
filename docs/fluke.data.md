@@ -37,9 +37,9 @@ Classes
    :nosignatures:
 
    DataContainer
+   DummyDataContainer
    FastDataLoader
    DataSplitter
-   DummyDataSplitter
 ```
 
 <h3>
@@ -113,13 +113,13 @@ Classes
 
 <h3>
 
-{bdg-primary}`class` ``fluke.data.DummyDataSplitter``
+{bdg-primary}`class` ``fluke.data.DummyDataContainer``
 
 </h3>
 
 ```{eval-rst}
 
-.. autoclass:: fluke.data.DummyDataSplitter
+.. autoclass:: fluke.data.DummyDataContainer
    :members: assign
    :show-inheritance:
 

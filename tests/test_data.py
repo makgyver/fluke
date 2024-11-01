@@ -11,7 +11,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 from fluke import DDict  # NOQA
-from fluke.data import (DataContainer, DataSplitter, DummyDataSplitter,  # NOQA
+from fluke.data import (DataContainer, DataSplitter, DummyDataContainer,  # NOQA
                         FastDataLoader)
 from fluke.data.datasets import Datasets  # NOQA
 
@@ -228,6 +228,10 @@ def test_splitter():
     splitter.distribution = "qnt"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
+    splitter.distribution = "dir"
+    splitter.dist_args.balanced = False
+    (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
+
     # freq = []
     # for i in range(n_clients):
     #     arr = np.concatenate([ctr[i].tensors[1].numpy(), cte[i].tensors[1].numpy()])
@@ -343,17 +347,11 @@ def test_splitter():
     with pytest.raises(AssertionError):
         DataSplitter(data_container, **cfg.exclude("dataset"))
 
-    dummy = DummyDataSplitter((ctr, cte, ste))
-
-    assert dummy.data_container is None
-    assert dummy.distribution == 'iid'
-    assert dummy.client_split is None
-    assert dummy.num_classes() == 10
-
-    (ctr_, cte_), ste_ = dummy.assign(10, batch_size=10)
-    assert ctr_ == ctr
-    assert cte_ == cte
-    assert ste_ == ste
+    dummy = DummyDataContainer(ctr, cte, ste, 10)
+    assert dummy.num_classes == 10
+    assert dummy.clients_tr == ctr
+    assert dummy.clients_te == cte
+    assert dummy.server_data == ste
 
 
 if __name__ == "__main__":

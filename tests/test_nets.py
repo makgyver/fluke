@@ -106,7 +106,7 @@ def test_convnets():
     y1 = model(x)
     y2 = model.forward_head(z)
     assert y1.shape == (1, 10)
-    assert z.shape == (1, 400)
+    assert z.shape == (1, 84)
     assert torch.allclose(y1, y2)
 
     model = FedBN_CNN()

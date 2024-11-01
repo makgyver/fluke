@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from typing import Optional, Iterable
+import warnings
 
 import numpy as np
 import rich
@@ -21,9 +22,9 @@ __all__ = [
     'datasets',
     'support',
     'DataContainer',
+    'DummyDataContainer',
     'FastDataLoader',
-    'DataSplitter',
-    'DummyDataSplitter'
+    'DataSplitter'
 ]
 
 
@@ -47,11 +48,33 @@ class DataContainer:
                  y_test: torch.Tensor,
                  num_classes: int,
                  transforms: Optional[callable] = None):
-        self.train = (X_train, y_train)
-        self.test = (X_test, y_test)
-        self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
+        if X_train is not None:
+            self.train = (X_train, y_train)
+            self.test = (X_test, y_test)
+            self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
+            self.transforms = transforms
         self.num_classes = num_classes
-        self.transforms = transforms
+
+
+class DummyDataContainer(DataContainer):
+    """DataContainer designed for those datasets with a fixed data assignments, e.g., FEMNIST,
+    Shakespeare and FCUBE.
+
+    Args:
+        clients_tr (Iterable[FastDataLoader]): data loaders for the clients' training set.
+        clients_te (Iterable[FastDataLoader]): data loaders for the clients' test set.
+        server_data (FastDataLoader): data loader for the server's test set.
+    """
+
+    def __init__(self,
+                 clients_tr: Iterable[FastDataLoader],
+                 clients_te: Iterable[FastDataLoader],
+                 server_data: FastDataLoader,
+                 num_classes: int):
+        super().__init__(None, None, None, None, num_classes=num_classes)
+        self.clients_tr = clients_tr
+        self.clients_te = clients_te
+        self.server_data = server_data
 
 
 class FastDataLoader:
@@ -112,7 +135,7 @@ class FastDataLoader:
                  single_batch: bool = False):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors), \
             "All tensors must have the same size along the first dimension."
-        self.tensors: Sequence[torch.Tensor] = tensors
+        self.tensors: Iterable[torch.Tensor] = tensors
         self.num_labels: int = num_labels
         self.max_size = self.tensors[0].shape[0]
         self.set_sample_size(percentage)
@@ -334,6 +357,10 @@ class DataSplitter:
             tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]:
               The clients' training and testing assignments and the server's testing assignment.
         """
+        if isinstance(self.data_container, DummyDataContainer):
+            return (self.data_container.clients_tr,
+                    self.data_container.clients_te), self.data_container.server_data
+
         tranforms = self.data_container.transforms
         if self.server_test and self.keep_test:
             server_X, server_Y = self.data_container.test
@@ -393,7 +420,7 @@ class DataSplitter:
                                                             Yte_client,
                                                             num_labels=self.num_classes,
                                                             batch_size=batch_size,
-                                                            shuffle=True,
+                                                            shuffle=False,
                                                             percentage=self.sampling_perc))
             else:
                 client_te_assignments.append(None)
@@ -401,7 +428,7 @@ class DataSplitter:
         server_te = FastDataLoader(server_X, server_Y,
                                    num_labels=self.num_classes,
                                    batch_size=128,
-                                   shuffle=True,
+                                   shuffle=False,
                                    percentage=self.sampling_perc) if self.server_test else None
         return (client_tr_assignments, client_te_assignments), server_te
 
@@ -620,48 +647,62 @@ class DataSplitter:
                                         for p, idx_j in zip(pk[c], idx_batch[iy])])
                 proportions = proportions / proportions.sum()
 
-                # fix the proportions to ensure a balanced distribution of the examples
-                fixed = []
-                samples_avg = np.ceil(samples_avg)
-                while balanced:
-                    to_fix = False
-                    proportions_int = (proportions * len(ids)).astype(int)
-                    for i in range(n):
-                        if i in fixed:
-                            continue
-
-                        # check if the client has more than the average number of examples
-                        surplus = len(idx_batch[iy][i]) + proportions_int[i] - samples_avg
-                        if surplus > 0 and proportions_int[i] > 0:
-                            to_fix = True
-                            # redistribute the surplus examples
-                            # saturate the examples for the client
-                            proportions[i] = max(
-                                (samples_avg - len(idx_batch[iy][i])) / len(ids), 0)
-                            fixed.append(i)
-
-                            # given that we have fixed the proportion for client i, we need to
-                            # redistribute the surplus examples to the other clients
-                            # so, clients with a 0 proportion will receive a small value
-                            for j in range(n):
-                                if j not in fixed and proportions[j] == 0:
-                                    proportions[j] += 1e-07
-
-                            # normalize the proportions of the clients that have not been fixed
-                            dd = np.sum([proportions[j] for j in range(n) if j not in fixed])
-                            for j in range(n):
-                                if j not in fixed:
-                                    proportions[j] = proportions[j] / dd
-
-                    if not to_fix:
-                        break
-
                 # assign the examples to the clients
                 proportions = (np.cumsum(proportions) * len(ids)).astype(int)[:-1]
                 idx_batch[iy] = [idx_j + idx.tolist()
                                  for idx_j, idx in zip(idx_batch[iy],
                                                        np.split(ids, proportions))]
 
+        trials = 0
+        if balanced:
+            for iy, y in enumerate([y_train, y_test]):
+                if y is None:
+                    continue
+                samples_avg = np.ceil(y.shape[0] / n)
+
+                to_reduce = [i for i in range(len(idx_batch[iy]))
+                             if len(idx_batch[iy][i]) - int(samples_avg) > 0]
+
+                to_fill = [i for i in range(n) if i not in to_reduce]
+
+                while to_reduce and trials < 10:
+                    i = to_reduce.pop(0)
+                    samples = idx_batch[iy][i]
+                    surplus_ratio = 1. - samples_avg / len(samples)
+                    try:
+                        s_keep, s_spare, _, _ = train_test_split(samples, y[samples],
+                                                                 test_size=surplus_ratio,
+                                                                 stratify=y[samples])
+                    except ValueError:
+                        s_keep, s_spare, _, _ = train_test_split(samples, y[samples],
+                                                                 test_size=surplus_ratio)
+                    idx_batch[iy][i] = s_keep
+
+                    step = int(np.ceil(len(s_spare) / len(to_fill)))
+                    shuffle(s_spare)
+                    new_reduce = []
+                    no_fill = []
+                    for jj, j in enumerate(to_fill):
+                        idx_batch[iy][j] += s_spare[step*jj: step*(jj+1)]
+                        if len(idx_batch[iy][j]) - int(samples_avg) > 0:
+                            new_reduce.append(j)
+                            no_fill.append(j)
+                        elif len(idx_batch[iy][j]) - int(samples_avg) == 0:
+                            no_fill.append(j)
+
+                    to_reduce += new_reduce
+                    for j in no_fill:
+                        to_fill.remove(j)
+
+                    if len(idx_batch[iy][i]) < samples_avg:
+                        to_fill.append(i)
+
+                    trials += 1
+
+        if trials > 10:
+            warnings.warn(
+                "Reached maximum number of trials (10) while trying to balanced the dataset \
+                    distribution")
         # change idx_batch according to cid_perm
         idx_batch = [[idx_batch[i][cid_perm[j]] for j in range(n)] for i in range(2)]
         return idx_batch[0], idx_batch[1] if y_test is not None else None
@@ -692,13 +733,13 @@ class DataSplitter:
             list[torch.Tensor]: The examples' ids assignment.
         """
         n_shards = int(shards_per_client * n)
-        sorted_ids_tr = np.argsort(y_train)
+        sorted_ids_tr = np.argsort(y_train.numpy())
         shard_size_tr = int(np.ceil(len(y_train) / n_shards))
         assignments_tr = np.zeros(y_train.shape[0])
 
         assignments_te = None
         if y_test is not None:
-            sorted_ids_te = np.argsort(y_test)
+            sorted_ids_te = np.argsort(y_test.numpy())
             shard_size_te = int(np.ceil(len(y_test) / n_shards))
             assignments_te = np.zeros(y_test.shape[0])
 
@@ -730,65 +771,3 @@ class DataSplitter:
         "pathological": label_pathological_skew,
         # "covariate": covariate_shift
     }
-
-
-class DummyDataSplitter(DataSplitter):
-    """
-    This data splitter assumes that the data is already pre-assigned to the clients.
-    This must be used in the case you start with a pre-divided datasets that you want to use as
-    is (e.g., FEMNIST and Shakespeare).
-    """
-
-    def __init__(self,
-                 dataset: tuple[FastDataLoader,
-                                Optional[FastDataLoader],
-                                Optional[FastDataLoader]],
-                 builder_args: DDict = None,
-                 **kwargs):
-        self.data_container: DataContainer = None
-        self.distribution: str = "iid"
-        self.client_split: float = None
-        self.sampling_perc: float = 1.0
-        (self.client_tr_assignments, self.client_te_assignments, self.server_te) = dataset
-        self._num_classes: int = self._compute_num_classes()
-
-    def _compute_num_classes(self) -> int:
-
-        labels = set()
-        for ftdl in self.client_tr_assignments:
-            y = ftdl.tensors[1]
-            labels.update(set(list(y.numpy().flatten())))
-
-        for ftdl in self.client_te_assignments:
-            if ftdl:
-                y = ftdl.tensors[1]
-                labels.update(set(list(y.numpy().flatten())))
-
-        if self.server_te:
-            y = self.server_te.tensors[1]
-            labels.update(set(list(y.numpy().flatten())))
-
-        return len(labels)
-
-    # def num_features(self) -> int:
-    #     return self._num_features
-
-    def num_classes(self) -> int:
-        return self._num_classes
-
-    def assign(self, n_clients: int, batch_size: Optional[int] = None):
-        """This override of the :meth:`DataSplitter.assign` method returns the pre-assigned data.
-        No further processing and computation is done.
-
-        Important:
-           The arguments of this method are not used.
-
-        Args:
-            n_clients (int): The number of clients.
-            batch_size (Optional[int], optional): The batch size. Defaults to None.
-
-        Returns:
-            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]: The clients'
-            training and testing assignments and the server's testing assignment.
-        """
-        return (self.client_tr_assignments, self.client_te_assignments), self.server_te
