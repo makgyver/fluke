@@ -32,7 +32,7 @@ from fluke.utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
                                batch_norm_to_group_norm, check_model_fit_mem,
                                diff_model, flatten_parameters,
                                get_global_model_dict, get_local_model_dict,
-                               merge_models, mix_networks,
+                               merge_models, mix_networks, get_activation_size,
                                safe_load_state_dict, set_lambda_model)
 
 
@@ -494,6 +494,19 @@ def test_check_mem():
 
     if torch.cuda.is_available():
         assert check_model_fit_mem(net, (28 * 28,), 100, "cuda")
+
+
+def test_get_activation_size():
+    net = MNIST_2NN()
+    x = torch.randn(1, 28 * 28)
+    assert 10 == get_activation_size(net, None)
+    assert 10 == get_activation_size(net, x)
+
+    net = FedBN_CNN()
+    x = torch.randn(1, 1, 28, 28)
+    with pytest.raises(ValueError):
+        get_activation_size(net.encoder, None)
+    assert 10 == get_activation_size(net, x)
 
 
 def test_alllayeroutput():
