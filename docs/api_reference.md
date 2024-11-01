@@ -32,9 +32,9 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    :nosignatures:
    
    DataContainer
+   DummyDataContainer
    FastDataLoader
    DataSplitter
-   DummyDataSplitter
 
 ```
 

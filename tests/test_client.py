@@ -21,7 +21,6 @@ def test_client():
     class Model(Linear):
         def __init__(self):
             super().__init__(10, 2)
-            self.output_size = 2
 
             # initialize weights to 0
             self.weight.data.fill_(0)
@@ -121,7 +120,6 @@ def test_pflclient():
     class Model(Linear):
         def __init__(self):
             super().__init__(10, 2)
-            self.output_size = 2
 
     # function that taken a 10-dimensional input returns a 0 if the
     # sum of the first 7 elements is less than 2.5

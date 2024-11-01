@@ -12,7 +12,6 @@ from torchvision.transforms import (Compose, Normalize, RandomCrop,
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.data.support import CINIC10, MNISTM  # NOQA
 
@@ -160,20 +159,22 @@ def test_femnist():
         femnist = Datasets.FEMNIST("./data")
     except AssertionError:
         return
-    assert len(femnist[0]) == 3597  # Total number of clients
-    assert len(femnist[1]) == 3597  # Total number of clients
-    assert femnist[0][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert len(femnist.clients_tr) == 3597  # Total number of clients
+    assert len(femnist.clients_te) == 3597  # Total number of clients
+    assert femnist.clients_tr[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist[0][i].tensors[1].shape[0] == femnist[0][i].tensors[0].shape[0]
-                for i in range(len(femnist[0]))]) == len(femnist[0])
+    assert sum([femnist.clients_tr[i].tensors[1].shape[0] == femnist.clients_tr[i].tensors[0].shape[0]
+                for i in range(len(femnist.clients_tr))]) == len(femnist.clients_tr)
 
-    assert femnist[1][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert femnist.clients_te[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist[1][i].tensors[1].shape[0] == femnist[1][i].tensors[0].shape[0]
-                for i in range(len(femnist[1]))]) == len(femnist[1])
+    assert sum([femnist.clients_te[i].tensors[1].shape[0] == femnist.clients_te[i].tensors[0].shape[0]
+                for i in range(len(femnist.clients_te))]) == len(femnist.clients_te)
 
-    lbl_train = set.union(*[set(femnist[0][i].tensors[1].numpy()) for i in range(len(femnist[0]))])
-    lbl_test = set.union(*[set(femnist[1][i].tensors[1].numpy()) for i in range(len(femnist[1]))])
+    lbl_train = set.union(*[set(femnist.clients_tr[i].tensors[1].numpy())
+                          for i in range(len(femnist.clients_tr))])
+    lbl_test = set.union(*[set(femnist.clients_te[i].tensors[1].numpy())
+                         for i in range(len(femnist.clients_te))])
     assert len(lbl_train | lbl_test) == 62  # Total number of classes
 
 
@@ -182,22 +183,22 @@ def test_femnist_dig():
         femnist_dig = Datasets.FEMNIST("./data", filter="digits")
     except AssertionError:
         return
-    assert len(femnist_dig[0]) == 3597  # Total number of clients
-    assert len(femnist_dig[1]) == 3597  # Total number of clients
-    assert femnist_dig[0][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert len(femnist_dig.clients_tr) == 3597  # Total number of clients
+    assert len(femnist_dig.clients_te) == 3597  # Total number of clients
+    assert femnist_dig.clients_tr[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist_dig[0][i].tensors[1].shape[0] == femnist_dig[0][i].tensors[0].shape[0]
-                for i in range(len(femnist_dig[0]))]) == len(femnist_dig[0])
+    assert sum([femnist_dig.clients_tr[i].tensors[1].shape[0] == femnist_dig.clients_tr[i].tensors[0].shape[0]
+                for i in range(len(femnist_dig.clients_tr))]) == len(femnist_dig.clients_tr)
 
-    assert femnist_dig[1][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert femnist_dig.clients_te[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist_dig[1][i].tensors[1].shape[0] == femnist_dig[1][i].tensors[0].shape[0]
-                for i in range(len(femnist_dig[1]))]) == len(femnist_dig[1])
+    assert sum([femnist_dig.clients_te[i].tensors[1].shape[0] == femnist_dig.clients_te[i].tensors[0].shape[0]
+                for i in range(len(femnist_dig.clients_te))]) == len(femnist_dig.clients_te)
 
-    lbl_train = set.union(*[set(femnist_dig[0][i].tensors[1].numpy())
-                          for i in range(len(femnist_dig[0]))])
-    lbl_test = set.union(*[set(femnist_dig[1][i].tensors[1].numpy())
-                         for i in range(len(femnist_dig[1]))])
+    lbl_train = set.union(*[set(femnist_dig.clients_tr[i].tensors[1].numpy())
+                          for i in range(len(femnist_dig.clients_tr))])
+    lbl_test = set.union(*[set(femnist_dig.clients_te[i].tensors[1].numpy())
+                         for i in range(len(femnist_dig.clients_te))])
     assert len(lbl_train | lbl_test) == 10
 
 
@@ -206,22 +207,22 @@ def test_femnist_upp():
         femnist_u = Datasets.FEMNIST("./data", filter="uppercase")
     except AssertionError:
         return
-    assert len(femnist_u[0]) == 3597  # Total number of clients
-    assert len(femnist_u[1]) == 3597  # Total number of clients
-    assert femnist_u[0][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert len(femnist_u.clients_tr) == 3597  # Total number of clients
+    assert len(femnist_u.clients_te) == 3597  # Total number of clients
+    assert femnist_u.clients_tr[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist_u[0][i].tensors[1].shape[0] == femnist_u[0][i].tensors[0].shape[0]
-                for i in range(len(femnist_u[0]))]) == len(femnist_u[0])
+    assert sum([femnist_u.clients_tr[i].tensors[1].shape[0] == femnist_u.clients_tr[i].tensors[0].shape[0]
+                for i in range(len(femnist_u.clients_tr))]) == len(femnist_u.clients_tr)
 
-    assert femnist_u[1][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert femnist_u.clients_te[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist_u[1][i].tensors[1].shape[0] == femnist_u[1][i].tensors[0].shape[0]
-                for i in range(len(femnist_u[1]))]) == len(femnist_u[1])
+    assert sum([femnist_u.clients_te[i].tensors[1].shape[0] == femnist_u.clients_te[i].tensors[0].shape[0]
+                for i in range(len(femnist_u.clients_te))]) == len(femnist_u.clients_te)
 
-    lbl_train = set.union(*[set(femnist_u[0][i].tensors[1].numpy())
-                          for i in range(len(femnist_u[0]))])
-    lbl_test = set.union(*[set(femnist_u[1][i].tensors[1].numpy())
-                         for i in range(len(femnist_u[1]))])
+    lbl_train = set.union(*[set(femnist_u.clients_tr[i].tensors[1].numpy())
+                          for i in range(len(femnist_u.clients_tr))])
+    lbl_test = set.union(*[set(femnist_u.clients_te[i].tensors[1].numpy())
+                         for i in range(len(femnist_u.clients_te))])
     assert len(lbl_train | lbl_test) == 26
 
 
@@ -230,22 +231,22 @@ def test_femnist_low():
         femnist_l = Datasets.FEMNIST("./data", filter="lowercase")
     except AssertionError:
         return
-    assert len(femnist_l[0]) == 3597  # Total number of clients
-    assert len(femnist_l[1]) == 3597  # Total number of clients
-    assert femnist_l[0][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert len(femnist_l.clients_tr) == 3597  # Total number of clients
+    assert len(femnist_l.clients_te) == 3597  # Total number of clients
+    assert femnist_l.clients_tr[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist_l[0][i].tensors[1].shape[0] == femnist_l[0][i].tensors[0].shape[0]
-                for i in range(len(femnist_l[0]))]) == len(femnist_l[0])
+    assert sum([femnist_l.clients_tr[i].tensors[1].shape[0] == femnist_l.clients_tr[i].tensors[0].shape[0]
+                for i in range(len(femnist_l.clients_tr))]) == len(femnist_l.clients_tr)
 
-    assert femnist_l[1][0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
+    assert femnist_l.clients_te[0].tensors[0].shape[1:] == torch.Size([1, 28, 28])  # image shape
     # number of labels matches number of images in each client
-    assert sum([femnist_l[1][i].tensors[1].shape[0] == femnist_l[1][i].tensors[0].shape[0]
-                for i in range(len(femnist_l[1]))]) == len(femnist_l[1])
+    assert sum([femnist_l.clients_te[i].tensors[1].shape[0] == femnist_l.clients_te[i].tensors[0].shape[0]
+                for i in range(len(femnist_l.clients_te))]) == len(femnist_l.clients_te)
 
-    lbl_train = set.union(*[set(femnist_l[0][i].tensors[1].numpy())
-                          for i in range(len(femnist_l[0]))])
-    lbl_test = set.union(*[set(femnist_l[1][i].tensors[1].numpy())
-                         for i in range(len(femnist_l[1]))])
+    lbl_train = set.union(*[set(femnist_l.clients_tr[i].tensors[1].numpy())
+                          for i in range(len(femnist_l.clients_tr))])
+    lbl_test = set.union(*[set(femnist_l.clients_te[i].tensors[1].numpy())
+                         for i in range(len(femnist_l.clients_te))])
     assert len(lbl_train | lbl_test) == 26
 
 
@@ -256,15 +257,15 @@ def test_shakespeare():
     except AssertionError:
         return
 
-    assert len(shake[0]) == 660
-    assert len(shake[1]) == 660
-    assert shake[0][0].tensors[0].shape[1:] == torch.Size([80])  # Shakespeare text
-    assert shake[1][0].tensors[0].shape[1:] == torch.Size([80])  # Shakespeare text
+    assert len(shake.clients_tr) == 660
+    assert len(shake.clients_te) == 660
+    assert shake.clients_tr[0].tensors[0].shape[1:] == torch.Size([80])  # Shakespeare text
+    assert shake.clients_te[0].tensors[0].shape[1:] == torch.Size([80])  # Shakespeare text
 
-    assert sum([shake[0][i].tensors[1].shape[0] == shake[0][i].tensors[0].shape[0]
-                for i in range(len(shake[0]))]) == len(shake[0])
-    assert sum([shake[1][i].tensors[1].shape[0] == shake[1][i].tensors[0].shape[0]
-                for i in range(len(shake[1]))]) == len(shake[1])
+    assert sum([shake.clients_tr[i].tensors[1].shape[0] == shake.clients_tr[i].tensors[0].shape[0]
+                for i in range(len(shake.clients_tr))]) == len(shake.clients_tr)
+    assert sum([shake.clients_te[i].tensors[1].shape[0] == shake.clients_te[i].tensors[0].shape[0]
+                for i in range(len(shake.clients_te))]) == len(shake.clients_te)
 
 
 # ### Fashion MNIST
@@ -274,8 +275,8 @@ def test_fashion_mnist():
     assert fashion.train[1].shape == torch.Size([60000])
     assert fashion.test[0].shape == torch.Size([10000, 28, 28])
     assert fashion.test[1].shape == torch.Size([10000])
-    assert fashion.num_classes == len(
-        set(fashion.train[1].unique().tolist() + fashion.test[1].unique().tolist()))
+    assert fashion.num_classes == len(set(fashion.train[1].unique().tolist() +
+                                          fashion.test[1].unique().tolist()))
     assert fashion.num_classes == 10
 
 
@@ -297,6 +298,19 @@ def test_cinic10():
     assert cinic.num_classes == 10
 
 
+# ### CINIC10
+def test_fcube():
+    data_container = Datasets.FCUBE()
+    ctr, cte, ste = data_container.clients_tr, data_container.clients_te, data_container.server_data
+    assert len(ctr) == 4
+    assert len(cte) == 4
+    assert ste is not None
+    assert ste.size == 100
+    print(cte[0].size, ctr[0].size, ste.size)
+    assert sum([cte[i].size + ctr[i].size for i in range(4)]) == 900
+    assert ctr[0].num_labels == 2
+
+
 if __name__ == "__main__":
     # test_mnist()
     # test_mnist4d()
@@ -306,13 +320,14 @@ if __name__ == "__main__":
     # test_cifar100()
     # test_mnistm()
     # test_tinyimagenet()
-    test_femnist()
-    test_femnist_dig()
-    test_femnist_upp()
-    test_femnist_low()
+    # test_femnist()
+    # test_femnist_dig()
+    # test_femnist_upp()
+    # test_femnist_low()
     # test_shakespeare()
     # test_fashion_mnist()
     # test_cinic10()
+    test_fcube()
 
     # 98% coverate on datasets.py
     # 88% coverage on support.py

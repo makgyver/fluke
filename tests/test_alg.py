@@ -22,6 +22,10 @@ from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
 from fluke.utils.log import Log  # NOQA
 
 
+GlobalSettings().set_evaluator(ClassificationEval(1, 10))
+GlobalSettings().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
+
+
 def test_centralized_fl():
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
@@ -69,9 +73,6 @@ def test_centralized_fl():
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(2, splitter, hparams)
-
-    GlobalSettings().set_evaluator(ClassificationEval(1, 10))
-    GlobalSettings().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
 
     assert isinstance(fl.server.model, MNIST_2NN)
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
