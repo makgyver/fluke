@@ -1,5 +1,4 @@
 """Implementation of the FedProto [FedProto22]_ algorithm.
-
 References:
     .. [FedProto22] Yue Tan, Guodong Long, Lu Liu, Tianyi Zhou, Qinghua Lu, Jing Jiang, Chengqi
        Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. In AAAI (2022).
@@ -46,13 +45,11 @@ class FedProtoModel(Module):
 
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        mse_loss = torch.nn.MSELoss().to(self.device)
-        Z = self.model.forward_encoder(x)
+        mse_loss = torch.nn.MSELoss()
+        Z = self.model.encoder(x)
         output = float('inf') * torch.ones(x.shape[0], self.num_classes).to(self.device)
         for i, r in enumerate(Z):
-            r = r.to(self.device)
             for j, proto in self.prototypes.items():
-                proto = proto.to(self.device)
                 # CHECKME: is the following lines necessary?
                 if proto is not None and type(proto) is not type([]):
                     output[i, j] = mse_loss(r, proto)
@@ -97,8 +94,6 @@ class FedProtoClient(PFLClient):
 
     def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
         for label, prts in protos.items():
-            if not prts:
-                continue
             self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
     def fit(self, override_local_epochs: int = 0) -> float:
@@ -112,20 +107,15 @@ class FedProtoClient(PFLClient):
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
 
         mse_loss = torch.nn.MSELoss()
+        protos = defaultdict(list)
         running_loss = 0.0
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
-                protos = defaultdict(list)
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                Z = self.model.forward_encoder(X)
-                y_hat = self.model.forward_head(Z)
+                Z = self.model.encoder(X)
+                y_hat = self.model.head(Z)
                 loss = self.hyper_params.loss_fn(y_hat, y)
-
-                for i, yy in enumerate(y):
-                    y_c = yy.item()
-                    protos[y_c].append(Z[i, :].detach().data)
-                self._update_protos(protos)
 
                 if self.server.rounds > 0:  # this is actually illegal in fluke :)
                     proto_new = deepcopy(Z.detach())
@@ -137,6 +127,10 @@ class FedProtoClient(PFLClient):
                             proto_new[i, :] = torch.zeros_like(proto_new[i, :])
                     loss += self.hyper_params.lam * mse_loss(proto_new, Z)
 
+                for i, yy in enumerate(y):
+                    y_c = yy.item()
+                    protos[y_c].append(Z[i, :].detach().data)
+
                 loss.backward()
                 self.optimizer.step()
                 running_loss += loss.item()
@@ -145,6 +139,7 @@ class FedProtoClient(PFLClient):
         running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
         clear_cache()
+        self._update_protos(protos)
         return running_loss
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
@@ -170,7 +165,7 @@ class FedProtoServer(Server):
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
     def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
-        # This funciton broadcasts the prototypes to the clients
+        # This function broadcasts the prototypes to the clients
         self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
 
     def get_client_models(self, eligible: Iterable[PFLClient], state_dict: bool = False):

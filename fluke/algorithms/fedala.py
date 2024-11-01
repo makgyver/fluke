@@ -14,8 +14,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from fluke.client import Client
-
 sys.path.append(".")
 sys.path.append("..")
 
@@ -68,6 +66,10 @@ class FedALAClient(Client):
                                               percentage=self.hyper_params.ala_sample_size)
 
         temp_model = deepcopy(self.model)
+
+        self.model.to(self.device)
+        temp_model.to(self.device)
+        server_model.to(self.device)
 
         # frozen the encoder weights
         for param in temp_model.encoder.parameters():
@@ -126,6 +128,9 @@ class FedALAClient(Client):
                     converged = True
 
         self.start_phase = False
+        self.model.to("cpu")
+        temp_model.to("cpu")
+        server_model.to("cpu")
         safe_load_state_dict(self.model.head, temp_model.head.state_dict())
 
     def receive_model(self) -> None:

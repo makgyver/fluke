@@ -18,7 +18,7 @@ from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)
+                    get_class_from_qualified_name, get_loss, get_model)  # , plot_distribution)
 from .utils.log import get_logger  # NOQA
 
 __version__ = "0.3.4"

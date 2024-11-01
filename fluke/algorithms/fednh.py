@@ -12,9 +12,11 @@ from typing import Any, Iterable
 
 import torch
 from torch.nn import CrossEntropyLoss, Module, Parameter
+from torch.nn import functional as F
 
 sys.path.append(".")
 sys.path.append("..")
+
 
 from .. import GlobalSettings  # NOQA
 from ..client import PFLClient  # NOQA
@@ -22,11 +24,10 @@ from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
+from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
+                           get_activation_size)
 from . import PersonalizedFL  # NOQA
 
-from collections import Counter, OrderedDict
-import torch.nn.functional as F
 __all__ = [
     "ProtoNet",
     "ArgMaxModule",
@@ -38,22 +39,17 @@ __all__ = [
 
 class ProtoNet(Module):
 
-    def __init__(self, encoder: Module, n_protos: int, normalize: bool = False):
+    def __init__(self, encoder: Module, n_protos: int, proto_size: int):
         super(ProtoNet, self).__init__()
         self.encoder = encoder
-        self._normalize = normalize
-        self.prototypes = Parameter(torch.rand((n_protos, encoder.output_size)),
-                                    requires_grad=False)
-        self.prototypes.data = torch.nn.init.orthogonal_(torch.rand(n_protos,
-                                                                    encoder.output_size))
+        self.prototypes = Parameter(torch.rand((n_protos, proto_size)), requires_grad=False)
+        self.prototypes.data = torch.nn.init.orthogonal_(torch.rand(n_protos, proto_size))
         self.temperature = Parameter(torch.tensor(1.0))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         embeddings = self.encoder(x)
         embeddings_norm = torch.norm(embeddings, p=2, dim=1, keepdim=True).clamp(min=1e-12)
         embeddings = torch.div(embeddings, embeddings_norm)
-        prototype_norm = torch.norm(self.prototypes, p=2, dim=1, keepdim=True).clamp(min=1e-12)
-        normalized_prototypes = torch.div(self.prototypes, prototype_norm)
         logits = torch.matmul(embeddings, self.prototypes.T)
         logits = self.temperature * logits
         return embeddings, logits
@@ -81,30 +77,30 @@ class FedNHClient(PFLClient):
                  loss_fn: torch.nn.Module,  # Not used
                  local_epochs: int,
                  n_protos: int,
-                 proto_norm: bool = True,
                  **kwargs: dict[str, Any]):
-        super().__init__(index=index, model=ProtoNet(model, n_protos, proto_norm),
+        embedding_size = get_activation_size(model, train_set.tensors[0][0])
+        super().__init__(index=index, model=ProtoNet(model, n_protos, embedding_size),
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
                          loss_fn=CrossEntropyLoss(), local_epochs=local_epochs, **kwargs)
         self.hyper_params.update(
-            n_protos=n_protos,
-            proto_norm=proto_norm
+            n_protos=n_protos
         )
         self.model = self.personalized_model
-        self.count_by_class = torch.bincount(self.train_set.tensors[1])
+        self.count_by_class = torch.bincount(self.train_set.tensors[1],
+                                             minlength=self.train_set.num_labels)
 
     def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
+        prototypes = self.model.prototypes.data
         for label, prts in protos.items():
             if prts.shape[0] > 0:
-                self.model.prototypes.data[label] = torch.sum(prts, dim=0) / prts.shape[0]
-                self.model.prototypes.data[label] /= torch.norm(
-                    self.model.prototypes.data[label]).clamp(min=1e-12)
-                self.model.prototypes.data[label] = self.model.prototypes.data[label] * prts.shape[0]
+                prototypes[label] = torch.sum(prts, dim=0) / prts.shape[0]
+                prototypes[label] /= torch.norm(prototypes[label]).clamp(min=1e-12)
+                prototypes[label] = prototypes[label] * prts.shape[0]
             else:
-                self.model.prototypes.data[label] = torch.zeros_like(
-                    self.model.prototypes.data[label])
+                prototypes[label] = torch.zeros_like(prototypes[label])
 
     def fit(self, override_local_epochs: int = 0) -> float:
+
         epochs: int = (override_local_epochs if override_local_epochs
                        else self.hyper_params.local_epochs)
 
@@ -122,7 +118,9 @@ class FedNHClient(PFLClient):
                 _, logits = self.model(X)
                 loss = self.hyper_params.loss_fn(logits, y)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(parameters=filter(lambda p: p.requires_grad, self.model.parameters()), max_norm=10)
+                torch.nn.utils.clip_grad_norm_(parameters=filter(
+                    lambda p: p.requires_grad, self.model.parameters()
+                ), max_norm=10)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
@@ -131,12 +129,11 @@ class FedNHClient(PFLClient):
         running_loss /= (epochs * len(self.train_set))
 
         protos = defaultdict(list)
-        
         for label in range(self.hyper_params.n_protos):
             Xlbl = self.train_set.tensors[0][self.train_set.tensors[1] == label]
             protos[label] = self.model.encoder(Xlbl).detach().data
 
-        self._update_protos(protos) 
+        self._update_protos(protos)
         return running_loss
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
@@ -160,13 +157,13 @@ class FedNHServer(Server):
                  clients: Iterable[PFLClient],
                  weighted: bool = True,
                  n_protos: int = 10,
-                 rho: float = 0.1,
-                 proto_norm: bool = True):
-        super().__init__(model=ProtoNet(model, n_protos, proto_norm),
+                 rho: float = 0.1):
+        embedding_size = get_activation_size(model, clients[0].train_set.tensors[0][0])
+        super().__init__(model=ProtoNet(model, n_protos, embedding_size),
                          test_set=test_set,
                          clients=clients,
                          weighted=weighted)
-        self.hyper_params.update(n_protos=n_protos, rho=rho, proto_norm=proto_norm)
+        self.hyper_params.update(n_protos=n_protos, rho=rho)
 
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[PFLClient]) -> None:
@@ -184,16 +181,16 @@ class FedNHServer(Server):
         weight = server_lr / len(clients_models)
         cl_weight = torch.zeros(self.hyper_params.n_protos)
 
-        # To get client.count_by_class is actually illegal in fluke, but irrelevant from an implementation point of view
+        # To get client.count_by_class is actually illegal in fluke, but irrelevant from an
+        # implementation point of view
         for client in eligible:
-            cl_weight += client.count_by_class 
+            cl_weight += client.count_by_class
 
         # Aggregate prototypes
         prototypes = self.model.prototypes.clone()
         if self.hyper_params.weighted:
             for label, protos in label_protos.items():
-                prototypes.data[label, :] = torch.sum(
-                    torch.stack(protos)/cl_weight[label], dim=0)
+                prototypes.data[label, :] = torch.sum(torch.stack(protos) / cl_weight[label], dim=0)
         else:
             sim_weights = []
             for protos in clients_protos:
@@ -207,13 +204,15 @@ class FedNHServer(Server):
             prototypes.data /= torch.sum(sim_weights, dim=1).unsqueeze(1)
 
         # Normalize the prototypes
-        prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
+        # prototypes.data /= torch.norm(prototypes.data, dim=0).clamp(min=1e-12)
+        prototypes.data = F.normalize(prototypes.data, dim=1)  # .clamp(min=1e-12)
 
         self.model.prototypes.data = (1 - self.hyper_params.rho) * prototypes.data + \
             self.hyper_params.rho * self.model.prototypes.data
 
         # Normalize the prototypes again
-        self.model.prototypes.data /= torch.norm(self.model.prototypes.data, dim=0).clamp(min=1e-12)
+        self.model.prototypes.data = F.normalize(
+            self.model.prototypes.data, dim=1)  # .clamp(min=1e-12)
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()
         clients_sd = [client.encoder.state_dict() for client in clients_models]
@@ -243,4 +242,3 @@ class FedNH(PersonalizedFL):
 
     def get_server_class(self) -> Server:
         return FedNHServer
-
