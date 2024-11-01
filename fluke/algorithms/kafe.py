@@ -66,8 +66,8 @@ class KafeServer(Server):
         b_last_layer = []
 
         for csd in clients_sd:
-            w_last_layer.append(np.array(csd[last_layer_weight_name]))
-            b_last_layer.append(np.array(csd[last_layer_bias_name]))
+            w_last_layer.append(csd[last_layer_weight_name].numpy().copy())
+            b_last_layer.append(csd[last_layer_bias_name].numpy().copy())
 
         w_last_layer = np.array(w_last_layer).reshape(len(w_last_layer), -1)
         b_last_layer = np.array(b_last_layer).reshape(len(b_last_layer), -1)

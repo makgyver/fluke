@@ -124,7 +124,7 @@ class ClassificationEval(Evaluator):
         """
         from .utils import clear_cache  # NOQA
 
-        if round % self.eval_every != 0:
+        if (round != 1) and (round % self.eval_every != 0):
             return {}
 
         if (model is None) or (eval_data_loader is None):

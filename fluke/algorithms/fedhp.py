@@ -15,25 +15,24 @@ from rich.progress import track
 from torch import nn
 from torch.optim.optimizer import Optimizer as Optimizer
 
-from fluke.client import Client
-
 sys.path.append(".")
 sys.path.append("..")
 from .. import GlobalSettings  # NOQA
-from ..client import PFLClient  # NOQA
+from ..client import Client, PFLClient  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils.model import get_activation_size  # NOQA
 from . import PersonalizedFL  # NOQA
 
 
 class ProtoNet(nn.Module):
-    def __init__(self, encoder: nn.Module, n_protos: int):
+    def __init__(self, encoder: nn.Module, n_protos: int, proto_size: int):
         super(ProtoNet, self).__init__()
         self._encoder = encoder
-        self.prototypes = nn.Parameter(torch.rand((n_protos, encoder.output_size)),
+        self.prototypes = nn.Parameter(torch.rand((n_protos, proto_size)),
                                        requires_grad=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -78,9 +77,10 @@ class FedHPClient(PFLClient):
                  n_protos: int,
                  lam: float,
                  **kwargs: dict[str, Any]):
-        super().__init__(index=index, model=ProtoNet(model, n_protos), train_set=train_set,
-                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, **kwargs)
+        embedding_size = get_activation_size(model, train_set.tensors[0][0])
+        super().__init__(index=index, model=ProtoNet(model, n_protos, embedding_size),
+                         train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
+                         loss_fn=loss_fn, local_epochs=local_epochs, **kwargs)
         self.hyper_params.update(n_protos=n_protos, lam=lam)
         self.model = self.personalized_model
         self.anchors = None
@@ -156,7 +156,7 @@ class FedHPServer(Server):
                  n_protos: int = 10,
                  embedding_size: int = 100,
                  **kwargs: dict[str, Any]):
-        super().__init__(model=ProtoNet(model, n_protos),
+        super().__init__(model=ProtoNet(model, n_protos, embedding_size),
                          test_set=None,
                          clients=clients,
                          weighted=weighted)
@@ -175,7 +175,8 @@ class FedHPServer(Server):
             client = {c.index: c.train_set.tensors[1] for c in self.clients}
             # Count the occurrences of each class for each client.
             # This is "illegal" in fluke :)
-            class_counts = {client_idx: torch.bincount(client_data).tolist()
+            n_classes = self.clients[0].train_set.num_labels
+            class_counts = {client_idx: torch.bincount(client_data, minlength=n_classes).tolist()
                             for client_idx, client_data in enumerate(client.values())}
             if self.hyper_params.weighted:
                 tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))

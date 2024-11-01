@@ -166,7 +166,7 @@ class CCVRServer(Server):
         for Z, y in train_set:
             Z, y = Z.to(self.device), y.to(self.device)
             optimizer.zero_grad()
-            y_hat = self.model.forward_head(Z)
+            y_hat = self.model.head(Z)
             loss = loss_fn(y_hat, y)
             loss.backward()
             optimizer.step()
