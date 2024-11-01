@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
+from typing import Optional, Iterable
 import warnings
 
 import numpy as np
@@ -22,9 +22,9 @@ __all__ = [
     'datasets',
     'support',
     'DataContainer',
+    'DummyDataContainer',
     'FastDataLoader',
-    'DataSplitter',
-    'DummyDataSplitter'
+    'DataSplitter'
 ]
 
 
@@ -48,11 +48,33 @@ class DataContainer:
                  y_test: torch.Tensor,
                  num_classes: int,
                  transforms: Optional[callable] = None):
-        self.train = (X_train, y_train)
-        self.test = (X_test, y_test)
-        self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
+        if X_train is not None:
+            self.train = (X_train, y_train)
+            self.test = (X_test, y_test)
+            self.num_features = np.prod([i for i in X_train.shape[1:]]).item()
+            self.transforms = transforms
         self.num_classes = num_classes
-        self.transforms = transforms
+
+
+class DummyDataContainer(DataContainer):
+    """DataContainer designed for those datasets with a fixed data assignments, e.g., FEMNIST,
+    Shakespeare and FCUBE.
+
+    Args:
+        clients_tr (Iterable[FastDataLoader]): data loaders for the clients' training set.
+        clients_te (Iterable[FastDataLoader]): data loaders for the clients' test set.
+        server_data (FastDataLoader): data loader for the server's test set.
+    """
+
+    def __init__(self,
+                 clients_tr: Iterable[FastDataLoader],
+                 clients_te: Iterable[FastDataLoader],
+                 server_data: FastDataLoader,
+                 num_classes: int):
+        super().__init__(None, None, None, None, num_classes=num_classes)
+        self.clients_tr = clients_tr
+        self.clients_te = clients_te
+        self.server_data = server_data
 
 
 class FastDataLoader:
@@ -113,7 +135,7 @@ class FastDataLoader:
                  single_batch: bool = False):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors), \
             "All tensors must have the same size along the first dimension."
-        self.tensors: Sequence[torch.Tensor] = tensors
+        self.tensors: Iterable[torch.Tensor] = tensors
         self.num_labels: int = num_labels
         self.max_size = self.tensors[0].shape[0]
         self.set_sample_size(percentage)
@@ -335,6 +357,10 @@ class DataSplitter:
             tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]:
               The clients' training and testing assignments and the server's testing assignment.
         """
+        if isinstance(self.data_container, DummyDataContainer):
+            return (self.data_container.clients_tr,
+                    self.data_container.clients_te), self.data_container.server_data
+
         tranforms = self.data_container.transforms
         if self.server_test and self.keep_test:
             server_X, server_Y = self.data_container.test
@@ -707,13 +733,13 @@ class DataSplitter:
             list[torch.Tensor]: The examples' ids assignment.
         """
         n_shards = int(shards_per_client * n)
-        sorted_ids_tr = np.argsort(y_train)
+        sorted_ids_tr = np.argsort(y_train.numpy())
         shard_size_tr = int(np.ceil(len(y_train) / n_shards))
         assignments_tr = np.zeros(y_train.shape[0])
 
         assignments_te = None
         if y_test is not None:
-            sorted_ids_te = np.argsort(y_test)
+            sorted_ids_te = np.argsort(y_test.numpy())
             shard_size_te = int(np.ceil(len(y_test) / n_shards))
             assignments_te = np.zeros(y_test.shape[0])
 
@@ -745,65 +771,3 @@ class DataSplitter:
         "pathological": label_pathological_skew,
         # "covariate": covariate_shift
     }
-
-
-class DummyDataSplitter(DataSplitter):
-    """
-    This data splitter assumes that the data is already pre-assigned to the clients.
-    This must be used in the case you start with a pre-divided datasets that you want to use as
-    is (e.g., FEMNIST and Shakespeare).
-    """
-
-    def __init__(self,
-                 dataset: tuple[FastDataLoader,
-                                Optional[FastDataLoader],
-                                Optional[FastDataLoader]],
-                 builder_args: DDict = None,
-                 **kwargs):
-        self.data_container: DataContainer = None
-        self.distribution: str = "iid"
-        self.client_split: float = None
-        self.sampling_perc: float = 1.0
-        (self.client_tr_assignments, self.client_te_assignments, self.server_te) = dataset
-        self._num_classes: int = self._compute_num_classes()
-
-    def _compute_num_classes(self) -> int:
-
-        labels = set()
-        for ftdl in self.client_tr_assignments:
-            y = ftdl.tensors[1]
-            labels.update(set(list(y.numpy().flatten())))
-
-        for ftdl in self.client_te_assignments:
-            if ftdl:
-                y = ftdl.tensors[1]
-                labels.update(set(list(y.numpy().flatten())))
-
-        if self.server_te:
-            y = self.server_te.tensors[1]
-            labels.update(set(list(y.numpy().flatten())))
-
-        return len(labels)
-
-    # def num_features(self) -> int:
-    #     return self._num_features
-
-    def num_classes(self) -> int:
-        return self._num_classes
-
-    def assign(self, n_clients: int, batch_size: Optional[int] = None):
-        """This override of the :meth:`DataSplitter.assign` method returns the pre-assigned data.
-        No further processing and computation is done.
-
-        Important:
-           The arguments of this method are not used.
-
-        Args:
-            n_clients (int): The number of clients.
-            batch_size (Optional[int], optional): The batch size. Defaults to None.
-
-        Returns:
-            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]: The clients'
-            training and testing assignments and the server's testing assignment.
-        """
-        return (self.client_tr_assignments, self.client_te_assignments), self.server_te
