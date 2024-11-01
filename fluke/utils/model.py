@@ -33,11 +33,13 @@ __all__ = [
     "safe_load_state_dict",
     "state_dict_zero_like",
     "flatten_parameters",
+    "get_activation_size",
     "check_model_fit_mem",
     "AllLayerOutputModel"
 ]
 
-STATE_DICT_KEYS_TO_IGNORE = tuple()  # ("num_batches_tracked", "running_mean", "running_var")
+# ("num_batches_tracked", "running_mean", "running_var")
+STATE_DICT_KEYS_TO_IGNORE = tuple()
 
 
 class MMMixin:
@@ -636,6 +638,34 @@ def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
         p.data = params_slice.view(p.shape)
         i += p.numel()
     return params
+
+
+def get_activation_size(model: nn.Module, input_tensor: torch.Tensor = None) -> int:
+    """Get the size of the activations of the model.
+    This method computes the size of the activations of the model given the input tensor. If the
+    model has a linear layer as the last layer, the size of the activations is the number of
+    features of the linear layer (thus, the input tensor is not requires).
+    If the model has a different last layer, the method computes the
+    size of the activations by performing a forward pass with the input tensor.
+
+    Args:
+        model (nn.Module): The model.
+        input_tensor (torch.Tensor, optional): The input tensor. Defaults to `None`.
+
+    Raises:
+        ValueError: If the input tensor is `None` and the last layer of the model is not a linear
+            layer.
+
+    Returns:
+        int: The size of the activations of the model.
+    """
+    last_layer = list(model.modules())[-1]
+    if isinstance(last_layer, nn.Linear):
+        return last_layer.out_features
+    elif input_tensor is None:
+        raise ValueError(
+            "'input_tensor' must be not None if the last layer of the network is not nn.Linear.")
+    return model(input_tensor).numel()
 
 
 def check_model_fit_mem(model: torch.nn.Module,
