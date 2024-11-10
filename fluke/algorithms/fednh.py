@@ -221,6 +221,12 @@ class FedNHServer(Server):
                 if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                     avg_model_sd[key] = self.model.encoder.state_dict()[key].clone()
                     continue
+
+                if key.endswith("num_batches_tracked"):
+                    mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                    avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                    continue
+
                 for _, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
                         avg_model_sd[key] = weight * client_sd[key].clone()

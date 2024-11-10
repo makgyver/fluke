@@ -39,6 +39,12 @@ class FedExPServer(Server):
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                continue
+
             avg_model_sd[key] = avg_model_sd[key] - eta * torch.mean(
                 torch.stack([avg_model_sd[key] - client_sd[key] for client_sd in clients_sd]),
                 dim=0)

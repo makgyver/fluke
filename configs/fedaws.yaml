@@ -4,7 +4,7 @@ hyperparameters:
     local_epochs: 5
     loss: CrossEntropyLoss
     optimizer:
-      lr: 0.1
+      lr: 0.01
       # momentum: 0.9
       # weight_decay: 0.0001
     scheduler:
@@ -15,6 +15,6 @@ hyperparameters:
     aws_lr: 0.1
     aws_steps: 100
     margin: 0.5
-    last_layer_name: "_head.fc3"
-  model: MNIST_2NN
+    last_layer_name: "_head.fc"
+  model: ResNet9
 name: fluke.algorithms.fedaws.FedAwS

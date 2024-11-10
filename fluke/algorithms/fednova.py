@@ -54,11 +54,12 @@ class FedNovaClient(Client):
             return self.optimizer.param_groups[0]["momentum"]
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        super().fit(override_local_epochs)
-        self.tau += self.hyper_params.local_epochs * self.train_set.n_batches
+        loss = super().fit(override_local_epochs)
+        self.tau = self.hyper_params.local_epochs * self.train_set.n_batches
         rho = self._get_momentum()
         self.a = (self.tau - rho * (1.0 - pow(rho, self.tau)) / (1.0 - rho)) / (1.0 - rho)
         self.channel.send(Message(self.a, "local_a", self), self.server)
+        return loss
 
 
 class FedNovaServer(Server):
@@ -74,16 +75,27 @@ class FedNovaServer(Server):
 
         coeff = sum([a_i[i] * weights[i] for i in range(len(eligible))])
         avg_model_sd = deepcopy(self.model.state_dict())
+        prev_global_model = deepcopy(self.model.state_dict())
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                # avg_model_sd[key] = clients_sd[0][key].clone()
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
                 continue
 
             for i, client_sd in enumerate(clients_sd):
                 avg_model_sd[key] += coeff * weights[i] * \
-                    torch.true_divide(client_sd[key] - avg_model_sd[key], a_i[i])
+                    torch.true_divide(client_sd[key] - prev_global_model[key], a_i[i])
 
+        del prev_global_model
         self.model.load_state_dict(avg_model_sd)
 
 
