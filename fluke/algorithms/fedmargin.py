@@ -27,6 +27,7 @@ class LargeMarginLoss(torch.nn.Module):
     """
     Large Margin Loss as proposed in the paper [MARGIN2015]_.
     The same concept of margin is also discussed in [AAAI2016]_.
+
     Args:
         base_loss (torch.nn.Module): Base loss function.
         margin_lam (float): Margin factor.
@@ -34,6 +35,7 @@ class LargeMarginLoss(torch.nn.Module):
             When "max" is selected, the loss is calculated as the score difference between the
             correct class and the incorrect class with the maximum score.
         num_labels (int): Number of classes.
+
     References:
         .. [MARGIN2015] Shizhao Sun, et al. Large Margin Deep Neural Networks: Theory and
            Algorithms. In ArXiV 2015. URL: https://arxiv.org/pdf/1506.05232v1

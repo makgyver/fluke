@@ -118,7 +118,10 @@ class ClusterelServer(Server):
             self.temp_models[i] = deepcopy(client_model)
             avg_model_sd = OrderedDict()
 
-            w = torch.nn.functional.softmax(sim_score[i] * weights)
+            nearest = torch.argsort(sim_score[i])
+            w = torch.FloatTensor([weights[j] if j in nearest[:5] else 0
+                                   for j in range(len(eligible))])
+            w /= w.sum()
             for j, client_sd in enumerate(clients_sd):
                 for key in self.model.state_dict().keys():
                     if key not in avg_model_sd:
@@ -134,6 +137,12 @@ class ClusterelServer(Server):
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
                 continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                continue
+
             for i, client_sd in enumerate(clients_sd):
                 if key not in avg_model_sd:
                     avg_model_sd[key] = weights[i] * client_sd[key]

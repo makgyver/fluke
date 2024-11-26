@@ -121,22 +121,29 @@ The example follows the implementation of the ``FedExP`` algorithm. We also repo
 
     .. code-block:: python
         :linenos:
-        :emphasize-lines: 3,4,5,8,14
+        :emphasize-lines: 3,5,6,9,18,19,20
 
         @torch.no_grad()
         def aggregate(self, eligible: Iterable[Client]) -> None:
-            clients_sd = self.get_client_models(eligible)
-            clients_diff = [diff_model(self.model.state_dict(), client_model)
-                            for client_model in clients_sd]
-            eta, mu_diff = self._compute_eta(clients_diff)
+            W = flatten_parameters(self.model)
+            clients_model = self.get_client_models(eligible, state_dict=False)
+            Wi = [flatten_parameters(client_model) for client_model in clients_model]
+            eta = self._compute_eta(W, Wi)
 
-            avg_model_sd = OrderedDict()
-            w = self.model.state_dict()
+            clients_sd = [client.model.state_dict() for client in eligible]
+            avg_model_sd = deepcopy(self.model.state_dict())
             for key in self.model.state_dict().keys():
                 if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
-                avg_model_sd[key] = w[key] - eta[key] * mu_diff[key]
+
+                if key.endswith("num_batches_tracked"):
+                    mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                    avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                    continue
+
+                avg_model_sd[key] = avg_model_sd[key] - eta * torch.mean(
+                    torch.stack([avg_model_sd[key] - client_sd[key] for client_sd in clients_sd]),
+                    dim=0)
             self.model.load_state_dict(avg_model_sd)
         
         def _compute_eta(self, clients_diff: Iterable[dict], eps: float = 1e-4) -> float:
@@ -156,6 +163,12 @@ The example follows the implementation of the ``FedExP`` algorithm. We also repo
                 if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                     avg_model_sd[key] = self.model.state_dict()[key].clone()
                     continue
+                
+                if key.endswith("num_batches_tracked"):
+                    mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                    avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                    continue
+
                 for i, client_sd in enumerate(clients_sd):
                     if key not in avg_model_sd:
                         avg_model_sd[key] = weights[i] * client_sd[key]
