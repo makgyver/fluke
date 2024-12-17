@@ -113,6 +113,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
 
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
+    GlobalSettings().set_save_options(**cfg.save)
     data_container = Datasets.get(**cfg.data.dataset)
     evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                    n_classes=data_container.num_classes)
@@ -138,9 +139,6 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
         fl_algo.load(resume)
 
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-
-    if save is not None:
-        fl_algo.save(save)
 
 
 @app.command()

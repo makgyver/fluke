@@ -17,3 +17,4 @@ repr_results/
 checkpoint*/
 chk_*
 .vscode/launch.json
+models_*/

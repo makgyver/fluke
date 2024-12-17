@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 import rich
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 from numpy.random import (choice, dirichlet, permutation, power, randint,
                           shuffle)
 from sklearn.model_selection import train_test_split
@@ -145,6 +146,21 @@ class FastDataLoader:
         self.single_batch: bool = single_batch
         self.transforms: callable = transforms
         self.__i: int = 0
+
+    def asDataLoader(self, **kwargs) -> DataLoader:
+        """Convert the ``FastDataLoader`` to a PyTorch DataLoader.
+
+        Args:
+            **kwargs: additional arguments for the DataLoader.
+
+        Returns:
+            DataLoader: the PyTorch DataLoader.
+        """
+        return DataLoader(TensorDataset(*self.tensors),
+                          batch_size=self.batch_size,
+                          shuffle=self.shuffle,
+                          drop_last=False,
+                          **kwargs)
 
     def __getitem__(self, index: int) -> tuple:
         """Get the entry at the given index for each tensor.

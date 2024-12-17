@@ -72,10 +72,12 @@ class Server(ObserverSubject):
                  model: torch.nn.Module,
                  test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 weighted: bool = False):
+                 weighted: bool = False,
+                 lr: float = 1.0):
         super().__init__()
         self.hyper_params = DDict(
-            weighted=weighted
+            weighted=weighted,
+            lr=lr
         )
         self.device: device = GlobalSettings().get_device()
         self.model: Module = model
@@ -325,9 +327,9 @@ class Server(ObserverSubject):
 
             for i, client_sd in enumerate(clients_sd):
                 if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_sd[key]
-                else:
-                    avg_model_sd[key] = avg_model_sd[key] + weights[i] * client_sd[key]
+                    avg_model_sd[key] = (1 - self.hyper_params.lr) * self.model.state_dict()[key]
+                avg_model_sd[key] = avg_model_sd[key] + \
+                    self.hyper_params.lr * weights[i] * client_sd[key]
 
         self.model.load_state_dict(avg_model_sd)
 

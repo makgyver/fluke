@@ -166,6 +166,5 @@ Functions included in ``fluke.utils``
 
    fluke.utils.log
    fluke.utils.model
-   fluke.utils.log
 
 ```

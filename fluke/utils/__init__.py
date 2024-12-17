@@ -505,6 +505,13 @@ class Configuration(DDict):
             "name": "Log"
         }
 
+        SAVE_REQUIRED_KEYS = ["path"]
+
+        SAVE_OPT_KEYS = {
+            "save_every": -1,
+            "global_only": False
+        }
+
         EVAL_OPT_KEYS = {
             "task": "classification",
             "eval_every": 1,
@@ -584,16 +591,20 @@ class Configuration(DDict):
                 rich.print(f"Error: {k} is required as hyperparameter of 'client'.")
                 error = True
 
-        if 'logger' in self and self.logger.name == "wandb":
+        if "logger" in self and self.logger.name == "wandb":
             for k in WANDB_REQUIRED_KEYS:
                 if k not in WANDB_REQUIRED_KEYS:
                     rich.print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
                     error = True
 
-        # if not error:
-        #     self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
-            # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
-            # self.logger.name = LogEnum(self.logger.name)
+        if "save" in self:
+            for k in SAVE_REQUIRED_KEYS:
+                if k not in self.save:
+                    rich.print(f"Error: {k} is required for key 'save'.")
+                    error = True
+            for k in SAVE_OPT_KEYS:
+                if k not in self.save:
+                    self.save[k] = SAVE_OPT_KEYS[k]
 
         if error:
             raise ValueError("Configuration validation failed.")
