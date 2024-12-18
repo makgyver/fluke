@@ -605,6 +605,8 @@ class Configuration(DDict):
             for k in SAVE_OPT_KEYS:
                 if k not in self.save:
                     self.save[k] = SAVE_OPT_KEYS[k]
+        else:
+            self.save = {}
 
         if error:
             raise ValueError("Configuration validation failed.")

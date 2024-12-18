@@ -27,6 +27,7 @@ __all__ = [
     'apfl',
     'ccvr',
     'ditto',
+    'dpfedavg',
     'fedala',
     'fedamp',
     'fedavg',
@@ -95,8 +96,8 @@ class CentralizedFL(ServerObserver):
     def __init__(self,
                  n_clients: int,
                  data_splitter: DataSplitter,
-                 hyper_params: DDict):
-        self.hyper_params = hyper_params
+                 hyper_params: DDict | dict[str, Any]):
+        self.hyper_params = hyper_params if isinstance(hyper_params, DDict) else DDict(hyper_params)
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = \
             data_splitter.assign(n_clients, hyper_params.client.batch_size)

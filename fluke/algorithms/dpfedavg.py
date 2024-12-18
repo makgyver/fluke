@@ -3,6 +3,7 @@
 import sys
 from typing import Iterable
 
+import torch
 from opacus import PrivacyEngine
 from torch.nn import Module
 
@@ -23,11 +24,20 @@ __all__ = [
 
 
 class _OpacusModelAdapter(Module):
+    """Adapt a model to be compatible with Opacus.
+    Opacus encapsultes the model in a way that the parameter names have a prefix
+    named "_module". This class is a simple adapter to make the model compatible
+    with Opacus.
+
+    Args:
+        model (Module): The model to be adapted.
+    """
+
     def __init__(self, model: Module):
         super().__init__()
         self._module = model
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> torch.Tensor:
         return self._module(*args, **kwargs)
 
 
@@ -59,7 +69,7 @@ class DPClient(Client):
 
         )
 
-    def receive_model(self):
+    def receive_model(self) -> None:
         if self.model is None:
             super().receive_model()
             self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
@@ -82,7 +92,7 @@ class DPServer(Server):
 
 class DPFedAVG(CentralizedFL):
 
-    def get_server_class(self):
+    def get_server_class(self) -> Server:
         return DPServer
 
     def get_client_class(self) -> Client:
