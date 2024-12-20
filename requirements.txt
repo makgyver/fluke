@@ -14,3 +14,4 @@ tensorboard
 clearml
 matplotlib
 seaborn
+opacus

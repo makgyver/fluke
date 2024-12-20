@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import sys
+import time
+import rich
 import warnings
 from copy import deepcopy
 from typing import Any, Iterable, Union
@@ -13,11 +15,11 @@ import torch
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import DDict  # NOQA
+from .. import DDict, GlobalSettings  # NOQA
 from ..client import Client, PFLClient  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, get_loss, get_model  # NOQA
+from ..utils import OptimizerConfigurator, get_loss, get_model, ServerObserver  # NOQA
 
 __all__ = [
     'CentralizedFL',
@@ -25,6 +27,7 @@ __all__ = [
     'apfl',
     'ccvr',
     'ditto',
+    'dpfedavg',
     'fedala',
     'fedamp',
     'fedavg',
@@ -56,7 +59,7 @@ __all__ = [
 ]
 
 
-class CentralizedFL():
+class CentralizedFL(ServerObserver):
     """Centralized Federated Learning algorithm.
     This class is a generic implementation of a centralized federated learning algorithm that
     follows the Federated Averaging workflow. This class represents the entry point to the
@@ -93,8 +96,8 @@ class CentralizedFL():
     def __init__(self,
                  n_clients: int,
                  data_splitter: DataSplitter,
-                 hyper_params: DDict):
-        self.hyper_params = hyper_params
+                 hyper_params: DDict | dict[str, Any]):
+        self.hyper_params = hyper_params if isinstance(hyper_params, DDict) else DDict(hyper_params)
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = \
             data_splitter.assign(n_clients, hyper_params.client.batch_size)
@@ -195,7 +198,9 @@ class CentralizedFL():
             data (FastDataLoader): The server-side test set.
             config (DDict): Configuration of the server.
         """
-        self.server = self.get_server_class()(model, data, self.clients, **config)
+        self.server: Server = self.get_server_class()(model, data, self.clients, **config)
+        if GlobalSettings().get_save_options()[0] is not None:
+            self.server.attach(self)
 
     def set_callbacks(self, callbacks: Union[callable, Iterable[callable]]):
         """Set the callbacks.
@@ -238,29 +243,67 @@ class CentralizedFL():
     def __repr__(self) -> str:
         return str(self)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, global_only: bool = False, round: int | None = None) -> None:
         """Save the algorithm state into files in the specified directory.
 
         Args:
             path (str): Path to the folder where the algorithm state will be saved.
+            global_only (bool, optional): Whether to save only the global model. Defaults to
+                ``False``.
+            round (int, optional): Round number. Defaults to ``None``.
         """
         if not os.path.exists(path):
             os.makedirs(path)
+        elif not (path.split("_")[-1].isdigit() and len(path.split("_")[-1]) == 10):
+            # add a suffix based on the current time
+            rich.print(f"[yellow]Warning:[/yellow] The folder {path} already exists. ")
+            path = f"{path}_{int(time.time())}"
+            GlobalSettings().set_save_options(path=path)
+            os.makedirs(path)
+            rich.print(f"[yellow]Creating a new folder named {path}.")
 
-        self.server.save(os.path.join(path, "server.pth"))
-        for i, client in enumerate(self.clients):
-            client.save(os.path.join(path, f"client_{i}.pth"))
+        prefix = f"r{str(round).zfill(4)}_" if round is not None else ""
+        self.server.save(os.path.join(path, f"{prefix}server.pth"))
+        if not global_only:
+            for i, client in enumerate(self.clients):
+                client.save(os.path.join(path, f"{prefix}client_{i}.pth"))
 
-    def load(self, path: str) -> None:
+    def load(self, path: str, round: int | None = None) -> None:
         """Load the algorithm state from the specified folder
 
         Args:
             path (str): Path to the folder where the algorithm state is saved.
+            round (int, optional): Round number. Defaults to ``None``.
         """
-        self.server.load(os.path.join(path, "server.pth"))
+        if round is not None:
+            prefix = f"r{str(round).zfill(4)}_"
+        else:
+            prefix = ""
+            # search in path for the last round
+            max_round = -1
+            for f in os.listdir(path):
+                if f.startswith("r") and f.endswith("_server.pth"):
+                    round = int(f[1:5])
+                    max_round = max(max_round, round)
+            if max_round != -1:
+                prefix = f"r{str(max_round).zfill(4)}_"
+
+        self.server.load(os.path.join(path, f"{prefix}server.pth"))
         for i, client in enumerate(self.clients):
             client.model = deepcopy(self.server.model)
-            client.load(os.path.join(path, f"client_{i}.pth"))
+            client.load(os.path.join(path, f"{prefix}client_{i}.pth"))
+
+    # ServerObserver methods
+    def end_round(self, round: int) -> None:
+        path, freq, g_only = GlobalSettings().get_save_options()
+        if round % freq == 0:
+            self.save(path, g_only, round)
+
+    # ServerObserver methods
+    def finished(self, round: int) -> None:
+        path, freq, g_only = GlobalSettings().get_save_options()
+        if freq == -1:
+            self.save(path, g_only, round-1)
 
 
 class PersonalizedFL(CentralizedFL):

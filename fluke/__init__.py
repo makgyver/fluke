@@ -207,6 +207,7 @@ class GlobalSettings(metaclass=Singleton):
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
     - The ``seed`` for reproducibility;
     - The evaluation configuration;
+    - The saving settings;
     - The progress bars for the federated learning process, clients and the server;
     - The live renderer, which is used to render the progress bars.
 
@@ -216,14 +217,19 @@ class GlobalSettings(metaclass=Singleton):
     _device: str = 'cpu'
     _seed: int = 0
 
+    # saving settings
+    _save_path: str = None
+    _save_every: int = 0
+    _global_only: bool = False
+
     # evaluation settings
     _evaluator: Evaluator = None
-    _eval_cfg: DDict = DDict(
-        pre_fit=False,
-        post_fit=False,
-        locals=False,
-        server=True
-    )
+    _eval_cfg: dict = {
+        "pre_fit": False,
+        "post_fit": False,
+        "locals": False,
+        "server": True
+    }
 
     # progress bars
     _progress_FL: Progress = None
@@ -254,7 +260,7 @@ class GlobalSettings(metaclass=Singleton):
         Returns:
             DDict: The evaluation configuration.
         """
-        return self._eval_cfg
+        return DDict(self._eval_cfg)
 
     def set_eval_cfg(self, cfg: DDict) -> None:
         """Set the evaluation configuration.
@@ -377,3 +383,29 @@ class GlobalSettings(metaclass=Singleton):
             Live: The live renderer.
         """
         return self._live_renderer
+
+    def get_save_options(self) -> tuple[str, int, bool]:
+        """Get the save options.
+
+        Returns:
+            tuple[str, int, bool]: The save path, the save frequency and the global only flag.
+        """
+        return self._save_path, self._save_every, self._global_only
+
+    def set_save_options(self,
+                         path: str | None = None,
+                         save_every: int | None = None,
+                         global_only: bool | None = None) -> None:
+        """Set the save options.
+
+        Args:
+            path (str): The path to save the checkpoints.
+            save_every (int): The frequency of saving the checkpoints.
+            global_only (bool): If ``True``, only the global model is saved.
+        """
+        if path is not None:
+            self._save_path = path
+        if save_every is not None:
+            self._save_every = save_every
+        if global_only is not None:
+            self._global_only = global_only

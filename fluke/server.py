@@ -16,6 +16,7 @@ from . import DDict, GlobalSettings, ObserverSubject  # NOQA
 from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
+from .utils import clear_cache  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 if TYPE_CHECKING:
@@ -71,10 +72,12 @@ class Server(ObserverSubject):
                  model: torch.nn.Module,
                  test_set: FastDataLoader,
                  clients: Iterable[Client],
-                 weighted: bool = False):
+                 weighted: bool = False,
+                 lr: float = 1.0):
         super().__init__()
         self.hyper_params = DDict(
-            weighted=weighted
+            weighted=weighted,
+            lr=lr
         )
         self.device: device = GlobalSettings().get_device()
         self.model: Module = model
@@ -157,20 +160,25 @@ class Server(ObserverSubject):
 
             total_rounds = self.rounds + n_rounds
             for round in range(self.rounds, total_rounds):
-                self._notify_start_round(round + 1, self.model)
-                eligible = self.get_eligible_clients(eligible_perc)
-                self._notify_selected_clients(round + 1, eligible)
-                self.broadcast_model(eligible)
+                try:
+                    self._notify_start_round(round + 1, self.model)
+                    eligible = self.get_eligible_clients(eligible_perc)
+                    self._notify_selected_clients(round + 1, eligible)
+                    self.broadcast_model(eligible)
 
-                for c, client in enumerate(eligible):
-                    client.local_update(round + 1)
-                    progress_client.update(task_id=task_local, completed=c+1)
-                    progress_fl.update(task_id=task_rounds, advance=1)
+                    for c, client in enumerate(eligible):
+                        client.local_update(round + 1)
+                        # clear_cache()
+                        progress_client.update(task_id=task_local, completed=c+1)
+                        progress_fl.update(task_id=task_rounds, advance=1)
 
-                self.aggregate(eligible)
-                self._compute_evaluation(round, eligible)
-                self._notify_end_round(round + 1)
-                self.rounds += 1
+                    self.aggregate(eligible)
+                    self._compute_evaluation(round, eligible)
+                    self._notify_end_round(round + 1)
+                    self.rounds += 1
+                except KeyboardInterrupt:
+                    self._notify_interrupt()
+                    break
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
@@ -289,6 +297,13 @@ class Server(ObserverSubject):
         .. math::
             \\theta = \\sum_{i=1}^{N} w_i \\theta_i
 
+        Note:
+            In case of networks with batch normalization layers, the running statistics of the
+            batch normalization layers are also aggregated. For all statistics but
+            `num_batches_tracked`are aggregated the mean is computed, while for the
+            `num_batches_tracked` parameter, the maximum between the server's and the truncated mean
+            of the clients' is taken.
+
         Args:
             eligible (Iterable[Client]): The clients that will participate in the aggregation.
 
@@ -304,11 +319,17 @@ class Server(ObserverSubject):
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
                 continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                continue
+
             for i, client_sd in enumerate(clients_sd):
                 if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_sd[key]
-                else:
-                    avg_model_sd[key] = avg_model_sd[key] + weights[i] * client_sd[key]
+                    avg_model_sd[key] = (1 - self.hyper_params.lr) * self.model.state_dict()[key]
+                avg_model_sd[key] = avg_model_sd[key] + \
+                    self.hyper_params.lr * weights[i] * client_sd[key]
 
         self.model.load_state_dict(avg_model_sd)
 
@@ -368,6 +389,13 @@ class Server(ObserverSubject):
         """
         for observer in self._observers:
             observer.finished(self.rounds + 1)
+
+    def _notify_interrupt(self) -> None:
+        """Notify the observers that the federated learning process has been interrupted by
+        the user.
+        """
+        for observer in self._observers:
+            observer.interrupted()
 
     def __str__(self) -> str:
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
