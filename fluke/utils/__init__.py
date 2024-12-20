@@ -1,16 +1,19 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
 
+import gc
 # from enum import Enum
 import importlib
 import inspect
+import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Union, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import psutil
 import rich
 import seaborn as sns
 import torch
@@ -25,7 +28,7 @@ sys.path.append("..")
 if TYPE_CHECKING:
     from client import Client  # NOQA
 
-from .. import DDict  # NOQA
+from .. import DDict, GlobalSettings  # NOQA
 
 __all__ = [
     'log',
@@ -43,7 +46,9 @@ __all__ = [
     'get_optimizer',
     'get_scheduler',
     'import_module_from_str',
-    'plot_distribution'
+    'plot_distribution',
+    'bytes2human',
+    'memory_usage'
 ]
 
 
@@ -164,6 +169,10 @@ class ServerObserver():
         Args:
             round (int): The last round number.
         """
+        pass
+
+    def interrupted(self) -> None:
+        """This method is called when the federated learning process has been interrupted."""
         pass
 
 
@@ -429,6 +438,7 @@ def clear_cache(ipc: bool = False):
         ipc (bool, optional): Whether to force collecting GPU memory after it has been released by
             CUDA IPC.
     """
+    gc.collect()
     torch.cuda.empty_cache()
     if ipc and torch.cuda.is_available():
         torch.cuda.ipc_collect()
@@ -493,6 +503,13 @@ class Configuration(DDict):
 
         LOG_OPT_KEYS = {
             "name": "Log"
+        }
+
+        SAVE_REQUIRED_KEYS = ["path"]
+
+        SAVE_OPT_KEYS = {
+            "save_every": -1,
+            "global_only": False
         }
 
         EVAL_OPT_KEYS = {
@@ -574,16 +591,22 @@ class Configuration(DDict):
                 rich.print(f"Error: {k} is required as hyperparameter of 'client'.")
                 error = True
 
-        if 'logger' in self and self.logger.name == "wandb":
+        if "logger" in self and self.logger.name == "wandb":
             for k in WANDB_REQUIRED_KEYS:
                 if k not in WANDB_REQUIRED_KEYS:
                     rich.print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
                     error = True
 
-        # if not error:
-        #     self.data.dataset.name = DatasetsEnum(self.data.dataset.name)
-            # self.exp.device = DeviceEnum(self.exp.device) if self.exp.device else DeviceEnum.CPU
-            # self.logger.name = LogEnum(self.logger.name)
+        if "save" in self:
+            for k in SAVE_REQUIRED_KEYS:
+                if k not in self.save:
+                    rich.print(f"Error: {k} is required for key 'save'.")
+                    error = True
+            for k in SAVE_OPT_KEYS:
+                if k not in self.save:
+                    self.save[k] = SAVE_OPT_KEYS[k]
+        else:
+            self.save = {}
 
         if error:
             raise ValueError("Configuration validation failed.")
@@ -671,3 +694,56 @@ def plot_distribution(clients: list[Client],
     plt.xlabel('clients')
     plt.ylabel('classes')
     plt.show()
+
+
+def bytes2human(n: int) -> str:
+    """Convert bytes to human-readable format.
+
+    See:
+        https://psutil.readthedocs.io/en/latest/#psutil.Process.memory_info
+
+    Args:
+        n (int): The number of bytes.
+
+    Returns:
+        str: The number of bytes in human-readable format.
+
+    Example:
+        .. code-block:: python
+            :linenos:
+
+            >>> bytes2human(10000)
+            '9.8K'
+            >>> bytes2human(100001221)
+            '95.4M'
+            >>> bytes2human(1024 ** 3)
+            '1.0G'
+
+    """
+    symbols = ('K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
+    prefix = {}
+    for i, s in enumerate(symbols):
+        prefix[s] = 1 << (i + 1) * 10
+    for s in reversed(symbols):
+        if abs(n) >= prefix[s]:
+            value = float(n) / prefix[s]
+            return '%.1f %sB' % (value, s)
+    return "%s B" % n
+
+
+def memory_usage() -> tuple[int, int, int]:
+    """Get the memory usage of the current process.
+
+    Returns:
+        tuple[int, int, int]: The resident set size (RSS), the virtual memory size (VMS), and the
+            current CUDA reserved memory. If the device is not a CUDA device, the reserved memory is
+            0.
+    """
+    proc = psutil.Process(os.getpid())
+
+    if GlobalSettings().get_device().type == "cuda":
+        cuda_device = torch.device(GlobalSettings().get_device())
+        current_reserved = torch.cuda.memory_reserved(cuda_device)
+    else:
+        current_reserved = 0
+    return proc.memory_info().rss, proc.memory_info().vms, current_reserved

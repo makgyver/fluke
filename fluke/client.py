@@ -120,7 +120,11 @@ class Client(ObserverSubject):
         Returns:
             int: The number of examples in the local training set.
         """
-        return self.train_set.size
+        if isinstance(self.train_set, FastDataLoader):
+            return self.train_set.size
+        else:
+            # Assume that the train_set is a PyTorch DataLoader
+            return len(self.train_set.dataset)
 
     @property
     def channel(self) -> Channel:
@@ -319,7 +323,7 @@ class Client(ObserverSubject):
         hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
         hpstr = ", " + hpstr if hpstr else ""
         return f"{self.__class__.__name__}[{self._index}](optim={self.optimizer_cfg}, " + \
-            f"batch_size={self.train_set._batch_size}{hpstr})"
+            f"batch_size={self.train_set.batch_size}{hpstr})"
 
     def __repr__(self) -> str:
         return str(self)

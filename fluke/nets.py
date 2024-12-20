@@ -585,7 +585,7 @@ class _ResidualBlock(nn.Module):
             residual = self.downsample(residual)
 
         out = self.relu(out)
-        out += residual
+        out = out + residual
         return out
 
 
@@ -995,7 +995,7 @@ class LeNet5_D(nn.Module):
         - :class:`LeNet5_E`
     """
 
-    def __init__(self, output_size: int = 100):
+    def __init__(self, output_size: int = 10):
         super(LeNet5_D, self).__init__()
         self.fc = nn.Linear(400, 120)
         self.relu = nn.ReLU()
@@ -1037,7 +1037,7 @@ class LeNet5(EncoderHeadNet):
             In arXiv https://arxiv.org/abs/2001.01523 (2020).
     """
 
-    def __init__(self, output_size: int = 100):
+    def __init__(self, output_size: int = 10):
         super(LeNet5, self).__init__(LeNet5_E(), LeNet5_D(output_size))
 
 

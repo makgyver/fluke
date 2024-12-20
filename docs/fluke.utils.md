@@ -67,6 +67,7 @@ Functions included in ``fluke.utils``
    get_scheduler
    import_module_from_str
    plot_distribution
+   bytes2human
 
 ```
 
@@ -165,6 +166,5 @@ Functions included in ``fluke.utils``
 
    fluke.utils.log
    fluke.utils.model
-   fluke.utils.log
 
 ```
