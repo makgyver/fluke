@@ -1,0 +1,16 @@
+hyperparameters:
+  client:
+    batch_size: 32
+    local_epochs: 5
+    loss: CrossEntropyLoss
+    noise_mul: 0.1
+    max_grad_norm: 0.1
+    optimizer:
+      lr: 0.1
+    scheduler:
+      gamma: 1
+      step_size: 1
+  server:
+    weighted: true
+  model: MNIST_2NN
+name: fluke.algorithms.dpfedavg.DPFedAVG
