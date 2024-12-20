@@ -20,11 +20,15 @@ eval:
   eval_every: 1
   pre_fit: true
   post_fit: true
+# save:
+#   path: mypath
+#   save_every: 10,
+#   global_only: False
 logger:
   name: Log
   # name: WandBLog
-  # project: test-release
-  # entity: mlgroup
+  # project: myproject
+  # entity: entity
 protocol:
   eligible_perc: 0.2
   n_clients: 10
