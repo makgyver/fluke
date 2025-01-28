@@ -6,7 +6,7 @@ References:
        URL: https://doi.org/10.1145/3447548.3467254
 """
 import sys
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -31,19 +31,21 @@ class RSLoss(torch.nn.Module):
 
     Args:
         class_scaling (torch.Tensor): Class scaling factor.
+        reduction (Literal["mean", "sum"]): Specifies the reduction to apply to the output.
 
     See Also:
         This loss function is very similar to the one used in ``FedLC``, i.e.,
         :class:`fluke.algorithms.fedlc.CalibratedLoss`.
     """
 
-    def __init__(self, class_scaling: torch.Tensor):
+    def __init__(self, class_scaling: torch.Tensor, reduction: Literal["mean", "sum"] = "mean"):
         super().__init__()
         self.class_scaling = class_scaling
+        self.reduction = reduction
 
     def forward(self, logit: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         out = logit * self.class_scaling
-        return torch.nn.functional.cross_entropy(out, y)
+        return torch.nn.functional.cross_entropy(out, y, reduction=self.reduction)
 
     def __str__(self):
         return "RSLoss()"
@@ -63,10 +65,11 @@ class FedRSClient(Client):
                  local_epochs: int,
                  alpha: float,
                  count_as_missing: int = 2,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(alpha=alpha, count_as_missing=count_as_missing)
         uniq_val, uniq_cnt = np.unique(self.train_set.tensors[1], return_counts=True)
         class_scaling = torch.ones(self.train_set.num_labels) * \

@@ -5,7 +5,10 @@ classes used by the other modules.
 from __future__ import annotations
 
 import random
+import os
 import re
+import shutil
+import uuid
 import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Union
 
@@ -74,7 +77,7 @@ class DDict(dict):
             print(d.c.e)  # 4
 
     """
-    __getattr__ = dict.get
+    __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
 
     def __init__(self, *args: dict, **kwargs: dict[str, Any]):
@@ -132,6 +135,12 @@ class DDict(dict):
 
         """
         return DDict(**{k: v for k, v in self.items() if k not in keys})
+
+    def __getstate__(self) -> dict:
+        return self.__dict__
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
 
 
 class ObserverSubject():
@@ -206,6 +215,7 @@ class GlobalSettings(metaclass=Singleton):
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
     - The ``seed`` for reproducibility;
+    - If the models are stored in memory or on disk (when not in use);
     - The evaluation configuration;
     - The saving settings;
     - The progress bars for the federated learning process, clients and the server;
@@ -214,13 +224,15 @@ class GlobalSettings(metaclass=Singleton):
     """
 
     # general settings
-    _device: str = 'cpu'
+    _device: torch.device = torch.device('cpu')
     _seed: int = 0
+    _inmemory: bool = True
 
     # saving settings
     _save_path: str = None
     _save_every: int = 0
     _global_only: bool = False
+    _temp_path: str = None
 
     # evaluation settings
     _evaluator: Evaluator = None
@@ -232,19 +244,19 @@ class GlobalSettings(metaclass=Singleton):
     }
 
     # progress bars
-    _progress_FL: Progress = None
-    _progress_clients: Progress = None
-    _progress_server: Progress = None
+    _rich_progress_FL: Progress = None
+    _rich_progress_clients: Progress = None
+    _rich_progress_server: Progress = None
     _live_renderer: Live = None
 
     def __init__(self):
         super().__init__()
-        self._progress_FL: Progress = Progress(transient=True)
-        self._progress_clients: Progress = Progress(transient=True)
-        self._progress_server: Progress = Progress(transient=True)
-        self._live_renderer: Live = Live(Group(self._progress_FL,
-                                               self._progress_clients,
-                                               self._progress_server))
+        self._rich_progress_FL: Progress = Progress(transient=True)
+        self._rich_progress_clients: Progress = Progress(transient=True)
+        self._rich_progress_server: Progress = Progress(transient=True)
+        self._rich_live_renderer: Live = Live(Group(self._rich_progress_FL,
+                                                    self._rich_progress_clients,
+                                                    self._rich_progress_server))
 
     def get_seed(self) -> int:
         """Get the seed.
@@ -368,11 +380,11 @@ class GlobalSettings(metaclass=Singleton):
             ValueError: If the progress bar type is invalid.
         """
         if progress_type == 'FL':
-            return self._progress_FL
+            return self._rich_progress_FL
         elif progress_type == 'clients':
-            return self._progress_clients
+            return self._rich_progress_clients
         elif progress_type == 'server':
-            return self._progress_server
+            return self._rich_progress_server
         else:
             raise ValueError(f'Invalid type of progress bar type {progress_type}.')
 
@@ -382,7 +394,7 @@ class GlobalSettings(metaclass=Singleton):
         Returns:
             Live: The live renderer.
         """
-        return self._live_renderer
+        return self._rich_live_renderer
 
     def get_save_options(self) -> tuple[str, int, bool]:
         """Get the save options.
@@ -409,3 +421,45 @@ class GlobalSettings(metaclass=Singleton):
             self._save_every = save_every
         if global_only is not None:
             self._global_only = global_only
+
+    def get_temp_path(self) -> str:
+        """Get/Generate the temporary path to store data on disk.
+        The path has the format ``./tmp/fluke_UUID64`` where ``UUID64`` is a random UUID.
+
+        Returns:
+            str: The temporary path.
+        """
+        if self._temp_path is None:
+            self._temp_path = f"./tmp/fluke_{uuid.uuid4()}"
+
+        os.makedirs(self._temp_path, exist_ok=True)
+        return self._temp_path
+
+    def empty_temp_path(self) -> None:
+        """Empty the temporary folder."""
+        if self._temp_path is not None:
+            shutil.rmtree(self._temp_path, ignore_errors=True)
+            self._temp_path = None
+
+    def set_inmemory(self, inmemory: bool) -> None:
+        """Set if the data is stored in memory.
+
+        Args:
+            inmemory (bool): If ``True``, the data is stored in memory, otherwise it is stored on
+                disk.
+        """
+        self._inmemory = inmemory
+
+    def is_inmemory(self) -> bool:
+        """Check if the data is stored in memory.
+
+        Returns:
+            bool: If ``True``, the data is stored in memory, otherwise it is stored on disk.
+        """
+        return self._inmemory
+
+    def __getstate__(self) -> dict:
+        return {k: v for k, v in self.__dict__.items() if not k.startswith('_rich')}
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)

@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -53,18 +53,18 @@ class BalancedSoftmaxLoss(torch.nn.Module):
         sample_per_class (torch.Tensor): Number of samples per class.
     """
 
-    def __init__(self, sample_per_class: torch.Tensor):
+    def __init__(self, sample_per_class: torch.Tensor, reduction: Literal["mean", "sum"] = "mean"):
         super().__init__()
         self.sample_per_class = sample_per_class
+        self.reduction = reduction
 
     def forward(self,
                 y: torch.LongTensor,
-                logits: torch.FloatTensor,
-                reduction: str = "mean") -> torch.Tensor:
+                logits: torch.FloatTensor) -> torch.Tensor:
         spc = self.sample_per_class.type_as(logits)
         spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
         logits = logits + spc.log()
-        loss = F.cross_entropy(input=logits, target=y, reduction=reduction)
+        loss = F.cross_entropy(input=logits, target=y, reduction=self.reduction)
         return loss
 
 
@@ -77,16 +77,18 @@ class FedRODClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
 
         self.sample_per_class = torch.zeros(self.train_set.num_labels)
         uniq_val, uniq_count = np.unique(self.train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):
             self.sample_per_class[c] = uniq_count[i]
         self.inner_model = None
+        self._tounload.append("inner_model")
 
     def receive_model(self) -> None:
         super().receive_model()

@@ -6,7 +6,7 @@ References:
        In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
 import sys
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 import torch
 from torch import nn
@@ -39,9 +39,10 @@ class SpreadModel(nn.Module):
 
 class SpreadLoss(nn.Module):
 
-    def __init__(self, margin: float):
+    def __init__(self, margin: float, reduction: Literal["mean", "sum"] = "mean"):
         super().__init__()
         self.margin = margin
+        self.reduction = reduction
 
     def forward(self, weights: torch.Tensor):
         ws_norm = F.normalize(weights, dim=1)
@@ -53,7 +54,13 @@ class SpreadLoss(nn.Module):
         cos_dis = cos_dis * (1.0 - d_mat)
 
         indx = ((self.margin - cos_dis) > 0.0).float()
-        loss = (((self.margin - cos_dis) * indx) ** 2).mean()
+        loss = (((self.margin - cos_dis) * indx) ** 2)
+
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+
         return loss
 
 
@@ -100,9 +107,8 @@ class FedAwSServer(Server):
             strict=False
         )
 
-    def aggregate(self, eligible: Iterable[Client]) -> None:
-        super().aggregate(eligible)
-
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[nn.Module]) -> None:
+        super().aggregate(eligible, client_models)
         self._compute_spreadout()
 
 

@@ -64,11 +64,12 @@ class PFedMeClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  k: int,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
 
         super().__init__(index=index, model=None, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(k=k)
 
     def receive_model(self) -> None:
@@ -80,7 +81,8 @@ class PFedMeClient(PFLClient):
             safe_load_state_dict(self.personalized_model, model.state_dict())
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
         self.personalized_model.train()
         self.personalized_model.to(self.device)
         self.model.to(self.device)
@@ -128,15 +130,22 @@ class PFedMeServer(Server):
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self.get_client_models(eligible)
+        clients_sd = [c.state_dict() for c in client_models]
+        del client_models
         weights = self._get_client_weights(eligible)
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 # avg_model_sd[key] = clients_sd[0][key].clone()
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
                 continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                continue
+
             for i, client_sd in enumerate(clients_sd):
                 if key not in avg_model_sd:
                     avg_model_sd[key] = weights[i] * client_sd[key]

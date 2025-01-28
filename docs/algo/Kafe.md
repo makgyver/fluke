@@ -1,39 +1,38 @@
-(fluke.algorithms.fedbn)=
+(fluke.algorithms.kafe)=
 
-# ``FedBN``
+# ``Kafé``
 
 ```{eval-rst}
 
-.. automodule:: fluke.algorithms.fedbn
+.. automodule:: fluke.algorithms.kafe
    :no-members:
 
 ```
 
 <h3>
 
-Classes included in ``fluke.algorithms.fedbn``
+Classes included in ``fluke.algorithms.kafe``
 
 </h3>
 
 ```{eval-rst}
 
-.. currentmodule:: fluke.algorithms.fedbn
+.. currentmodule:: fluke.algorithms.kafe
 
 .. autosummary::
    :nosignatures:
 
-   FedBNClient
-   FedBN
+   KafeServer
+   Kafe
    
 ```
 
 
 ## Classes
 
-
 ```{eval-rst}
 
-.. autoclass:: fluke.algorithms.fedbn.FedBNClient
+.. autoclass:: fluke.algorithms.kafe.KafeServer
    :show-inheritance:
    :member-order: bysource
    :members: 
@@ -42,7 +41,7 @@ Classes included in ``fluke.algorithms.fedbn``
 
 ```{eval-rst}
 
-.. autoclass:: fluke.algorithms.fedbn.FedBN
+.. autoclass:: fluke.algorithms.kafe.Kafe
    :show-inheritance:
    :member-order: bysource
    :members: 

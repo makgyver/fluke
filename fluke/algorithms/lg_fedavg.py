@@ -45,10 +45,11 @@ class LGFedAVGClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,  # In the paper it is fixed to CrossEntropyLoss
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=HeadGlobalEncoderLocalNet(model), train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, **kwargs)
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
 
     def send_model(self):
         self.channel.send(Message(self.model.get_global(), "model", self), self.server)

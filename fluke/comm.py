@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import uuid
 import warnings
 from collections import defaultdict
 from copy import deepcopy
@@ -12,7 +13,8 @@ import torch
 
 sys.path.append(".")
 
-from . import ObserverSubject  # NOQA
+from . import ObserverSubject, GlobalSettings  # NOQA
+from .utils import load_obj, unload_obj, clear_cache  # NOQA
 
 __all__ = [
     'Message',
@@ -46,9 +48,26 @@ class Message:
                  payload: Any,
                  msg_type: str = "model",
                  sender: Optional[Any] = None):
+        self.__id: int = uuid.uuid4().int
         self.__msg_type: str = msg_type
         self.__payload: Any = payload
         self.__sender: Optional[Any] = sender
+        self.__size: int = self.__get_size(payload)
+        self.__inmemory: bool = True
+
+        if not GlobalSettings().is_inmemory() and isinstance(payload, torch.nn.Module):
+            unload_obj(payload, f"{self.__id}")
+            self.__payload = None
+            self.__inmemory = False
+
+    @property
+    def id(self) -> int:
+        """Get the unique identifier of the message.
+
+        Returns:
+            int: The unique identifier of the message.
+        """
+        return self.__id
 
     @property
     def msg_type(self) -> str:
@@ -66,6 +85,10 @@ class Message:
         Returns:
             Any: The payload of the message.
         """
+        if not self.__inmemory:
+            self.__payload = load_obj(f"{self.__id}")
+            self.__inmemory = True
+
         return self.__payload
 
     @property
@@ -130,7 +153,7 @@ class Message:
                 message = Message(None, "ack", client)
                 print(message.get_size())  # 1
         """
-        return self.__get_size(self.payload)
+        return self.__size
 
     def __eq__(self, other: Message) -> bool:
         return self.payload == other.payload and self.msg_type == other.msg_type and \

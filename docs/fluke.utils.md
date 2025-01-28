@@ -68,6 +68,12 @@ Functions included in ``fluke.utils``
    import_module_from_str
    plot_distribution
    bytes2human
+   memory_usage
+   get_temp_path
+   load_model
+   unload_model
+   load_obj
+   unload_obj
 
 ```
 
@@ -154,6 +160,20 @@ Functions included in ``fluke.utils``
 .. autofunction:: fluke.utils.import_module_from_str
 
 .. autofunction:: fluke.utils.plot_distribution
+
+.. autofunction:: fluke.utils.bytes2human
+
+.. autofunction:: fluke.utils.memory_usage
+
+.. autofunction:: fluke.utils.get_temp_path
+
+.. autofunction:: fluke.utils.load_model
+
+.. autofunction:: fluke.utils.unload_model
+
+.. autofunction:: fluke.utils.load_obj
+
+.. autofunction:: fluke.utils.unload_obj
 
 ```
 

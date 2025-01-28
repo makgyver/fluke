@@ -39,6 +39,7 @@ class SuPerFedClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  mode: str = "global",
                  start_mix: int = 10,
                  mu: float = 0.1,
@@ -48,7 +49,7 @@ class SuPerFedClient(PFLClient):
 
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(
             mode=mode,
             start_mix=start_mix,
@@ -58,9 +59,11 @@ class SuPerFedClient(PFLClient):
 
         self.internal_model = None
         self.mixed = False
+        self._tounload.append("internal_model")
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
 
         if self.hyper_params.mu > 0:
             prev_global_model = deepcopy(self.model).to(self.device)

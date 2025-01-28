@@ -10,6 +10,7 @@ from copy import deepcopy
 from typing import Iterable
 
 import torch
+from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
@@ -28,10 +29,9 @@ __all__ = [
 class FedExPServer(Server):
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         W = flatten_parameters(self.model)
-        clients_model = self.get_client_models(eligible, state_dict=False)
-        Wi = [flatten_parameters(client_model) for client_model in clients_model]
+        Wi = [flatten_parameters(client_model) for client_model in client_models]
         eta = self._compute_eta(W, Wi)
 
         clients_sd = [client.model.state_dict() for client in eligible]
@@ -39,6 +39,12 @@ class FedExPServer(Server):
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 continue
+
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                continue
+
             avg_model_sd[key] = avg_model_sd[key] - eta * torch.mean(
                 torch.stack([avg_model_sd[key] - client_sd[key] for client_sd in clients_sd]),
                 dim=0)

@@ -24,8 +24,8 @@ from fluke.utils import (ClientObserver, Configuration,  # NOQA
                          OptimizerConfigurator, ServerObserver, clear_cache,
                          get_class_from_qualified_name, get_class_from_str,
                          get_full_classname, get_loss, get_model,
-                         get_scheduler, import_module_from_str,
-                         plot_distribution)
+                         get_scheduler, import_module_from_str, memory_usage,
+                         plot_distribution, load_model, load_obj, unload_model, unload_obj)
 from fluke.utils.log import Log, get_logger  # NOQA
 from fluke.utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
                                AllLayerOutputModel, MMMixin,
@@ -143,6 +143,13 @@ def test_functions():
     except Exception:
         pytest.fail("Unexpected error!")
 
+    rss, vms, cud = memory_usage()
+    assert rss >= 0
+    assert vms >= 0
+    assert cud >= 0
+    if not torch.cuda.is_available():
+        assert cud == 0
+
     assert client_module.__name__ == "fluke.client"
     assert client_class == Client
     assert model.__class__.__name__ == "MNIST_2NN"
@@ -176,6 +183,22 @@ def test_functions():
         else:
             assert torch.all(model3.state_dict()[k] == model4.state_dict()[k])
 
+    unload_obj(model3, "test")
+    load_model3 = load_obj("test")
+
+    assert load_model3 is not None
+
+    for k in model3.state_dict().keys():
+        assert torch.all(model3.state_dict()[k] == load_model3.state_dict()[k])
+
+    client = Client(1, None, None, None, None)
+    client.model = model3
+    unload_model(client, ["model"])
+    load_model3 = load_model(client, ["model"])["model"]
+
+    for k in model3.state_dict().keys():
+        assert torch.all(model3.state_dict()[k] == load_model3.state_dict()[k])
+
 
 def test_configuration():
 
@@ -194,6 +217,11 @@ def test_configuration():
             },
             'client_split': 0.1,
             'sampling_perc': 1
+        },
+        'save': {
+            'path': 'temp',
+            'save_every': 1,
+            'global_only': True
         },
         'exp': {
             'seed': 42,
@@ -248,10 +276,11 @@ def test_configuration():
 
     print(str(conf))
     assert str(conf) == "fluke.algorithms.fedavg.FedAVG_data(mnist, iid())_proto(C100, R50, E0.1)_seed(42)"
+    assert conf.__repr__() == str(conf)
 
     cfg = dict({"protocol": {}, "data": {}, "exp": {}, "logger": {}})
     cfg_alg = dict({"name": "fluke.algorithms.fedavg.FedAVG", "hyperparameters": {
-                   "server": {}, "client": {}, "model": "MNIST_2NN"}})
+        "server": {}, "client": {}, "model": "MNIST_2NN"}})
 
     temp_cfg = tempfile.NamedTemporaryFile(mode="w")
     temp_cfg_alg = tempfile.NamedTemporaryFile(mode="w")
@@ -486,6 +515,75 @@ def test_plot_dist(mock_show):
     plot_distribution(fl.clients, "mat")
 
 
+@patch("matplotlib.pyplot.show")
+def test_plot_dist_ball(mock_show):
+    hparams = DDict(
+        # model="fluke.nets.MNIST_2NN",
+        model=MNIST_2NN(),
+        client=DDict(batch_size=32,
+                     local_epochs=1,
+                     loss=CrossEntropyLoss,
+                     optimizer=DDict(
+                         lr=0.1,
+                         momentum=0.9),
+                     scheduler=DDict(
+                         step_size=1,
+                         gamma=0.1)
+                     ),
+        server=DDict(weighted=True)
+    )
+    mnist = Datasets.MNIST("../data")
+    splitter = DataSplitter(mnist, client_split=0.1)
+    fl = CentralizedFL(10, splitter, hparams)
+    plot_distribution(fl.clients, "ball")
+
+
+@patch("matplotlib.pyplot.show")
+def test_plot_dist_bar(mock_show):
+    hparams = DDict(
+        # model="fluke.nets.MNIST_2NN",
+        model=MNIST_2NN(),
+        client=DDict(batch_size=32,
+                     local_epochs=1,
+                     loss=CrossEntropyLoss,
+                     optimizer=DDict(
+                         lr=0.1,
+                         momentum=0.9),
+                     scheduler=DDict(
+                         step_size=1,
+                         gamma=0.1)
+                     ),
+        server=DDict(weighted=True)
+    )
+    mnist = Datasets.MNIST("../data")
+    splitter = DataSplitter(mnist, client_split=0.1)
+    fl = CentralizedFL(10, splitter, hparams)
+    plot_distribution(fl.clients, "bar")
+
+
+@patch("matplotlib.pyplot.show")
+def test_plot_dist_mat(mock_show):
+    hparams = DDict(
+        # model="fluke.nets.MNIST_2NN",
+        model=MNIST_2NN(),
+        client=DDict(batch_size=32,
+                     local_epochs=1,
+                     loss=CrossEntropyLoss,
+                     optimizer=DDict(
+                         lr=0.1,
+                         momentum=0.9),
+                     scheduler=DDict(
+                         step_size=1,
+                         gamma=0.1)
+                     ),
+        server=DDict(weighted=True)
+    )
+    mnist = Datasets.MNIST("../data")
+    splitter = DataSplitter(mnist, client_split=0.1)
+    fl = CentralizedFL(10, splitter, hparams)
+    plot_distribution(fl.clients, "mat")
+
+
 def test_check_mem():
     net = MNIST_2NN()
 
@@ -530,7 +628,6 @@ def test_alllayeroutput():
 def test_flatten():
     net = MNIST_2NN()
     W = flatten_parameters(net)
-    print(W.shape)
     assert W.shape[0] == 178110
 
 

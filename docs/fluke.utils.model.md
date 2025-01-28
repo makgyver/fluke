@@ -56,6 +56,9 @@ Functions included in ``fluke.utils.model``
    batch_norm_to_group_norm
    safe_load_state_dict
    check_model_fit_mem
+   flatten_parameters
+   load_flattened_parameters
+   get_activation_size
    
 ```
 
@@ -186,5 +189,11 @@ Functions included in ``fluke.utils.model``
 .. autofunction:: fluke.utils.model.safe_load_state_dict
 
 .. autofunction:: fluke.utils.model.check_model_fit_mem
+
+.. autofunction:: fluke.utils.model.flatten_parameters
+
+.. autofunction:: fluke.utils.model.load_flattened_parameters
+
+.. autofunction:: fluke.utils.model.get_activation_size
 
 ```

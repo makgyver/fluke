@@ -33,11 +33,12 @@ class FedAMPClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
-                 lam: float,
+                 fine_tuning_epochs: int = 0,
+                 lam: float = 0.2,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(lam=lam)
         self.model = deepcopy(self.personalized_model)
 
@@ -58,7 +59,8 @@ class FedAMPClient(PFLClient):
             pass
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
         self.model.to(self.device)
         self.personalized_model.to(self.device)
         self.model.train()
@@ -111,16 +113,14 @@ class FedAMPServer(Server):
         return empty_model
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[PFLClient]) -> None:
-        clients_model = self.get_client_models(eligible, state_dict=False)
-        clients_model = [client for client in clients_model]
+    def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
 
         for i, client in enumerate(eligible):
-            ci_model = clients_model[i]
+            ci_model = client_models[i]
             ui_model = self._empty_model()
 
             coef = torch.zeros(len(eligible))
-            for j, cj_model in enumerate(clients_model):
+            for j, cj_model in enumerate(client_models):
                 if i != j:
                     weights_i = torch.cat([p.data.view(-1)
                                            for p in ci_model.parameters()], dim=0)
@@ -131,7 +131,7 @@ class FedAMPServer(Server):
                     coef[j] = self.hyper_params.alpha * self.__e(sub)
             coef[i] = 1 - torch.sum(coef)
 
-            for j, cj_model in enumerate(clients_model):
+            for j, cj_model in enumerate(client_models):
                 for param_i, param_j in zip(ui_model.parameters(), cj_model.parameters()):
                     param_i.data += coef[j] * param_j
 

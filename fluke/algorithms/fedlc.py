@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2209.00189
 """
 import sys
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -35,17 +35,21 @@ class CalibratedLoss(torch.nn.Module):
         label_distrib (torch.Tensor): Label distribution.
     """
 
-    def __init__(self, tau: float, label_distrib: torch.Tensor):
+    def __init__(self,
+                 tau: float,
+                 label_distrib: torch.Tensor,
+                 reduction: Literal["mean", "sum"] = "mean"):
         super().__init__()
         self.tau = tau
         self.label_distrib = label_distrib
+        self.reduction = reduction
 
     def forward(self, logit: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         out = logit - self.tau * self.label_distrib**(-0.25)
-        return torch.nn.functional.cross_entropy(out, y)
+        return torch.nn.functional.cross_entropy(out, y, reduction=self.reduction)
 
     def __str__(self):
-        return f"CalibratedLoss(tau={self.tau})"
+        return f"CalibratedLoss(tau={self.tau}, reduction={self.reduction})"
 
     def __repr__(self):
         return str(self)
@@ -61,10 +65,11 @@ class FedLCClient(Client):
                  loss_fn: torch.nn.Module,  # not used
                  local_epochs: int,
                  tau: float,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(tau=tau)
         label_counter = torch.zeros(self.train_set.num_labels)
         uniq_val, uniq_count = np.unique(self.train_set.tensors[1], return_counts=True)

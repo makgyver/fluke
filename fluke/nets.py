@@ -48,6 +48,9 @@ __all__ = [
     'ResNet34',
     'ResNet50',
     'ResNet18GN',
+    'FedAVGCNN_E',
+    'FedAVGCNN_D',
+    'FedAVGCNN',
     'MoonCNN_E',
     'MoonCNN_D',
     'MoonCNN',
@@ -405,18 +408,21 @@ class FedBN_CNN_E(nn.Module):
 class FedBN_CNN_D(nn.Module):
     """Head for the :class:`FedBN_CNN` network.
 
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
     See Also:
         - :class:`FedBN_CNN`
         - :class:`FedBN_CNN_E`
     """
 
-    def __init__(self):
+    def __init__(self, output_size: int = 10):
         super(FedBN_CNN_D, self).__init__()
         self.fc1 = nn.Linear(6272, 2048)
         self.bn5 = nn.BatchNorm1d(2048)
         self.fc2 = nn.Linear(2048, 512)
         self.bn6 = nn.BatchNorm1d(512)
-        self.fc3 = nn.Linear(512, 10)
+        self.fc3 = nn.Linear(512, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.bn5(self.fc1(x)))
@@ -433,6 +439,7 @@ class FedBN_CNN(EncoderHeadNet):
 
     Args:
         channels (int, optional): Number of input channels. Defaults to 1.
+        output_size (int, optional): Number of output classes. Defaults to 10.
 
     Note:
         In the original paper, the size of the last convolutional layer is erroneously reported.
@@ -446,8 +453,8 @@ class FedBN_CNN(EncoderHeadNet):
             Federated Learning on Non-IID Features via Local Batch Normalization. In ICLR (2021).
     """
 
-    def __init__(self, channels: int = 1):
-        super(FedBN_CNN, self).__init__(FedBN_CNN_E(channels), FedBN_CNN_D())
+    def __init__(self, channels: int = 1, output_size: int = 10):
+        super(FedBN_CNN, self).__init__(FedBN_CNN_E(channels), FedBN_CNN_D(output_size))
 
 
 # FedNH: https://arxiv.org/abs/2212.02758 (CIFAR-10)
@@ -525,15 +532,18 @@ class MNIST_LR(nn.Module):
     """Logistic Regression for MNIST. This is a simple logistic regression model for MNIST
     classification used in the [FedProx]_ paper for both MNIST and FEMNIST datasets.
 
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
     References:
         .. [FedProx] Tian Li, Anit Kumar Sahu, Manzil Zaheer, Maziar Sanjabi, Ameet Talwalkar, and
             Virginia Smith. Federated Optimization in Heterogeneous Networks. Adaptive & Multitask
             Learning Workshop. In Open Review https://openreview.net/pdf?id=SkgwE5Ss3N (2018).
     """
 
-    def __init__(self):
+    def __init__(self, output_size: int = 10):
         super(MNIST_LR, self).__init__()
-        self.fc = nn.Linear(784, 10)
+        self.fc = nn.Linear(784, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.view(-1, 784)
@@ -638,9 +648,9 @@ class ResNet9_D(nn.Module):
         - :class:`ResNet9_E`
     """
 
-    def __init__(self):
+    def __init__(self, output_size: int = 100):
         super(ResNet9_D, self).__init__()
-        self.fc = nn.Linear(in_features=1024, out_features=100, bias=True)
+        self.fc = nn.Linear(in_features=1024, out_features=output_size, bias=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.fc(x)
@@ -654,13 +664,16 @@ class ResNet9(EncoderHeadNet):
     layers but the last fully connected layer, and thus the head network consists of the last fully
     connected layer.
 
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 100.
+
     See Also:
         - :class:`ResNet9_E`
         - :class:`ResNet9_D`
     """
 
-    def __init__(self):
-        super(ResNet9, self).__init__(ResNet9_E(), ResNet9_D())
+    def __init__(self, output_size: int = 100):
+        super(ResNet9, self).__init__(ResNet9_E(), ResNet9_D(output_size))
 
 
 # DITTO: https://arxiv.org/pdf/2012.04221.pdf (FEMNIST)
@@ -838,10 +851,9 @@ class VGG9(EncoderHeadNet):
         )
 
 
-# TODO: check if this is the correct architecture
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
-class FedavgCNN_E(nn.Module):
+class FedAVGCNN_E(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
@@ -858,12 +870,12 @@ class FedavgCNN_E(nn.Module):
         return x
 
 
-class FedavgCNN_D(nn.Module):
-    def __init__(self):
+class FedAVGCNN_D(nn.Module):
+    def __init__(self, output_size: int = 10):
         super().__init__()
         self.local3 = nn.Linear(4096, 384)
         self.local4 = nn.Linear(384, 192)
-        self.linear = nn.Linear(192, 10)
+        self.linear = nn.Linear(192, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.local3(x))
@@ -872,10 +884,10 @@ class FedavgCNN_D(nn.Module):
         return F.softmax(x, dim=1)
 
 
-class FedavgCNN(EncoderHeadNet):
-    def __init__(self):
-        super(FedavgCNN, self).__init__(FedavgCNN_E(),
-                                        FedavgCNN_D())
+class FedAVGCNN(EncoderHeadNet):
+    def __init__(self, output_size: int = 10):
+        super(FedAVGCNN, self).__init__(FedAVGCNN_E(),
+                                        FedAVGCNN_D(output_size))
 
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
@@ -1130,14 +1142,17 @@ class MoonCNN_E(nn.Module):
 class MoonCNN_D(nn.Module):
     """Head for the :class:`MoonCNN` network.
 
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
     See Also:
         - :class:`MoonCNN`
         - :class:`MoonCNN_E`
     """
 
-    def __init__(self):
+    def __init__(self, output_size: int = 10):
         super(MoonCNN_D, self).__init__()
-        self.out = nn.Linear(84, 10)
+        self.out = nn.Linear(84, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.out(x)
@@ -1152,6 +1167,9 @@ class MoonCNN(EncoderHeadNet):
     respectively, and a projection head with 256 neurons followed by the output layer with 10
     neurons.
 
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
     See Also:
         - :class:`MoonCNN_E`
         - :class:`MoonCNN_D`
@@ -1161,5 +1179,5 @@ class MoonCNN(EncoderHeadNet):
             In CVPR (2021).
     """
 
-    def __init__(self):
-        super(MoonCNN, self).__init__(MoonCNN_E(), MoonCNN_D())
+    def __init__(self, output_size: int = 10):
+        super(MoonCNN, self).__init__(MoonCNN_E(), MoonCNN_D(output_size))

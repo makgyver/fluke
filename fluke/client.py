@@ -19,7 +19,7 @@ from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
 from .server import Server  # NOQA
-from .utils import OptimizerConfigurator, clear_cache  # NOQA
+from .utils import OptimizerConfigurator, clear_cache, load_model, unload_model  # NOQA
 from .utils.model import safe_load_state_dict  # NOQA
 
 __all__ = [
@@ -84,11 +84,13 @@ class Client(ObserverSubject):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__()
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
-            local_epochs=local_epochs
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs
         )
 
         self._index: int = index
@@ -102,6 +104,7 @@ class Client(ObserverSubject):
         self._server: Server = None
         self._channel: Channel = None
         self._last_round: int = 0
+        self._tounload: list[str] = ["model"]
 
     @property
     def index(self) -> int:
@@ -188,6 +191,7 @@ class Client(ObserverSubject):
             current_round (int): The current round of the federated learning process.
         """
         self._last_round = current_round
+        self._load_model()
         self.receive_model()
 
         if GlobalSettings().get_eval_cfg().pre_fit:
@@ -205,6 +209,7 @@ class Client(ObserverSubject):
                 self._notify_evaluation(current_round, "post-fit", metrics)
 
         self.send_model()
+        self._unload_model()
 
     def fit(self, override_local_epochs: int = 0) -> float:
         """Client's local training procedure.
@@ -216,7 +221,7 @@ class Client(ObserverSubject):
         Returns:
             float: The average loss of the model during the training.
         """
-        epochs: int = (override_local_epochs if override_local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
                        else self.hyper_params.local_epochs)
 
         self.model.train()
@@ -270,12 +275,18 @@ class Client(ObserverSubject):
             When inheriting from this class, make sure to override this method if this behavior is
             not desired.
         """
+        self._load_model()
         self.receive_model()
+
+        if self.hyper_params.fine_tuning_epochs > 0:
+            self.fit(self.hyper_params.fine_tuning_epochs)
 
         if GlobalSettings().get_eval_cfg().pre_fit:
             metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
             if metrics:
                 self._notify_evaluation(-1, "pre-fit", metrics)
+
+        self._unload_model()
 
     def state_dict(self) -> dict:
         """Get the client state as a dictionary.
@@ -343,6 +354,18 @@ class Client(ObserverSubject):
         for obs in self._observers:
             obs.end_fit(round, self.index, self.model, loss)
 
+    def _load_model(self):
+        if not GlobalSettings().is_inmemory():
+            models = load_model(self, self._tounload)
+            for attr in self._tounload:
+                setattr(self, attr, models[attr])
+
+    def _unload_model(self):
+        if not GlobalSettings().is_inmemory():
+            unload_model(self, self._tounload)
+            for attr in self._tounload:
+                setattr(self, attr, None)
+
 
 class PFLClient(Client):
     """Personalized Federated Learning client.
@@ -366,9 +389,14 @@ class PFLClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
-        super().__init__(index, train_set, test_set, optimizer_cfg, loss_fn, local_epochs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.personalized_model: Module = model
+        self._tounload.append("personalized_model")
+        self._unload_model()
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the personalized model on the ``test_set``.

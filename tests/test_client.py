@@ -18,6 +18,8 @@ from fluke.utils import OptimizerConfigurator  # NOQA
 
 def test_client():
 
+    GlobalSettings().set_inmemory(True)
+
     class Model(Linear):
         def __init__(self):
             super().__init__(10, 2)
@@ -87,7 +89,7 @@ def test_client():
     assert ev1
 
     assert str(client) == "Client[0](optim=OptCfg(SGD, lr=0.1, StepLR(step_size=1, gamma=0.1)), " + \
-        "batch_size=10, loss_fn=CrossEntropyLoss(), local_epochs=10)"
+        "batch_size=10, loss_fn=CrossEntropyLoss(), local_epochs=10, fine_tuning_epochs=0)"
 
     client.test_set = None  # THIS IS NOT ALLOWED
     assert client.evaluate(evaluator, client.test_set) == {}
@@ -111,7 +113,7 @@ def test_client():
     assert client.model.bias.data.sum() == 0
 
     assert str(client) == "Client[0](optim=OptCfg(SGD, lr=0.1, StepLR(step_size=1, gamma=0.1)), " + \
-        "batch_size=10, loss_fn=CrossEntropyLoss(), local_epochs=10)"
+        "batch_size=10, loss_fn=CrossEntropyLoss(), local_epochs=10, fine_tuning_epochs=0)"
     assert str(client) == repr(client)
 
 

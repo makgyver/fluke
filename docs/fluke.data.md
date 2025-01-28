@@ -120,7 +120,7 @@ Classes
 ```{eval-rst}
 
 .. autoclass:: fluke.data.DummyDataContainer
-   :members: assign
+   :members:
    :show-inheritance:
 
 ```

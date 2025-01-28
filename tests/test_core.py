@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 
 import torch
@@ -25,6 +26,12 @@ def test_settings():
     settings.set_device("auto")
     settings.set_eval_cfg(DDict(pre_fit=True))
     assert settings.get_eval_cfg().pre_fit
+    settings.set_save_options(path="temp", save_every=10, global_only=True)
+    assert settings.get_save_options() == ("temp", 10, True)
+    temp_path = settings.get_temp_path()
+    assert temp_path is not None and os.path.exists(temp_path)
+    settings.empty_temp_path()
+    assert settings._temp_path is None
     if torch.cuda.is_available():
         assert settings.get_device() == torch.device("cuda")
     elif torch.backends.mps.is_available():

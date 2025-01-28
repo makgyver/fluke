@@ -41,13 +41,15 @@ class SCAFFOLDClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.control: OrderedDict = None
         self.delta_control: OrderedDict = None
         self.server_control: OrderedDict = None
+        self._tounload.extend(["control", "delta_control", "server_control"])
 
     def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
@@ -60,7 +62,8 @@ class SCAFFOLDClient(Client):
         self.server_model = deepcopy(model.state_dict())
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
         self.model.to(self.device)
         self.model.train()
 
@@ -142,7 +145,7 @@ class SCAFFOLDServer(Server):
         return weights
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         self.model.to(self.device)
 
         total_delta = state_dict_zero_like(self.model.state_dict())
@@ -155,7 +158,7 @@ class SCAFFOLDServer(Server):
             total_delta[key] = total_delta[key] / self.n_clients
             self.control[key] = self.control[key] + total_delta[key].to("cpu")
 
-        return super().aggregate(eligible)
+        return super().aggregate(eligible, client_models)
 
 
 class SCAFFOLD(CentralizedFL):

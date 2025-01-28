@@ -36,16 +36,18 @@ class MOONClient(Client):
                  local_epochs: int,
                  mu: float,
                  tau: float,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(
             mu=mu,
             tau=tau
         )
         self.prev_model = None
         self.server_model = None
+        self._tounload.extend(["prev_model", "server_model"])
 
     def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
@@ -59,7 +61,8 @@ class MOONClient(Client):
         self.server_model = model
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
         cos = CosineSimilarity(dim=-1).to(self.device)
         self.model.to(self.device)
         self.prev_model.to(self.device)

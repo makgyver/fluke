@@ -42,6 +42,9 @@
    VGG9_E
    VGG9_D
    VGG9
+   FedAVGCNN_E
+   FedAVGCNN_D
+   FedAVGCNN
    ResNet18
    ResNet34
    ResNet50

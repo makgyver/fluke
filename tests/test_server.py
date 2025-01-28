@@ -12,6 +12,7 @@ sys.path.append("..")
 from fluke import DDict  # NOQA
 from fluke import GlobalSettings  # NOQA
 from fluke.client import Client  # NOQA
+from fluke.comm import Channel  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.server import Server  # NOQA
@@ -49,6 +50,7 @@ def test_server():
     def target_function(x):
         return 0 if x[:7].sum() < 2.5 else 1
 
+    GlobalSettings().set_inmemory(True)
     Xtr = [torch.rand((100, 10)), torch.rand((100, 10))]
     ytr = [torch.tensor([target_function(x) for x in Xtr[0]]),
            torch.tensor([target_function(x) for x in Xtr[1]])]
@@ -77,10 +79,15 @@ def test_server():
     assert isinstance(server.model, Model)
     assert server.test_set == ftdl_server
     assert server.hyper_params.weighted
-    assert server.channel == clients[0].channel
+    assert isinstance(server.channel, Channel)
     assert server.rounds == 0
     assert server.has_test
     assert server.has_model
+
+    for c in clients:
+        c.set_server(server)
+        assert c.server == server
+        assert c.channel == server.channel
 
     evaluator = ClassificationEval(1, 2)
     GlobalSettings().set_evaluator(evaluator)
@@ -92,7 +99,7 @@ def test_server():
 
     # assert ev0["loss"] >= ev1["loss"]
     assert server.rounds == 1
-    assert str(server) == "Server(weighted=True)"
+    assert str(server) == "Server(weighted=True, lr=1.0)"
 
     server.detach(obs)
     server.hyper_params.weighted = False
@@ -117,7 +124,7 @@ def test_server():
         assert id(m) != id(server.model)
         assert m is not server.model
 
-    assert str(server) == "Server(weighted=False)"
+    assert str(server) == "Server(weighted=False, lr=1.0)"
     assert str(server) == repr(server)
 
 

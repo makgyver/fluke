@@ -40,17 +40,22 @@ class APFLClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  lam: float = 0.25,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs)
+                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.internal_model = deepcopy(model)
         self.hyper_params.update(lam=lam)
+        self._tounload.append("internal_model")
+        self._unload_model()
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
 
         self.model.train()
         self.personalized_model.train()
@@ -113,18 +118,19 @@ class APFLServer(Server):
         self.hyper_params.update(tau=tau)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         """Aggregate the models of the eligible clients every `hyper_params.tau` rounds.
 
         Args:
             eligible (Iterable[Client]): The clients that are eligible to participate in the
                 aggregation.
+            client_models (Iterable[Module]): The models of the clients to aggregate.
         """
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache
             self.channel.clear(self)
         else:
-            super().aggregate(eligible)
+            super().aggregate(eligible, client_models)
 
 
 class APFL(PersonalizedFL):

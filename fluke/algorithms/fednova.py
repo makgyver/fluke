@@ -10,6 +10,7 @@ from copy import deepcopy
 from typing import Any, Iterable
 
 import torch
+from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
@@ -38,10 +39,11 @@ class FedNovaClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.tau = 0
 
     def _get_momentum(self):
@@ -65,8 +67,9 @@ class FedNovaClient(Client):
 class FedNovaServer(Server):
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
-        clients_sd = self.get_client_models(eligible)
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+        clients_sd = [c.state_dict() for c in client_models]
+        del client_models
         weights = self._get_client_weights(eligible)
         a_i = [
             self.channel.receive(self, client, "local_a").payload

@@ -36,15 +36,14 @@ class FedBABUClient(PFLClient):
                  loss_fn: Module,
                  local_epochs: int,
                  mode: str,
-                 fine_tune_epochs: int,
+                 fine_tuning_epochs: int,
                  **kwargs: dict[str, Any]):
         assert mode in ["head", "body", "full"]
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(
-            mode=mode,
-            fine_tune_epochs=fine_tune_epochs
+            mode=mode
         )
         self.model = self.personalized_model
 
@@ -80,7 +79,7 @@ class FedBABUClient(PFLClient):
         self.personalized_model.to(self.device)
         self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
 
-        for _ in range(self.hyper_params.fine_tune_epochs):
+        for _ in range(self.hyper_params.fine_tuning_epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)

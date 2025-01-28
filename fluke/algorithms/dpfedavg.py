@@ -1,7 +1,17 @@
-"""DPFedAVG
+"""Implementation of the DPFedAVG: Differential Privacy Federated Averaging [DPFedAVG2017]_
+algorithm.
+
+Note:
+    This implementation does not exactly follow the original paper, but it is a simplified version
+    that uses the Opacus library to provide differential privacy guarantees.
+
+References:
+    .. [DPFedAVG2017] Robin C. Geyer, Tassilo Klein, Moin Nabi.
+       Differentially Private Federated Learning: A Client Level Perspective
+       In ArXiv (2017). URL: https://arxiv.org/abs/1712.07557
 """
 import sys
-from typing import Iterable
+from typing import Iterable, Any
 
 import torch
 from opacus import PrivacyEngine
@@ -18,8 +28,8 @@ from . import CentralizedFL  # NOQA
 
 __all__ = [
     "DPFedAVG",
-    "DPClient",
-    "DPServer"
+    "DPFedAVGClient",
+    "DPFedAVGServer"
 ]
 
 
@@ -41,7 +51,7 @@ class _OpacusModelAdapter(Module):
         return self._module(*args, **kwargs)
 
 
-class DPClient(Client):
+class DPFedAVGClient(Client):
     def __init__(self,
                  index: int,
                  train_set: FastDataLoader,
@@ -49,12 +59,13 @@ class DPClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  noise_mul: float = 1.1,
                  max_grad_norm: float = 1.0,
-                 **kwargs):
+                 **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(noise_mul=noise_mul, max_grad_norm=max_grad_norm)
 
     def _init_private_engine(self) -> None:
@@ -78,22 +89,23 @@ class DPClient(Client):
             return super().receive_model()
 
 
-class DPServer(Server):
+class DPFedAVGServer(Server):
 
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
                  clients: Iterable[Client],
                  weighted: bool = False,
-                 lr: float = 1.0):
+                 lr: float = 1.0,
+                 **kwargs: dict[str, Any]):
         super().__init__(model=_OpacusModelAdapter(model),
-                         test_set=test_set, clients=clients, weighted=weighted, lr=lr)
+                         test_set=test_set, clients=clients, weighted=weighted, lr=lr, **kwargs)
 
 
 class DPFedAVG(CentralizedFL):
 
     def get_server_class(self) -> Server:
-        return DPServer
+        return DPFedAVGServer
 
     def get_client_class(self) -> Client:
-        return DPClient
+        return DPFedAVGClient
