@@ -25,12 +25,11 @@ from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
 from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
-                           get_activation_size)
+                           get_activation_size, ArgMaxModule)  # NOQA
 from . import PersonalizedFL  # NOQA
 
 __all__ = [
     "ProtoNet",
-    "ArgMaxModule",
     "FedNHClient",
     "FedNHServer",
     "FedNH"
@@ -38,6 +37,13 @@ __all__ = [
 
 
 class ProtoNet(Module):
+    """Wrapper network for the encoder model and the prototypes.
+
+    Args:
+        encoder (nn.Module): The encoder model.
+        n_protos (int): Number of prototypes.
+        proto_size (int): Size of the prototypes.
+    """
 
     def __init__(self, encoder: Module, n_protos: int, proto_size: int):
         super(ProtoNet, self).__init__()
@@ -55,17 +61,6 @@ class ProtoNet(Module):
         return embeddings, logits
 
 
-class ArgMaxModule(Module):
-    def __init__(self,
-                 model: Module):
-        super().__init__()
-        self.model: Module = model
-
-    @torch.no_grad()
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.argmax(self.model(x)[1], dim=1)
-
-
 class FedNHClient(PFLClient):
 
     def __init__(self,
@@ -77,17 +72,22 @@ class FedNHClient(PFLClient):
                  loss_fn: torch.nn.Module,  # Not used
                  local_epochs: int,
                  n_protos: int,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
+        fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs > 0 else local_epochs
         embedding_size = get_activation_size(model, train_set.tensors[0][0])
         super().__init__(index=index, model=ProtoNet(model, n_protos, embedding_size),
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
-                         loss_fn=CrossEntropyLoss(), local_epochs=local_epochs, **kwargs)
+                         loss_fn=CrossEntropyLoss(), local_epochs=local_epochs,
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(
             n_protos=n_protos
         )
-        self.model = self.personalized_model
+        self.model = ProtoNet(model, n_protos, embedding_size)
         self.count_by_class = torch.bincount(self.train_set.tensors[1],
                                              minlength=self.train_set.num_labels)
+        self._tounload.remove("personalized_model")
+        self._unload_model()
 
     def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
         prototypes = self.model.prototypes.data
@@ -143,10 +143,12 @@ class FedNHClient(PFLClient):
         return {}
 
     def finalize(self) -> None:
-        self.fit()
+        self._load_model()
+        self.fit(self.hyper_params.fine_tuning_epochs)
         metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
         if metrics:
             self._notify_evaluation(-1, "post-fit", metrics)
+        self._unload_model()
 
 
 class FedNHServer(Server):
@@ -166,10 +168,9 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[PFLClient]) -> None:
+    def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_models = self.get_client_models(eligible, state_dict=False)
-        clients_protos = [cmodel.prototypes.data for cmodel in clients_models]
+        clients_protos = [cmodel.prototypes.data for cmodel in client_models]
 
         # Group by label
         label_protos = {i: [protos[i] for protos in clients_protos]
@@ -178,7 +179,7 @@ class FedNHServer(Server):
         # This could be the learning rate for the server (not used in the official implementation)
         # server_lr = self.hyper_params.lr * self.hyper_params.lr_decay ** self.round
         server_lr = 1.0
-        weight = server_lr / len(clients_models)
+        weight = server_lr / len(client_models)
         cl_weight = torch.zeros(self.hyper_params.n_protos)
 
         # To get client.count_by_class is actually illegal in fluke, but irrelevant from an
@@ -215,7 +216,7 @@ class FedNHServer(Server):
             self.model.prototypes.data, dim=1)  # .clamp(min=1e-12)
         # Aggregate models = Federated Averaging
         avg_model_sd = OrderedDict()
-        clients_sd = [client.encoder.state_dict() for client in clients_models]
+        clients_sd = [client.encoder.state_dict() for client in client_models]
         with torch.no_grad():
             for key in self.model.encoder.state_dict().keys():
                 if key.endswith(STATE_DICT_KEYS_TO_IGNORE):

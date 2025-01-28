@@ -41,17 +41,19 @@ class FedRepClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  tau: int = 3,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=EncoderGlobalHeadLocalNet(model), train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, **kwargs)
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.hyper_params.update(tau=tau)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
         self.model.train()
         self.model.to(self.device)
 

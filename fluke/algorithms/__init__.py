@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import os
 import sys
-import time
-import rich
 import warnings
 from copy import deepcopy
 from typing import Any, Iterable, Union
+import uuid
 
 import torch
 
@@ -50,6 +49,7 @@ __all__ = [
     'fedrs',
     'fedsam',
     'fedsgd',
+    'kafe',
     'lg_fedavg',
     'moon',
     'per_fedavg',
@@ -96,18 +96,33 @@ class CentralizedFL(ServerObserver):
     def __init__(self,
                  n_clients: int,
                  data_splitter: DataSplitter,
-                 hyper_params: DDict | dict[str, Any]):
+                 hyper_params: DDict | dict[str, Any],
+                 **kwargs: dict[str, Any]):
+        self._id = uuid.uuid4()
         self.hyper_params = hyper_params if isinstance(hyper_params, DDict) else DDict(hyper_params)
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = \
             data_splitter.assign(n_clients, hyper_params.client.batch_size)
         # Federated model
-        model = get_model(mname=hyper_params.model
-                          # **hyper_params.net_args if 'net_args' in hyper_params else {}
+        model = get_model(mname=hyper_params.model,
+                          **hyper_params.net_args if 'net_args' in hyper_params else {}
                           ) if isinstance(hyper_params.model, str) else hyper_params.model
-
+        self.clients = None
+        self.server = None
         self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
         self.init_server(model, server_data, hyper_params.server)
+
+        for client in self.clients:
+            client.set_server(self.server)
+
+    @property
+    def id(self) -> str:
+        """Get the unique identifier of this instance of the algorithm.
+
+        Returns:
+            str: Unique identifier of the instance of the algorithm.
+        """
+        return str(self._id)
 
     def can_override_optimizer(self) -> bool:
         """Return whether the optimizer can be changed user-side.
@@ -168,13 +183,13 @@ class CentralizedFL(ServerObserver):
             :class:`fluke.client.Client`
         """
 
+        if "name" not in config.optimizer or not self.can_override_optimizer():
+            config.optimizer.name = self.get_optimizer_class()
+
         if not self.can_override_optimizer() and \
                 config.optimizer.name != self.get_optimizer_class().__name__:
             warnings.warn(f"The algorithm does not support the optimizer {config.optimizer.name}. "
                           f"Using {self.get_optimizer_class().__name__} instead.")
-
-        if "name" not in config.optimizer or not self.can_override_optimizer():
-            config.optimizer.name = self.get_optimizer_class()
 
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
@@ -237,36 +252,50 @@ class CentralizedFL(ServerObserver):
              for h, v in self.hyper_params.items() if h not in ['client', 'server']]
         )
         algo_hp = f"\n\t{algo_hp}," if algo_hp else ""
-        client_str = str(self.clients[0]).replace("[0]", f"[0-{self.n_clients-1}]")
-        return f"{self.__class__.__name__}({algo_hp}\n\t{client_str},\n\t{self.server}\n)"
+
+        if self.clients is None:
+            client_str = "Client?"
+        else:
+            client_str = str(self.clients[0]).replace("[0]", f"[0-{self.n_clients-1}]")
+
+        if self.server is None:
+            server_str = "Server?"
+        else:
+            server_str = str(self.server)
+
+        return f"{self.__class__.__name__}[{self._id}]" + \
+            f"({algo_hp}\n\t{client_str},\n\t{server_str}\n)"
 
     def __repr__(self) -> str:
         return str(self)
 
-    def save(self, path: str, global_only: bool = False, round: int | None = None) -> None:
+    def save(self, path: str, global_only: bool = False, round: int | None = None) -> str:
         """Save the algorithm state into files in the specified directory.
+
+        Note:
+            To avoid overwriting previous saved states, the folder name will be suffixed with the
+            unique (randomly generated) identifier of the algorithm.
 
         Args:
             path (str): Path to the folder where the algorithm state will be saved.
             global_only (bool, optional): Whether to save only the global model. Defaults to
                 ``False``.
             round (int, optional): Round number. Defaults to ``None``.
+
+        Returns:
+            str: Path to the folder where the algorithm state was saved.
         """
+        path = f"{path}_{self._id}"
         if not os.path.exists(path):
             os.makedirs(path)
-        elif not (path.split("_")[-1].isdigit() and len(path.split("_")[-1]) == 10):
-            # add a suffix based on the current time
-            rich.print(f"[yellow]Warning:[/yellow] The folder {path} already exists. ")
-            path = f"{path}_{int(time.time())}"
-            GlobalSettings().set_save_options(path=path)
-            os.makedirs(path)
-            rich.print(f"[yellow]Creating a new folder named {path}.")
 
         prefix = f"r{str(round).zfill(4)}_" if round is not None else ""
         self.server.save(os.path.join(path, f"{prefix}server.pth"))
         if not global_only:
             for i, client in enumerate(self.clients):
                 client.save(os.path.join(path, f"{prefix}client_{i}.pth"))
+
+        return path
 
     def load(self, path: str, round: int | None = None) -> None:
         """Load the algorithm state from the specified folder
@@ -332,7 +361,14 @@ class PersonalizedFL(CentralizedFL):
                      clients_te_data: list[FastDataLoader],
                      config: DDict) -> None:
 
-        model = get_model(mname=config.model) if isinstance(config.model, str) else config.model
+        if isinstance(config.model, str):
+            model = get_model(mname=config.model, **config.net_args if 'net_args' in config else {})
+        elif isinstance(config.model, torch.nn.Module):
+            model = config.model
+        else:
+            raise ValueError("Invalid model configuration. \
+                             It should be a string or a torch.nn.Module")
+
         if not self.can_override_optimizer() and \
                 config.optimizer.name != self.get_optimizer_class().__name__:
             opt_name = "SGD" if config.optimizer.name is None else config.optimizer.name
@@ -341,6 +377,7 @@ class PersonalizedFL(CentralizedFL):
 
         if "name" not in config.optimizer or not self.can_override_optimizer():
             config.optimizer.name = self.get_optimizer_class()
+
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()

@@ -306,7 +306,6 @@ def test_fcube():
     assert len(cte) == 4
     assert ste is not None
     assert ste.size == 100
-    print(cte[0].size, ctr[0].size, ste.size)
     assert sum([cte[i].size + ctr[i].size for i in range(4)]) == 900
     assert ctr[0].num_labels == 2
 

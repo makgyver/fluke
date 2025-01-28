@@ -39,6 +39,7 @@ class FedALAClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: nn.Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  ala_sample_size: float = 0.8,
                  eta: float = 1.0,
                  conergence_threshold: float = 0.001,
@@ -46,7 +47,7 @@ class FedALAClient(Client):
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(ala_sample_size=ala_sample_size,
                                  eta=eta,
                                  conergence_threshold=conergence_threshold,

@@ -33,6 +33,15 @@ __all__ = [
 
 
 class FedProtoModel(Module):
+    """Model used by the FedProto algorithm.
+    This model wraps a neural network model and a set of prototypes.
+
+    Args:
+        model (EncoderHeadNet): The neural network model.
+        prototypes (dict[int, torch.Tensor]): The prototypes.
+        device (torch.device): The device where the model will run.
+    """
+
     def __init__(self,
                  model: EncoderHeadNet,
                  prototypes: dict[int, torch.Tensor],
@@ -73,17 +82,21 @@ class FedProtoClient(PFLClient):
                  local_epochs: int,
                  n_protos: int,
                  lam: float,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
+        fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs else local_epochs
         super().__init__(index=index, model=model, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, **kwargs)
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(
             n_protos=n_protos,
             lam=lam
         )
-        self.model = self.personalized_model
+        self.model = model
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
         self.global_protos = None
+        self._tounload.remove("personalized_model")
+        self._unload_model()
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
@@ -149,7 +162,9 @@ class FedProtoClient(PFLClient):
         return {}
 
     def finalize(self) -> None:
-        self.fit()
+        self._load_model()
+        self.fit(self.hyper_params.fine_tuning_epochs)
+        self._unload_model()
 
 
 class FedProtoServer(Server):
@@ -172,9 +187,9 @@ class FedProtoServer(Server):
         return [self.channel.receive(self, client, "model").payload for client in eligible]
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[PFLClient]) -> None:
+    def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_protos = self.get_client_models(eligible)
+        clients_protos = client_models
 
         # Group by label
         label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]

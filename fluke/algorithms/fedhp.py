@@ -7,7 +7,7 @@ References:
 """
 import copy
 import sys
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 import torch
 import torch.optim as optim
@@ -24,11 +24,19 @@ from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import get_activation_size  # NOQA
+from ..utils.model import get_activation_size, ArgMaxModule  # NOQA
 from . import PersonalizedFL  # NOQA
 
 
 class ProtoNet(nn.Module):
+    """Wrapper network for the encoder model and the prototypes.
+
+    Args:
+        encoder (nn.Module): The encoder model.
+        n_protos (int): Number of prototypes.
+        proto_size (int): Size of the prototypes.
+    """
+
     def __init__(self, encoder: nn.Module, n_protos: int, proto_size: int):
         super(ProtoNet, self).__init__()
         self._encoder = encoder
@@ -41,28 +49,27 @@ class ProtoNet(nn.Module):
         return embeddings, dists
 
 
-class FedHPModel(nn.Module):
-    def __init__(self,
-                 model: nn.Module):
-        super().__init__()
-        self.model: nn.Module = model
-
-    @torch.no_grad()
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.argmax(self.model(x)[1], dim=1)
-
-
 class SeparationLoss(nn.Module):
-    """Large margin separation between hyperspherical protoypes"""
+    """Large margin loss separation between hyperspherical protoypes.
 
-    def __init__(self):
+    Args:
+        reduction (str): Specifies the reduction to apply to the output: 'mean' | 'sum'.
+    """
+
+    def __init__(self, reduction: Literal["mean", "sum"] = "mean"):
         super(SeparationLoss, self).__init__()
+        self.reduction = reduction
 
     def forward(self, protos: torch.Tensor) -> torch.Tensor:
         # protos: (N_prototypes x Embedding_dimension)
         M = torch.matmul(protos, protos.transpose(0, 1)) - 2 * torch.eye(
             protos.shape[0]).to(protos.device)
-        return M.max(dim=1)[0].mean()
+        loss = M.max(dim=1)[0]
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        return loss
 
 
 class FedHPClient(PFLClient):
@@ -76,11 +83,13 @@ class FedHPClient(PFLClient):
                  local_epochs: int,
                  n_protos: int,
                  lam: float,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         embedding_size = get_activation_size(model, train_set.tensors[0][0])
         super().__init__(index=index, model=ProtoNet(model, n_protos, embedding_size),
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
-                         loss_fn=loss_fn, local_epochs=local_epochs, **kwargs)
+                         loss_fn=loss_fn, local_epochs=local_epochs,
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(n_protos=n_protos, lam=lam)
         self.model = self.personalized_model
         self.anchors = None
@@ -98,7 +107,7 @@ class FedHPClient(PFLClient):
                           "prototypes", self), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
                        else self.hyper_params.local_epochs)
         self.model.train()
         self.model.to(self.device)
@@ -136,12 +145,12 @@ class FedHPClient(PFLClient):
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.anchors is not None:
-            model = FedHPModel(self.model)
+            model = ArgMaxModule(self.model)
             return evaluator.evaluate(self._last_round, model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:
-        self.fit()
+        self.fit(self.hyper_params.fine_tuning_epochs)
         metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
         if metrics:
             self._notify_evaluation(-1, "post-fit", metrics)
@@ -219,8 +228,10 @@ class FedHPServer(Server):
     def get_client_models(self, eligible: Iterable[Client], state_dict: bool = False) -> list[Any]:
         return [self.channel.receive(self, client, "prototypes").payload for client in eligible]
 
-    def aggregate(self, eligible: Iterable[FedHPClient]) -> None:
-        clients_prototypes = self.get_client_models(eligible)
+    def aggregate(self,
+                  eligible: Iterable[FedHPClient],
+                  client_models: Iterable[nn.Module]) -> None:
+        clients_prototypes = client_models
         clients_weights = self.clients_class_weights[:, [client.index for client in eligible]].T
         avg_proto = torch.zeros_like(clients_prototypes[0])
 

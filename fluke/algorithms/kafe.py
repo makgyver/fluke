@@ -11,6 +11,7 @@ import sys
 from typing import Iterable
 
 import torch
+from torch.nn import Module
 import numpy as np
 from sklearn.neighbors import KernelDensity
 
@@ -40,9 +41,10 @@ class KafeServer(Server):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(bandwidth=bandwidth)
 
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         avg_model_sd = OrderedDict()
-        clients_sd = self.get_client_models(eligible)
+        clients_sd = [c.state_dict() for c in client_models]
+        del client_models
         weights = self._get_client_weights(eligible)
 
         # get last layer of m clients' weights
@@ -55,6 +57,10 @@ class KafeServer(Server):
 
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
                 avg_model_sd[key] = self.model.state_dict()[key].clone()
+                continue
+            if key.endswith("num_batches_tracked"):
+                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
+                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
                 continue
             for i, client_sd in enumerate(clients_sd):
                 if key not in avg_model_sd:

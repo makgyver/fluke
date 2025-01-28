@@ -16,7 +16,7 @@ sys.path.append("..")
 
 from fluke.nets import EncoderGlobalHeadLocalNet  # NOQA
 from fluke.nets import (FEMNIST_CNN, MNIST_2NN, MNIST_CNN, MNIST_LR,  # NOQA
-                        VGG9, CifarConv2, FedavgCNN, FedBN_CNN,
+                        VGG9, CifarConv2, FedAVGCNN, FedBN_CNN,
                         HeadGlobalEncoderLocalNet, LeNet5, MoonCNN, ResNet9,
                         ResNet18, ResNet18GN, ResNet34, ResNet50,
                         Shakespeare_LSTM)
@@ -82,7 +82,7 @@ def test_convnets():
     assert z.shape == (1, 512)
     assert torch.allclose(y1, y2)
 
-    model = FedavgCNN()
+    model = FedAVGCNN()
     x = torch.randn(1, 3, 32, 32)
     y1 = model(x)
     z = model.forward_encoder(x)

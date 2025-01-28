@@ -6,6 +6,7 @@ import gc
 import importlib
 import inspect
 import os
+import pickle
 import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Union
@@ -27,6 +28,7 @@ sys.path.append("..")
 
 if TYPE_CHECKING:
     from client import Client  # NOQA
+    from server import Server  # NOQA
 
 from .. import DDict, GlobalSettings  # NOQA
 
@@ -48,7 +50,12 @@ __all__ = [
     'import_module_from_str',
     'plot_distribution',
     'bytes2human',
-    'memory_usage'
+    'memory_usage',
+    'get_temp_path',
+    'load_model',
+    'unload_model',
+    'load_obj',
+    'unload_obj'
 ]
 
 
@@ -283,6 +290,12 @@ class OptimizerConfigurator:
     def __repr__(self) -> str:
         return str(self)
 
+    def __getstate__(self) -> dict:
+        return self.__dict__
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+
 
 def import_module_from_str(name: str) -> Any:
     """Import a module from its name.
@@ -498,7 +511,8 @@ class Configuration(DDict):
 
         EXP_OPT_KEYS = {
             "device": "cpu",
-            "seed": 42
+            "seed": 42,
+            "inmemory": False
         }
 
         LOG_OPT_KEYS = {
@@ -575,6 +589,10 @@ class Configuration(DDict):
         for k, v in EXP_OPT_KEYS.items():
             if k not in self.exp:
                 self.exp[k] = v
+
+        for k, v in LOG_OPT_KEYS.items():
+            if k not in self.logger:
+                self.logger[k] = v
 
         for k in ALG_1L_REQUIRED_KEYS:
             if k not in self.method:
@@ -747,3 +765,100 @@ def memory_usage() -> tuple[int, int, int]:
     else:
         current_reserved = 0
     return proc.memory_info().rss, proc.memory_info().vms, current_reserved
+
+
+def get_temp_path(party: Client | Server | None, suffix: str = None) -> str:
+    """Get the temporary path.
+
+    Args:
+        party (Client | Server): The party.
+        suffix (str, optional): The suffix to append to the temporary path. Defaults to ``None``.
+    Returns:
+        str: The temporary path.
+    """
+    path = GlobalSettings().get_temp_path()
+    suffix = "" if suffix is None else ("_" + suffix)
+    if party is None:
+        path = os.path.join(path, f"obj{suffix}")
+    elif hasattr(party, "index"):
+        path = os.path.join(path, f"client_{party.index}{suffix}")
+    else:
+        path = os.path.join(path, f"server{suffix}")
+
+    return path
+
+
+def load_obj(suffix: str = None) -> Any:
+    """Load an object from a temporary path (i.e., on the disk) to the RAM.
+    The temporary path is stored in the ``GlobalSettings``.
+
+    Args:
+        suffix (str, optional): specific suffix to add to the default filename.
+            Defaults to ``None``.
+
+    Returns:
+        Any: The loaded object.
+    """
+    path = get_temp_path(None, suffix)
+    if os.path.exists(path):
+        # return torch.load(path, weights_only=True)
+        obj = pickle.load(open(path, "rb"))
+        os.remove(path)
+        return obj
+    else:
+        return None
+
+
+def unload_obj(obj: Any, suffix: str = None) -> None:
+    """Move the object from the RAM to the disk to free up memory.
+    The model is stored in the global settings temporary path.
+
+    Args:
+        party (Client | Server): the party for which to unload the model.
+        suffix (str, optional): specific suffix to add to the default filename.
+            Defaults to ``None``.
+    """
+    path = get_temp_path(None, suffix)
+    # torch.save(party.model, path)
+    pickle.dump(obj, open(path, "wb"))
+
+
+def load_model(party: Client | Server | None, attr_names: list[str]) -> dict[str, Module]:
+    """Load a torch model from a temporary path (i.e., on the disk) to the RAM.
+    The temporary path is stored in the ``GlobalSettings``.
+
+    Args:
+        party (Client | Server): the party for which to load the model.
+        attr_names (list[str]): The attribute names of the stored models.
+
+    Returns:
+        dict[str, Module]: The model(s).
+    """
+    models = {}
+    for suffix in attr_names:
+        path = get_temp_path(party, suffix)
+        if os.path.exists(path):
+            # return torch.load(path, weights_only=True)
+            model = pickle.load(open(path, "rb"))
+            os.remove(path)
+            models[suffix] = model
+        else:
+            models[suffix] = None
+    return models
+
+
+def unload_model(party: Client | Server, attr_to_unload: list[str]) -> None:
+    """Move the model(s) from the RAM to the disk to free up memory.
+    The references to the models are supposed to be found in the attributes listed in
+    ``attr_to_unload`` of the ``party``.
+    The models are stored in the global settings temporary path.
+
+    Args:
+        party (Client | Server): the party for which to unload models.
+        attr_to_unload (list[str]): The names of the attributes to unload.
+    """
+    for name in attr_to_unload:
+        model_ref = getattr(party, name)
+        if model_ref is not None:
+            path = get_temp_path(party, name)
+            pickle.dump(model_ref, open(path, "wb"))

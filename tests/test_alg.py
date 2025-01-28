@@ -143,9 +143,9 @@ def test_centralized_fl():
 
     assert fl.server._observers == [obs]
 
-    strfl = "CentralizedFL(model=fluke.nets.MNIST_2NN,Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
+    strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN,Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
-        "local_epochs=1),Server(weighted=True))"
+        "local_epochs=1,fine_tuning_epochs=0),Server(weighted=True,lr=1.0))"
 
     assert str(fl).replace(" ", "").replace(
         "\n", "").replace("\t", "") == strfl
@@ -163,12 +163,13 @@ def test_centralized_fl():
     assert obs.called_server_eval
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        fl.save(tmpdirname)
+        temppath = fl.save(tmpdirname)
         fl2 = CentralizedFL(2, splitter, hparams)
-        fl2.load(tmpdirname)
+        fl2.load(temppath)
 
         assert fl2.server.rounds == fl.server.rounds
 
+    GlobalSettings().set_inmemory(True)
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
@@ -201,9 +202,9 @@ def test_centralized_fl():
 
     fl.run(1, 0.5)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        fl.save(tmpdirname)
+        temppath = fl.save(tmpdirname)
         fl2 = PersonalizedFL(2, splitter, hparams)
-        fl2.load(tmpdirname)
+        fl2.load(temppath)
 
         assert fl2.server.rounds == fl.server.rounds
 
@@ -457,10 +458,10 @@ if __name__ == "__main__":
     # test_lgfedavg()
     # test_moon()
     # test_fedbn()
-    # test_pfedme()  # TO BE CHECKED
+    test_pfedme()  # TO BE CHECKED
     # test_scaffold()
     # test_superfed()
-    # test_per_fedavg()
+    test_per_fedavg()
     # test_fedavg()
     # test_fedprox()
     # test_fedsgd()
@@ -470,4 +471,4 @@ if __name__ == "__main__":
     # test_fedavgm()
     # test_fedhp()
     # test_fednh()
-    test_kafe()
+    # test_kafe()

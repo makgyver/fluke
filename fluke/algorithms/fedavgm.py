@@ -51,9 +51,9 @@ class FedAVGMServer(Server):
         self.momentum_vector = None
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         prev_model_sd = deepcopy(self.model.state_dict())
-        super().aggregate(eligible)
+        super().aggregate(eligible, client_models)
         avg_model_sd = self.model.state_dict()
 
         if self.momentum_vector is None:

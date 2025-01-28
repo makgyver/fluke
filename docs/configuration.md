@@ -85,6 +85,14 @@ each field (there is also a version without the comments).
             server: true
             # Whether to evaluate the client local models on the server-side test set
             locals: false
+        # Saving configuration
+        save:
+            # The path where to save the models
+            path: ./models
+            # The frequency of saving the models (in rounds)
+            save_every: 10
+            # Whether to save only the global model
+            global_only: false
         # Logger configuration
         logger:
             # `Log` is the standard output, `WandBLog` logs everything on weights and bias

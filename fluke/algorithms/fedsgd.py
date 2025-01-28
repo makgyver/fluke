@@ -20,12 +20,12 @@ from ..utils import OptimizerConfigurator  # NOQA
 
 
 __all__ = [
-    "ClientFedSGD",
+    "FedSGDClient",
     "FedSGD"
 ]
 
 
-class ClientFedSGD(Client):
+class FedSGDClient(Client):
     def __init__(self,
                  index: int,
                  train_set: FastDataLoader,
@@ -33,10 +33,11 @@ class ClientFedSGD(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.train_set.single_batch = True
         self.train_set.shuffle = True
         self.hyper_params.local_epochs = 1
@@ -45,4 +46,4 @@ class ClientFedSGD(Client):
 class FedSGD(CentralizedFL):
 
     def get_client_class(self) -> Client:
-        return ClientFedSGD
+        return FedSGDClient

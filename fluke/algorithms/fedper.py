@@ -23,6 +23,12 @@ from ..server import Server  # NOQA
 from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
+__all__ = [
+    "FedPerClient",
+    "FedPerServer",
+    "FedPer"
+]
+
 
 # https://arxiv.org/abs/1912.00818
 class FedPerClient(PFLClient):
@@ -35,10 +41,12 @@ class FedPerClient(PFLClient):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
+                 fine_tuning_epochs: int = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=EncoderGlobalHeadLocalNet(model),
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
-                         loss_fn=loss_fn, local_epochs=local_epochs, **kwargs)
+                         loss_fn=loss_fn, local_epochs=local_epochs,
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
 
     def send_model(self):
         self.channel.send(Message(deepcopy(self.model.get_global()), "model", self), self.server)
@@ -56,8 +64,9 @@ class FedPerServer(Server):
                  model: torch.nn.Module,
                  test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
-                 weighted: bool = False):
-        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
+                 weighted: bool = False,
+                 **kwargs: dict[str, Any]):
+        super().__init__(model=model, test_set=None, clients=clients, weighted=weighted, **kwargs)
 
 
 class FedPer(PersonalizedFL):

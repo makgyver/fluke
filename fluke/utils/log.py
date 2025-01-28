@@ -22,6 +22,7 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
+from ..utils import bytes2human  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
 
@@ -150,7 +151,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         if stats:
             rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-            rich.print(f"  Memory usage: {psutil.Process(os.getpid()).memory_percent():.2f} %")
+            proc = psutil.Process(os.getpid())
+            rich.print(f"  Memory usage: {bytes2human(proc.memory_full_info().uss)}" +
+                       f"[{proc.memory_percent():.2f} %]")
 
     def client_evaluation(self,
                           round: int,
@@ -211,6 +214,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
                          title="Total communication cost"))
+
+    def interrupted(self):
+        rich.print("\n[bold italic yellow]The experiment has been interrupted by the user.")
 
     def save(self, path: str) -> None:
         """Save the logger's history to a JSON file.
@@ -297,9 +303,6 @@ class TensorboardLog(Log):
         self._writer.flush()
         self._writer.close()
 
-    def save(self, path: str) -> None:
-        super().save(path)
-
 
 class WandBLog(Log):
     """Weights and Biases logger.
@@ -359,7 +362,6 @@ class WandBLog(Log):
 
     def save(self, path: str) -> None:
         super().save(path)
-        self.run.finish()
 
 
 class ClearMLLog(TensorboardLog):

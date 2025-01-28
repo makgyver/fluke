@@ -45,7 +45,7 @@ class Datasets:
     """Static class for loading datasets.
     Datasets are downloaded (if needed) into the ``path`` folder. The supported datasets are:
     ``MNIST``, ``MNISTM``, ``SVHN``, ``FEMNIST``, ``EMNIST``, ``CIFAR10``, ``CIFAR100``,
-    ``Tiny Imagenet``, ``Shakespear``, ``Fashion MNIST``, and ``CINIC10``.
+    ``Tiny Imagenet``, ``Shakespeare``, ``Fashion MNIST``, and ``CINIC10``.
     Each dataset but ``femnist`` and ``shakespeare`` can be transformed using the ``transforms``
     argument. Each dataset is returned as a :class:`fluke.data.DataContainer` object.
 
@@ -705,7 +705,7 @@ class Datasets:
         perm = permutation(len(client_tr_assignments))
         client_tr_assignments = [client_tr_assignments[i] for i in perm]
         client_te_assignments = [client_te_assignments[i] for i in perm]
-        return DummyDataContainer(client_tr_assignments, client_te_assignments, None, 64)
+        return DummyDataContainer(client_tr_assignments, client_te_assignments, None, 62)
 
     @classmethod
     def SHAKESPEARE(cls,

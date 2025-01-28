@@ -116,11 +116,12 @@ class FedSAMClient(Client):
                  optimizer_cfg: OptimizerConfigurator,
                  loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
+                 fine_tuning_epochs: int = 0,
                  rho: float = 0.05,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
         self.hyper_params.update(rho=rho)
 
     def _get_closure(self, X: torch.Tensor, y: torch.Tensor):
@@ -132,7 +133,8 @@ class FedSAMClient(Client):
         return closure
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs = override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        epochs: int = (override_local_epochs if override_local_epochs > 0
+                       else self.hyper_params.local_epochs)
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:

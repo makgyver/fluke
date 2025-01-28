@@ -10,6 +10,7 @@ import typer
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.progress import track
+import uuid
 
 sys.path.append(".")
 
@@ -21,7 +22,7 @@ from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)  # , plot_distribution)
 from .utils.log import get_logger  # NOQA
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 def version_callback(value: bool):
@@ -74,7 +75,7 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
 
     exp_name = f"Centralized_{cfg.data.dataset.name}_E{epochs}_S{cfg.exp.seed}"
     log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
-    log.init(**cfg)
+    log.init(**cfg, exp_id=uuid.uuid4().hex)
     log.log(f"Centralized Learning [ #Epochs = {epochs} ]\n")
 
     for e in range(epochs):
@@ -113,6 +114,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
 
     GlobalSettings().set_seed(cfg.exp.seed)
     GlobalSettings().set_device(cfg.exp.device)
+    GlobalSettings().set_inmemory(cfg.exp.inmemory)
     GlobalSettings().set_save_options(**cfg.save)
     data_container = Datasets.get(**cfg.data.dataset)
     evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
@@ -131,7 +133,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
                             cfg.method.hyperparameters)
     # plot_distribution(fl_algo.clients)
     log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
-    log.init(**cfg)
+    log.init(**cfg, exp_id=fl_algo.id)
     fl_algo.set_callbacks(log)
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
 
@@ -139,6 +141,7 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
         fl_algo.load(resume)
 
     fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
+    GlobalSettings().empty_temp_path()
 
 
 @app.command()
@@ -172,7 +175,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                      description="Clients training...")
     exp_name = "Clients-only_" + "_".join(str(cfg).split("_")[1:])
     log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
-    log.init(**cfg)
+    log.init(**cfg, exp_id=uuid.uuid4().hex)
 
     running_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in progress:

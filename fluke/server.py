@@ -16,7 +16,6 @@ from . import DDict, GlobalSettings, ObserverSubject  # NOQA
 from .comm import Channel, Message  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
-from .utils import clear_cache  # NOQA
 from .utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 if TYPE_CHECKING:
@@ -73,7 +72,8 @@ class Server(ObserverSubject):
                  test_set: FastDataLoader,
                  clients: Iterable[Client],
                  weighted: bool = False,
-                 lr: float = 1.0):
+                 lr: float = 1.0,
+                 **kwargs: dict[str, Any]):
         super().__init__()
         self.hyper_params = DDict(
             weighted=weighted,
@@ -87,9 +87,6 @@ class Server(ObserverSubject):
         self.rounds: int = 0
         self.test_set: FastDataLoader = test_set
         self._participants: set[int] = set()
-
-        for client in self.clients:
-            client.set_server(self)
 
     @property
     def channel(self) -> Channel:
@@ -168,11 +165,13 @@ class Server(ObserverSubject):
 
                     for c, client in enumerate(eligible):
                         client.local_update(round + 1)
+                        self._participants.update([client.index])
                         # clear_cache()
                         progress_client.update(task_id=task_local, completed=c+1)
                         progress_fl.update(task_id=task_rounds, advance=1)
 
-                    self.aggregate(eligible)
+                    client_models = self.get_client_models(eligible, state_dict=False)
+                    self.aggregate(eligible, client_models)
                     self._compute_evaluation(round, eligible)
                     self._notify_end_round(round + 1)
                     self.rounds += 1
@@ -214,6 +213,8 @@ class Server(ObserverSubject):
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
+        if self.rounds == 0:
+            return
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
@@ -236,7 +237,6 @@ class Server(ObserverSubject):
             return self.clients
         n = int(self.n_clients * eligible_perc)
         selected = np.random.choice(self.clients, n, replace=False)
-        self._participants.update([c.index for c in selected])
         return selected
 
     def get_client_models(self, eligible: Iterable[Client], state_dict: bool = True) -> list[Any]:
@@ -267,7 +267,7 @@ class Server(ObserverSubject):
             The computation of the weights do not adhere to the "best-practices" of ``fluke``
             because the server should not have direct access to the number of samples of the
             clients. Thus, the computation of the weights should be done communicating with the
-            clients through the channel, but for simplicity, we are not following this practice
+            clients through the channel but, for simplicity, we are not following this practice
             here. However, the communication overhead is negligible and does not affect the logged
             performance.
 
@@ -285,7 +285,7 @@ class Server(ObserverSubject):
             return [1. / len(eligible)] * len(eligible)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         r"""Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is True, the clients are weighted by their number of samples.
@@ -306,6 +306,7 @@ class Server(ObserverSubject):
 
         Args:
             eligible (Iterable[Client]): The clients that will participate in the aggregation.
+            client_models (Iterable[Module]): The models of the clients.
 
         References:
             .. [FedAVG] H. B. McMahan, E. Moore, D. Ramage, S. Hampson, and B. A. y Arcas,
@@ -313,7 +314,8 @@ class Server(ObserverSubject):
                In AISTATS (2017).
         """
         avg_model_sd = OrderedDict()
-        clients_sd = self.get_client_models(eligible)
+        clients_sd = [m.state_dict() for m in client_models]
+        del client_models
         weights = self._get_client_weights(eligible)
         for key in self.model.state_dict().keys():
             if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
@@ -322,7 +324,10 @@ class Server(ObserverSubject):
 
             if key.endswith("num_batches_tracked"):
                 mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
-                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
+                if key not in avg_model_sd:
+                    avg_model_sd[key] = mean_nbt
+                else:
+                    avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
                 continue
 
             for i, client_sd in enumerate(clients_sd):

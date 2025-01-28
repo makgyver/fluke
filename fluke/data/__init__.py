@@ -374,8 +374,14 @@ class DataSplitter:
               The clients' training and testing assignments and the server's testing assignment.
         """
         if isinstance(self.data_container, DummyDataContainer):
-            return (self.data_container.clients_tr,
-                    self.data_container.clients_te), self.data_container.server_data
+            assert n_clients <= len(self.data_container.clients_tr), "n_clients must be <= of " + \
+                "the number of clients in the `DummyDataContainer`."
+            client_ids = np.random.choice(
+                len(self.data_container.clients_tr), n_clients, replace=False
+            )
+            clients_tr = [self.data_container.clients_tr[i] for i in client_ids]
+            clients_te = [self.data_container.clients_te[i] for i in client_ids]
+            return (clients_tr, clients_te), self.data_container.server_data
 
         tranforms = self.data_container.transforms
         if self.server_test and self.keep_test:

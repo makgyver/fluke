@@ -33,9 +33,11 @@ __all__ = [
     "safe_load_state_dict",
     "state_dict_zero_like",
     "flatten_parameters",
+    "load_flattened_parameters",
     "get_activation_size",
     "check_model_fit_mem",
-    "AllLayerOutputModel"
+    "AllLayerOutputModel",
+    "ArgMaxModule"
 ]
 
 # ("num_batches_tracked", "running_mean", "running_var")
@@ -619,6 +621,7 @@ def state_dict_zero_like(state_dict: OrderedDict) -> OrderedDict:
     return output
 
 
+@torch.no_grad()
 def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
     """Returns the model parameters as a contiguous tensor.
 
@@ -627,17 +630,20 @@ def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
 
     Returns:
         torch.Tensor: The model parameters as a contiguous tensor of shape (n,), where n is the
-            number of parameters in the model.
+                number of parameters in the model.
     """
-    n = sum(p.numel() for p in model.parameters())
-    params = torch.zeros(n)
-    i = 0
-    for p in model.parameters():
-        params_slice = params[i:i + p.numel()]
-        params_slice.copy_(p.flatten())
-        p.data = params_slice.view(p.shape)
-        i += p.numel()
-    return params
+    return torch.nn.utils.parameters_to_vector(model.parameters())
+
+
+def load_flattened_parameters(model: torch.nn.Module,
+                              params: torch.Tensor) -> None:
+    """Load all the parameters of the model with the given model's parameters.
+
+    Args:
+        model (torch.nn.Module): The model to load the parameters into.
+        params (torch.Tensor): The flatten parameters to load into the model.
+    """
+    torch.nn.utils.vector_to_parameters(params, model.parameters())
 
 
 def get_activation_size(model: nn.Module, input_tensor: torch.Tensor = None) -> int:
@@ -831,41 +837,22 @@ class AllLayerOutputModel(nn.Module):
         return self.model(x)
 
 
-# if __name__ == "__main__":
-#     from fluke.nets import MNIST_2NN
-#     from fluke.data.datasets import Datasets
-#     from fluke.data import FastDataLoader
-#     model = MNIST_2NN(softmax=True)
-#     model_all = AllLayerOutputModel(model)
-#     data = Datasets.MNIST()
-#     dl = FastDataLoader(*data.train, num_labels=10, batch_size=2, shuffle=True)
+class ArgMaxModule(Module):
+    """Module that returns the argmax of the model output.
 
-#     yy = None
-#     for x, y in dl:
-#         model_all.model(x)
-#         yy = model(x)
-#         break
+    This module assume that the base network returns a the embeddings and the logits or similarities
+    wrt prototypes. This module is meant to be used in the context of a prototypical network for
+    evaluation purposes.
 
-#     print(model_all.activations_in.keys())
-#     print()
-#     print(model_all.activations_out.keys())
+    Args:
+        model (Module): The model to wrap.
+    """
 
-#     print(yy)
+    def __init__(self,
+                 model: Module):
+        super().__init__()
+        self.model: Module = model
 
-#     model_all.deactivate()
-#     for x, y in dl:
-#         model_all.model(x)
-#         break
-
-#     print(model_all.activations_in.keys())
-#     print()
-#     print(model_all.activations_out.keys())
-
-#     model_all.activate()
-#     for x, y in dl:
-#         model_all.model(x)
-#         break
-
-#     print(model_all.activations_in.keys())
-#     print()
-#     print(model_all.activations_out.keys())
+    @torch.no_grad()
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.argmax(self.model(x)[1], dim=1)
