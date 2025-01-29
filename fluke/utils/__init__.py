@@ -1,7 +1,6 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
 
-import gc
 # from enum import Enum
 import importlib
 import inspect
@@ -451,7 +450,6 @@ def clear_cache(ipc: bool = False):
         ipc (bool, optional): Whether to force collecting GPU memory after it has been released by
             CUDA IPC.
     """
-    gc.collect()
     torch.cuda.empty_cache()
     if ipc and torch.cuda.is_available():
         torch.cuda.ipc_collect()
