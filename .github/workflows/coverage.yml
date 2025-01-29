@@ -1,6 +1,6 @@
 name: Coverage with coveralls
 
-on: ["push"]
+on: ["push", "workflow_dispatch"]
 
 jobs:
   build:
