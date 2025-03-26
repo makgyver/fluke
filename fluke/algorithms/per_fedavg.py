@@ -64,11 +64,12 @@ class PerFedAVGClient(Client):
                  mode: str,
                  beta: float,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
 
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(
             mode=mode,
             beta=beta
@@ -129,7 +130,7 @@ class PerFedAVGClient(Client):
         self.model.train()
         self.model.to(self.device)
         if self.optimizer is None:
-            self.optimizer, _ = self.optimizer_cfg(self.model)
+            self.optimizer, _ = self._optimizer_cfg(self.model)
 
         iterations = len(self.train_set) * epochs
         running_loss = 0.0
@@ -153,6 +154,7 @@ class PerFedAVGClient(Client):
                 y_hat = self.model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step(self.model.parameters(), beta=self.hyper_params.beta)
 
             elif self.hyper_params.mode == "HF":
@@ -169,7 +171,7 @@ class PerFedAVGClient(Client):
                 raise ValueError(f"Invalid mode: {self.hyper_params.mode}")
 
         running_loss /= iterations
-        self.model.to("cpu")
+        self.model.cpu()
         return running_loss
 
 

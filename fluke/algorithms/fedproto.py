@@ -15,14 +15,14 @@ from torch.nn import Module
 sys.path.append(".")
 sys.path.append("..")
 
-from ..client import PFLClient  # NOQA
+from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from . import PersonalizedFL  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
+from . import CentralizedFL  # NOQA
 
 __all__ = [
     "FedProtoModel",
@@ -33,15 +33,6 @@ __all__ = [
 
 
 class FedProtoModel(Module):
-    """Model used by the FedProto algorithm.
-    This model wraps a neural network model and a set of prototypes.
-
-    Args:
-        model (EncoderHeadNet): The neural network model.
-        prototypes (dict[int, torch.Tensor]): The prototypes.
-        device (torch.device): The device where the model will run.
-    """
-
     def __init__(self,
                  model: EncoderHeadNet,
                  prototypes: dict[int, torch.Tensor],
@@ -70,7 +61,7 @@ class FedProtoModel(Module):
         return -output
 
 
-class FedProtoClient(PFLClient):
+class FedProtoClient(Client):
 
     def __init__(self,
                  index: int,
@@ -83,27 +74,29 @@ class FedProtoClient(PFLClient):
                  n_protos: int,
                  lam: float,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
         fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs else local_epochs
         super().__init__(index=index, model=model, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
+                         clipping=clipping, **kwargs)
         self.hyper_params.update(
             n_protos=n_protos,
             lam=lam
         )
+        if isinstance(model, str):
+            model = get_model(model)
         self.model = model
         self.prototypes = {i: None for i in range(self.hyper_params.n_protos)}
         self.global_protos = None
-        self._tounload.remove("personalized_model")
-        self._unload_model()
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
         self.global_protos = msg.payload
 
     def send_model(self):
-        self.channel.send(Message(self.prototypes, "model", self), self.server)
+        self.channel.send(Message(self.prototypes, "model", self, inmemory=True), self.server)
 
     def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
         for label, prts in protos.items():
@@ -117,7 +110,7 @@ class FedProtoClient(PFLClient):
         self.model.to(self.device)
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         mse_loss = torch.nn.MSELoss()
         protos = defaultdict(list)
@@ -145,13 +138,14 @@ class FedProtoClient(PFLClient):
                     protos[y_c].append(Z[i, :].detach().data)
 
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
         self._update_protos(protos)
         return running_loss
 
@@ -162,9 +156,9 @@ class FedProtoClient(PFLClient):
         return {}
 
     def finalize(self) -> None:
-        self._load_model()
+        self._load_from_cache()
         self.fit(self.hyper_params.fine_tuning_epochs)
-        self._unload_model()
+        self._save_to_cache()
 
 
 class FedProtoServer(Server):
@@ -172,22 +166,19 @@ class FedProtoServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[PFLClient],
+                 clients: Iterable[Client],
                  weighted: bool = True,
                  n_protos: int = 10):
         super().__init__(model=None, test_set=None, clients=clients, weighted=weighted)
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Iterable[Client]) -> None:
         # This function broadcasts the prototypes to the clients
         self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
 
-    def get_client_models(self, eligible: Iterable[PFLClient], state_dict: bool = False):
-        return [self.channel.receive(self, client, "model").payload for client in eligible]
-
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_protos = client_models
 
@@ -201,9 +192,9 @@ class FedProtoServer(Server):
                 self.prototypes[label] = torch.sum(torch.stack(protos), dim=0) / len(protos)
 
 
-class FedProto(PersonalizedFL):
+class FedProto(CentralizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> Client:
         return FedProtoClient
 
     def get_server_class(self) -> Server:

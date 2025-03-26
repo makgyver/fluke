@@ -16,7 +16,7 @@ sys.path.append("..")
 
 from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 # This implementation is based on
@@ -40,8 +40,8 @@ class SAMOptimizer(torch.optim.Optimizer):
         assert rho >= 0.0, f"Invalid rho, should be non-negative: {rho}"
 
         defaults = dict(rho=rho, adaptive=adaptive, **kwargs)
-        super(SAMOptimizer, self).__init__(params, defaults)
-
+        super().__init__(params, defaults)
+        self.defaults = defaults
         self.base_optimizer = base_optimizer(self.param_groups, **kwargs)
         self.param_groups = self.base_optimizer.param_groups
 
@@ -106,6 +106,15 @@ class SAMOptimizer(torch.optim.Optimizer):
         super().load_state_dict(state_dict)
         self.base_optimizer.param_groups = self.param_groups
 
+    def __getstate__(self) -> dict[str, Any]:
+        state = super().__getstate__()
+        state["base_optimizer"] = self.base_optimizer
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        super().__setstate__(state)
+        self.base_optimizer = state["base_optimizer"]
+
 
 class FedSAMClient(Client):
 
@@ -117,11 +126,12 @@ class FedSAMClient(Client):
                  loss_fn: torch.nn.Module,  # ignored
                  local_epochs: int,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  rho: float = 0.05,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(rho=rho)
 
     def _get_closure(self, X: torch.Tensor, y: torch.Tensor):
@@ -129,6 +139,7 @@ class FedSAMClient(Client):
             y_hat = self.model(X)
             loss = self.hyper_params.loss_fn(y_hat, y)
             loss.backward()
+            self._clip_grads(self.model)
             return loss
         return closure
 
@@ -138,8 +149,8 @@ class FedSAMClient(Client):
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model,
-                                                                rho=self.hyper_params.rho)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model,
+                                                                 rho=self.hyper_params.rho)
         running_loss = 0.0
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
@@ -149,8 +160,8 @@ class FedSAMClient(Client):
             self.scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
         return running_loss
 
 

@@ -24,17 +24,24 @@
 .. autosummary:: 
    :nosignatures:
 
-   fit
-   broadcast_model
-   get_eligible_clients
-   get_client_models
-   _get_client_weights
    aggregate
+   broadcast_model
+   channel
+   evaluate
    finalize
+   fit
+   get_eligible_clients
+   has_test
+   has_model
+   load
+   receive_client_models
+   save
+   state_dict
+   _get_client_weights
 
 .. currentmodule:: fluke.server
 
 .. autoclass:: Server
-   :members: fit, broadcast_model, get_eligible_clients, get_client_models, _get_client_weights, aggregate, finalize
+   :members: aggregate, broadcast_model, channel, evaluate, finalize, fit, get_eligible_clients, has_test, has_model, load, receive_client_models, save, state_dict, _get_client_weights
 
 ```

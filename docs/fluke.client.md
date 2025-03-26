@@ -43,17 +43,27 @@ Classes included in ``fluke.client``
 .. autosummary:: 
    :nosignatures:
 
-   index
-   n_examples
    channel
-   server
-   set_server
-   fit
-   local_update
-   receive_model
-   send_model
    evaluate
    finalize
+   fit
+   index
+   load
+   local_model
+   local_update
+   model
+   optimizer
+   n_examples
+   receive_model
+   save
+   scheduler
+   send_model
+   server
+   set_server
+   state_dict
+
+   _load_from_cache
+   _save_to_cache
 
 ```
 
@@ -62,7 +72,7 @@ Classes included in ``fluke.client``
 .. autoclass:: fluke.client.Client
    :member-order: bysource
    :show-inheritance:
-   :members: index, n_examples, channel, server, set_server, local_update, fit, receive_model, send_model, evaluate, finalize
+   :members: channel, evaluate, finalize, fit, index, load, local_model, local_update, model, optimizer, n_examples, receive_model, save, scheduler, send_model, server, set_server, state_dict, _load_from_cache, _save_to_cache
 
 ```
 
@@ -81,6 +91,10 @@ Classes included in ``fluke.client``
    :nosignatures:
 
    evaluate
+   local_model
+   personalized_model
+   pers_scheduler
+   pers_optimizer
 
 .. currentmodule:: fluke.client
 

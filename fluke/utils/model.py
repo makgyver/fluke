@@ -2,46 +2,94 @@
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from dataclasses import dataclass, field
 from functools import partial
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 import torch
 from torch import nn
 from torch.nn import Module
 from torch.nn import functional as F
+from torch.optim import Optimizer, lr_scheduler
 
 sys.path.append(".")
 sys.path.append("..")
 
 
 __all__ = [
+    "AllLayerOutputModel",
+    "ModOpt",
     "MMMixin",
     "LinesLinear",
     "LinesConv2d",
     "LinesLSTM",
     "LinesEmbedding",
     "LinesBN2d",
-    "diff_model",
-    "merge_models",
-    "set_lambda_model",
-    "get_output_shape",
-    "get_local_model_dict",
-    "get_global_model_dict",
-    "mix_networks",
+    "aggregate_models",
     "batch_norm_to_group_norm",
-    "safe_load_state_dict",
-    "state_dict_zero_like",
-    "flatten_parameters",
-    "load_flattened_parameters",
-    "get_activation_size",
     "check_model_fit_mem",
-    "AllLayerOutputModel",
-    "ArgMaxModule"
+    "diff_model",
+    "flatten_parameters",
+    "get_activation_size",
+    "get_global_model_dict",
+    "get_local_model_dict",
+    "get_output_shape",
+    "get_trainable_keys",
+    "merge_models",
+    "mix_networks",
+    "set_lambda_model",
+    "safe_load_state_dict",
+    "state_dict_zero_like"
 ]
 
 # ("num_batches_tracked", "running_mean", "running_var")
 STATE_DICT_KEYS_TO_IGNORE = tuple()
+
+
+@dataclass
+class ModOpt:
+    """Dataclass to store the model, its associated optimizer and scheduler.
+
+    Attributes:
+        model (Module): The model.
+        optimizer (Optimizer): The optimizer.
+        scheduler (lr_scheduler._LRScheduler): The scheduler.
+    """
+    model: Module = field(default=None, metadata={"help": "The model"})
+    optimizer: Optimizer = field(default=None, metadata={"help": "The optimizer"})
+    scheduler: lr_scheduler._LRScheduler = field(
+        default=None, metadata={"help": "The scheduler"})
+    additional: dict[str, Any] = field(default=None, metadata={"help": "Additional fields"})
+
+    def state_dict(self) -> dict:
+        """Get the state dictionary of the model, optimizer and scheduler, plus additional fields.
+
+        Returns:
+            dict: The state dictionary.
+        """
+        return {
+            "model": self.model.state_dict() if self.model is not None else None,
+            "optimizer": self.optimizer.state_dict() if self.optimizer is not None else None,
+            "scheduler": self.scheduler.state_dict() if self.scheduler is not None else None,
+            "additional": self.additional
+        }
+
+    def load_state_dict(self, state_dict: dict) -> None:
+        """Load the state dictionary into the model, optimizer and scheduler, plus
+        additional fields if present.
+
+        Args:
+            state_dict (dict): The state dictionary.
+        """
+        if self.model is not None and "model" in state_dict:
+            self.model.load_state_dict(state_dict["model"])
+        if self.optimizer is not None and "optimizer" in state_dict:
+            self.optimizer.load_state_dict(state_dict["optimizer"])
+        if self.scheduler is not None and "scheduler" in state_dict:
+            self.scheduler.load_state_dict(state_dict["scheduler"])
+        if "additional" in state_dict:
+            self.additional = state_dict["additional"]
 
 
 class MMMixin:
@@ -549,8 +597,8 @@ def merge_models(model_1: Module, model_2: Module, lam: float) -> Module:
 def safe_load_state_dict(model1: Module, model2_state_dict: dict) -> None:
     """Load a state dictionary into a model.
     This function is a safe version of ``model.load_state_dict`` that handles the case in which the
-    state dictionary has keys that match with ``STATE_DICT_KEYS_TO_IGNORE`` and thus have to be
-    ignored.
+    state dictionary has keys that match with :attr:`fluke.utils.model.STATE_DICT_KEYS_TO_IGNORE`
+    and thus have to be ignored.
 
     Caution:
         This function performs an inplace operation on ``model1``.
@@ -615,13 +663,21 @@ def batch_norm_to_group_norm(layer: Module) -> Module:
 
 
 def state_dict_zero_like(state_dict: OrderedDict) -> OrderedDict:
+    """Create a state dictionary with the same keys as the input state dictionary but with zeros
+    tensors.
+
+    Args:
+        state_dict (OrderedDict): The state dictionary.
+
+    Returns:
+        OrderedDict: The state dictionary with zeros tensors.
+    """
     output = OrderedDict()
     for k, v in state_dict.items():
         output[k] = torch.zeros_like(v)
     return output
 
 
-@torch.no_grad()
 def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
     """Returns the model parameters as a contiguous tensor.
 
@@ -630,20 +686,17 @@ def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
 
     Returns:
         torch.Tensor: The model parameters as a contiguous tensor of shape (n,), where n is the
-                number of parameters in the model.
+            number of parameters in the model.
     """
-    return torch.nn.utils.parameters_to_vector(model.parameters())
-
-
-def load_flattened_parameters(model: torch.nn.Module,
-                              params: torch.Tensor) -> None:
-    """Load all the parameters of the model with the given model's parameters.
-
-    Args:
-        model (torch.nn.Module): The model to load the parameters into.
-        params (torch.Tensor): The flatten parameters to load into the model.
-    """
-    torch.nn.utils.vector_to_parameters(params, model.parameters())
+    n = sum(p.numel() for p in model.parameters())
+    params = torch.zeros(n)
+    i = 0
+    for p in model.parameters():
+        params_slice = params[i:i + p.numel()]
+        params_slice.copy_(p.flatten())
+        p.data = params_slice.view(p.shape)
+        i += p.numel()
+    return params
 
 
 def get_activation_size(model: nn.Module, input_tensor: torch.Tensor = None) -> int:
@@ -672,6 +725,87 @@ def get_activation_size(model: nn.Module, input_tensor: torch.Tensor = None) -> 
         raise ValueError(
             "'input_tensor' must be not None if the last layer of the network is not nn.Linear.")
     return model(input_tensor).numel()
+
+
+def get_trainable_keys(model: nn.Module) -> list[str]:
+    """Get the keys of the model parameters that are trainable (i.e., require gradients).
+
+    Args:
+        model (nn.Module): The model.
+
+    Returns:
+        list[str]: The keys of the model parameters that are trainable.
+    """
+    return [k for k, p in model.named_parameters() if p.requires_grad]
+
+
+def aggregate_models(target_model: nn.Module,
+                     models: Iterable[nn.Module],
+                     weights: Iterable[float],
+                     eta: float,
+                     inplace: bool = True) -> nn.Module:
+    r"""Aggregate the models using a weighted average.
+    The method aggregates the models using a weighted average of the parameters and updates the
+    target model with the aggregated parameters. The aggregation is done using the formula:
+
+    .. math::
+
+        \theta_{t+1} = (1 - \eta) \theta_t + \eta \sum_{i=1}^{N} w_i \theta_i
+
+    where :math:`\theta_t` is the target model, :math:`\theta_i` are the models to aggregate,
+    :math:`w_i` are the weights of the models, :math:`N` is the number of models, and :math:`\eta`
+    is the learning rate of the aggregation.
+
+    Args:
+        target_model (nn.Module): The target model.
+        models (list[nn.Module]): The models to aggregate.
+        weights (list[float]): The weights of the models.
+        eta (float): The learning rate of the aggregation.
+        inplace (bool, optional): If ``True``, the target model is updated in place. Defaults to
+            ``True``.
+
+    Returns:
+        nn.Module: The updated target model.
+    """
+
+    if not inplace:
+        target_model = deepcopy(target_model)
+
+    # Get model parameters and buffers
+    model_params = dict(target_model.named_parameters())
+    model_buffers = dict(target_model.named_buffers())  # Includes running_mean, running_var, etc.
+
+    # Initialize accumulators for parameters
+    avg_params = {key: torch.zeros_like(param.data) for key, param in model_params.items()}
+    avg_buffers = {key: torch.zeros_like(buffer.data)
+                   for key, buffer in model_buffers.items() if "num_batches_tracked" not in key}
+
+    max_num_batches_tracked = 0  # Track the max num_batches_tracked
+
+    # Compute weighted sum (weights already sum to 1, so no division needed)
+    for m, w in zip(models, weights):
+        for key, param in m.named_parameters():
+            avg_params[key].add_(param.data, alpha=w)
+
+        for key, buffer in m.named_buffers():
+            if "num_batches_tracked" not in key:
+                avg_buffers[key].add_(buffer.data, alpha=w)
+            else:
+                max_num_batches_tracked = max(max_num_batches_tracked, buffer.item())
+
+    for key in model_params.keys():
+        model_params[key].data.lerp_(avg_params[key], eta)  # Soft update
+
+    for key in model_buffers.keys():
+        if "num_batches_tracked" not in key:
+            model_buffers[key].data.lerp_(avg_buffers[key], eta)
+
+    # Assign max num_batches_tracked
+    for key in model_buffers.keys():
+        if "num_batches_tracked" in key:
+            model_buffers[key].data.fill_(max_num_batches_tracked)
+
+    return target_model
 
 
 def check_model_fit_mem(model: torch.nn.Module,
@@ -818,7 +952,12 @@ class AllLayerOutputModel(nn.Module):
         #     self._handles.append(layer.register_forward_hook(self._get_activation(layer)))
 
     def deactivate(self, clear_activations: bool = True) -> None:
-        """Deactivate the all layer output functionality."""
+        """Deactivate the all layer output functionality.
+
+        Args:
+            clear_activations (bool, optional): Whether to clear the stored activations. Defaults to
+                ``True``.
+        """
         for h in self._handles:
             h.remove()
         self._handles = []
@@ -835,24 +974,3 @@ class AllLayerOutputModel(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
-
-class ArgMaxModule(Module):
-    """Module that returns the argmax of the model output.
-
-    This module assume that the base network returns a the embeddings and the logits or similarities
-    wrt prototypes. This module is meant to be used in the context of a prototypical network for
-    evaluation purposes.
-
-    Args:
-        model (Module): The model to wrap.
-    """
-
-    def __init__(self,
-                 model: Module):
-        super().__init__()
-        self.model: Module = model
-
-    @torch.no_grad()
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.argmax(self.model(x)[1], dim=1)

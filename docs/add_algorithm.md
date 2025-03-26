@@ -42,6 +42,7 @@ The details of the implementation of the server, the client, and the federated l
    def_alg/def_client
    def_alg/def_server
    def_alg/def_centralizedfl
+   def_alg/def_caching
 
 ```
 

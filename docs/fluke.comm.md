@@ -34,18 +34,21 @@
 .. autosummary:: 
    :nosignatures:
 
-   payload
-   msg_type
-   sender
-   get_size
+   cache
    clone
+   id
+   msg_type
+   payload
+   ram
+   sender
+   size
 
 ```
 
 ```{eval-rst}
 .. autoclass:: fluke.comm.Message
    :member-order: bysource
-   :members: payload, msg_type, sender, get_size, clone
+   :members: cache, clone, id, msg_type, payload, ram, sender, size
 
 ```
 
@@ -63,20 +66,20 @@
 .. autosummary:: 
    :nosignatures:
 
-   buffer
    __getitem__
-   send
-   receive
    broadcast
+   buffer
    clear
-
+   receive
+   send
+   
 ```
 
 ```{eval-rst}
 
 .. autoclass:: fluke.comm.Channel
    :show-inheritance:
-   :members: buffer, __getitem__, send, receive, broadcast, clear
+   :members:  __getitem__, broadcast, buffer, clear, receive, send
 
 ```
 

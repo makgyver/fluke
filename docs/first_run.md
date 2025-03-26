@@ -9,7 +9,7 @@ To do so, you need two configuration files:
 Then, you can run the following command:
 
 ```bash
-fluke --config=EXP_CONFIG_FILE federation ALG_CONFIG_FILE
+fluke federation EXP_CONFIG_FILE ALG_CONFIG_FILE
 ```
 
 ```{eval-rst}
@@ -21,8 +21,8 @@ fluke --config=EXP_CONFIG_FILE federation ALG_CONFIG_FILE
 
     .. code-block:: bash
 
-        fluke --config=EXP_CONFIG_FILE centralized ALG_CONFIG_FILE
-        fluke --config=EXP_CONFIG_FILE clients-only ALG_CONFIG_FILE
+        fluke centralized EXP_CONFIG_FILE ALG_CONFIG_FILE
+        fluke clients-only EXP_CONFIG_FILE ALG_CONFIG_FILE
     
     In these settings, the same configuration files as the federated case can be used but some
     of the parameters might be ignored and some others are adjusted to be consistent with the
@@ -54,7 +54,7 @@ In particular, we will use the configuration files [exp.yaml](https://github.com
 and [fedavg.yaml](https://github.com/makgyver/fluke/tree/main/configs/fedavg.yaml) to run the classic [`FedAvg`](#fluke.algorithms.fedavg.FedAVG) algorithm on the [`MNIST`](#fluke.data.datasets.Datasets) dataset.
 
 ```bash
-fluke --config=path_to_configs/exp.yaml federation path_to_configs/fedavg.yaml
+fluke federation path_to_configs/exp.yaml path_to_configs/fedavg.yaml
 ```
 
 where `path_to_configs` is the path to the folder containing the configuration files.

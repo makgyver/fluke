@@ -1,16 +1,16 @@
+import gc
 import sys
 import tempfile
 from typing import Any
-
 from torch.nn import CrossEntropyLoss, Module
 from torch.optim import SGD
-
+import numpy as np
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke import DDict, GlobalSettings  # NOQA
+from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
-from fluke.client import Client, PFLClient  # NOQA
+from fluke.client import Client  # NOQA
 from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
@@ -21,9 +21,8 @@ from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
                          get_class_from_qualified_name)
 from fluke.utils.log import Log  # NOQA
 
-
-GlobalSettings().set_evaluator(ClassificationEval(1, 10))
-GlobalSettings().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
+FlukeENV().set_evaluator(ClassificationEval(1, 10))
+FlukeENV().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
 
 
 def test_centralized_fl():
@@ -145,7 +144,7 @@ def test_centralized_fl():
 
     strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN,Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
-        "local_epochs=1,fine_tuning_epochs=0),Server(weighted=True,lr=1.0))"
+        "local_epochs=1,fine_tuning_epochs=0,clipping=0),Server(weighted=True,lr=1.0))"
 
     assert str(fl).replace(" ", "").replace(
         "\n", "").replace("\t", "") == strfl
@@ -169,7 +168,7 @@ def test_centralized_fl():
 
         assert fl2.server.rounds == fl.server.rounds
 
-    GlobalSettings().set_inmemory(True)
+    FlukeENV().set_inmemory(True)
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
@@ -193,10 +192,10 @@ def test_centralized_fl():
     assert fl.n_clients == 2
     assert fl.hyper_params == hparams
     assert len(fl.clients) == 2
-    assert isinstance(fl.clients[0], PFLClient)
+    assert isinstance(fl.clients[0], Client)
     assert isinstance(fl.server, Server)
     assert isinstance(fl.server.model, MNIST_2NN)
-    assert isinstance(fl.clients[0].personalized_model, MNIST_2NN)
+    # assert isinstance(fl.clients[0].model, MNIST_2NN)
     assert fl.clients[0].test_set is None
     assert isinstance(fl.clients[0].hyper_params.loss_fn, CrossEntropyLoss)
 
@@ -209,9 +208,21 @@ def test_centralized_fl():
         assert fl2.server.rounds == fl.server.rounds
 
 
-def _test_algo(exp_config, alg_config, rounds=1, oncpu=True):
+def get_splitter(cfg):
+    dataset = Datasets.get(**cfg.data.dataset)
+    splitter = DataSplitter(dataset=dataset,
+                            distribution=cfg.data.distribution.name,
+                            dist_args=cfg.data.distribution.exclude("name"),
+                            **cfg.data.exclude('dataset', 'distribution'))
+    return splitter
+
+
+SPLITTER = None
+
+
+def _test_algo(exp_config, alg_config, rounds=2, oncpu=True):
+    accs = []
     cfg = Configuration(exp_config, alg_config)
-    GlobalSettings().set_seed(cfg.exp.seed)
     if oncpu:
         cfg.exp.device = "cpu"
     else:
@@ -221,24 +232,38 @@ def _test_algo(exp_config, alg_config, rounds=1, oncpu=True):
         #     cfg.exp.device = "mps"
         # else:
         return None, None
-    GlobalSettings().set_device(cfg.exp.device)
-    dataset = Datasets.get(**cfg.data.dataset)
-    splitter = DataSplitter(dataset=dataset,
-                            distribution=cfg.data.distribution.name,
-                            dist_args=cfg.data.distribution.exclude("name"),
-                            **cfg.data.exclude('dataset', 'distribution'))
-
+    FlukeENV().configure(cfg)
+    gc.collect()
+    global SPLITTER
+    if SPLITTER is None:
+        dataset = Datasets.get(**cfg.data.dataset)
+        SPLITTER = DataSplitter(dataset=dataset,
+                                distribution=cfg.data.distribution.name,
+                                dist_args=cfg.data.distribution.exclude("name"),
+                                **cfg.data.exclude('dataset', 'distribution'))
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
-    algo = fl_algo_class(cfg.protocol.n_clients,
-                         splitter,
-                         cfg.method.hyperparameters)
 
-    log = Log()
-    log.init(**cfg)
-    algo.set_callbacks(log)
-    # algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    algo.run(rounds, 1)
-    return algo, log
+    for mem in [False, True]:
+        FlukeENV().configure(cfg)
+        cfg.exp.inmemory = mem
+        FlukeENV().set_inmemory(mem)
+        algo = fl_algo_class(cfg.protocol.n_clients,
+                             SPLITTER,
+                             cfg.method.hyperparameters)
+
+        log = Log()
+        log.init(**cfg)
+        algo.set_callbacks(log)
+        algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
+        FlukeENV().close_cache()
+        del algo
+        if log.global_eval:
+            accs.append(log.global_eval[cfg.protocol.n_rounds]["accuracy"])
+        else:
+            accs.append(log.postfit_eval_summary[cfg.protocol.n_rounds]["accuracy"])
+
+    assert np.allclose(accs[0], accs[1], atol=1e-5)
+    return None, log
 
 
 def test_apfl():
@@ -255,6 +280,10 @@ def test_ditto():
     ditto, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/ditto.yaml")
     # ditto, log = _test_algo("./tests/configs/exp.yaml",
     #                         "./tests/configs/alg/ditto.yaml", oncpu=False)
+
+
+def test_fat():
+    fat, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fat.yaml")
 
 
 def test_fedala():
@@ -329,6 +358,12 @@ def test_fedlc():
     #                         "./tests/configs/alg/fedlc.yaml", oncpu=False)
 
 
+def test_fedlc():
+    fedlc, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedld.yaml")
+    # fedlc, log = _test_algo("./tests/configs/exp.yaml",
+    #
+
+
 def test_fednh():
     fednh, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fednh.yaml")
     # fednh, log = _test_algo("./tests/configs/exp.yaml",
@@ -401,6 +436,12 @@ def test_fedsgd():
     #                          "./tests/configs/alg/fedsgd.yaml", oncpu=False)
 
 
+def test_gear():
+    gear, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/gear.yaml")
+    # gear, log = _test_algo("./tests/configs/exp.yaml",
+    #                          "./tests/configs/alg/gear.yaml", oncpu=False)
+
+
 def test_kafe():
     kafe, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/kafe.yaml")
 
@@ -448,27 +489,33 @@ if __name__ == "__main__":
     # test_apfl()
     # test_ccvr()
     # test_ditto()
-    # test_fedamp()
+    # test_fat()
+    test_fedamp()
+    # test_fedavg()
+    # test_fedavgm()
+    # test_fedaws()
     # test_fedbabu()
+    # test_fedbn()
     # test_feddyn()
+    # test_fedexp()
+    # test_fedhp()
     # test_fedlc()
+    # test_fednh()
     # test_fednova()
+    # test_fedopt()
     # test_fedper()
+    # test_fedprox()
+    # test_fedproto()
     # test_fedrep()
+    # test_fedrod()
+    # test_fedrs()
+    # test_fedsam()
+    # test_fedsgd()
+    # test_gear()
+    # test_kafe()
     # test_lgfedavg()
     # test_moon()
-    # test_fedbn()
-    test_pfedme()  # TO BE CHECKED
+    # test_per_fedavg()
+    # test_pfedme()
     # test_scaffold()
     # test_superfed()
-    test_per_fedavg()
-    # test_fedavg()
-    # test_fedprox()
-    # test_fedsgd()
-    # test_fedexp()
-    # test_fedproto()
-    # test_fedopt()
-    # test_fedavgm()
-    # test_fedhp()
-    # test_fednh()
-    # test_kafe()

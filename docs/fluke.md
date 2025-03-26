@@ -43,9 +43,12 @@ Classes included in ``fluke``
    :nosignatures:
 
    DDict
-   Singleton
-   GlobalSettings
+   FlukeCache
+   FlukeCache._ObjectRef
+   FlukeCache._RefCounter
+   FlukeENV
    ObserverSubject
+   Singleton
    
 ```
 
@@ -67,13 +70,13 @@ Classes included in ``fluke``
 
 <h3>
 
-{bdg-primary}`metaclass` ``fluke.Singleton``
+{bdg-primary}`class` ``fluke.FlukeCache``
 
 </h3>
 
 ```{eval-rst}
 
-.. autoclass:: fluke.Singleton
+.. autoclass:: fluke.FlukeCache
    :show-inheritance:
    :members:
 
@@ -81,13 +84,41 @@ Classes included in ``fluke``
 
 <h3>
 
-{bdg-primary}`class` ``fluke.GlobalSettings``
+{bdg-primary}`private class` ``fluke.FlukeCache._ObjectRef``
 
 </h3>
 
 ```{eval-rst}
 
-.. autoclass:: fluke.GlobalSettings
+.. autoclass:: fluke.FlukeCache._ObjectRef
+   :show-inheritance:
+   :members:
+
+```
+
+<h3>
+
+{bdg-primary}`private class` ``fluke.FlukeCache._RefCounter``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.FlukeCache._RefCounter
+   :show-inheritance:
+   :members:
+
+```
+
+<h3>
+
+{bdg-primary}`class` ``fluke.FlukeENV``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.FlukeENV
    :show-inheritance:
    :members:
 
@@ -107,3 +138,19 @@ Classes included in ``fluke``
    :members:
 
 ```
+
+<h3>
+
+{bdg-primary}`metaclass` ``fluke.Singleton``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.Singleton
+   :show-inheritance:
+   :members:
+
+```
+
+<h3>

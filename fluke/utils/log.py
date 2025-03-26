@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import psutil
 import rich
-from clearml import Task
 from rich.panel import Panel
 from rich.pretty import Pretty
 from torch.nn import Module
@@ -61,6 +60,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         self.prefit_eval_summary: dict = {}  # round -> evals (mean across clients)
         self.postfit_eval_summary: dict = {}  # round -> evals (mean across clients)
         self.comm_costs: dict = {0: 0}
+        self.mem_costs: dict = {}
         self.current_round: int = 0
 
     def log(self, message: str) -> None:
@@ -148,11 +148,12 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             stats['global'] = self.global_eval[round]
 
         stats['comm_cost'] = self.comm_costs[round]
+        proc = psutil.Process(os.getpid())
+        self.mem_costs[round] = proc.memory_full_info().uss
 
         if stats:
             rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-            proc = psutil.Process(os.getpid())
-            rich.print(f"  Memory usage: {bytes2human(proc.memory_full_info().uss)}" +
+            rich.print(f"  Memory usage: {bytes2human(self.mem_costs[round])}" +
                        f"[{proc.memory_percent():.2f} %]")
 
     def client_evaluation(self,
@@ -166,6 +167,8 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             round = self.current_round + 1
         dict_ref = self.prefit_eval if phase == 'pre-fit' else self.postfit_eval
         dict_ref[round] = {client_id: evals}
+        self.postfit_eval_summary[round] = pd.DataFrame(list(dict_ref[round].values())).mean(
+            numeric_only=True).to_dict()
 
     def server_evaluation(self,
                           round: int,
@@ -173,7 +176,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
                           **kwargs: dict[str, Any]) -> None:
 
-        if type == 'global':
+        if type == 'global' and evals:
             self.global_eval[round] = evals
         elif type == "locals" and evals:
             self.locals_eval[round] = evals
@@ -184,7 +187,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         Args:
             message (Message): The message received.
         """
-        self.comm_costs[self.current_round] += message.get_size()
+        self.comm_costs[self.current_round] += message.size
 
     def finished(self, round: int) -> None:
         stats = {}
@@ -203,7 +206,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Post-fit summary
         if self.postfit_eval:
-            stats['post-fit'] = self.postfit_eval_summary[max(self.global_eval.keys())]
+            stats['post-fit'] = self.postfit_eval_summary[max(self.postfit_eval.keys())]
 
         # Global summary
         if self.global_eval:
@@ -233,6 +236,10 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         }
         with open(path, 'w') as f:
             json.dump(json_to_save, f, indent=4)
+
+    def close(self) -> None:
+        """Close the logger."""
+        pass
 
 
 class TensorboardLog(Log):
@@ -277,7 +284,8 @@ class TensorboardLog(Log):
 
     def end_round(self, round: int) -> None:
         super().end_round(round)
-        self._report("global", self.global_eval[round], round)
+        if round in self.global_eval:
+            self._report("global", self.global_eval[round], round)
         self._writer.add_scalar("comm_costs", self.comm_costs[round], round)
         self._writer.flush()
 
@@ -300,6 +308,7 @@ class TensorboardLog(Log):
         if self.locals_eval_summary and round in self.locals_eval_summary:
             self._report("locals", self.locals_eval_summary[round], round)
 
+    def close(self) -> None:
         self._writer.flush()
         self._writer.close()
 
@@ -339,7 +348,8 @@ class WandBLog(Log):
 
     def end_round(self, round: int) -> None:
         super().end_round(round)
-        self.run.log({"global": self.global_eval[round]}, step=round)
+        if round in self.global_eval:
+            self.run.log({"global": self.global_eval[round]}, step=round)
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
 
         if self.prefit_eval_summary and round in self.prefit_eval_summary:
@@ -359,6 +369,9 @@ class WandBLog(Log):
 
         if self.locals_eval_summary and round in self.locals_eval_summary:
             self.run.log({"locals": self.locals_eval_summary[round]}, step=round)
+
+    def close(self) -> None:
+        self.run.finish()
 
     def save(self, path: str) -> None:
         super().save(path)
@@ -387,6 +400,8 @@ class ClearMLLog(TensorboardLog):
 
     def init(self, **kwargs: dict[str, Any]) -> None:
         super().init(**kwargs)
+        # imported here to avoid issues with requests
+        from clearml import Task
         self.task = Task.init(task_name=self.config.name, **self.config.exclude("name"))
         self.task.connect(kwargs)
 

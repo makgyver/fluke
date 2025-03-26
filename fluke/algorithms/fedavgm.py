@@ -54,7 +54,7 @@ class FedAVGMServer(Server):
     def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
         prev_model_sd = deepcopy(self.model.state_dict())
         super().aggregate(eligible, client_models)
-        avg_model_sd = self.model.state_dict()
+        agg_model_sd = self.model.state_dict()
 
         if self.momentum_vector is None:
             self.momentum_vector = state_dict_zero_like(prev_model_sd)
@@ -62,12 +62,12 @@ class FedAVGMServer(Server):
             for key in prev_model_sd:
                 self.momentum_vector[key].data = self.hyper_params.momentum * \
                     self.momentum_vector[key].data + \
-                    prev_model_sd[key].data - avg_model_sd[key].data
+                    prev_model_sd[key].data - agg_model_sd[key].data
 
         for key in prev_model_sd:
-            avg_model_sd[key].data = prev_model_sd[key].data - self.momentum_vector[key].data
+            agg_model_sd[key].data = prev_model_sd[key].data - self.momentum_vector[key].data
 
-        self.model.load_state_dict(avg_model_sd)
+        self.model.load_state_dict(agg_model_sd)
 
 
 class FedAVGM(CentralizedFL):

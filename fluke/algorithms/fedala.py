@@ -40,6 +40,7 @@ class FedALAClient(Client):
                  loss_fn: nn.Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  ala_sample_size: float = 0.8,
                  eta: float = 1.0,
                  conergence_threshold: float = 0.001,
@@ -47,7 +48,7 @@ class FedALAClient(Client):
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(ala_sample_size=ala_sample_size,
                                  eta=eta,
                                  conergence_threshold=conergence_threshold,
@@ -129,9 +130,9 @@ class FedALAClient(Client):
                     converged = True
 
         self.start_phase = False
-        self.model.to("cpu")
-        temp_model.to("cpu")
-        server_model.to("cpu")
+        self.model.cpu()
+        temp_model.cpu()
+        server_model.cpu()
         safe_load_state_dict(self.model.head, temp_model.head.state_dict())
 
     def receive_model(self) -> None:

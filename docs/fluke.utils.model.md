@@ -46,19 +46,21 @@ Functions included in ``fluke.utils.model``
 .. autosummary:: 
    :nosignatures:
 
-   diff_model
-   merge_models
-   set_lambda_model
-   get_output_shape
-   get_local_model_dict
-   get_global_model_dict
-   mix_networks
+   aggregate_models
    batch_norm_to_group_norm
-   safe_load_state_dict
    check_model_fit_mem
+   diff_model
    flatten_parameters
-   load_flattened_parameters
    get_activation_size
+   get_global_model_dict
+   get_local_model_dict
+   get_output_shape
+   get_trainable_keys
+   merge_models
+   mix_networks
+   set_lambda_model
+   safe_load_state_dict
+   state_dict_zero_like
    
 ```
 
@@ -75,6 +77,19 @@ Functions included in ``fluke.utils.model``
 ```{eval-rst}
 
 .. autoclass:: fluke.utils.model.MMMixin
+   :members:
+
+```
+
+<h3>
+
+{bdg-primary}`class` ``fluke.utils.model.ModOpt``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.utils.model.ModOpt
    :members:
 
 ```
@@ -170,30 +185,35 @@ Functions included in ``fluke.utils.model``
 
 ```{eval-rst}
 
-.. autofunction:: fluke.utils.model.diff_model
-
-.. autofunction:: fluke.utils.model.merge_models
-
-.. autofunction:: fluke.utils.model.set_lambda_model
-
-.. autofunction:: fluke.utils.model.get_output_shape
-
-.. autofunction:: fluke.utils.model.get_local_model_dict
-
-.. autofunction:: fluke.utils.model.get_global_model_dict
-
-.. autofunction:: fluke.utils.model.mix_networks
+.. autofunction:: fluke.utils.model.aggregate_models
 
 .. autofunction:: fluke.utils.model.batch_norm_to_group_norm
 
-.. autofunction:: fluke.utils.model.safe_load_state_dict
-
 .. autofunction:: fluke.utils.model.check_model_fit_mem
+
+.. autofunction:: fluke.utils.model.diff_model
 
 .. autofunction:: fluke.utils.model.flatten_parameters
 
-.. autofunction:: fluke.utils.model.load_flattened_parameters
-
 .. autofunction:: fluke.utils.model.get_activation_size
+
+.. autofunction:: fluke.utils.model.get_global_model_dict
+
+.. autofunction:: fluke.utils.model.get_local_model_dict
+
+.. autofunction:: fluke.utils.model.get_output_shape
+
+.. autofunction:: fluke.utils.model.get_trainable_keys
+
+.. autofunction:: fluke.utils.model.merge_models
+
+.. autofunction:: fluke.utils.model.mix_networks
+
+.. autofunction:: fluke.utils.model.set_lambda_model
+
+.. autofunction:: fluke.utils.model.safe_load_state_dict
+
+.. autofunction:: fluke.utils.model.state_dict_zero_like
+
 
 ```

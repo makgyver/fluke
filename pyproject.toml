@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -9,31 +9,31 @@ exclude = []  # exclude packages matching these glob patterns (empty by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
 [project]
+license = "LGPL-2.1-or-later"
+license-files = ["LICENSE"]
 name = "fluke-fl"
-version = "0.5.1"
+version = "0.7.0"
 authors = [
-  { name="Mirko Polato", email="mirko.polato@unito.it" },
+  { name="Mirko Polato", email="mirko.polato@unito.it" }
 ]
 description = "Federated Learning Utility framework for Experimentation and research."
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.9"
-license = {file = "LICENSE"}
+requires-python = ">=3.10"
 keywords = ["federated learning", "deep learning", "pytorch"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent"
 ]
+
 dependencies = [
     "numpy",
     "pandas",
     "scikit-learn",
-    "scipy",
     "torch",
     "torchmetrics",
     "torchvision",
@@ -45,7 +45,9 @@ dependencies = [
     "tensorboard",
     "clearml",
     "matplotlib",
-    "seaborn"
+    "seaborn",
+    "diskcache",
+    "opacus"
 ]
 
 [project.scripts]

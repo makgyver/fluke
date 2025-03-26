@@ -42,7 +42,7 @@ The following excperts show the constructor of the [Client](../fluke.client.md) 
             self.optimizer_cfg: OptimizerConfigurator = optimizer_cfg
             self.optimizer: Optimizer = None
             self.scheduler: LRScheduler = None
-            self.device: device = GlobalSettings().get_device()
+            self.device: device = FlukeENV().get_device()
             self._server: Server = None
             self._channel: Channel = None
             self._last_round: int = 0
@@ -115,7 +115,7 @@ There is not much to say about the training loop itself. `fluke` is design to wo
 .. tip::
     
     Make sure to move the model to the correct device before training it. Be careful to move it back to the CPU before sending it to the server.
-    Cleaning up the CUDA cache is also a good practice to avoid memory leaks :ref:`fluke.utils.clear_cache <flake.utils.funct>`.
+    Cleaning up the CUDA cache is also a good practice to avoid memory leaks :ref:`fluke.utils.clear_cuda_cache <flake.utils.funct>`.
     This loading-unloading process on GPU may lead to a performance penalty in some cases (e.g., with many small models that could fit in the GPU memory at the same time). We plan to introduce a more efficient way to handle this in the future.
 
 ```
@@ -150,7 +150,7 @@ The following code snippet shows the ``fit`` method of the ``Client`` class.
 
         running_loss /= (epochs * len(self.train_set))
         self.model.to("cpu")
-        clear_cache()
+        clear_cuda_cache()
         return running_loss
 ```
 
@@ -245,7 +245,7 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
                 self.scheduler.step()
 
             self.model.to("cpu")
-            clear_cache()
+            clear_cuda_cache()
 ```
 
 ## Observer pattern

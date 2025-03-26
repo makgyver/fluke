@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Any
 import warnings
 
 import numpy as np
@@ -109,7 +109,6 @@ class FastDataLoader:
         tensors (Sequence[torch.Tensor]): Tensors of the dataset. Ideally, the first tensor should
           be the input data, and the second tensor should be the labels. However, this is not
           enforced and the user is responsible for ensuring that the tensors are used correctly.
-        batch_size (int): batch size.
         shuffle (bool): whether the data should be shuffled at each epoch. If ``True``, the data is
           shuffled at each iteration.
         transforms (callable): the transformation to be applied to the data.
@@ -133,12 +132,14 @@ class FastDataLoader:
                  transforms: Optional[callable] = None,
                  percentage: float = 1.0,
                  skip_singleton: bool = True,
-                 single_batch: bool = False):
+                 single_batch: bool = False,
+                 **kwargs: dict[str, Any]):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors), \
             "All tensors must have the same size along the first dimension."
         self.tensors: Iterable[torch.Tensor] = tensors
         self.num_labels: int = num_labels
         self.max_size = self.tensors[0].shape[0]
+        self.percentage: float = percentage
         self.set_sample_size(percentage)
         self.shuffle: bool = shuffle
         self.skip_singleton: bool = skip_singleton
@@ -376,9 +377,9 @@ class DataSplitter:
         if isinstance(self.data_container, DummyDataContainer):
             assert n_clients <= len(self.data_container.clients_tr), "n_clients must be <= of " + \
                 "the number of clients in the `DummyDataContainer`."
-            client_ids = np.random.choice(
+            client_ids = np.sort(np.random.choice(
                 len(self.data_container.clients_tr), n_clients, replace=False
-            )
+            ))
             clients_tr = [self.data_container.clients_tr[i] for i in client_ids]
             clients_te = [self.data_container.clients_te[i] for i in client_ids]
             return (clients_tr, clients_te), self.data_container.server_data

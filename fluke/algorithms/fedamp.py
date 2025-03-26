@@ -19,7 +19,7 @@ from ..client import PFLClient  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from . import PersonalizedFL  # NOQA
 
@@ -34,13 +34,13 @@ class FedAMPClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  lam: float = 0.2,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(lam=lam)
-        self.model = deepcopy(self.personalized_model)
 
     def _alpha(self):
         return self.optimizer.param_groups[0]["lr"]
@@ -66,7 +66,7 @@ class FedAMPClient(PFLClient):
         self.model.train()
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -77,16 +77,22 @@ class FedAMPClient(PFLClient):
                 loss = self.hyper_params.loss_fn(
                     y_hat, y) + self._proximal_loss(self.model, self.personalized_model)
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        self.personalized_model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        self.personalized_model.cpu()
+        clear_cuda_cache()
 
         return running_loss
+
+    def _load_from_cache(self):
+        super()._load_from_cache()
+        if self.model is None:
+            self.model = deepcopy(self.personalized_model)
 
 
 class FedAMPServer(Server):
@@ -115,8 +121,8 @@ class FedAMPServer(Server):
     @torch.no_grad()
     def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
 
-        for i, client in enumerate(eligible):
-            ci_model = client_models[i]
+        client_models = list(client_models)
+        for i, (client, ci_model) in enumerate(zip(eligible, client_models)):
             ui_model = self._empty_model()
 
             coef = torch.zeros(len(eligible))
@@ -135,7 +141,7 @@ class FedAMPServer(Server):
                 for param_i, param_j in zip(ui_model.parameters(), cj_model.parameters()):
                     param_i.data += coef[j] * param_j
 
-            self.channel.send(Message(ui_model, "model", self), client)
+            self.channel.send(Message(ui_model, "model", self, inmemory=True), client)
 
     def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate

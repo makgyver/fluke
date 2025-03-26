@@ -44,7 +44,7 @@ class RSLoss(torch.nn.Module):
         self.reduction = reduction
 
     def forward(self, logit: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        out = logit * self.class_scaling
+        out = logit * self.class_scaling.to(logit.device)
         return torch.nn.functional.cross_entropy(out, y, reduction=self.reduction)
 
     def __str__(self):
@@ -66,19 +66,19 @@ class FedRSClient(Client):
                  alpha: float,
                  count_as_missing: int = 2,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=None, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
-        self.hyper_params.update(alpha=alpha, count_as_missing=count_as_missing)
-        uniq_val, uniq_cnt = np.unique(self.train_set.tensors[1], return_counts=True)
-        class_scaling = torch.ones(self.train_set.num_labels) * \
-            self.hyper_params.alpha
+        uniq_val, uniq_cnt = np.unique(train_set.tensors[1], return_counts=True)
+        class_scaling = torch.ones(train_set.num_labels) * alpha
         for i, c in enumerate(uniq_val):
-            if uniq_cnt[i] > self.hyper_params.count_as_missing:
+            if uniq_cnt[i] > count_as_missing:
                 class_scaling[c] = 1.0
-        class_scaling = class_scaling.unsqueeze(dim=0).to(self.device)
-        self.hyper_params.loss_fn = RSLoss(class_scaling)
+        class_scaling = class_scaling.unsqueeze(dim=0)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=RSLoss(class_scaling),
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
+                         clipping=clipping, **kwargs)
+        self.hyper_params.update(alpha=alpha, count_as_missing=count_as_missing)
 
 
 class FedRS(CentralizedFL):

@@ -1,19 +1,22 @@
 hyperparameters:
   client:
-    batch_size: 10
+    batch_size: 64
     lam: 0.1
-    local_epochs: 1
+    local_epochs: 5
     loss: CrossEntropyLoss
-    model: MNIST_2NN_E
+    model: MNIST_CNN_E
     n_protos: 10
     optimizer:
+      name: SGD
       lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0001
     scheduler:
       gamma: 1
       step_size: 1
   server:
     n_protos: 10
     weighted: true
-    embedding_size: 200
-  model: MNIST_2NN_E
+    embedding_size: 1024
+  model: MNIST_CNN_E
 name: fluke.algorithms.fedhp.FedHP

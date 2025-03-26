@@ -60,21 +60,25 @@ class DPFedAVGClient(Client):
                  loss_fn: Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  noise_mul: float = 1.1,
                  max_grad_norm: float = 1.0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(noise_mul=noise_mul, max_grad_norm=max_grad_norm)
 
     def _init_private_engine(self) -> None:
+        if self.model is None:
+            return
         self.privacy_engine = PrivacyEngine()
         self.model.train()
         self.model, self.optimizer, self.train_set = self.privacy_engine.make_private(
             module=self.model._module,
             optimizer=self.optimizer,
-            data_loader=self.train_set.asDataLoader(),
+            data_loader=self.train_set.asDataLoader() if isinstance(
+                self.train_set, FastDataLoader) else self.train_set,
             noise_multiplier=self.hyper_params.noise_mul,
             max_grad_norm=self.hyper_params.max_grad_norm,
 
@@ -83,7 +87,7 @@ class DPFedAVGClient(Client):
     def receive_model(self) -> None:
         if self.model is None:
             super().receive_model()
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
             self._init_private_engine()
         else:
             return super().receive_model()

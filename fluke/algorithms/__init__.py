@@ -4,21 +4,23 @@ from __future__ import annotations
 
 import os
 import sys
+import uuid
 import warnings
 from copy import deepcopy
 from typing import Any, Iterable, Union
-import uuid
 
 import torch
 
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import DDict, GlobalSettings  # NOQA
+from .. import DDict, FlukeENV  # NOQA
 from ..client import Client, PFLClient  # NOQA
+from ..comm import ChannelObserver  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, get_loss, get_model, ServerObserver  # NOQA
+from ..utils import (ClientObserver, OptimizerConfigurator,  # NOQA
+                     ServerObserver, get_loss, get_model)
 
 __all__ = [
     'CentralizedFL',
@@ -27,6 +29,7 @@ __all__ = [
     'ccvr',
     'ditto',
     'dpfedavg',
+    'fat',
     'fedala',
     'fedamp',
     'fedavg',
@@ -38,6 +41,7 @@ __all__ = [
     'fedexp',
     'fedhp',
     'fedlc',
+    'fedld',
     'fednh',
     'fednova',
     'fedopt',
@@ -49,6 +53,7 @@ __all__ = [
     'fedrs',
     'fedsam',
     'fedsgd',
+    'gear',
     'kafe',
     'lg_fedavg',
     'moon',
@@ -98,7 +103,8 @@ class CentralizedFL(ServerObserver):
                  data_splitter: DataSplitter,
                  hyper_params: DDict | dict[str, Any],
                  **kwargs: dict[str, Any]):
-        self._id = uuid.uuid4()
+        self._id = str(uuid.uuid4().hex)
+        FlukeENV().open_cache(self._id)
         self.hyper_params = hyper_params if isinstance(hyper_params, DDict) else DDict(hyper_params)
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = \
@@ -162,6 +168,19 @@ class CentralizedFL(ServerObserver):
         """
         return Server
 
+    def _fix_opt_cfg(self, cfg_opt: DDict) -> None:
+
+        if "name" not in cfg_opt:
+            cfg_opt.name = "SGD"
+
+        if not self.can_override_optimizer() and \
+                (cfg_opt.name != self.get_optimizer_class().__name__ or
+                 not isinstance(cfg_opt.name, self.get_optimizer_class())):
+            old_name = cfg_opt.name if isinstance(cfg_opt.name, str) else cfg_opt.name.__name__
+            warnings.warn(f"The algorithm does not support the optimizer {old_name}. "
+                          f"Using {self.get_optimizer_class().__name__} instead.")
+            cfg_opt.name = self.get_optimizer_class()
+
     def init_clients(self,
                      clients_tr_data: list[FastDataLoader],
                      clients_te_data: list[FastDataLoader],
@@ -183,14 +202,7 @@ class CentralizedFL(ServerObserver):
             :class:`fluke.client.Client`
         """
 
-        if "name" not in config.optimizer or not self.can_override_optimizer():
-            config.optimizer.name = self.get_optimizer_class()
-
-        if not self.can_override_optimizer() and \
-                config.optimizer.name != self.get_optimizer_class().__name__:
-            warnings.warn(f"The algorithm does not support the optimizer {config.optimizer.name}. "
-                          f"Using {self.get_optimizer_class().__name__} instead.")
-
+        self._fix_opt_cfg(config.optimizer)
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
@@ -214,19 +226,25 @@ class CentralizedFL(ServerObserver):
             config (DDict): Configuration of the server.
         """
         self.server: Server = self.get_server_class()(model, data, self.clients, **config)
-        if GlobalSettings().get_save_options()[0] is not None:
+        if FlukeENV().get_save_options()[0] is not None:
             self.server.attach(self)
 
     def set_callbacks(self, callbacks: Union[callable, Iterable[callable]]):
-        """Set the callbacks.
+        """Set the callbacks for the server the clients and the channel.
+
+        The callbacks are expected to be instances of the :class:`fluke.server.ServerObserver`,
+        :class:`fluke.client.ClientObserver` or :class:`fluke.comm.ChannelObserver` classes.
+        Each callback will be attached to the corresponding entity.
 
         Args:
             callbacks (Union[callable, Iterable[callable]]): Callbacks to attach to the algorithm.
         """
-        self.server.attach(callbacks)
-        self.server.channel.attach(callbacks)
+        if not isinstance(callbacks, Iterable):
+            callbacks = [callbacks]
+        self.server.attach([c for c in callbacks if isinstance(c, ServerObserver)])
+        self.server.channel.attach([c for c in callbacks if isinstance(c, ChannelObserver)])
         for client in self.clients:
-            client.attach(callbacks)
+            client.attach([c for c in callbacks if isinstance(c, ClientObserver)])
 
     def run(self,
             n_rounds: int,
@@ -319,18 +337,17 @@ class CentralizedFL(ServerObserver):
 
         self.server.load(os.path.join(path, f"{prefix}server.pth"))
         for i, client in enumerate(self.clients):
-            client.model = deepcopy(self.server.model)
-            client.load(os.path.join(path, f"{prefix}client_{i}.pth"))
+            client.load(os.path.join(path, f"{prefix}client_{i}.pth"), deepcopy(self.server.model))
 
     # ServerObserver methods
     def end_round(self, round: int) -> None:
-        path, freq, g_only = GlobalSettings().get_save_options()
-        if round % freq == 0:
+        path, freq, g_only = FlukeENV().get_save_options()
+        if freq > 0 and round % freq == 0:
             self.save(path, g_only, round)
 
     # ServerObserver methods
     def finished(self, round: int) -> None:
-        path, freq, g_only = GlobalSettings().get_save_options()
+        path, freq, g_only = FlukeENV().get_save_options()
         if freq == -1:
             self.save(path, g_only, round-1)
 
@@ -353,9 +370,6 @@ class PersonalizedFL(CentralizedFL):
         - :class:`fluke.client.PFLClient`
     """
 
-    def get_client_class(self) -> PFLClient:
-        return PFLClient
-
     def init_clients(self,
                      clients_tr_data: list[FastDataLoader],
                      clients_te_data: list[FastDataLoader],
@@ -369,15 +383,7 @@ class PersonalizedFL(CentralizedFL):
             raise ValueError("Invalid model configuration. \
                              It should be a string or a torch.nn.Module")
 
-        if not self.can_override_optimizer() and \
-                config.optimizer.name != self.get_optimizer_class().__name__:
-            opt_name = "SGD" if config.optimizer.name is None else config.optimizer.name
-            warnings.warn(f"The algorithm does not support the optimizer {opt_name}. "
-                          f"Using {self.get_optimizer_class().__name__} instead.")
-
-        if "name" not in config.optimizer or not self.can_override_optimizer():
-            config.optimizer.name = self.get_optimizer_class()
-
+        self._fix_opt_cfg(config.optimizer)
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
         self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()

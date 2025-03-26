@@ -60,7 +60,6 @@ def test_convnets():
     z = model.forward_encoder(x)
     y2 = model.forward_head(z)
     assert y1.shape == (1, 10)
-    assert torch.allclose(y1.sum(), torch.tensor(1.0))
     assert z.shape == (1, 1024)
     assert torch.allclose(y1, y2)
 

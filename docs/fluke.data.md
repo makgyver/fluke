@@ -69,6 +69,8 @@ Classes
    :nosignatures:
 
    __getitem__
+   asDataLoader
+   batch_size
    set_sample_size
 
 ```
@@ -76,7 +78,7 @@ Classes
 ```{eval-rst}
 
 .. autoclass:: fluke.data.FastDataLoader
-   :members: __getitem__, set_sample_size
+   :members: __getitem__, asDataLoader, batch_size, set_sample_size
 
 ```
 
@@ -94,13 +96,13 @@ Classes
 .. autosummary::
    :nosignatures:
 
-   num_classes
    assign
    iid
-   quantity_skew
    label_quantity_skew
    label_dirichlet_skew
    label_pathological_skew
+   num_classes
+   quantity_skew
 
 ```
 

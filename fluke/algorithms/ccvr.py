@@ -35,6 +35,8 @@ class CCVRClient(Client):
         client send (through the channel) a message to the server containing the computed values and
         the number of examples per class.
         """
+        self._load_from_cache()
+        self.receive_model()
         self.model.to(self.device)
         list_z, list_y = [], []
         for _, (X, y) in enumerate(self.train_set):
@@ -66,8 +68,9 @@ class CCVRClient(Client):
             ex_x_class.append(Z_c.size(0))
 
         payload = (classes_mean, classes_cov, ex_x_class)
-        self.model.to("cpu")
-        self.channel.send(Message(payload, "mean_cov", self), self.server)
+        self.model.cpu()
+        self.channel.send(Message(payload, "mean_cov", self, inmemory=True), self.server)
+        self._save_to_cache()
 
 
 class CCVRServer(Server):
@@ -91,7 +94,6 @@ class CCVRServer(Server):
     def _compute_mean_cov(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         means, covs, ns = [], [], []
         for client in self.clients:
-            client.receive_model()
             client.compute_mean_cov()
             mean, cov, n = self.channel.receive(self, client, msg_type="mean_cov").payload
             means.append(mean)
@@ -170,7 +172,7 @@ class CCVRServer(Server):
             loss = loss_fn(y_hat, y)
             loss.backward()
             optimizer.step()
-        self.model.to("cpu")
+        self.model.cpu()
 
     def finalize(self) -> None:
         """In the CCVR Server, at the end of the learning the model is calibrated according to the

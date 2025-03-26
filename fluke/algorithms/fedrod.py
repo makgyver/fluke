@@ -12,6 +12,8 @@ from typing import Any, Literal
 import numpy as np
 import torch
 from torch.nn import functional as F
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 
 sys.path.append(".")
 sys.path.append("..")
@@ -20,8 +22,8 @@ from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
-from ..utils import clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils.model import ModOpt  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -33,6 +35,17 @@ __all__ = [
 
 
 class RODModel(torch.nn.Module):
+    """Model that combines a global model and a local head.
+    During the forward pass, the global model, formed by an encoder and a head, is used to extract
+    the representation of the input (using the encoder). The representation is then passed to
+    the local head and the global head. The output of the local head is added to the output of the
+    global head and returned as the final output.
+
+    Args:
+        global_model (EncoderHeadNet): Global model.
+        local_head (EncoderHeadNet): Local head.
+    """
+
     def __init__(self, global_model: EncoderHeadNet, local_head: EncoderHeadNet):
         super().__init__()
         self.local_head = local_head
@@ -78,17 +91,41 @@ class FedRODClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
 
-        self.sample_per_class = torch.zeros(self.train_set.num_labels)
+        self.sample_per_class: torch.Tensor = torch.zeros(self.train_set.num_labels)
         uniq_val, uniq_count = np.unique(self.train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):
             self.sample_per_class[c] = uniq_count[i]
-        self.inner_model = None
-        self._tounload.append("inner_model")
+        self._inner_modopt: ModOpt = ModOpt()
+
+    @property
+    def inner_model(self) -> ModOpt:
+        return self._inner_modopt.model
+
+    @inner_model.setter
+    def inner_model(self, model: torch.nn.Module) -> None:
+        self._inner_modopt.model = model
+
+    @property
+    def optimizer_head(self) -> Optimizer:
+        return self._inner_modopt.optimizer
+
+    @optimizer_head.setter
+    def optimizer_head(self, optimizer: Optimizer) -> None:
+        self._inner_modopt.optimizer = optimizer
+
+    @property
+    def scheduler_head(self) -> LRScheduler:
+        return self._inner_modopt.scheduler
+
+    @scheduler_head.setter
+    def scheduler_head(self, scheduler: LRScheduler) -> None:
+        self._inner_modopt.scheduler = scheduler
 
     def receive_model(self) -> None:
         super().receive_model()
@@ -104,8 +141,8 @@ class FedRODClient(Client):
         self.inner_model.to(self.device)
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
-            self.optimizer_head, self.scheduler_head = self.optimizer_cfg(self.inner_model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
+            self.optimizer_head, self.scheduler_head = self._optimizer_cfg(self.inner_model)
 
         bsm_loss = BalancedSoftmaxLoss(self.sample_per_class)
         running_loss = 0.0
@@ -118,6 +155,7 @@ class FedRODClient(Client):
                 loss = bsm_loss(y, out_g)
                 self.optimizer.zero_grad()
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
 
@@ -125,15 +163,16 @@ class FedRODClient(Client):
                 loss = self.hyper_params.loss_fn(out_g.detach() + out_p, y)
                 self.optimizer_head.zero_grad()
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer_head.step()
 
             self.scheduler.step()
             self.scheduler_head.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        self.inner_model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        self.inner_model.cpu()
+        clear_cuda_cache()
         return running_loss
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:

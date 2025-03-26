@@ -6,7 +6,6 @@ References:
        URL: https://link.springer.com/content/pdf/10.1007/978-3-031-70359-1_4.pdf
 
 """
-from collections import OrderedDict
 import sys
 from typing import Iterable
 
@@ -22,7 +21,6 @@ from . import CentralizedFL  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
 from ..server import Server  # NOQA
-from ..utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 __all__ = [
     "KafeServer",
@@ -42,38 +40,57 @@ class KafeServer(Server):
         self.hyper_params.update(bandwidth=bandwidth)
 
     def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
-        avg_model_sd = OrderedDict()
-        clients_sd = [c.state_dict() for c in client_models]
-        del client_models
         weights = self._get_client_weights(eligible)
 
         # get last layer of m clients' weights
-        last_layer_weight_name = list(clients_sd[0].keys())[-2]
-        last_layer_bias_name = list(clients_sd[0].keys())[-1]
+        last_layer_weight_name = list(self.model.state_dict().keys())[-2]
+        last_layer_bias_name = list(self.model.state_dict().keys())[-1]
 
-        for key in self.model.state_dict().keys():
-            if key in (last_layer_weight_name, last_layer_bias_name):
-                continue
+        # Get model parameters and buffers
+        model_params = dict(self.model.named_parameters())
+        model_buffers = dict(self.model.named_buffers())  # Includes running_mean, running_var, etc.
 
-            if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                avg_model_sd[key] = self.model.state_dict()[key].clone()
-                continue
-            if key.endswith("num_batches_tracked"):
-                mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
-                avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
-                continue
-            for i, client_sd in enumerate(clients_sd):
-                if key not in avg_model_sd:
-                    avg_model_sd[key] = weights[i] * client_sd[key]
-                else:
-                    avg_model_sd[key] = avg_model_sd[key] + weights[i] * client_sd[key]
+        # Initialize accumulators for parameters
+        avg_params = {key: torch.zeros_like(param.data) for key, param in model_params.items()}
+        avg_buffers = {key: torch.zeros_like(buffer.data)
+                       for key, buffer in model_buffers.items() if "num_batches_tracked" not in key}
 
+        max_num_batches_tracked = 0  # Track the max num_batches_tracked
         w_last_layer = []
         b_last_layer = []
 
-        for csd in clients_sd:
-            w_last_layer.append(csd[last_layer_weight_name].numpy().copy())
-            b_last_layer.append(csd[last_layer_bias_name].numpy().copy())
+        # Compute weighted sum (weights already sum to 1, so no division needed)
+        for m, w in zip(client_models, weights):
+            for key, param in m.named_parameters():
+                if key == last_layer_weight_name:
+                    w_last_layer.append(param.data.numpy().copy())
+                    continue
+
+                if key == last_layer_bias_name:
+                    b_last_layer.append(param.data.numpy().copy())
+                    continue
+
+                avg_params[key].add_(param.data, alpha=w)
+
+            for key, buffer in m.named_buffers():
+                if "num_batches_tracked" not in key:
+                    avg_buffers[key].add_(buffer.data, alpha=w)
+                else:
+                    max_num_batches_tracked = max(max_num_batches_tracked, buffer.item())
+
+        for key in model_params.keys():
+            if key in (last_layer_weight_name, last_layer_bias_name):
+                continue
+            model_params[key].data.lerp_(avg_params[key], self.hyper_params.lr)  # Soft update
+
+        for key in model_buffers.keys():
+            if "num_batches_tracked" not in key:
+                model_buffers[key].data.lerp_(avg_buffers[key], self.hyper_params.lr)  # Soft update
+
+        # Assign max num_batches_tracked
+        for key in model_buffers.keys():
+            if "num_batches_tracked" in key:
+                model_buffers[key].data.fill_(max_num_batches_tracked)
 
         w_last_layer = np.array(w_last_layer).reshape(len(w_last_layer), -1)
         b_last_layer = np.array(b_last_layer).reshape(len(b_last_layer), -1)
@@ -90,13 +107,11 @@ class KafeServer(Server):
         w_last_layer_new = np.mean(kde_w.sample(len(w_last_layer)), axis=0)
         b_last_layer_new = np.mean(kde_b.sample(len(b_last_layer)), axis=0)
 
-        # update last layer
-        avg_model_sd[last_layer_weight_name] = torch.tensor(w_last_layer_new.reshape(
-            clients_sd[0][last_layer_weight_name].shape))
-        avg_model_sd[last_layer_bias_name] = torch.tensor(b_last_layer_new.reshape(
-            clients_sd[0][last_layer_bias_name].shape))
-
-        self.model.load_state_dict(avg_model_sd)
+        model_sd = self.model.state_dict()
+        model_sd[last_layer_weight_name].data = torch.tensor(w_last_layer_new.reshape(
+            model_sd[last_layer_weight_name].shape))
+        model_sd[last_layer_bias_name].data = torch.tensor(b_last_layer_new.reshape(
+            model_sd[last_layer_bias_name].shape))
 
 
 class Kafe(CentralizedFL):

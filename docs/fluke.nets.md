@@ -39,26 +39,26 @@
    FEMNIST_CNN
    FEMNIST_CNN_E
    FEMNIST_CNN_D
+   VGG9
    VGG9_E
    VGG9_D
-   VGG9
+   FedAVGCNN
    FedAVGCNN_E
    FedAVGCNN_D
-   FedAVGCNN
    ResNet18
    ResNet34
    ResNet50
    ResNet18GN
+   MoonCNN
    MoonCNN_E
    MoonCNN_D
-   MoonCNN
+   LeNet5
    LeNet5_E
    LeNet5_D
-   LeNet5
+   Shakespeare_LSTM
    Shakespeare_LSTM_E
    Shakespeare_LSTM_D
-   Shakespeare_LSTM
-
+   
 ```
 
 ## Classes

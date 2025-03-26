@@ -2,13 +2,6 @@
 
 # ``fluke.algorithms``
 
-```{eval-rst}
-
-.. warning::
-   This section of the documentation is under construction!
-   
-```
-
 
 ```{eval-rst}
 
@@ -98,6 +91,7 @@ Classes included in ``fluke.algorithms``
    algo/CCVR
    algo/DITTO
    algo/DPFedAVG
+   algo/FAT
    algo/FedALA
    algo/FedAMP
    algo/FedAVG
@@ -109,6 +103,7 @@ Classes included in ``fluke.algorithms``
    algo/FedExP
    algo/FedHP
    algo/FedLC
+   algo/FedLD
    algo/FedNH
    algo/FedNova
    algo/FedOpt
@@ -120,6 +115,7 @@ Classes included in ``fluke.algorithms``
    algo/FedRS
    algo/FedSAM
    algo/FedSGD
+   algo/GEAR
    algo/Kafe
    algo/LG-FedAvg
    algo/MOON
