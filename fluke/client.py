@@ -371,6 +371,10 @@ class Client(ObserverSubject):
             not desired.
         """
         self._load_from_cache()
+        # This only happens if the federation is stopped with a KeyboardInterrupt
+        # and the client was doing the local update
+        if self._modopt is None:
+            return
         self.receive_model()
 
         if self.hyper_params.fine_tuning_epochs > 0:
