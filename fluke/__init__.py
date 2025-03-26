@@ -1,19 +1,20 @@
 """
-The ``fluke`` module is the entry module of the ``fluke`` framework. Here are defined generic
+The :mod:`fluke` module is the entry module of the :mod:`fluke` framework. Here are defined generic
 classes used by the other modules.
 """
 from __future__ import annotations
 
 import random
-import os
 import re
 import shutil
 import uuid
 import warnings
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
 
 import numpy as np
 import torch
+from diskcache import Cache
 from rich.console import Group
 from rich.progress import Live, Progress
 
@@ -33,7 +34,8 @@ __all__ = [
     'server',
     'utils',
     'DDict',
-    'GlobalSettings',
+    'FlukeCache',
+    'FlukeENV',
     'ObserverSubject',
     'Singleton'
 ]
@@ -62,9 +64,16 @@ class Singleton(type):
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
+    def clear(cls):
+        cls._instances = {}
+
 
 class DDict(dict):
     """A dictionary that can be accessed with dot notation recursively.
+
+    Important:
+        The :class:`DDict` is a subclass of the built-in :class:`dict` class and it behaves like a
+        dictionary. However, the keys must be strings.
 
     Example:
         .. code-block:: python
@@ -84,7 +93,7 @@ class DDict(dict):
         self.update(*args, **kwargs)
 
     def update(self, *args: dict, **kwargs: dict[str, Any]):
-        """Update the ``DDict`` with the specified key-value pairs.
+        """Update the :class:`DDict` with the specified key-value pairs.
 
         Args:
             *args (dict): Dictionary with the key-value pairs.
@@ -117,7 +126,7 @@ class DDict(dict):
                 self[k] = v
 
     def exclude(self, *keys: str):
-        """Create a new ``DDict`` excluding the specified keys.
+        """Create a new :class:`DDict` excluding the specified keys.
 
         Args:
             *keys: The keys to be excluded.
@@ -135,6 +144,52 @@ class DDict(dict):
 
         """
         return DDict(**{k: v for k, v in self.items() if k not in keys})
+
+    def match(self, other: DDict, full: bool = True) -> bool:
+        """Check if the two :class:`DDict` match.
+
+        Args:
+            other (DDict): The other :class:`DDict`.
+            full (bool): If ``True``, the two :class:`DDict` must match exactly. If ``False``, the
+                `other` :class:`DDict` must be a subset of the current :class:`DDict`.
+
+        Returns:
+            bool: Whether the two :class:`DDict` match.
+        """
+        if full:
+            return self == other
+        return all(k in self and (self[k] == other[k] if not isinstance(self[k], DDict)
+                                  else self[k].match(other[k], False)) for k in other.keys())
+
+    def diff(self, other: DDict) -> DDict:
+        """Get the difference between two :class:`DDict`.
+
+        Args:
+            other (DDict): The other :class:`DDict`.
+
+        Returns:
+            DDict: The difference between the two :class:`DDict`.
+
+        Example:
+            .. code-block:: python
+                :linenos:
+
+                d = DDict(a=1, b=2, c=3)
+                e = DDict(a=1, b=3, c=4)
+                print(d.diff(e)) # {'b': 3, 'c': 4}
+        """
+        diff = DDict()
+        for k, v in other.items():
+            if k in self:
+                if isinstance(self[k], DDict):
+                    d = self[k].diff(v)
+                    if d:
+                        diff[k] = d
+                elif v != self[k]:
+                    diff[k] = v
+            else:
+                diff[k] = v
+        return diff
 
     def __getstate__(self) -> dict:
         return self.__dict__
@@ -209,9 +264,10 @@ class ObserverSubject():
             pass
 
 
-class GlobalSettings(metaclass=Singleton):
-    """Global settings for ``fluke``.
-    This class is a singleton that holds the global settings for ``fluke``. The settings include:
+class FlukeENV(metaclass=Singleton):
+    """Environment class for the :mod:`fluke` framework.
+    This class is a singleton and it contains environment settings that are used by the other
+    classes. The environment includes:
 
     - The device (``"cpu"``, ``"cuda[:N]"``, ``"auto"``, ``"mps"``);
     - The ``seed`` for reproducibility;
@@ -227,6 +283,7 @@ class GlobalSettings(metaclass=Singleton):
     _device: torch.device = torch.device('cpu')
     _seed: int = 0
     _inmemory: bool = True
+    _cache: FlukeCache = None
 
     # saving settings
     _save_path: str = None
@@ -257,6 +314,18 @@ class GlobalSettings(metaclass=Singleton):
         self._rich_live_renderer: Live = Live(Group(self._rich_progress_FL,
                                                     self._rich_progress_clients,
                                                     self._rich_progress_server))
+
+    def configure(self, cfg: DDict) -> None:
+        """Configure the global settings.
+
+        Args:
+            config (DDict): The configuration.
+        """
+        self.set_seed(cfg.exp.seed)
+        self.set_device(cfg.exp.device)
+        self.set_inmemory(cfg.exp.inmemory)
+        self.set_save_options(**cfg.save)
+        self.set_eval_cfg(cfg.eval)
 
     def get_seed(self) -> int:
         """Get the seed.
@@ -345,7 +414,7 @@ class GlobalSettings(metaclass=Singleton):
             f"Invalid device {device}."
 
         if device == "auto":
-            return GlobalSettings().auto_device()
+            return FlukeENV().auto_device()
 
         if device.startswith('cuda') and ":" in device:
             idx = int(device.split(":")[1])
@@ -422,25 +491,6 @@ class GlobalSettings(metaclass=Singleton):
         if global_only is not None:
             self._global_only = global_only
 
-    def get_temp_path(self) -> str:
-        """Get/Generate the temporary path to store data on disk.
-        The path has the format ``./tmp/fluke_UUID64`` where ``UUID64`` is a random UUID.
-
-        Returns:
-            str: The temporary path.
-        """
-        if self._temp_path is None:
-            self._temp_path = f"./tmp/fluke_{uuid.uuid4()}"
-
-        os.makedirs(self._temp_path, exist_ok=True)
-        return self._temp_path
-
-    def empty_temp_path(self) -> None:
-        """Empty the temporary folder."""
-        if self._temp_path is not None:
-            shutil.rmtree(self._temp_path, ignore_errors=True)
-            self._temp_path = None
-
     def set_inmemory(self, inmemory: bool) -> None:
         """Set if the data is stored in memory.
 
@@ -450,6 +500,35 @@ class GlobalSettings(metaclass=Singleton):
         """
         self._inmemory = inmemory
 
+    def get_cache(self) -> FlukeCache:
+        """Get the cache.
+
+        Returns:
+            Cache: The cache.
+        """
+        return self._cache
+
+    def open_cache(self, path: str) -> None:
+        """Open the cache at the specified path if the ``inmemory`` flag is ``False``.
+
+        Note:
+            The full path to the cache is ``tmp/path`` where ``path`` is the specified path.
+            We suggest to use as path the UUID of the experiment.
+
+        Args:
+            path (str): The path to the cache.
+        """
+        if not self._inmemory and self._cache is None:
+            self._cache = FlukeCache(path)
+        elif self._cache is not None:
+            warnings.warn("Cache already open.")
+
+    def close_cache(self) -> None:
+        """Close the cache."""
+        if self._cache is not None:
+            self._cache.close()
+            self._cache = None
+
     def is_inmemory(self) -> bool:
         """Check if the data is stored in memory.
 
@@ -458,8 +537,235 @@ class GlobalSettings(metaclass=Singleton):
         """
         return self._inmemory
 
+    def force_close(self) -> None:
+        """Force close the progress bars and the live renderer."""
+
+        task_ids = [task.id for task in self._rich_progress_FL.tasks]
+        for tid in task_ids:
+            self._rich_progress_FL.remove_task(tid)
+
+        task_ids = [task.id for task in self._rich_progress_clients.tasks]
+        for tid in task_ids:
+            self._rich_progress_clients.remove_task(tid)
+
+        task_ids = [task.id for task in self._rich_progress_server.tasks]
+        for tid in task_ids:
+            self._rich_progress_server.remove_task(tid)
+
+        self._rich_live_renderer.refresh()
+        self._rich_live_renderer.stop()
+
     def __getstate__(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_rich')}
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
+
+
+class FlukeCache():
+    """A cache class that can store data on disk."""
+
+    class _ObjectRef():
+        """A reference to an object in the cache.
+        The reference is a unique identifier that is used to store and retrieve the object from the
+        cache.
+        """
+
+        def __init__(self):
+            self._id = str(uuid.uuid4().hex)
+
+        @property
+        def id(self) -> str:
+            """Get the unique identifier of the reference.
+
+            Returns:
+                str: The unique identifier.
+            """
+            return self._id
+
+    class _RefCounter():
+        """A reference counter for an object in the cache."""
+
+        def __init__(self, value: Any, refs: int = 1):
+            self._value = value
+            self._refs = refs
+            self._id = FlukeCache._ObjectRef()
+
+        @property
+        def id(self) -> FlukeCache._ObjectRef:
+            """Get the unique identifier of the reference.
+
+            Returns:
+                str: The unique identifier.
+            """
+            return self._id
+
+        @property
+        def value(self) -> Any:
+            """Get the value ppinted by the reference.
+
+            Returns:
+                Any: The value.
+            """
+            return self._value
+
+        @property
+        def refs(self) -> int:
+            """Get the number of references to the object in the cache.
+
+            Returns:
+                int: The number of references.
+            """
+            return self._refs
+
+        def dec(self) -> Any:
+            """Decrement the number of references to the object in the cache.
+
+            Returns:
+                FlukeCache._RefCounter: The reference counter.
+            """
+            self._refs -= 1
+            return self
+
+        def inc(self) -> FlukeCache._RefCounter:
+            """Increment the number of references to the object in the cache.
+
+            Returns:
+                FlukeCache._RefCounter: The reference counter.
+            """
+            self._refs += 1
+            return self
+
+    def __init__(self, path: str, **kwargs):
+        if 'size_limit' not in kwargs:
+            kwargs['size_limit'] = 2**34
+        self._cache: Cache = Cache(f"tmp/{path}", **kwargs)
+        self._key2ref: dict[str, FlukeCache._ObjectRef] = {}
+
+    def __getitem__(self, key: str):
+        return self._cache[self._key2ref[key].id].value
+
+    @property
+    def cache_dir(self) -> str:
+        """Get the cache directory.
+
+        Returns:
+            str: The cache directory.
+        """
+        return self._cache.directory
+
+    def get(self, key: str, default: Any = None):
+        """Get the object identified by the key from the cache.
+
+        If the object is not in the cache, the default value is returned.
+
+        Note:
+            The object is still in the cache after this operation.
+
+        Args:
+            key (str): The key of the object.
+            default (Any, optional): The default value to return if the object is not in the cache.
+                Defaults to None.
+
+        Returns:
+            Any: The object in the cache or the default value.
+        """
+        if key not in self._key2ref:
+            return default
+        obj = self._cache.get(self._key2ref[key].id, default=default)
+        if obj is not default:
+            return obj.value
+
+    def push(self, key: str, value: Any) -> FlukeCache._ObjectRef:
+        """Push an object to the cache.
+
+        Note:
+            If the object that is pushed is already a cache reference, then the referenced object is
+            already in the cache and its reference counter is incremented.
+
+        Args:
+            key (str): The key of the object.
+            value (Any): The object to store in the cache.
+
+        Returns:
+            FlukeCache._ObjectRef: The reference to the object in the cache.
+        """
+        if isinstance(value, FlukeCache._ObjectRef):
+            assert value.id in self._cache, f"Reference {value.id} not in cache."
+            self._key2ref[key] = value
+            self._cache[value.id] = self._cache[value.id].inc()
+            return value
+        else:
+            ref = self._RefCounter(value)
+            self._key2ref[key] = ref.id
+            self._cache[ref.id.id] = ref
+            return ref.id
+
+    def pop(self, key: str, copy: bool = True) -> Any:
+        """Pop an object from the cache given its key.
+
+        If the key is not in the cache, ``None`` is returned.
+
+        Args:
+            key (str): The key of the object.
+            copy (bool, optional): If ``True``, a copy of the object is returned.
+                Defaults to ``True``.
+
+        Returns:
+            Any: The object in the cache or its copy.
+        """
+        if key not in self._key2ref:
+            return None
+        ref = self._key2ref[key]
+        del self._key2ref[key]
+        self._cache[ref.id] = self._cache[ref.id].dec()
+        obj = self._cache[ref.id].value
+        if self._cache[ref.id].refs == 0:
+            self._cache.delete(ref.id)
+        return obj if not copy else deepcopy(obj)
+
+    def delete(self, key: str) -> None:
+        """Remove an object from the cache without returning it.
+
+        If the key is not in the cache, nothing happens.
+
+        Args:
+            key (str): The key of the object.
+        """
+        if key in self._key2ref:
+            ref = self._key2ref[key]
+            del self._key2ref[key]
+            self._cache[ref.id] = self._cache[ref.id].dec()
+            if self._cache[ref.id].refs == 0:
+                self._cache.delete(ref.id)
+
+    def close(self) -> None:
+        """Close the cache."""
+        if self._cache is not None:
+            self._cache.clear()
+            self._cache.close()
+            try:
+                shutil.rmtree(self._cache.directory)
+            except OSError:  # Windows wonkiness
+                pass
+            self._cache = None
+            self._key2ref = {}
+
+    @property
+    def occupied(self) -> int:
+        """Get the number of different objects in the cache.
+
+        Returns:
+            int: The number of objects in the cache.
+        """
+        return len(list(self._cache.iterkeys()))
+
+    def cleanup(self) -> None:
+        """Clean up the cache by removing the objects that are not referenced.
+
+        This operation should not be necessary if the cache is used correctly.
+        """
+        keys = set([v.id for v in self._key2ref.values()])
+        for key in self._cache.iterkeys():
+            if key not in keys:
+                self._cache.pop(key)

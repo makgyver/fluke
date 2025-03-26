@@ -7,20 +7,20 @@ References:
 """
 import sys
 from typing import Any, Iterable
-
+from dataclasses import dataclass
 import torch
 
 sys.path.append(".")
 sys.path.append("..")
 
-from ..algorithms import PersonalizedFL  # NOQA
-from ..client import PFLClient  # NOQA
+from ..algorithms import CentralizedFL  # NOQA
+from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
+from ..utils.model import safe_load_state_dict, ModOpt  # NOQA
 
 __all__ = [
     "FedRepClient",
@@ -31,7 +31,14 @@ __all__ = [
 # https://arxiv.org/abs/2102.07078
 
 
-class FedRepClient(PFLClient):
+@dataclass
+class _ModOpt2(ModOpt):
+
+    pers_optimizer: torch.optim.Optimizer = None
+    pers_scheduler: torch.optim.lr_scheduler = None
+
+
+class FedRepClient(Client):
 
     def __init__(self,
                  index: int,
@@ -42,14 +49,46 @@ class FedRepClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  tau: int = 3,
                  **kwargs: dict[str, Any]):
-        super().__init__(index=index, model=EncoderGlobalHeadLocalNet(model), train_set=train_set,
+        super().__init__(index=index, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
-        self.pers_optimizer = None
-        self.pers_scheduler = None
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
+                         clipping=clipping, **kwargs)
+        self._load_from_cache()
+        if isinstance(model, str):
+            model = get_model(model)
+        self._modopt = _ModOpt2(model=EncoderGlobalHeadLocalNet(model))
         self.hyper_params.update(tau=tau)
+        self._save_to_cache()
+
+    @property
+    def pers_optimizer(self) -> torch.optim.Optimizer:
+        """Optimizers for the personalized part of the model.
+
+        Returns:
+            torch.optim.Optimizer: Optimizer for the personalized part of the model.
+        """
+        return self._modopt.pers_optimizer
+
+    @pers_optimizer.setter
+    def pers_optimizer(self, optimizer: torch.optim.Optimizer) -> None:
+        self._modopt.pers_optimizer = optimizer
+
+    @property
+    def pers_scheduler(self) -> torch.optim.lr_scheduler:
+        """Learning rate scheduler for the personalized part of the model.
+
+        Returns:
+            torch.optim.lr_scheduler: Learning rate scheduler for the personalized part of the
+                model.
+        """
+        return self._modopt.pers_scheduler
+
+    @pers_scheduler.setter
+    def pers_scheduler(self, scheduler: torch.optim.lr_scheduler) -> None:
+        self._modopt.pers_scheduler = scheduler
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -64,7 +103,7 @@ class FedRepClient(PFLClient):
             parameter.requires_grad = False
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.model.get_local())
+            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(self.model.get_local())
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -74,6 +113,7 @@ class FedRepClient(PFLClient):
                 y_hat = self.model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
+                self._clip_grads(self.model)
                 self.pers_optimizer.step()
                 running_loss += loss.item()
             self.pers_scheduler.step()
@@ -85,7 +125,7 @@ class FedRepClient(PFLClient):
             parameter.requires_grad = True
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model.get_global())
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model.get_global())
 
         for _ in range(self.hyper_params.tau):
             for _, (X, y) in enumerate(self.train_set):
@@ -98,18 +138,19 @@ class FedRepClient(PFLClient):
             self.scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
         return running_loss
 
     def send_model(self):
-        self.channel.send(Message(self.model.get_global(), "model", self), self.server)
+        self.channel.send(Message(self.model.get_global(), "model", self, inmemory=True),
+                          self.server)
 
     def receive_model(self) -> None:
+        server_model = self.channel.receive(self, self.server, msg_type="model").payload
         if self.model is None:
-            self.model = self.personalized_model
-        msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
+            self.model = EncoderGlobalHeadLocalNet(server_model)
+        safe_load_state_dict(self.model.get_global(), server_model.state_dict())
 
 
 class FedRepServer(Server):
@@ -117,14 +158,14 @@ class FedRepServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_set: FastDataLoader,  # test_set is not used
-                 clients: Iterable[PFLClient],
+                 clients: Iterable[Client],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 
-class FedRep(PersonalizedFL):
+class FedRep(CentralizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> Client:
         return FedRepClient
 
     def get_server_class(self) -> Server:

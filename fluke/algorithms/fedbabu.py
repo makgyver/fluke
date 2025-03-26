@@ -14,18 +14,18 @@ from torch.nn import Module
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import GlobalSettings  # NOQA
+from .. import FlukeENV  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
-from ..client import PFLClient  # NOQA
+from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 
-class FedBABUClient(PFLClient):
+class FedBABUClient(Client):
 
     def __init__(self,
                  index: int,
@@ -37,66 +37,72 @@ class FedBABUClient(PFLClient):
                  local_epochs: int,
                  mode: str,
                  fine_tuning_epochs: int,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
         assert mode in ["head", "body", "full"]
-        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
-        self.hyper_params.update(
-            mode=mode
-        )
-        self.model = self.personalized_model
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+        self.hyper_params.update(mode=mode)
+        self._load_from_cache()
+        self.model = model
+        self._save_to_cache()
 
     def send_model(self):
-        self.channel.send(Message(self.personalized_model.encoder, "model", self), self.server)
+        self.channel.send(Message(self.model.encoder,
+                          "model", self, inmemory=True), self.server)
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self, self.server, msg_type="model")
-        safe_load_state_dict(self.personalized_model.encoder, msg.payload.state_dict())
+        safe_load_state_dict(self.model.encoder, msg.payload.state_dict())
 
         # Deactivate gradient
-        for param in self.personalized_model.head.parameters():
+        for param in self.model.head.parameters():
             param.requires_grad = False
 
     def fine_tune(self) -> None:
         """Fine-tune the personalized model."""
 
+        self._load_from_cache()
         if self.hyper_params.mode == "full":
-            for param in self.personalized_model.parameters():
+            for param in self.model.parameters():
                 param.requires_grad = True
         elif self.hyper_params.mode == "body":
-            for param in self.personalized_model.encoder.parameters():
+            for param in self.model.encoder.parameters():
                 param.requires_grad = True
-            for param in self.personalized_model.head.parameters():
+            for param in self.model.head.parameters():
                 param.requires_grad = False
         else:  # head
-            for param in self.personalized_model.encoder.parameters():
+            for param in self.model.encoder.parameters():
                 param.requires_grad = False
-            for param in self.personalized_model.head.parameters():
+            for param in self.model.head.parameters():
                 param.requires_grad = True
 
-        self.personalized_model.train()
-        self.personalized_model.to(self.device)
-        self.optimizer, self.scheduler = self.optimizer_cfg(self.personalized_model)
+        self.model.train()
+        self.model.to(self.device)
+        self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(self.model)
 
         for _ in range(self.hyper_params.fine_tuning_epochs):
             loss = None
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                self.optimizer.zero_grad()
-                y_hat = self.personalized_model(X)
+                self.pers_optimizer.zero_grad()
+                y_hat = self.model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
-                self.optimizer.step()
-            self.scheduler.step()
+                self.pers_optimizer.step()
+            self.pers_scheduler.step()
 
-        self.personalized_model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
+        self._save_to_cache()
 
     def finalize(self) -> None:
-        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        self._load_from_cache()
+        metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
             self._notify_evaluation(-1, "post-fit", metrics)
+        self._save_to_cache()
 
 
 class FedBABUServer(Server):
@@ -104,15 +110,16 @@ class FedBABUServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,  # not used
-                 clients: Iterable[PFLClient],
+                 clients: Iterable[Client],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
     def finalize(self) -> None:
 
         with Progress(transient=True) as progress:
-            task = progress.add_task("[cyan]Client's fine tuning", total=len(self.clients))
-            for client in self.clients:
+            task = progress.add_task("[cyan]Client's fine tuning", total=len(self._participants))
+            clients_ft = [client for client in self.clients if client.index in self._participants]
+            for client in clients_ft:
                 client.fine_tune()
                 client.finalize()
                 progress.update(task, advance=1)
@@ -122,7 +129,7 @@ class FedBABUServer(Server):
 
 class FedBABU(PersonalizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> Client:
         return FedBABUClient
 
     def get_server_class(self) -> Server:

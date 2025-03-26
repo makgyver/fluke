@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'fluke'
 copyright = '2024, Mirko Polato'
 author = 'Mirko Polato'
-version = '0.5.1'
+version = '0.7.0'
 # release = 'alpha'
 
 # autodoc_mock_imports = ['algorithms'] # Fix the "No module named 'algorithms'" error
@@ -54,7 +54,7 @@ nb_remove_code_outputs = True
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    # 'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     # 'matplotlib': ('http://matplotlib.org/stable', None),
     'torch': ("https://pytorch.org/docs/main/", None),
     'torchvision': ("https://pytorch.org/vision/stable/", None)
@@ -105,6 +105,11 @@ html_theme_options = {
                     "title": "Custom model in fluke",
                     "url": "examples/tutorials/fluke_custom_nn",
                     "summary": "Use a custom model in a FL experiment"
+                },
+                {
+                    "title": "Custom evaluation in fluke",
+                    "url": "examples/tutorials/fluke_custom_eval",
+                    "summary": "Define custom evaluation metrics"
                 }
             ]
         },

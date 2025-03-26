@@ -2,10 +2,25 @@
 
 # Configuration
 
+In this page we provide a quick overview of the configuration files used in `fluke` to run an experiment.
+For more detailed information, please refer to the specific sections of the documentation.
 
 To run an algorithm using the ``fluke`` command you need to create two configuration files:
 - `EXP_CONFIG_FILE`: the experiment configuration file (independent from the algorithm);
 - `ALG_CONFIG_FILE`: the algorithm configuration file.
+
+
+For more details about the configuration files, please refer to the following sections:
+
+```{eval-rst}
+
+.. toctree::
+    :maxdepth: 2
+
+    config_exp
+    config_alg
+
+```
 
 ## Experiment configuration
 
@@ -73,6 +88,8 @@ each field (there is also a version without the comments).
             device: cpu
             # The seed (reproducibility)
             seed: 42
+            # Use caching (store on disk -> inmemory=false) to save memory
+            inmemory: true
         # Evaluation configuration
         eval:
             # The task to perform which determines the evaluation metric (only classification is currently supported)
@@ -125,6 +142,7 @@ each field (there is also a version without the comments).
         exp:
             device: cpu
             seed: 42
+            inmemory: true
         eval:
             task: classification
             pre_fit: false
@@ -221,14 +239,3 @@ It must be structured as follows:
 
 ```
 
-
-```{eval-rst}
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    config_data
-    config_log
-
-```

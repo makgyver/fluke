@@ -36,6 +36,16 @@ Classes included in ``fluke.algorithms.fednh``
 
 ```{eval-rst}
 
+.. autoclass:: fluke.algorithms.fednh.ProtoNet
+   :show-inheritance:
+   :member-order: bysource
+   :members: 
+
+```
+
+
+```{eval-rst}
+
 .. autoclass:: fluke.algorithms.fednh.FedNHClient
    :show-inheritance:
    :member-order: bysource

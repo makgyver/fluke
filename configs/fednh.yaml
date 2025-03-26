@@ -1,21 +1,20 @@
 hyperparameters:
   client:
-    batch_size: 10
-    local_epochs: 1
+    batch_size: 64
+    local_epochs: 5
     loss: CrossEntropyLoss
-    model: MNIST_2NN_E
+    model: CifarConv2
     n_protos: 10
-    proto_norm: true
     optimizer:
       lr: 0.01
       momentum: 0.9
-      # weight_decay: 0.0001
+      weight_decay: 0.00001
     scheduler:
       name: ExponentialLR
       gamma: 0.99
   server:
     n_protos: 10
-    weighted: false
+    weighted: true
     rho: 0.9
-  model: MNIST_2NN_E
+  model: CifarConv2
 name: fluke.algorithms.fednh.FedNH

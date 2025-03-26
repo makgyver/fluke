@@ -21,7 +21,7 @@ __all__ = [
 
 
 class Evaluator(ABC):
-    """This class is the base class for all evaluators in ``fluke``.
+    """This class is the base class for all evaluators in :mod:`fluke`.
     An evaluator object should be used to perform the evaluation of a (federated) model.
 
     Args:
@@ -41,7 +41,7 @@ class Evaluator(ABC):
                  model: Module,
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
-                 **kwargs: dict[str, Any]) -> dict:
+                 **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Evaluate the model.
 
         Args:
@@ -50,6 +50,9 @@ class Evaluator(ABC):
             eval_data_loader (FastDataLoader): The data loader to use for evaluation.
             loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
             **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the computed metrics.
         """
         raise NotImplementedError
 
@@ -70,6 +73,9 @@ class Evaluator(ABC):
             eval_data_loader (FastDataLoader): The data loader to use for evaluation.
             loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
             **kwargs: Additional keyword arguments.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the computed metrics.
         """
         return self.evaluate(round=round,
                              model=model,
@@ -109,6 +115,11 @@ class ClassificationEval(Evaluator):
         ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
         computed both in a micro and macro fashion.
 
+        Warning:
+            The loss function ``loss_fn`` should be defined on the same device as the model.
+            Moreover, it is assumed that the only arguments of the loss function are the predicted
+            values and the true values.
+
         Args:
             round (int): The current round.
             model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
@@ -122,7 +133,7 @@ class ClassificationEval(Evaluator):
         Returns:
             dict: A dictionary containing the computed metrics.
         """
-        from .utils import clear_cache  # NOQA
+        from .utils import clear_cuda_cache  # NOQA
 
         if (round != 1) and (round % self.eval_every != 0):
             return {}
@@ -177,8 +188,8 @@ class ClassificationEval(Evaluator):
             macro_f1s.append(macro_f1.compute().item())
             losses.append(loss / cnt)
 
-        model.to("cpu")
-        clear_cache()
+        model.cpu()
+        clear_cuda_cache()
 
         result = {
             "accuracy":  np.round(sum(accs) / len(accs), 5).item(),

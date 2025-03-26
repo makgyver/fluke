@@ -1,4 +1,4 @@
-(config_log.md)=
+(config_log)=
 
 # Log configuration
 
@@ -37,7 +37,7 @@ logger:
   name: WandBLog
   project: my_project
   entity: my_entity
-  tags: ["fluke", "experiment"]
+  tags: [fluke, experiment]
 ...
 ```
 
@@ -123,5 +123,6 @@ Our suggestion is to extend the [Log](#fluke.utils.log.Log) class that already p
 methods to log to the console, and then add the custom logic you need.
 Each observer class has a set of methods that can be overridden to log what you need.
 After creating your custom logger, you can attach it to the federated algorithm using the 
-method `set_callbacks` of the [CentralizedFL](#fluke.algorithms.CentralizedFL) or 
+method [set_callbacks](#fluke.algorithms.CentralizedFL.set_callbacks) of the 
+[CentralizedFL](#fluke.algorithms.CentralizedFL) or 
 [PersonalizedFL](#fluke.algorithms.PersonalizedFL) class.

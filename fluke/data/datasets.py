@@ -1,5 +1,5 @@
 """
-This module contains the :class:`Datasets` for loading the supported datasets.
+This module contains the datasets for loading the supported datasets.
 """
 from __future__ import annotations
 
@@ -193,7 +193,8 @@ class Datasets:
     def EMNIST(cls,
                path: str = "../data",
                transforms: Optional[callable] = None,
-               onthefly_transforms: Optional[callable] = None) -> DataContainer:
+               onthefly_transforms: Optional[callable] = None,
+               channel_dim: bool = False) -> DataContainer:
         """Load the Extended MNIST (EMNIST) dataset. The dataset is split into training and testing
         sets according to the default split of the data at
         https://www.westernsydney.edu.au/bens/home/reproducible_research/emnist as provided by
@@ -233,9 +234,9 @@ class Datasets:
             train_data.data = train_data.data / 255.
             test_data.data = test_data.data / 255.
 
-        return DataContainer(train_data.data,
+        return DataContainer(train_data.data if not channel_dim else train_data.data[:, None, :, :],
                              train_data.targets,
-                             test_data.data,
+                             test_data.data if not channel_dim else test_data.data[:, None, :, :],
                              test_data.targets,
                              47,
                              onthefly_transforms)

@@ -2,6 +2,24 @@
 
 In this page you can find the list of modules/submodules defined in `fluke` with their classes and functions.
 
+## Modules
+
+`fluke` is organized in the following modules:
+
+- [`fluke`](fluke.md): contains the core classes and utilities;
+- [`fluke.data`](fluke.data.md): contains classes for data handling;
+- [`fluke.data.datasets`](fluke.data.datasets.md): contains classes for datasets loading;
+- [`fluke.client`](fluke.client.md): contains classes for client-side functionalities;
+- [`fluke.server`](fluke.server.md): contains classes for server-side functionalities;
+- [`fluke.comm`](fluke.comm.md): contains classes for communication;
+- [`fluke.nets`](fluke.nets.md): contains classes for neural networks;
+- [`fluke.utils`](fluke.utils.md): contains utility classes and functions;
+- [`fluke.utils.log`](fluke.utils.log.md): contains classes for logging;
+- [`fluke.utils.model`](fluke.utils.model.md): contains classes for model manipulation;
+- [`fluke.evaluation`](fluke.evaluation.md): contains classes for evaluation;
+- [`fluke.algorithms`](fluke.algorithms.md): contains classes for federated learning algorithms.
+
+
 ## [`fluke`](fluke.md)
 
 **Classes**
@@ -14,7 +32,10 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    :nosignatures:
 
    DDict
-   GlobalSettings
+   FlukeCache
+   FlukeCache._ObjectRef
+   FlukeCache._RefCounter
+   FlukeENV
    ObserverSubject
    Singleton
 
@@ -38,17 +59,18 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 ```
 
-**Submodules**
+## [`fluke.data.datasets`](fluke.data.datasets.md)
+
+**Classes**
 
 ```{eval-rst}
 
-.. currentmodule:: fluke.data
+.. currentmodule:: fluke.data.datasets
 
 .. autosummary::
    :nosignatures:
    
-   datasets
-   support
+   Datasets
 
 ```
 
@@ -118,11 +140,15 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    ResNet9
    FEMNIST_CNN
    VGG9
+   FedAVGCNN
    ResNet18
    ResNet34
    ResNet50
    ResNet18GN
    MoonCNN
+   LeNet5
+   Shakespeare_LSTM
+
 ```
 
 ## [`fluke.utils`](fluke.utils.md)
@@ -148,30 +174,101 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 .. currentmodule:: fluke.utils
 
 .. autosummary::
+   :nosignatures:
 
-   import_module_from_str
+   bytes2human
+   cache_obj
+   clear_cuda_cache
    get_class_from_str
+   get_class_from_qualified_name
+   get_full_classname
    get_loss
    get_model
+   get_optimizer  
    get_scheduler
-   clear_cache
-   get_full_classname
+   flatten_dict
+   import_module_from_str
+   memory_usage
+   plot_distribution
+   retrieve_obj
 
 ```
 
-**Submodules**
+## [`fluke.utils.log`](fluke.utils.log.md)
+
+**Classes**
 
 ```{eval-rst}
 
-.. currentmodule:: fluke.utils
+.. currentmodule:: fluke.utils.log
 
 .. autosummary::
    :nosignatures:
    
-   log
-   model
-   log
+   Log
+   TensorboardLog
+   WandBLog
+   ClearMLLog
 
+```
+
+**Functions**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.utils.log
+
+.. autosummary::
+   :nosignatures:
+   
+   get_logger
+```
+
+## [`fluke.utils.model`](fluke.utils.model.md)
+
+**Classes**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.utils.model
+
+.. autosummary::
+   :nosignatures:
+   
+   AllLayerOutputModel
+   ModOpt
+   MMMixin
+   LinesLinear
+   LinesConv2d
+   LinesLSTM
+   LinesEmbedding
+   LinesBN2d
+```
+
+**Functions**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.utils.model
+
+.. autosummary::
+   :nosignatures:
+   
+   aggregate_models
+   batch_norm_to_group_norm
+   check_model_fit_mem
+   diff_model
+   flatten_parameters
+   get_activation_size
+   get_global_model_dict
+   get_local_model_dict
+   get_output_shape
+   get_trainable_keys
+   merge_models
+   mix_networks
+   set_lambda_model
+   safe_load_state_dict
+   state_dict_zero_like
 ```
 
 ## [`fluke.evaluation`](fluke.evaluation.md)
@@ -216,6 +313,8 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    apfl
    ccvr
    ditto
+   dpfedavg
+   fat
    fedala
    fedamp
    fedavg
@@ -227,6 +326,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    fedexp
    fedhp
    fedlc
+   fedld
    fednh
    fednova
    fedopt
@@ -238,6 +338,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    fedrs
    fedsam
    fedsgd
+   gear
    lg_fedavg
    moon
    per_fedavg

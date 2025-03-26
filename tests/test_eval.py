@@ -1,6 +1,7 @@
 import sys
 
 import torch
+import pytest
 
 sys.path.append(".")
 sys.path.append("..")
@@ -69,6 +70,22 @@ def test_classification_eval():
     assert str(clf_eval) == "ClassificationEval(eval_every=1, n_classes=3)" + \
         "[accuracy, precision, recall, f1]"
     assert repr(clf_eval) == str(clf_eval)
+
+    class E(Evaluator):
+
+        def evaluate(self, round, model, eval_data_loader, loss_fn):
+            return super().evaluate(round, model, eval_data_loader, loss_fn)
+
+    evaluator = E(1)
+    with pytest.raises(NotImplementedError):
+        evaluator.evaluate(1, None, None, None)
+
+    with pytest.raises(NotImplementedError):
+        evaluator(1, None, None, None)
+
+    clf_eval = ClassificationEval(eval_every=3, n_classes=3)
+    ev = clf_eval.evaluate(2, ModelPerfect(), loader, loss_fn=torch.nn.CrossEntropyLoss())
+    assert ev == {}
 
 
 if __name__ == "__main__":

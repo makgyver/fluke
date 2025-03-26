@@ -11,19 +11,18 @@ from copy import deepcopy
 from typing import Any, Iterable
 
 import torch
-# from torch.optim import Optimizer
 from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import GlobalSettings  # NOQA
+from .. import FlukeENV  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
 
 __all__ = [
@@ -42,14 +41,15 @@ class SCAFFOLDClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.control: OrderedDict = None
         self.delta_control: OrderedDict = None
         self.server_control: OrderedDict = None
-        self._tounload.extend(["control", "delta_control", "server_control"])
+        self._attr_to_cache.extend(["control", "delta_control", "server_control"])
 
     def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
@@ -68,7 +68,7 @@ class SCAFFOLDClient(Client):
         self.model.train()
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         K = 0
         running_loss = 0.0
@@ -85,11 +85,13 @@ class SCAFFOLDClient(Client):
                 for n, p in self.model.named_parameters():
                     p.grad.data = p.grad.data + (self.server_control[n].to(self.device) -
                                                  self.control[n].to(self.device))
+
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
 
-        self.model.to("cpu")
+        self.model.cpu()
         # This happens on CPU!
 
         with torch.no_grad():
@@ -108,12 +110,12 @@ class SCAFFOLDClient(Client):
             self.delta_control = c_delta
 
         running_loss /= (epochs * len(self.train_set))
-        clear_cache()
+        clear_cuda_cache()
         return running_loss
 
     def send_model(self):
-        self.channel.send(Message(self.model, "model", self), self.server)
-        self.channel.send(Message(self.delta_control, "control", self), self.server)
+        self.channel.send(Message(self.model, "model", self, inmemory=True), self.server)
+        self.channel.send(Message(self.delta_control, "control", self, inmemory=True), self.server)
 
 
 class SCAFFOLDServer(Server):
@@ -129,7 +131,7 @@ class SCAFFOLDServer(Server):
                          clients=clients,
                          weighted=weighted,
                          **kwargs)
-        self.device = GlobalSettings().get_device()
+        self.device = FlukeENV().get_device()
         self.control = state_dict_zero_like(self.model.state_dict())
         self.hyper_params.update(global_step=global_step)
 
@@ -149,15 +151,16 @@ class SCAFFOLDServer(Server):
         self.model.to(self.device)
 
         total_delta = state_dict_zero_like(self.model.state_dict())
-        delta_params = [self.channel.receive(self, client, "control").payload
-                        for client in eligible]
+        for client in eligible:
+            c_delta_params = self.channel.receive(self, client, "control").payload
+            for key in total_delta:
+                total_delta[key] = total_delta[key] + c_delta_params[key].to(self.device)
 
         for key in total_delta:
-            for c_delta_params in delta_params:
-                total_delta[key] = total_delta[key] + c_delta_params[key].to(self.device)
             total_delta[key] = total_delta[key] / self.n_clients
             self.control[key] = self.control[key] + total_delta[key].to("cpu")
 
+        self.model.cpu()
         return super().aggregate(eligible, client_models)
 
 

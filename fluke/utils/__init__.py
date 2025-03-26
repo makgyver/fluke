@@ -1,14 +1,14 @@
 """This module contains utility functions and classes used in ``fluke``."""
 from __future__ import annotations
 
-# from enum import Enum
 import importlib
 import inspect
 import os
-import pickle
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Union
+from itertools import product
+from typing import (TYPE_CHECKING, Any, Generator, Iterable, Literal, Optional,
+                    Union)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,16 +29,18 @@ if TYPE_CHECKING:
     from client import Client  # NOQA
     from server import Server  # NOQA
 
-from .. import DDict, GlobalSettings  # NOQA
+from .. import DDict, FlukeCache, FlukeENV  # NOQA
 
 __all__ = [
     'log',
     'model',
     'Configuration',
-    'OptimizerConfigurator',
     'ClientObserver',
+    'OptimizerConfigurator',
     'ServerObserver',
-    'clear_cache',
+    'bytes2human',
+    'cache_obj',
+    'clear_cuda_cache',
     'get_class_from_str',
     'get_class_from_qualified_name',
     'get_full_classname',
@@ -46,15 +48,11 @@ __all__ = [
     'get_model',
     'get_optimizer',
     'get_scheduler',
+    'flatten_dict',
     'import_module_from_str',
-    'plot_distribution',
-    'bytes2human',
     'memory_usage',
-    'get_temp_path',
-    'load_model',
-    'unload_model',
-    'load_obj',
-    'unload_obj'
+    'plot_distribution',
+    'retrieve_obj'
 ]
 
 
@@ -62,7 +60,7 @@ class ClientObserver():
     """Client observer interface.
     This interface is used to observe the client during the federated learning process.
     For example, it can be used to log the performance of the local model, as it is done by the
-    ``Log`` class.
+    :class:`fluke.utils.log.Log` class.
     """
 
     def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
@@ -361,7 +359,7 @@ def get_model(mname: str, **kwargs: dict[str, Any]) -> Module:
     """Get a model from its name.
     This function is used to get a torch model from its name and the name of the module where it is
     defined. It is used to dynamically import models. If ``mname`` is not a fully qualified name,
-    the model is assumed to be defined in the ``fluke.nets`` module.
+    the model is assumed to be defined in the :mod:`fluke.nets` module.
 
     Args:
         mname (str): The name of the model.
@@ -416,7 +414,7 @@ def get_full_classname(classtype: type) -> str:
 def get_optimizer(oname: str) -> type[Optimizer]:
     """Get an optimizer from its name.
     This function is used to get an optimizer from its name. It is used to dynamically import
-    optimizers. The supported optimizers are the ones defined in the ``torch.optim`` module.
+    optimizers. The supported optimizers are the ones defined in the :mod:`torch.optim` module.
 
     Args:
         oname (str): The name of the optimizer.
@@ -431,7 +429,7 @@ def get_scheduler(sname: str) -> type[LRScheduler]:
     """Get a learning rate scheduler from its name.
     This function is used to get a learning rate scheduler from its name. It is used to dynamically
     import learning rate schedulers. The supported schedulers are the ones defined in the
-    ``torch.optim.lr_scheduler`` module.
+    :mod:`torch.optim.lr_scheduler` module.
 
     Args:
         sname (str): The name of the scheduler.
@@ -442,7 +440,7 @@ def get_scheduler(sname: str) -> type[LRScheduler]:
     return get_class_from_str("torch.optim.lr_scheduler", sname)
 
 
-def clear_cache(ipc: bool = False):
+def clear_cuda_cache(ipc: bool = False):
     """Clear the CUDA cache. This function should be used to free the GPU memory after the training
     process has ended. It is usually used after the local training of the clients.
 
@@ -463,36 +461,127 @@ class Configuration(DDict):
     Args:
         config_exp_path (str): The path to the experiment configuration file.
         config_alg_path (str): The path to the algorithm configuration file.
+        force_validation (bool, optional): Whether to force the validation of the configuration.
+            Defaults to ``True``.
 
     Raises:
         ValueError: If the configuration is not valid.
     """
 
-    def __init__(self, config_exp_path: str, config_alg_path: str):
-        with open(config_exp_path) as f:
-            config_exp = yaml.safe_load(f)
-        with open(config_alg_path) as f:
-            config_alg = yaml.safe_load(f)
+    def __init__(self,
+                 config_exp_path: str = None,
+                 config_alg_path: str = None,
+                 force_validation: bool = True):
 
-        self.update(**config_exp)
-        self.update(method=config_alg)
-        self._validate()
+        if config_exp_path is not None and os.path.exists(config_exp_path):
+            with open(config_exp_path) as f:
+                config_exp = yaml.safe_load(f)
+            self.update(**config_exp)
+
+        if config_alg_path is not None and os.path.exists(config_alg_path):
+            with open(config_alg_path) as f:
+                config_alg = yaml.safe_load(f)
+            self.update(method=config_alg)
+
+        if force_validation:
+            self._validate()
+
+    @classmethod
+    def from_ddict(cls, ddict: DDict) -> Configuration:
+        """Create a configuration from a :class:`fluke.DDict`.
+
+        Args:
+            ddict (DDict): The dictionary.
+
+        Returns:
+            Configuration: The configuration.
+        """
+        cfg = Configuration("", "", force_validation=False)
+        cfg.update(**ddict)
+        cfg._validate()
+        return cfg
+
+    def to_dict(self) -> dict:
+        """Convert the configuration to a dictionary.
+
+        Returns:
+            dict: The dictionary.
+        """
+        def _to_dict(ddict: DDict) -> dict:
+            if not isinstance(ddict, dict):
+                if isinstance(ddict, type):
+                    return ddict.__name__
+                return ddict
+            return {k: _to_dict(v) for k, v in ddict.items()}
+
+        return _to_dict(self)
+
+    @classmethod
+    def sweep(cls,
+              config_exp_path: str,
+              config_alg_path: str) -> Generator[Configuration, None, None]:
+        """Generate configurations from a sweep.
+        This method is used to generate configurations from a sweep. The sweep is defined by the
+        experiment configuration file. The method yields a configuration for each combination of
+        hyperparameters.
+
+        Args:
+            config_exp_path (str): The path to the experiment configuration file.
+            config_alg_path (str): The path to the algorithm configuration file.
+
+        Yields:
+            Configuration: A configuration.
+        """
+        cfgs = Configuration(config_exp_path, config_alg_path)
+
+        for cfg in Configuration.__sweep(cfgs):
+            yield Configuration.from_ddict(cfg)
+
+    @staticmethod
+    def __sweep(cfgs: DDict) -> Generator[DDict, None, None]:
+        """Generate configurations from a sweep.
+        This method is used to generate configurations from a sweep. The sweep is defined by the
+        experiment configuration file. The method yields a configuration for each combination of
+        hyperparameters.
+
+        Args:
+            cfgs (DDict): The configuration.
+
+        Yields:
+            DDict: A configuration.
+        """
+        if not isinstance(cfgs, dict):
+            yield cfgs
+            return
+
+        if not cfgs:
+            yield {}
+            return
+
+        keys, values = zip(*[
+            (k, (Configuration.__sweep(v) if isinstance(v, dict)
+                 else (v if isinstance(v, list) else [v])))
+            for k, v in cfgs.items()
+        ])
+
+        for combination in product(*values):
+            yield dict(zip(keys, combination))
 
     @property
     def client(self) -> DDict:
-        """Get quick access to the client hyperparameters.
+        """Get quick access to the client's hyperparameters.
 
         Returns:
-            DDict: The client hyperparameters.
+            DDict: The client's hyperparameters.
         """
         return self.method.hyperparameters.client
 
     @property
     def server(self) -> DDict:
-        """Get quick access to the server hyperparameters.
+        """Get quick access to the server's hyperparameters.
 
         Returns:
-            DDict: The server hyperparameters.
+            DDict: The server's hyperparameters.
         """
         return self.method.hyperparameters.server
 
@@ -607,13 +696,13 @@ class Configuration(DDict):
                 rich.print(f"Error: {k} is required as hyperparameter of 'client'.")
                 error = True
 
-        if "logger" in self and self.logger.name == "wandb":
+        if "logger" in self and self.logger.name in ["wandb", "WandBLog"]:
             for k in WANDB_REQUIRED_KEYS:
-                if k not in WANDB_REQUIRED_KEYS:
+                if k not in self.logger:
                     rich.print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
                     error = True
 
-        if "save" in self:
+        if "save" in self and self.save:
             for k in SAVE_REQUIRED_KEYS:
                 if k not in self.save:
                     rich.print(f"Error: {k} is required for key 'save'.")
@@ -628,7 +717,8 @@ class Configuration(DDict):
             raise ValueError("Configuration validation failed.")
 
     def __str__(self) -> str:
-        return f"{self.method.name}_data({self.data.dataset.name}, " + \
+        return f"{self.method.name if 'method' in self else 'EXP'}" + \
+            f"_data({self.data.dataset.name}, " + \
             f"{self.data.distribution.name}(" + \
             ", ".join([f"{k}={v}" for k, v in self.data.distribution.exclude('name').items()]) +\
             f"))_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}, " + \
@@ -637,6 +727,9 @@ class Configuration(DDict):
 
     def __repr__(self) -> str:
         return str(self)
+
+    def verbose(self) -> str:
+        return super().__str__()
 
 
 def plot_distribution(clients: list[Client],
@@ -757,106 +850,100 @@ def memory_usage() -> tuple[int, int, int]:
     """
     proc = psutil.Process(os.getpid())
 
-    if GlobalSettings().get_device().type == "cuda":
-        cuda_device = torch.device(GlobalSettings().get_device())
+    if FlukeENV().get_device().type == "cuda":
+        cuda_device = torch.device(FlukeENV().get_device())
         current_reserved = torch.cuda.memory_reserved(cuda_device)
     else:
         current_reserved = 0
     return proc.memory_info().rss, proc.memory_info().vms, current_reserved
 
 
-def get_temp_path(party: Client | Server | None, suffix: str = None) -> str:
-    """Get the temporary path.
+def retrieve_obj(key: str,
+                 party: Client | Server | None = None,
+                 pop: bool = True) -> Any:
+    """Load an object from the cache (disk).
+    If the object is not found in the cache, it returns ``None``.
+
+    Warning:
+        This method assumes the cache is already initialized and opened.
+        If it is not, it will raise an exception.
 
     Args:
-        party (Client | Server): The party.
-        suffix (str, optional): The suffix to append to the temporary path. Defaults to ``None``.
+        key (str, optional): specific key to add to the default filename.
+        party (Client | Server, optional): the party for which to load the object. Defaults to
+            ``None``.
+        pop (bool, optional): Whether to remove the object from the cache after loading it.
+            Defaults to ``True``.
+
     Returns:
-        str: The temporary path.
+        Any: The object retrieved from the cache.
     """
-    path = GlobalSettings().get_temp_path()
-    suffix = "" if suffix is None else ("_" + suffix)
-    if party is None:
-        path = os.path.join(path, f"obj{suffix}")
-    elif hasattr(party, "index"):
-        path = os.path.join(path, f"client_{party.index}{suffix}")
-    else:
-        path = os.path.join(path, f"server{suffix}")
-
-    return path
+    prefix = ""
+    if party is not None:
+        prefix = f"c{party.index}_" if hasattr(party, "index") else "server_"
+    cache = FlukeENV().get_cache()
+    obj = cache.pop(f"{prefix}{key}", copy=(party is None)) if pop else cache.get(f"{prefix}{key}")
+    return obj
 
 
-def load_obj(suffix: str = None) -> Any:
-    """Load an object from a temporary path (i.e., on the disk) to the RAM.
-    The temporary path is stored in the ``GlobalSettings``.
+def cache_obj(obj: Any,
+              key: str,
+              party: Server | Client | None = None) -> FlukeCache._ObjectRef | None:
+    """Move the object from the RAM to the disk cache to free up memory.
+    If the object is ``None``, it returns ``None`` without caching it.
+
+    Warning:
+        This method assumes the cache is already initialized and opened.
+        If it is not, it will raise an exception.
 
     Args:
-        suffix (str, optional): specific suffix to add to the default filename.
-            Defaults to ``None``.
+        obj (Any): The object to cache.
+        key (str, optional): The key associated with the object.
+        party (Client | Server): the party for which to unload the model. Defaults to ``None``.
 
     Returns:
-        Any: The loaded object.
+        FlukeCache._ObjectRef: The object reference identifier. If the object is ``None``,
+        it returns ``None``.
     """
-    path = get_temp_path(None, suffix)
-    if os.path.exists(path):
-        # return torch.load(path, weights_only=True)
-        obj = pickle.load(open(path, "rb"))
-        os.remove(path)
-        return obj
-    else:
+    if obj is None:
         return None
+    prefix = ""
+    if party is not None:
+        prefix = f"c{party.index}_" if hasattr(party, "index") else "server_"
+    cache = FlukeENV().get_cache()
+    return cache.push(f"{prefix}{key}", obj)
 
 
-def unload_obj(obj: Any, suffix: str = None) -> None:
-    """Move the object from the RAM to the disk to free up memory.
-    The model is stored in the global settings temporary path.
+def _flatten_dict(d: dict, parent_key: str = '', sep: str = '.'):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def flatten_dict(nested_dict: dict, sep: str = '.') -> dict:
+    """Flatten a nested dictionary.
+    The flatten dictionary is a dictionary where the keys are the concatenation of the keys of the
+    nested dictionary separated by a separator.
 
     Args:
-        party (Client | Server): the party for which to unload the model.
-        suffix (str, optional): specific suffix to add to the default filename.
-            Defaults to ``None``.
-    """
-    path = get_temp_path(None, suffix)
-    # torch.save(party.model, path)
-    pickle.dump(obj, open(path, "wb"))
-
-
-def load_model(party: Client | Server | None, attr_names: list[str]) -> dict[str, Module]:
-    """Load a torch model from a temporary path (i.e., on the disk) to the RAM.
-    The temporary path is stored in the ``GlobalSettings``.
-
-    Args:
-        party (Client | Server): the party for which to load the model.
-        attr_names (list[str]): The attribute names of the stored models.
+        d (dict): Nested dictionary.
+        sep (str, optional): Separator. Defaults to '.'.
 
     Returns:
-        dict[str, Module]: The model(s).
+        dict: Flattened dictionary.
+
+    Example:
+        .. code-block:: python
+            :linenos:
+
+            d = {'a': 1, 'b': {'c': 2, 'd': {'e': 3}}}
+            flatten_dict(d)
+            # Output: {'a': 1, 'b.c': 2, 'b.d.e': 3}
+
     """
-    models = {}
-    for suffix in attr_names:
-        path = get_temp_path(party, suffix)
-        if os.path.exists(path):
-            # return torch.load(path, weights_only=True)
-            model = pickle.load(open(path, "rb"))
-            os.remove(path)
-            models[suffix] = model
-        else:
-            models[suffix] = None
-    return models
-
-
-def unload_model(party: Client | Server, attr_to_unload: list[str]) -> None:
-    """Move the model(s) from the RAM to the disk to free up memory.
-    The references to the models are supposed to be found in the attributes listed in
-    ``attr_to_unload`` of the ``party``.
-    The models are stored in the global settings temporary path.
-
-    Args:
-        party (Client | Server): the party for which to unload models.
-        attr_to_unload (list[str]): The names of the attributes to unload.
-    """
-    for name in attr_to_unload:
-        model_ref = getattr(party, name)
-        if model_ref is not None:
-            path = get_temp_path(party, name)
-            pickle.dump(model_ref, open(path, "wb"))
+    return _flatten_dict(nested_dict)

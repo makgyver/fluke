@@ -7,7 +7,7 @@ References:
        URL: https://arxiv.org/abs/2212.02758
 """
 import sys
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from typing import Any, Iterable
 
 import torch
@@ -18,18 +18,18 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-from .. import GlobalSettings  # NOQA
-from ..client import PFLClient  # NOQA
+from .. import FlukeENV  # NOQA
+from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
-                           get_activation_size, ArgMaxModule)  # NOQA
-from . import PersonalizedFL  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
+from ..utils.model import get_activation_size  # NOQA
+from . import CentralizedFL  # NOQA
 
 __all__ = [
     "ProtoNet",
+    "ArgMaxModule",
     "FedNHClient",
     "FedNHServer",
     "FedNH"
@@ -37,10 +37,14 @@ __all__ = [
 
 
 class ProtoNet(Module):
-    """Wrapper network for the encoder model and the prototypes.
+    """Neural network with prototypes.
+    The network is composed of an encoder and a set of prototypes. The prototypes are
+    initialized as orthogonal vectors and are not trainable. In the forward pass, the network
+    computes the cosine similarity between the normalized embeddings (output of the encoder) and
+    the prototypes.
 
     Args:
-        encoder (nn.Module): The encoder model.
+        encoder (Module): Encoder network.
         n_protos (int): Number of prototypes.
         proto_size (int): Size of the prototypes.
     """
@@ -61,7 +65,18 @@ class ProtoNet(Module):
         return embeddings, logits
 
 
-class FedNHClient(PFLClient):
+class ArgMaxModule(Module):
+    def __init__(self,
+                 model: Module):
+        super().__init__()
+        self.model: Module = model
+
+    @torch.no_grad()
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.argmax(self.model(x)[1], dim=1)
+
+
+class FedNHClient(Client):
 
     def __init__(self,
                  index: int,
@@ -73,21 +88,23 @@ class FedNHClient(PFLClient):
                  local_epochs: int,
                  n_protos: int,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 5,
                  **kwargs: dict[str, Any]):
         fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs > 0 else local_epochs
-        embedding_size = get_activation_size(model, train_set.tensors[0][0])
-        super().__init__(index=index, model=ProtoNet(model, n_protos, embedding_size),
-                         train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
-                         loss_fn=CrossEntropyLoss(), local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+        super().__init__(index=index, train_set=train_set, test_set=test_set,
+                         optimizer_cfg=optimizer_cfg, loss_fn=CrossEntropyLoss(),
+                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
+                         clipping=clipping, **kwargs)
         self.hyper_params.update(
             n_protos=n_protos
         )
+        if isinstance(model, str):
+            model = get_model(model)
+        embedding_size = get_activation_size(model, train_set.tensors[0][0])
         self.model = ProtoNet(model, n_protos, embedding_size)
         self.count_by_class = torch.bincount(self.train_set.tensors[1],
                                              minlength=self.train_set.num_labels)
-        self._tounload.remove("personalized_model")
-        self._unload_model()
+        self._save_to_cache()
 
     def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
         prototypes = self.model.prototypes.data
@@ -108,7 +125,7 @@ class FedNHClient(PFLClient):
         self.model.to(self.device)
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -118,14 +135,12 @@ class FedNHClient(PFLClient):
                 _, logits = self.model(X)
                 loss = self.hyper_params.loss_fn(logits, y)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(parameters=filter(
-                    lambda p: p.requires_grad, self.model.parameters()
-                ), max_norm=10)
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
-        self.model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
         running_loss /= (epochs * len(self.train_set))
 
         protos = defaultdict(list)
@@ -143,12 +158,12 @@ class FedNHClient(PFLClient):
         return {}
 
     def finalize(self) -> None:
-        self._load_model()
+        self._load_from_cache()
         self.fit(self.hyper_params.fine_tuning_epochs)
-        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
             self._notify_evaluation(-1, "post-fit", metrics)
-        self._unload_model()
+        self._save_to_cache()
 
 
 class FedNHServer(Server):
@@ -156,7 +171,7 @@ class FedNHServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[PFLClient],
+                 clients: Iterable[Client],
                  weighted: bool = True,
                  n_protos: int = 10,
                  rho: float = 0.1):
@@ -168,24 +183,62 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
-        # Recieve models from clients, i.e., the prototypes
-        clients_protos = [cmodel.prototypes.data for cmodel in client_models]
-
-        # Group by label
-        label_protos = {i: [protos[i] for protos in clients_protos]
-                        for i in range(self.hyper_params.n_protos)}
+    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
 
         # This could be the learning rate for the server (not used in the official implementation)
         # server_lr = self.hyper_params.lr * self.hyper_params.lr_decay ** self.round
         server_lr = 1.0
-        weight = server_lr / len(client_models)
+        weights = [server_lr / len(eligible)] * len(eligible)
         cl_weight = torch.zeros(self.hyper_params.n_protos)
 
         # To get client.count_by_class is actually illegal in fluke, but irrelevant from an
         # implementation point of view
         for client in eligible:
             cl_weight += client.count_by_class
+
+        clients_protos = []
+
+        # Aggregate models = Federated Averaging
+        # Get model parameters and buffers
+        model_params = dict(self.model.encoder.named_parameters())
+        # Includes running_mean, running_var, etc.
+        model_buffers = dict(self.model.encoder.named_buffers())
+
+        # Initialize accumulators for parameters
+        avg_params = {key: torch.zeros_like(param.data) for key, param in model_params.items()}
+        avg_buffers = {key: torch.zeros_like(buffer.data)
+                       for key, buffer in model_buffers.items() if "num_batches_tracked" not in key}
+
+        max_num_batches_tracked = 0  # Track the max num_batches_tracked
+
+        # Compute weighted sum (weights already sum to 1, so no division needed)
+        for m, w in zip(client_models, weights):
+            clients_protos.append(m.prototypes.data)
+
+            for key, param in m.encoder.named_parameters():
+                avg_params[key].add_(param.data, alpha=w)
+
+            for key, buffer in m.encoder.named_buffers():
+                if "num_batches_tracked" not in key:
+                    avg_buffers[key].add_(buffer.data, alpha=w)
+                else:
+                    max_num_batches_tracked = max(max_num_batches_tracked, buffer.item())
+
+        for key in model_params.keys():
+            model_params[key].data.lerp_(avg_params[key], server_lr)  # Soft update
+
+        for key in model_buffers.keys():
+            if "num_batches_tracked" not in key:
+                model_buffers[key].data.lerp_(avg_buffers[key], server_lr)
+
+        # Assign max num_batches_tracked
+        for key in model_buffers.keys():
+            if "num_batches_tracked" in key:
+                model_buffers[key].data.fill_(max_num_batches_tracked)
+
+        # Group by label
+        label_protos = {i: [protos[i] for protos in clients_protos]
+                        for i in range(self.hyper_params.n_protos)}
 
         # Aggregate prototypes
         prototypes = self.model.prototypes.clone()
@@ -214,26 +267,6 @@ class FedNHServer(Server):
         # Normalize the prototypes again
         self.model.prototypes.data = F.normalize(
             self.model.prototypes.data, dim=1)  # .clamp(min=1e-12)
-        # Aggregate models = Federated Averaging
-        avg_model_sd = OrderedDict()
-        clients_sd = [client.encoder.state_dict() for client in client_models]
-        with torch.no_grad():
-            for key in self.model.encoder.state_dict().keys():
-                if key.endswith(STATE_DICT_KEYS_TO_IGNORE):
-                    avg_model_sd[key] = self.model.encoder.state_dict()[key].clone()
-                    continue
-
-                if key.endswith("num_batches_tracked"):
-                    mean_nbt = torch.mean(torch.Tensor([c[key] for c in clients_sd])).long()
-                    avg_model_sd[key] = max(avg_model_sd[key], mean_nbt)
-                    continue
-
-                for _, client_sd in enumerate(clients_sd):
-                    if key not in avg_model_sd:
-                        avg_model_sd[key] = weight * client_sd[key].clone()
-                    else:
-                        avg_model_sd[key] += weight * client_sd[key].clone()
-            self.model.encoder.load_state_dict(avg_model_sd)
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if self.test_set is not None:
@@ -242,9 +275,9 @@ class FedNHServer(Server):
         return {}
 
 
-class FedNH(PersonalizedFL):
+class FedNH(CentralizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> Client:
         return FedNHClient
 
     def get_server_class(self) -> Server:

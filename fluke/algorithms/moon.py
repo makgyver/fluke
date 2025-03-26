@@ -14,10 +14,11 @@ from torch.nn import CosineSimilarity
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import FlukeENV  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 __all__ = [
@@ -37,17 +38,18 @@ class MOONClient(Client):
                  mu: float,
                  tau: float,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(
             mu=mu,
             tau=tau
         )
         self.prev_model = None
         self.server_model = None
-        self._tounload.extend(["prev_model", "server_model"])
+        self._attr_to_cache.extend(["prev_model", "server_model"])
 
     def receive_model(self) -> None:
         model = self.channel.receive(self, self.server, msg_type="model").payload
@@ -69,7 +71,7 @@ class MOONClient(Client):
         self.server_model.to(self.device)
         self.model.train()
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -91,15 +93,16 @@ class MOONClient(Client):
 
                 loss = loss_sup + self.hyper_params.mu * loss_con
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.prev_model.to("cpu")
-        self.server_model.to("cpu")
-        self.model.to("cpu")
-        clear_cache()
+        self.prev_model.cpu()
+        self.server_model.cpu()
+        self.model.cpu()
+        clear_cuda_cache()
         return running_loss
 
 

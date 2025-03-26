@@ -13,8 +13,8 @@ import torch
 
 sys.path.append(".")
 
-from . import ObserverSubject, GlobalSettings  # NOQA
-from .utils import load_obj, unload_obj, clear_cache  # NOQA
+from . import ObserverSubject, FlukeENV, FlukeCache  # NOQA
+from .utils import retrieve_obj, cache_obj  # NOQA
 
 __all__ = [
     'Message',
@@ -24,10 +24,25 @@ __all__ = [
 
 
 class Message:
-    """This class represents a message that can be exchanged between clients and the server. This
-    type is immutable. The message contains a payload, a type and a sender. The payload can be of
-    any type. The type is a string that describes the content of the message. The sender is the
-    object that sends the message.
+    """This class represents a message that can be exchanged between clients and the server.
+    The message contains a payload, a type and a sender. The payload can be of
+    any type. The type of a message is a string that describes the content of the message.
+    The sender is the object that sends the message.
+
+    Args:
+        payload (Any): The content of the message.
+        msg_type (str): The type of the message. Default is "model".
+        sender (Optional[Any]): The sender of the message. Default is ``None``.
+        inmemory (Optional[bool]): If ``True``, the payload is stored in memory. If ``False``, the
+            payload is stored in the cache. If ``None``, the payload is stored according to the
+            setting in the :class:`fluke.FlukeENV`. Note that when ``inmemory`` is ``False``,
+            the payload is stored in the cache if and only if the environment is not in memory,
+            otherwise the payload is stored in memory. Default is ``None``.
+
+    Note:
+        The payload can be stored in memory if and only if its type is :class:`torch.nn.Module`,
+        :class:`torch.Tensor` or :class:`fluke.FlukeCache._ObjectRef`. In the latter case, the
+        reference count of the object is incremented by one.
 
     Example:
         Let us consider a simple example where a client wants to send preparea  message to be sent
@@ -47,18 +62,19 @@ class Message:
     def __init__(self,
                  payload: Any,
                  msg_type: str = "model",
-                 sender: Optional[Any] = None):
-        self.__id: int = uuid.uuid4().int
+                 sender: Optional[Any] = None,
+                 inmemory: Optional[bool] = None):
+        self.__id: str = str(uuid.uuid4().hex)
         self.__msg_type: str = msg_type
         self.__payload: Any = payload
         self.__sender: Optional[Any] = sender
         self.__size: int = self.__get_size(payload)
-        self.__inmemory: bool = True
+        self.__inmemory: bool = inmemory if inmemory is not None else True
 
-        if not GlobalSettings().is_inmemory() and isinstance(payload, torch.nn.Module):
-            unload_obj(payload, f"{self.__id}")
-            self.__payload = None
-            self.__inmemory = False
+        if not FlukeENV().is_inmemory() and not inmemory:
+            if isinstance(payload, (torch.nn.Module, FlukeCache._ObjectRef, torch.Tensor)):
+                self.__payload = cache_obj(payload, f"{self.__id}")
+                self.__inmemory = False
 
     @property
     def id(self) -> int:
@@ -82,11 +98,15 @@ class Message:
     def payload(self) -> Any:
         """Get the payload of the message.
 
+        Note:
+            If the payload is stored in the cache, it is loaded in memory when this property is
+            called for the first time on the object.
+
         Returns:
             Any: The payload of the message.
         """
         if not self.__inmemory:
-            self.__payload = load_obj(f"{self.__id}")
+            self.__payload = retrieve_obj(f"{self.__id}")
             self.__inmemory = True
 
         return self.__payload
@@ -115,21 +135,31 @@ class Message:
             return obj.numel()
         elif isinstance(obj, (torch.nn.Module)):
             return sum(p.numel() for p in obj.parameters())
+        elif isinstance(obj, FlukeCache._ObjectRef):
+            return 0
         else:
             warnings.warn(f"Unknown type {type(obj)} of object {obj} in payload." +
                           "Returning object size = 0.")
             return 0
 
-    def clone(self) -> Message:
+    def clone(self, inmemory: Optional[bool] = None) -> Message:
         """Clone the message. The cloned message containes a deepcopy of the payload while
         keeping the same message type and the same reference to the sender.
+
+        Args:
+            inmemory (Optional[bool]): If ``True``, the payload is stored in memory. If False, the
+                payload is stored in the cache. If None, the payload is stored according to the
+                setting in the :class:`fluke.FlukeENV`.
 
         Returns:
             Message: The cloned message.
         """
-        return Message(deepcopy(self.payload), self.msg_type, self.sender)
+        msg = Message(deepcopy(self.__payload), self.msg_type, self.sender, inmemory)
+        msg.__size = self.__size
+        return msg
 
-    def get_size(self) -> int:
+    @property
+    def size(self) -> int:
         """Get the size of the message. The message size is the size of the payload calculated in
         terms of "floating point" numbers. For example, a message containing a tensor of size
         (10, 10) has a size of 100. A message containing a string of length 10 has a size of 10.
@@ -145,26 +175,53 @@ class Message:
                 :linenos:
 
                 message = Message("Hello", "greeting", client)
-                print(message.get_size())  # 5
+                print(message.size)  # 5
 
                 message = Message(torch.randn(10, 10), "tensor", client)
-                print(message.get_size())  # 100
+                print(message.size)  # 100
 
                 message = Message(None, "ack", client)
-                print(message.get_size())  # 1
+                print(message.size)  # 1
         """
         return self.__size
 
     def __eq__(self, other: Message) -> bool:
-        return self.payload == other.payload and self.msg_type == other.msg_type and \
+        return self.__payload == other.__payload and self.msg_type == other.msg_type and \
             self.sender == other.sender
 
     def __str__(self) -> str:
-        return f"Message(type={self.msg_type}, from={self.sender}, payload={self.payload}, " + \
-            f"size={self.get_size()})"
+        return f"Message[{self.id}](type={self.msg_type}, from={self.sender}, " + \
+            f"payload={self.__payload}, size={self.size}, inmemory={self.__inmemory})"
 
     def __repr__(self) -> str:
         return str(self)
+
+    def ram(self) -> bool:
+        """Store the payload in memory.
+        This method is used when the payload needs to be moved from the cache to memory.
+
+        Returns:
+            bool: ``True`` if the payload is moved to memory, ``False`` otherwise.
+        """
+        if not self.__inmemory:
+            self.__payload = retrieve_obj(f"{self.__id}")
+            self.__inmemory = True
+            return True
+        return False
+
+    def cache(self) -> bool:
+        """Store the payload in the cache.
+        This method is used when the payload needs to be moved from memory to the cache.
+
+        Returns:
+            bool: ``True`` if the payload is moved to the cache, ``False`` otherwise.
+        """
+        if self.__inmemory:
+            if isinstance(self.__payload, (torch.nn.Module, FlukeCache._ObjectRef, torch.Tensor)):
+                self.__payload = cache_obj(self.__payload, f"{self.__id}")
+                self.__inmemory = False
+                return True
+        return False
 
 
 class ChannelObserver():
@@ -297,12 +354,25 @@ class Channel(ObserverSubject):
     def broadcast(self, message: Message, to: list[Any]) -> None:
         """Send a copy of the message to a list of receivers.
 
+        Note:
+            This method may have a side effect on the payload of the message.
+            The payload is moved to memory after the message is sent to avoid dangling references.
+            If the payload was already in memory, nothing is done.
+
+        Important:
+            When a message is broadcasted, a copy of the message is sent to each receiver. If the
+            message is not stored in memory, the payload is a reference to an object stored in the
+            cache, and thus the reference count of the object is incremented by the number of
+            receivers. After the message is sent, the sent message is moved to memory to avoid
+            dangling references.
+
         Args:
             message (Message): The message to be sent.
             to (list[Any]): The list of receivers.
         """
         for client in to:
             self.send(message, client)
+        message.ram()
 
     def clear(self, mbox: Any) -> None:
         """Clear the message box of the given receiver.
@@ -315,6 +385,11 @@ class Channel(ObserverSubject):
         Args:
             mbox (Any): The receiver.
         """
+        if not FlukeENV().is_inmemory():
+            cache = FlukeENV().get_cache()
+            for msg in self._buffer[mbox]:
+                cache.delete(f"{msg.id}")
+
         self._buffer[mbox].clear()
 
     def _notify_message_received(self, message: Message) -> None:

@@ -13,27 +13,28 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-from fluke import DDict  # NOQA
+from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import Message  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
+from fluke.server import Server  # NOQA
 from fluke.utils import (ClientObserver, Configuration,  # NOQA
-                         OptimizerConfigurator, ServerObserver, clear_cache,
+                         OptimizerConfigurator, ServerObserver, clear_cuda_cache,
                          get_class_from_qualified_name, get_class_from_str,
-                         get_full_classname, get_loss, get_model,
+                         get_full_classname, get_loss, get_model, get_optimizer, bytes2human,
                          get_scheduler, import_module_from_str, memory_usage,
-                         plot_distribution, load_model, load_obj, unload_model, unload_obj)
+                         plot_distribution, retrieve_obj, cache_obj, flatten_dict)
 from fluke.utils.log import Log, get_logger  # NOQA
 from fluke.utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
                                AllLayerOutputModel, MMMixin,
                                batch_norm_to_group_norm, check_model_fit_mem,
                                diff_model, flatten_parameters,
-                               get_global_model_dict, get_local_model_dict,
+                               get_global_model_dict, get_local_model_dict, get_trainable_keys,
                                merge_models, mix_networks, get_activation_size,
-                               safe_load_state_dict, set_lambda_model)
+                               safe_load_state_dict, set_lambda_model, state_dict_zero_like)
 
 
 def test_optimcfg():
@@ -59,10 +60,11 @@ def test_optimcfg():
     }
 
     opt_cfg = OptimizerConfigurator(
-        optimizer_cfg=DDict(name=SGD,
+        optimizer_cfg=DDict(name="SGD",
                             lr=0.1,
                             momentum=0.9),
         scheduler_cfg=DDict(
+            name=StepLR,
             step_size=1,
             gamma=.1
         ),
@@ -128,20 +130,29 @@ def test_optimcfg():
 
 
 def test_functions():
-    try:
-        client_module = import_module_from_str("fluke.client")
-        client_class = get_class_from_str("fluke.client", "Client")
-        model = get_model("MNIST_2NN")
-        model2 = get_model("fluke.nets.MNIST_2NN")
-        linear = get_class_from_qualified_name("torch.nn.Linear")
-        full_linear = get_full_classname(Linear)
-        loss = get_loss("CrossEntropyLoss")
-        scheduler = get_scheduler("StepLR")
-        logger = get_logger("Log")
-        clear_cache()
-        clear_cache(True)
-    except Exception:
-        pytest.fail("Unexpected error!")
+    # try:
+    client_module = import_module_from_str("fluke.client")
+    client_class = get_class_from_str("fluke.client", "Client")
+    assert client_class == Client
+    model = get_model("MNIST_2NN")
+    assert model.__class__.__name__ == "MNIST_2NN"
+    model2 = get_model("fluke.nets.MNIST_2NN")
+    assert model2.__class__.__name__ == "MNIST_2NN"
+    linear = get_class_from_qualified_name("torch.nn.Linear")
+    assert linear == Linear
+    full_linear = get_full_classname(Linear)
+    optim = get_optimizer("SGD")
+    assert optim == SGD
+    loss = get_loss("CrossEntropyLoss")
+    assert isinstance(loss, CrossEntropyLoss)
+    scheduler = get_scheduler("StepLR")
+    assert scheduler == StepLR
+    logger = get_logger("Log")
+    assert isinstance(logger, Log)
+    clear_cuda_cache()
+    clear_cuda_cache(True)
+    # except Exception:
+    #     pytest.fail("Unexpected error!")
 
     rss, vms, cud = memory_usage()
     assert rss >= 0
@@ -175,6 +186,13 @@ def test_functions():
     batch = torch.randn(1, 3, 28, 28)
     model4(batch)
 
+    assert bytes2human(100) == "100 B"
+
+    sd = state_dict_zero_like(model4.state_dict())
+    assert list(sd.keys()) == list(model4.state_dict().keys())
+    for k in sd.keys():
+        assert torch.all(sd[k] == 0)
+
     prev_state_dict = model3.state_dict()
     safe_load_state_dict(model3, model4.state_dict())
     for k in model3.state_dict().keys():
@@ -183,21 +201,42 @@ def test_functions():
         else:
             assert torch.all(model3.state_dict()[k] == model4.state_dict()[k])
 
-    unload_obj(model3, "test")
-    load_model3 = load_obj("test")
+    FlukeENV().set_inmemory(False)
+    FlukeENV().open_cache("test_utils")
+    cache_obj(model3, "test")
+    load_model3 = retrieve_obj("test")
+
+    server = Server(model3, None, [], None, None)
+    cache_obj(model3, "model", server)
+    load_cmodel = retrieve_obj("model", server)
 
     assert load_model3 is not None
+    assert load_cmodel is not None
+    assert isinstance(load_model3, torch.nn.Sequential)
+    assert isinstance(load_cmodel, torch.nn.Sequential)
+
+    tkeys = get_trainable_keys(model3)
+    assert len(tkeys) == 4
+    assert list(tkeys) == ["0.weight", "0.bias", "1.weight", "1.bias"]
+
+    FlukeENV().get_cache().cleanup()
+    FlukeENV().close_cache()
+    cache_obj(None, "test")
 
     for k in model3.state_dict().keys():
         assert torch.all(model3.state_dict()[k] == load_model3.state_dict()[k])
 
-    client = Client(1, None, None, None, None)
-    client.model = model3
-    unload_model(client, ["model"])
-    load_model3 = load_model(client, ["model"])["model"]
+    # client = Client(1, None, None, None, None)
+    # client.model = model3
+    # cache_model(client, ["model"])
+    # load_model3 = retrieve_model(client, ["model"])["model"]
 
     for k in model3.state_dict().keys():
         assert torch.all(model3.state_dict()[k] == load_model3.state_dict()[k])
+
+    d = {"a": 1, "b": 2, "c": {"d": 3}}
+    dflat = flatten_dict(d)
+    assert dflat == {"a": 1, "b": 2, "c.d": 3}
 
 
 def test_configuration():
@@ -266,6 +305,17 @@ def test_configuration():
     except Exception:
         pytest.fail("Unexpected error!")
 
+    cfg["exp"]["seed"] = [42, 50, 133]
+    temp_cfg = tempfile.NamedTemporaryFile(mode="w")
+    temp_cfg_alg = tempfile.NamedTemporaryFile(mode="w")
+    json.dump(cfg, open(temp_cfg.name, "w"))
+    json.dump(cfg_alg, open(temp_cfg_alg.name, "w"))
+
+    gencfg = Configuration.sweep(temp_cfg.name, temp_cfg_alg.name)
+    assert len(list(gencfg)) == 3
+
+    cfg["exp"]["seed"] = 42
+
     assert conf.protocol.n_clients == 100
     # assert conf.data.dataset.name == "mnist"
     assert conf.exp.seed == 42
@@ -274,7 +324,6 @@ def test_configuration():
     assert conf.server.weighted
     assert conf.model == "MNIST_2NN"
 
-    print(str(conf))
     assert str(conf) == "fluke.algorithms.fedavg.FedAVG_data(mnist, iid())_proto(C100, R50, E0.1)_seed(42)"
     assert conf.__repr__() == str(conf)
 
@@ -289,6 +338,12 @@ def test_configuration():
 
     with pytest.raises(ValueError):
         conf = Configuration(temp_cfg.name, temp_cfg_alg.name)
+
+    cfg["logger"]["name"] = "WandBLog"
+    cfg_ = cfg.copy()
+    cfg_["method"] = cfg_alg
+    with pytest.raises(ValueError):
+        Configuration.from_ddict(DDict(cfg_))
 
 
 def test_log():
@@ -314,7 +369,7 @@ def test_log():
         data = dict(json.load(f))
         assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
             '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
-            'perf_postfit': {}}
+            'perf_postfit': {'1': {'accuracy': 0.6}}}
 
     assert log.global_eval == {1: {"accuracy": 1}}
     assert log.locals_eval == {}
@@ -322,7 +377,7 @@ def test_log():
     assert log.postfit_eval == {}
     assert log.locals_eval_summary == {}
     assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
-    assert log.postfit_eval_summary == {}
+    assert log.postfit_eval_summary == {1: {'accuracy': 0.6}}
     assert log.comm_costs == {0: 0, 1: 4}
     assert log.current_round == 1
 
@@ -490,29 +545,30 @@ def test_clientobs():
     sobs.end_fit(1, 17, None, 0.1)
 
 
-@patch("matplotlib.pyplot.show")
-def test_plot_dist(mock_show):
-    hparams = DDict(
-        # model="fluke.nets.MNIST_2NN",
-        model=MNIST_2NN(),
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     loss=CrossEntropyLoss,
-                     optimizer=DDict(
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
-    )
-    mnist = Datasets.MNIST("../data")
-    splitter = DataSplitter(mnist, client_split=0.1)
-    fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, "ball")
-    plot_distribution(fl.clients, "bar")
-    plot_distribution(fl.clients, "mat")
+# @patch("matplotlib.pyplot.show")
+# def test_plot_dist(mock_show):
+#     hparams = DDict(
+#         # model="fluke.nets.MNIST_2NN",
+#         model=MNIST_2NN(),
+#         client=DDict(batch_size=32,
+#                      local_epochs=1,
+#                      loss=CrossEntropyLoss,
+#                      optimizer=DDict(
+#                          lr=0.1,
+#                          momentum=0.9),
+#                      scheduler=DDict(
+#                          step_size=1,
+#                          gamma=0.1)
+#                      ),
+#         server=DDict(weighted=True)
+#     )
+#     mnist = Datasets.MNIST("../data")
+#     splitter = DataSplitter(mnist, client_split=0.1)
+#     fl = CentralizedFL(10, splitter, hparams)
+#     plot_distribution(fl.clients, "ball")
+#     plot_distribution(fl.clients, "bar")
+#     plot_distribution(fl.clients, "mat")
+#     FlukeENV().close_cache()
 
 
 @patch("matplotlib.pyplot.show")
@@ -535,7 +591,8 @@ def test_plot_dist_ball(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, "ball")
+    plot_distribution(fl.clients, type="ball")
+    FlukeENV().close_cache()
 
 
 @patch("matplotlib.pyplot.show")
@@ -558,7 +615,8 @@ def test_plot_dist_bar(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, "bar")
+    plot_distribution(fl.clients, type="bar")
+    FlukeENV().close_cache()
 
 
 @patch("matplotlib.pyplot.show")
@@ -581,7 +639,8 @@ def test_plot_dist_mat(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, "mat")
+    plot_distribution(fl.clients, type="mat")
+    FlukeENV().close_cache()
 
 
 def test_check_mem():
@@ -641,7 +700,7 @@ if __name__ == "__main__":
     test_mixing()
     test_serverobs()
     test_clientobs()
-    test_plot_dist()
+    # test_plot_dist()
     test_check_mem()
     test_alllayeroutput()
 

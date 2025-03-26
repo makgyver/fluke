@@ -1,7 +1,6 @@
 numpy
 pandas
 scikit-learn
-scipy
 torch
 torchmetrics
 torchvision
@@ -15,3 +14,4 @@ clearml
 matplotlib
 seaborn
 opacus
+diskcache

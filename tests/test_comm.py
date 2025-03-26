@@ -10,6 +10,7 @@ import torch
 sys.path.append(".")
 sys.path.append("..")
 
+from fluke import FlukeENV, FlukeCache  # NOQA
 from fluke.comm import Channel, ChannelObserver, Message  # NOQA
 
 
@@ -18,45 +19,73 @@ def test_message():
     assert msg.msg_type == "type_test"
     assert msg.payload == "a"
     assert msg.sender is None
-    assert msg.get_size() == 1
+    assert msg.size == 1
     msg = Message(payload=None, msg_type="type_test", sender=None)
-    assert msg.get_size() == 1
+    assert msg.size == 1
     msg = Message(payload=[1, 2, 3, "abc"], msg_type="type_test", sender=None)
-    assert msg.get_size() == 6
+    assert msg.size == 6
     msg = Message(payload={"a": 1, "b": 2}, msg_type="type_test", sender=None)
-    assert msg.get_size() == 4
+    assert msg.size == 4
     msg = Message(payload=17, msg_type="type_test", sender=None)
-    assert msg.get_size() == 1
+    assert msg.size == 1
     msg = Message(payload=17.0, msg_type="type_test", sender=None)
-    assert msg.get_size() == 1
+    assert msg.size == 1
     msg = Message(payload=True, msg_type="type_test", sender=None)
-    assert msg.get_size() == 1
+    assert msg.size == 1
     msg = Message(payload=np.array([1, 2, 3]), msg_type="type_test", sender=None)
-    assert msg.get_size() == 3
+    assert msg.size == 3
     msg = Message(payload=np.array([[1, 2], [3, 4]]), msg_type="type_test", sender=None)
-    assert msg.get_size() == 4
+    assert msg.size == 4
     msg = Message(payload=torch.FloatTensor([1, 2, 3]), msg_type="type_test", sender=None)
-    assert msg.get_size() == 3
+    assert msg.size == 3
     msg = Message(payload=torch.nn.Linear(10, 10), msg_type="type_test", sender=None)
-    assert msg.get_size() == 100 + 10
+    assert msg.size == 100 + 10
+    msg = Message(payload=FlukeCache._ObjectRef(), msg_type="type_test", sender=None)
+    assert msg.size == 0
 
     class A():
         pass
 
     warnings.filterwarnings("ignore")
     msg = Message(payload=A(), msg_type="type_test", sender=None)
-    assert msg.get_size() == 0
+    assert msg.size == 0
+
+    msg2 = Message(payload="a", msg_type="type_test", sender=None)
+    assert msg.id != msg2.id
 
     msg = Message(payload="prova", msg_type="type_test", sender=None)
-    assert str(msg) == "Message(type=type_test, from=None, payload=prova, size=5)"
-    assert msg.__repr__() == "Message(type=type_test, from=None, payload=prova, size=5)"
+    assert str(
+        msg) == f"Message[{msg.id}](type=type_test, from=None, payload=prova, size=5, inmemory=True)"
+    assert msg.__repr__(
+    ) == f"Message[{msg.id}](type=type_test, from=None, payload=prova, size=5, inmemory=True)"
+
+    tensor = torch.FloatTensor([1, 2, 3])
+    FlukeENV().set_inmemory(False)
+    FlukeENV().open_cache("tmp_comm")
+    msg = Message(tensor, "type_test", "sender", inmemory=False)
+    assert FlukeENV().get_cache().occupied == 1
+    assert not msg.cache()
+    msg.ram()
+    assert FlukeENV().get_cache().occupied == 0
+    assert msg.cache()
+    assert FlukeENV().get_cache().occupied == 1
+    assert torch.all(msg.payload == tensor)
+    assert FlukeENV().get_cache().occupied == 0
+    FlukeENV().get_cache().cleanup()
+    FlukeENV().close_cache()
 
 
 def test_channel():
+
+    chobs = ChannelObserver()
+    chobs.message_received(Message("a", "type_test", "sender"))
+    assert isinstance(chobs, ChannelObserver)
+
     class Observer(ChannelObserver):
         def message_received(self, msg):
             self.msg = msg
 
+    FlukeENV().open_cache("tmp_comm")
     channel = Channel()
     assert not channel.buffer
     obs = Observer()
@@ -90,6 +119,8 @@ def test_channel():
 
     with pytest.raises(ValueError):
         channel.receive("pippo", "sender", "type_test")
+
+    FlukeENV().close_cache()
 
 
 if __name__ == "__main__":

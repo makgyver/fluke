@@ -14,7 +14,7 @@ from torchvision.models import resnet18, resnet34, resnet50
 sys.path.append(".")
 sys.path.append("..")
 
-from . import GlobalSettings  # NOQA
+from . import FlukeENV  # NOQA
 from .utils.model import batch_norm_to_group_norm  # NOQA
 
 __all__ = [
@@ -130,10 +130,10 @@ class EncoderHeadNet(nn.Module):
 
 class GlobalLocalNet(nn.Module):
     """Global-Local Network (Abstract Class). This is a network that has two subnetworks, one is
-    meant to be shared (global) and one is meant to be personalized (local). The ``forward`` method
-    should work as expected, but the ``forward_local`` and ``forward_global`` methods should be used
-    to get the output of the local and global subnetworks, respectively. If this is not possible,
-    they fallback to the forward method (default behavior).
+    meant to be shared (global) and one is meant to be personalized (local). The :meth:`forward`
+    method should work as expected, but the :meth:`forward_local`` and :meth:`forward_global`
+    methods should be used to get the output of the local and global subnetworks, respectively.
+    If this is not possible, they fallback to the forward method (default behavior).
     """
 
     @abstractmethod
@@ -340,19 +340,22 @@ class MNIST_CNN_E(nn.Module):
 class MNIST_CNN_D(nn.Module):
     """Head for the :class:`MNIST_CNN` network.
 
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
     See Also:
         - :class:`MNIST_CNN`
         - :class:`MNIST_CNN_E`
     """
 
-    def __init__(self):
+    def __init__(self, output_size: int = 10):
         super(MNIST_CNN_D, self).__init__()
         self.fc1 = nn.Linear(1024, 512)
-        self.fc2 = nn.Linear(512, 10)
+        self.fc2 = nn.Linear(512, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.fc1(x))
-        return F.softmax(self.fc2(x), dim=1)
+        return self.fc2(x)
 
 
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf
@@ -365,10 +368,13 @@ class MNIST_CNN(EncoderHeadNet):
     and 10 neurons, respectively.
 
     Very same architecture is also used in the [SuPerFed]_ paper.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
     """
 
-    def __init__(self):
-        super(MNIST_CNN, self).__init__(MNIST_CNN_E(), MNIST_CNN_D())
+    def __init__(self, output_size: int = 10):
+        super(MNIST_CNN, self).__init__(MNIST_CNN_E(), MNIST_CNN_D(output_size))
 
 
 class FedBN_CNN_E(nn.Module):
@@ -854,6 +860,13 @@ class VGG9(EncoderHeadNet):
 # FedAvg: https://arxiv.org/pdf/1602.05629.pdf (CIFAR-10)
 # FedDyn: https://openreview.net/pdf?id=B7v4QMR6Z9w (CIFAR-10 and CIFAR-100)
 class FedAVGCNN_E(nn.Module):
+    """Encoder for the :class:`FedAVGCNN` network.
+
+    See Also:
+        - :class:`FedAVGCNN_D`
+        - :class:`FedAVGCNN`
+    """
+
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=5, stride=1, padding=2)
@@ -871,6 +884,16 @@ class FedAVGCNN_E(nn.Module):
 
 
 class FedAVGCNN_D(nn.Module):
+    """Head for the :class:`FedAVGCNN` network.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
+    See Also:
+        - :class:`FedAVGCNN_E`
+        - :class:`FedAVGCNN`
+    """
+
     def __init__(self, output_size: int = 10):
         super().__init__()
         self.local3 = nn.Linear(4096, 384)
@@ -885,6 +908,20 @@ class FedAVGCNN_D(nn.Module):
 
 
 class FedAVGCNN(EncoderHeadNet):
+    """Convolutional Neural Network for CIFAR-10.
+    This network follows the architecture proposed in the  FedAVG paper as well as in FedDyn.
+    The encoder consists of two convolutional layers with 64 filters, followed by two fully
+    connected layers with 384 and 192 neurons, respectively. The convolutional layers are followed
+    by ReLU activations and max pooling. The last classification layer is a linear layer.
+
+    Args:
+        output_size (int, optional): Number of output classes. Defaults to 10.
+
+    See Also:
+        - :class:`FedAVGCNN_E`
+        - :class:`FedAVGCNN_D`
+    """
+
     def __init__(self, output_size: int = 10):
         super(FedAVGCNN, self).__init__(FedAVGCNN_E(),
                                         FedAVGCNN_D(output_size))
@@ -1091,7 +1128,7 @@ class Shakespeare_LSTM_D(nn.Module):
         super(Shakespeare_LSTM_D, self).__init__()
         self._output_size = len(string.printable)
         self.classifier = VGG9_D._linear_layer(
-            256, self._output_size, bias=False, seed=GlobalSettings().get_seed())
+            256, self._output_size, bias=False, seed=FlukeENV().get_seed())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.classifier(x)

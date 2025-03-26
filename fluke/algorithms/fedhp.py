@@ -1,5 +1,6 @@
 """Implementation of the FedHP: Federated Learning with Hyperspherical Prototypical Regularization
 [FedHP24]_ algorithm.
+
 References:
     .. [FedHP24] Samuele Fonio, Mirko Polato, Roberto Esposito.
        FedHP: Federated Learning with Hyperspherical Prototypical Regularization. In ESANN (2024).
@@ -7,7 +8,7 @@ References:
 """
 import copy
 import sys
-from typing import Any, Iterable, Literal
+from typing import Any, Iterable, Literal, Generator
 
 import torch
 import torch.optim as optim
@@ -17,26 +18,18 @@ from torch.optim.optimizer import Optimizer as Optimizer
 
 sys.path.append(".")
 sys.path.append("..")
-from .. import GlobalSettings  # NOQA
-from ..client import Client, PFLClient  # NOQA
+from .. import FlukeENV  # NOQA
+from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
-from ..utils.model import get_activation_size, ArgMaxModule  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils.model import get_activation_size  # NOQA
 from . import PersonalizedFL  # NOQA
 
 
 class ProtoNet(nn.Module):
-    """Wrapper network for the encoder model and the prototypes.
-
-    Args:
-        encoder (nn.Module): The encoder model.
-        n_protos (int): Number of prototypes.
-        proto_size (int): Size of the prototypes.
-    """
-
     def __init__(self, encoder: nn.Module, n_protos: int, proto_size: int):
         super(ProtoNet, self).__init__()
         self._encoder = encoder
@@ -49,12 +42,19 @@ class ProtoNet(nn.Module):
         return embeddings, dists
 
 
-class SeparationLoss(nn.Module):
-    """Large margin loss separation between hyperspherical protoypes.
+class FedHPModel(nn.Module):
+    def __init__(self,
+                 model: nn.Module):
+        super().__init__()
+        self.model: nn.Module = model
 
-    Args:
-        reduction (str): Specifies the reduction to apply to the output: 'mean' | 'sum'.
-    """
+    @torch.no_grad()
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.argmax(self.model(x)[1], dim=1)
+
+
+class SeparationLoss(nn.Module):
+    """Large margin separation between hyperspherical protoypes"""
 
     def __init__(self, reduction: Literal["mean", "sum"] = "mean"):
         super(SeparationLoss, self).__init__()
@@ -72,7 +72,7 @@ class SeparationLoss(nn.Module):
         return loss
 
 
-class FedHPClient(PFLClient):
+class FedHPClient(Client):
     def __init__(self,
                  index: int,
                  model: nn.Module,
@@ -84,16 +84,34 @@ class FedHPClient(PFLClient):
                  n_protos: int,
                  lam: float,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
-        embedding_size = get_activation_size(model, train_set.tensors[0][0])
-        super().__init__(index=index, model=ProtoNet(model, n_protos, embedding_size),
+        super().__init__(index=index,
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
                          loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+        embedding_size = get_activation_size(model, train_set.tensors[0][0])
+        self.model = ProtoNet(model, n_protos, embedding_size)
         self.hyper_params.update(n_protos=n_protos, lam=lam)
-        self.model = self.personalized_model
         self.anchors = None
-        self.proto_opt = None
+        # This optimizer must be saved in the cache along with the model from which its parameters
+        # are taken. See the property `proto_opt`.
+        self._modopt.additional = {"proto_opt": None}
+        self._attr_to_cache.append("anchors")
+        self._save_to_cache()
+
+    @property
+    def proto_opt(self) -> Optimizer:
+        """The optimizer for the prototypes.
+
+        Returns:
+            Optimizer: The optimizer for the prototypes.
+        """
+        return self._modopt.additional["proto_opt"]
+
+    @proto_opt.setter
+    def proto_opt(self, value: Optimizer) -> None:
+        self._modopt.additional["proto_opt"] = value
 
     def receive_model(self) -> None:
         if self.anchors is None:
@@ -104,7 +122,7 @@ class FedHPClient(PFLClient):
 
     def send_model(self) -> None:
         self.channel.send(Message(copy.deepcopy(self.model.prototypes.data),
-                          "prototypes", self), self.server)
+                          "prototypes", self, inmemory=True), self.server)
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -116,10 +134,12 @@ class FedHPClient(PFLClient):
                                        if 'prototype' not in name]
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model, filter_fun=filter_fun)
+            self.optimizer, self.scheduler = self._optimizer_cfg(
+                self.model, filter_fun=filter_fun)
 
         if self.proto_opt is None:
-            proto_params = [p for name, p in self.model.named_parameters() if 'proto' in name]
+            proto_params = [p for name, p in self.model.named_parameters()
+                            if 'proto' in name]
             self.proto_opt = optim.Adam(proto_params, lr=0.005)
 
         running_loss = 0.0
@@ -134,33 +154,37 @@ class FedHPClient(PFLClient):
                                         (self.model.prototypes, self.anchors))
                 loss += self.hyper_params.lam * loss_proto
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 self.proto_opt.step()
                 running_loss += loss.item()
             self.scheduler.step()
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
         return running_loss
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.anchors is not None:
-            model = ArgMaxModule(self.model)
+            model = FedHPModel(self.model)
             return evaluator.evaluate(self._last_round, model, test_set, device=self.device)
         return {}
 
     def finalize(self) -> None:
+        self._load_from_cache()
+        self.receive_model()
         self.fit(self.hyper_params.fine_tuning_epochs)
-        metrics = self.evaluate(GlobalSettings().get_evaluator(), self.test_set)
+        metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
             self._notify_evaluation(-1, "post-fit", metrics)
+        self._save_to_cache()
 
 
 class FedHPServer(Server):
     def __init__(self,
                  model: nn.Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[PFLClient],
+                 clients: Iterable[Client],
                  weighted: bool = True,
                  n_protos: int = 10,
                  embedding_size: int = 100,
@@ -171,7 +195,7 @@ class FedHPServer(Server):
                          weighted=weighted)
         self.hyper_params.update(n_protos=n_protos,
                                  embedding_size=embedding_size)
-        self.device = GlobalSettings().get_device()
+        self.device = FlukeENV().get_device()
         self.anchors = None
         self.prototypes = None
         self.clients_class_weights = None
@@ -225,25 +249,30 @@ class FedHPServer(Server):
     def broadcast_model(self, eligible: Iterable[FedHPClient]) -> None:
         self.channel.broadcast(Message(self.prototypes, "prototypes", self), eligible)
 
-    def get_client_models(self, eligible: Iterable[Client], state_dict: bool = False) -> list[Any]:
-        return [self.channel.receive(self, client, "prototypes").payload for client in eligible]
+    def receive_client_models(self,
+                              eligible: Iterable[Client],
+                              state_dict: bool = False) -> Generator[nn.Module, None, None]:
+        for client in eligible:
+            yield self.channel.receive(self, client, "prototypes").payload
 
     def aggregate(self,
                   eligible: Iterable[FedHPClient],
                   client_models: Iterable[nn.Module]) -> None:
         clients_prototypes = client_models
         clients_weights = self.clients_class_weights[:, [client.index for client in eligible]].T
-        avg_proto = torch.zeros_like(clients_prototypes[0])
+        avg_proto = None
 
-        for i in range(len(clients_prototypes)):
-            avg_proto += clients_prototypes[i] * clients_weights[i, :].unsqueeze(-1)
+        for i, client_proto in enumerate(clients_prototypes):
+            if avg_proto is None:
+                avg_proto = torch.zeros_like(client_proto)
+            avg_proto += client_proto * clients_weights[i, :].unsqueeze(-1)
         avg_proto /= clients_weights.sum(dim=0).unsqueeze(-1)
         self.prototypes = avg_proto
 
 
 class FedHP(PersonalizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> Client:
         return FedHPClient
 
     def get_server_class(self) -> Server:

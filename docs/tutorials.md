@@ -13,5 +13,6 @@
    examples/tutorials/fluke_custom_alg
    examples/tutorials/fluke_custom_dataset
    examples/tutorials/fluke_custom_nn
+   examples/tutorials/fluke_custom_eval
 
 ```

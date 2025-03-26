@@ -5,7 +5,6 @@ References:
        Federated Learning. In arXiv (2020). URL: https://arxiv.org/abs/2003.13461
 """
 import sys
-from copy import deepcopy
 from typing import Any, Iterable
 
 import torch
@@ -18,7 +17,7 @@ from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client, PFLClient  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from ..utils.model import merge_models  # NOQA
 
 __all__ = [
@@ -26,8 +25,6 @@ __all__ = [
     "APFLServer",
     "APFL"
 ]
-
-# https://arxiv.org/pdf/2012.04221.pdf
 
 
 class APFLClient(PFLClient):
@@ -41,17 +38,13 @@ class APFLClient(PFLClient):
                  loss_fn: Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  lam: float = 0.25,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
-        self.pers_optimizer = None
-        self.pers_scheduler = None
-        self.internal_model = deepcopy(model)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(lam=lam)
-        self._tounload.append("internal_model")
-        self._unload_model()
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -62,13 +55,12 @@ class APFLClient(PFLClient):
 
         self.model.to(self.device)
         self.personalized_model.to(self.device)
-        self.internal_model.to(self.device)
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self.optimizer_cfg(self.internal_model)
+            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(self.personalized_model)
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -80,27 +72,28 @@ class APFLClient(PFLClient):
                 y_hat = self.model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
 
                 # Local
                 self.pers_optimizer.zero_grad()
-                y_hat = merge_models(self.model, self.internal_model, self.hyper_params.lam)(X)
+                y_hat = merge_models(self.model, self.personalized_model, self.hyper_params.lam)(X)
                 local_loss = self.hyper_params.loss_fn(y_hat, y)
                 local_loss.backward()
+                self._clip_grads(self.personalized_model)
                 self.pers_optimizer.step()
 
             self.scheduler.step()
             self.pers_scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        self.personalized_model.to("cpu")
-        self.internal_model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        self.personalized_model.cpu()
+        clear_cuda_cache()
 
         self.personalized_model = merge_models(
-            self.model, self.internal_model, self.hyper_params.lam)
+            self.model, self.personalized_model, self.hyper_params.lam)
 
         return running_loss
 

@@ -1,6 +1,6 @@
 (config_data)=
 
-# Understanding the data configuration
+# Data configuration
 
 Inside the experiment configuration file, you need to specify the configuration for loading and splitting the dataset. 
 This part of the configuration can be a bit tricky to understand at first, so we will try to explain it in more detail here.

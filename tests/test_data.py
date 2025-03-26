@@ -52,6 +52,9 @@ def test_ftdl():
     assert torch.allclose(loader[0][0], X[0])
     assert torch.allclose(loader[0][1], y[0])
 
+    with pytest.raises(IndexError):
+        loader[300]
+
     for X, y in loader:
         assert X.shape == torch.Size([10, 20])
         assert y.shape == torch.Size([10])
@@ -160,6 +163,10 @@ def test_ftdl():
         assert X.shape == torch.Size([1, 3, 224, 224])
         assert y.shape == torch.Size([1])
         break
+
+    x0_tr = loader[0]
+    assert x0_tr[0].shape == torch.Size([3, 224, 224])
+    assert torch.any(x0_tr[0] != X[0])
 
 
 def test_splitter():
@@ -352,6 +359,12 @@ def test_splitter():
     assert dummy.clients_tr == ctr
     assert dummy.clients_te == cte
     assert dummy.server_data == ste
+
+    splitter = DataSplitter(dataset=dummy)
+    (ctr_, cte_), ste_ = splitter.assign(10, batch_size=10)
+    assert torch.all(ctr_[0][0][0] == ctr[0][0][0])
+    assert cte_[0] is None
+    assert torch.all(ste_[0][0][0] == ste[0][0][0])
 
 
 if __name__ == "__main__":

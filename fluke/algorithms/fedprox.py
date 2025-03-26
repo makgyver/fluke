@@ -16,7 +16,7 @@ sys.path.append("..")
 
 from ..client import Client  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 
@@ -36,10 +36,11 @@ class FedProxClient(Client):
                  local_epochs: int,
                  mu: float,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(mu=mu)
 
     def _proximal_loss(self, local_model, global_model):
@@ -57,7 +58,7 @@ class FedProxClient(Client):
         self.model.train()
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -69,14 +70,15 @@ class FedProxClient(Client):
                 loss = self.hyper_params.loss_fn(y_hat, y) + \
                     (self.hyper_params.mu / 2) * self._proximal_loss(self.model, W)
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
 
         running_loss /= (epochs * len(self.train_set))
-        self.model.to("cpu")
-        W.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        W.cpu()
+        clear_cuda_cache()
         return running_loss
 
 

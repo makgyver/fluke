@@ -1,6 +1,6 @@
 (fluke.algorithms.ditto)=
 
-# ``CCVR``
+# ``DITTO``
 
 ```{eval-rst}
 

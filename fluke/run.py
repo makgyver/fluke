@@ -1,28 +1,34 @@
 """`fluke` command line interface."""
+
+from rich.console import Console
+import os
 import sys
-from typing import Any
+import uuid
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
 import rich
 import torch
 import typer
+import yaml
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.progress import track
-import uuid
 
 sys.path.append(".")
 
-from . import GlobalSettings  # NOQA
+from . import FlukeENV  # NOQA
 from .data import DataSplitter, FastDataLoader  # NOQA
 from .data.datasets import Datasets  # NOQA
 from .evaluation import ClassificationEval  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)  # , plot_distribution)
+                    get_class_from_qualified_name, get_loss, get_model)
 from .utils.log import get_logger  # NOQA
 
-__version__ = "0.5.1"
+__version__ = "0.7.0"
+
+console = Console()
 
 
 def version_callback(value: bool):
@@ -33,22 +39,18 @@ def version_callback(value: bool):
 
 app = typer.Typer()
 
-# CONST
-CONFIG_FNAME = ""
-
 
 @app.command()
-def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
+                alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
     """Run a centralized learning experiment."""
 
-    cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    GlobalSettings().set_seed(cfg.exp.seed)
-    GlobalSettings().set_device(cfg.exp.device)
+    cfg = Configuration(exp_cfg, alg_cfg)
+    FlukeENV().configure(cfg)
     data_container = Datasets.get(**cfg.data.dataset)
 
-    device = GlobalSettings().get_device()
-
+    device = FlukeENV().get_device()
     train_loader = FastDataLoader(*data_container.train,
                                   batch_size=cfg.client.batch_size,
                                   num_labels=data_container.num_classes,
@@ -58,13 +60,14 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
                                  num_labels=data_container.num_classes,
                                  shuffle=False)
 
-    model = get_model(mname=cfg.model)
-    if "name" not in cfg.client.optimizer:
-        cfg.client.optimizer.name = torch.optim.SGD
-    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=cfg.client.optimizer,
-                                          scheduler_cfg=cfg.client.scheduler)
+    hp = cfg.method.hyperparameters
+    model = get_model(mname=hp.model, **hp.net_args if "net_args" in hp else {})
+    if "name" not in hp.client.optimizer:
+        hp.client.optimizer.name = torch.optim.SGD
+    optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
+                                          scheduler_cfg=hp.client.scheduler)
     optimizer, scheduler = optimizer_cfg(model)
-    criterion = get_loss(cfg.client.loss)
+    criterion = get_loss(hp.client.loss)
     evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                    n_classes=data_container.num_classes)
     history = []
@@ -98,29 +101,45 @@ def centralized(alg_cfg: str = typer.Argument(..., help='Config file for the alg
             log.add_scalar(k, v, e+1)
         log.pretty_log(epoch_eval, title=f"Performance [Epoch {e+1}]")
         rich.print()
-    model.to("cpu")
+    model.cpu()
 
 
 @app.command()
-def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
-               resume: str = typer.Option(None, help='Path to the checkpoint file to load.'),
-               save: str = typer.Option(None, help='Path to the checkpoint file to save.'),
-               seed: int = typer.Option(None, help='Seed for reproducibility.')) -> None:
+def federation(exp_cfg: str = typer.Argument(..., help="Configuration file"),
+               alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+               resume: str = typer.Option(None,
+                                          help='Path to the checkpoint file to load.')) -> None:
     """Run a federated learning experiment."""
 
-    cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    if seed is not None:
-        cfg.exp.seed = seed
+    cfg = Configuration(exp_cfg, alg_cfg)
+    _run_federation(cfg, resume)
 
-    GlobalSettings().set_seed(cfg.exp.seed)
-    GlobalSettings().set_device(cfg.exp.device)
-    GlobalSettings().set_inmemory(cfg.exp.inmemory)
-    GlobalSettings().set_save_options(**cfg.save)
+
+@app.command()
+def sweep(exp_cfg: str = typer.Argument(..., help="Configuration file"),
+          alg_cfgs: List[str] = typer.Argument(...,
+                                               help='Config file(s) for the algorithm(s) to run')
+          ) -> None:
+    """Run a battery of federated learning experiments with different configurations."""
+
+    for alg_cfg in alg_cfgs:
+        for cfg in Configuration.sweep(exp_cfg, alg_cfg):
+            try:
+                _run_federation(cfg)
+            except Exception as e:
+                # print the error with rich
+                rich.print(f"[yellow]Error with experiment: {cfg.verbose()}")
+                rich.print(f"[red]{e}")
+                console.print_exception(max_frames=10)
+                continue
+
+
+def _run_federation(cfg: Configuration, resume: str = None) -> None:
+    FlukeENV().configure(cfg)
     data_container = Datasets.get(**cfg.data.dataset)
     evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                    n_classes=data_container.num_classes)
-    GlobalSettings().set_evaluator(evaluator)
-    GlobalSettings().set_eval_cfg(cfg.eval)
+    FlukeENV().set_evaluator(evaluator)
 
     data_splitter = DataSplitter(dataset=data_container,
                                  distribution=cfg.data.distribution.name,
@@ -132,26 +151,44 @@ def federation(alg_cfg: str = typer.Argument(..., help='Config file for the algo
                             data_splitter,
                             cfg.method.hyperparameters)
     # plot_distribution(fl_algo.clients)
-    log = get_logger(cfg.logger.name, name=str(cfg), **cfg.logger.exclude('name'))
+    if cfg.save and cfg.save.path:
+        path = f"{cfg.save.path}_{fl_algo.id}"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        yaml.dump(cfg.to_dict(), open(f"{path}/config.yaml", "w"))
+
+    log_name = f"{fl_algo.__class__.__name__} [{fl_algo.id}]"
+    log = get_logger(cfg.logger.name, name=log_name, **cfg.logger.exclude('name'))
     log.init(**cfg, exp_id=fl_algo.id)
-    fl_algo.set_callbacks(log)
+
+    fl_algo.set_callbacks([log])
     rich.print(Panel(Pretty(fl_algo), title="FL algorithm"))
 
     if resume is not None:
         fl_algo.load(resume)
 
-    fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
-    GlobalSettings().empty_temp_path()
+    try:
+        fl_algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
+    except Exception as e:
+        log.log(f"Error: {e}")
+        FlukeENV().force_close()
+        FlukeENV.clear()
+        log.close()
+        FlukeENV().close_cache()
+        raise e
+
+    FlukeENV().close_cache()
+    log.close()
 
 
 @app.command()
-def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
+                 alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                  epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
     """Run a local training (for all clients) experiment."""
 
-    cfg = Configuration(CONFIG_FNAME, alg_cfg)
-    GlobalSettings().set_seed(cfg.exp.seed)
-    GlobalSettings().set_device(cfg.exp.device)
+    cfg = Configuration(exp_cfg, alg_cfg)
+    FlukeENV().configure(cfg)
 
     data_container = Datasets.get(**cfg.data.dataset)
     data_splitter = DataSplitter(dataset=data_container,
@@ -159,7 +196,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
                                  dist_args=cfg.data.distribution.exclude("name"),
                                  **cfg.data.exclude('dataset', 'distribution'))
 
-    device = GlobalSettings().get_device()
+    device = FlukeENV().get_device()
 
     hp = cfg.method.hyperparameters
     (clients_tr_data, clients_te_data), _ = \
@@ -179,8 +216,8 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
     running_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in progress:
-        log.log(f"Client [{i}/{cfg.protocol.n_clients}]")
-        model = get_model(mname=hp.model)  # , **hp.net_args)
+        log.log(f"Client [{i+1}/{cfg.protocol.n_clients}]")
+        model = get_model(mname=hp.model, **hp.net_args if "net_args" in hp else {})
         hp.client.optimizer.name = torch.optim.SGD
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
                                               scheduler_cfg=hp.client.scheduler)
@@ -204,7 +241,7 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
         log.pretty_log(client_eval, title=f"Client [{i}] Performance")
         client_evals.append(client_eval)
-        model.to("cpu")
+        model.cpu()
 
     for e in range(epochs):
         for c in running_evals:
@@ -216,11 +253,9 @@ def clients_only(alg_cfg: str = typer.Argument(..., help='Config file for the al
 
 
 @app.callback()
-def run(config: str = typer.Option(help="Configuration file"),
-        version: bool = typer.Option(None, "--version", help="Show the installed version of fluke",
+def run(version: bool = typer.Option(None, "--version", help="Show the installed version of fluke",
                                      callback=version_callback)) -> None:
-    global CONFIG_FNAME
-    CONFIG_FNAME = config
+    pass
 
 
 def main() -> Any:

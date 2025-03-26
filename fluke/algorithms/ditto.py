@@ -18,7 +18,7 @@ sys.path.append("..")
 
 from ..client import PFLClient  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cache  # NOQA
+from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
 from . import PersonalizedFL  # NOQA
 
 __all__ = [
@@ -57,18 +57,20 @@ class DittoClient(PFLClient):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
+                 clipping: float = 0,
                  tau: int = 3,
                  lam: float = 0.1,
                  **kwargs: dict[str, Any]):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.pers_optimizer = None
         self.pers_scheduler = None
         self.hyper_params.update(
             tau=tau,
             lam=lam
         )
+        self._save_to_cache()
 
     def _proximal_loss(self, local_model, global_model):
         proximal_term = 0.0
@@ -88,7 +90,7 @@ class DittoClient(PFLClient):
         self.model.to(self.device)
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self.optimizer_cfg(self.model)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         for _ in range(epochs):
             loss = None
@@ -98,11 +100,12 @@ class DittoClient(PFLClient):
                 y_hat = self.model(X)
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
+                self._clip_grads(self.model)
                 self.optimizer.step()
             self.scheduler.step()
 
-        self.model.to("cpu")
-        clear_cache()
+        self.model.cpu()
+        clear_cuda_cache()
 
         self.personalized_model.train()
         self.personalized_model.to(self.device)
@@ -111,10 +114,10 @@ class DittoClient(PFLClient):
         if self.pers_optimizer is None:
             self.pers_optimizer = PerturbedGradientDescent(self.personalized_model.parameters(),
                                                            lam=self.hyper_params.lam,
-                                                           **self.optimizer_cfg.optimizer_cfg)
-            self.pers_scheduler = self.optimizer_cfg.scheduler(
+                                                           **self._optimizer_cfg.optimizer_cfg)
+            self.pers_scheduler = self._optimizer_cfg.scheduler(
                 self.pers_optimizer,
-                **self.optimizer_cfg.scheduler_cfg
+                **self._optimizer_cfg.scheduler_cfg
             )
 
         running_loss = 0.0
@@ -130,9 +133,9 @@ class DittoClient(PFLClient):
             self.pers_scheduler.step()
 
         running_loss /= (self.hyper_params.tau * len(self.train_set))
-        self.personalized_model.to("cpu")
-        w_prev.to("cpu")
-        clear_cache()
+        self.personalized_model.cpu()
+        w_prev.cpu()
+        clear_cuda_cache()
 
         return running_loss
 
