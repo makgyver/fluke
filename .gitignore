@@ -5,6 +5,7 @@ docs/_build/
 __pycache__/
 dist/
 wandb/
+tmp/
 .DS_Store
 .coverage
 .venv
