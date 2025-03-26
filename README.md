@@ -25,7 +25,7 @@ To run an algorithm in ``fluke`` you need to create two configuration files:
 Then, you can run the following command:
 
 ```bash
-fluke --config=EXP_CONFIG federation ALG_CONFIG
+fluke federation EXP_CONFIG ALG_CONFIG
 ```
 
 You can find some examples of these files in the [configs](https://github.com/makgyver/fluke/tree/main/configs) folder of the repository.
@@ -34,7 +34,7 @@ You can find some examples of these files in the [configs](https://github.com/ma
 Let say you want to run the classic `FedAvg` algorithm on the `MNIST` dataset. Then, using the configuration files [exp.yaml](https://github.com/makgyver/fluke/blob/main/configs/exp.yaml) and [fedavg.yaml](https://github.com/makgyver/fluke/blob/main/configs/fedavg.yaml), you can run the following command:
 
 ```bash
-fluke --config=path_to_folder/exp.yaml federation path_to_folder/fedavg.yaml
+fluke federation path_to_folder/exp.yaml path_to_folder/fedavg.yaml
 ```
 
 where `path_to_folder` is the path to the folder containing the configuration files.
