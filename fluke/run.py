@@ -26,7 +26,7 @@ from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)
 from .utils.log import get_logger  # NOQA
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 console = Console()
 
