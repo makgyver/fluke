@@ -599,7 +599,7 @@ class Configuration(DDict):
         EXP_OPT_KEYS = {
             "device": "cpu",
             "seed": 42,
-            "inmemory": False
+            "inmemory": True
         }
 
         LOG_OPT_KEYS = {
