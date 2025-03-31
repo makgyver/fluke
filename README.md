@@ -66,8 +66,9 @@ If you have suggestions for how ``fluke`` could be improved, or want to report a
 For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 
-## Authors
+## Authors and main contributors
 
-- [**Mirko Polato**](https://makgyver.github.io) - *Idealization*, *Design*, *Development*, *Testing*, and *Documentation*
-- [**Roberto Esposito**]() - *Testing*
-- [**Samuele Fonio**]() - *Testing*
+- [**Mirko Polato**](https://makgyver.github.io) - *Idealization*, *Design*, *Development*, *Testing*, *Tutorial*, and *Documentation*
+- [**Roberto Esposito**](https://github.com/boborbt) - *Testing*
+- [**Samuele Fonio**](https://github.com/samuelefonio) - *Testing*, *Tutorial*
+- [**Edoardo Oglietti**](https://github.com/00-uno-00) - *Testing*
