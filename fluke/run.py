@@ -218,14 +218,15 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
     for i, (train_loader, test_loader) in progress:
         log.log(f"Client [{i+1}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model, **hp.net_args if "net_args" in hp else {})
+        model.to(device)
         hp.client.optimizer.name = torch.optim.SGD
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=hp.client.optimizer,
                                               scheduler_cfg=hp.client.scheduler)
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                        n_classes=data_container.num_classes)
-        model.to(device)
         for e in range(epochs):
+            model.to(device)
             model.train()
             for _, (X, y) in enumerate(train_loader):
                 X, y = X.to(device), y.to(device)

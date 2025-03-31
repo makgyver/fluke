@@ -2,7 +2,7 @@
 <a href="https://makgyver.github.io/fluke"><img src="https://img.shields.io/github/actions/workflow/status/makgyver/fluke/doc-publish.yml?style=for-the-badge&label=DOCUMENTATION"/></a>
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fluke-fl?style=for-the-badge&logo=python&logoColor=yellow)
 ![GitHub License](https://img.shields.io/github/license/makgyver/fluke?style=for-the-badge)
-
+[![arXiv](https://img.shields.io/badge/arxiv-2412.15728-b31b1b.svg?style=for-the-badge&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2412.15728)
 
 # **fluke**: **f**ederated **l**earning **u**tility framewor**k** for **e**xperimentation and research
 
@@ -65,6 +65,20 @@ If you have suggestions for how ``fluke`` could be improved, or want to report a
 
 For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
+## Citing `fluke`
+``fluke`` is a research tool, and we kindly ask you to cite it in your research papers if you use it. You can use the following BibTeX entry:
+
+```bibtex
+@misc{polato2024fluke,
+      title={fluke: Federated Learning Utility frameworK for Experimentation and research}, 
+      author={Mirko Polato},
+      year={2024},
+      eprint={2412.15728},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2412.15728}, 
+}
+```
 
 ## Authors and main contributors
 
