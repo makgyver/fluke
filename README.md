@@ -65,6 +65,10 @@ If you have suggestions for how ``fluke`` could be improved, or want to report a
 
 For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
+## `fluke` @ ECML-PKDD 2024
+
+`fluke` has been presented at the [ECML-PKDD 2024](https://ecmlpkdd2024.org/) conference in the [Workshop on Advancements in Federated Learning](https://wafl2024.di.unito.it). The slides of the presentation are available [here](slides/fluke_ecmlpkdd2024.pdf).
+
 ## Citing `fluke`
 ``fluke`` is a research tool, and we kindly ask you to cite it in your research papers if you use it. You can use the following BibTeX entry:
 
