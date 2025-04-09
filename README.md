@@ -16,13 +16,6 @@
 pip install fluke-fl
 ```
 
-> [!WARNING]  
-> When installing ``fluke`` via pip, the `opacus` package will be installed as well. Unfortunately, this package is not compatible with Numpy 2.0.0 or higher and thus it will downgrade the Numpy installation. This hopefully should be fixed in the next release of `opacus`. In the meantime, after installing ``fluke``, you should upgrade Numpy to the latest version by running the following command:
-
-```bash
-pip install --upgrade numpy
-```
-
 
 ## Run a federated algorithm
 
