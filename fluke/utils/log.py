@@ -151,7 +151,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         proc = psutil.Process(os.getpid())
         self.mem_costs[round] = proc.memory_full_info().uss
 
-        if stats:
+        if len(stats) > 1:
             rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
             rich.print(f"  Memory usage: {bytes2human(self.mem_costs[round])}" +
                        f"[{proc.memory_percent():.2f} %]")
