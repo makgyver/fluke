@@ -80,8 +80,8 @@ class FedNovaServer(Server):
 
 class FedNova(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedNovaClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedNovaServer

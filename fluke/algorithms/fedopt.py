@@ -93,5 +93,5 @@ class FedOptServer(Server):
 
 class FedOpt(CentralizedFL):
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedOptServer

@@ -108,8 +108,8 @@ class DPFedAVGServer(Server):
 
 class DPFedAVG(CentralizedFL):
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return DPFedAVGServer
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return DPFedAVGClient

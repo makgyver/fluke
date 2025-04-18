@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import psutil
-import rich
 import seaborn as sns
 import torch
 import yaml
+from rich import print as rich_print
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -113,6 +113,23 @@ class ClientObserver():
         """
         pass
 
+    def track_item(self,
+                   round: int,
+                   client_id: int,
+                   item: str,
+                   value: float,
+                   **kwargs: dict[str, Any]) -> None:
+        """This method is called when the client aims to log an item.
+
+        Args:
+            round (int): The round number.
+            client_id (int): The client ID.
+            item (str): The name of the log item.
+            value (float): The value of the log item.
+            **kwargs (dict): Additional keyword arguments.
+        """
+        pass
+
 
 class ServerObserver():
     """Server observer interface.
@@ -177,6 +194,19 @@ class ServerObserver():
 
     def interrupted(self) -> None:
         """This method is called when the federated learning process has been interrupted."""
+        pass
+
+    def track_item(self,
+                   round: int,
+                   item: str,
+                   value: float) -> None:
+        """This method is called when the server aims log an item.
+
+        Args:
+            round (int): The round number.
+            item (str): The name of the log item.
+            value (float): The value of the log item.
+        """
         pass
 
 
@@ -276,16 +306,19 @@ class OptimizerConfigurator:
         scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 
-    def __str__(self) -> str:
+    def __str__(self, indent: int = 0) -> str:
         strsched = self.scheduler.__name__
-        to_str = f"OptCfg({self.optimizer.__name__}, "
-        to_str += ", ".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
-        to_str += f", {strsched}(" + ", ".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
+        indentstr = " " * (indent + 7)
+        to_str = f"OptCfg({self.optimizer.__name__},\n{indentstr}"
+        to_str += f",\n{indentstr}".join([f"{k}={v}" for k, v in self.optimizer_cfg.items()])
+        to_str += f",\n{indentstr}{strsched}("
+        indentstr = indentstr + " " * (len(strsched) + 1)
+        to_str += f",\n{indentstr}".join([f"{k}={v}" for k, v in self.scheduler_cfg.items()])
         to_str += "))"
         return to_str
 
-    def __repr__(self) -> str:
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
     def __getstate__(self) -> dict:
         return self.__dict__
@@ -648,7 +681,7 @@ class Configuration(DDict):
         for k in FIRST_LVL_KEYS:
             if k not in self:
                 f = "experiment" if k != "method" else "algorithm"
-                rich.print(f"Error: {k} is required in the {f} configuration file")
+                rich_print(f"Error: {k} is required in the {f} configuration file")
                 error = True
 
         for k, v in FIRST_LVL_OPT_KEYS.items():
@@ -657,12 +690,12 @@ class Configuration(DDict):
 
         for k in PROTO_REQUIRED_KEYS:
             if k not in self.protocol:
-                rich.print(f"Error: {k} is required for key 'protocol'.")
+                rich_print(f"Error: {k} is required for key 'protocol'.")
                 error = True
 
         for k in DATA_REQUIRED_KEYS:
             if k not in self.data:
-                rich.print(f"Error: {k} is required for key 'data'.")
+                rich_print(f"Error: {k} is required for key 'data'.")
                 error = True
 
         for k, v in DATA_OPT_KEYS.items():
@@ -683,29 +716,29 @@ class Configuration(DDict):
 
         for k in ALG_1L_REQUIRED_KEYS:
             if k not in self.method:
-                rich.print(f"Error: {k} is required for key 'method'.")
+                rich_print(f"Error: {k} is required for key 'method'.")
                 error = True
 
         for k in HP_REQUIRED_KEYS:
             if k not in self.method.hyperparameters:
-                rich.print(f"Error: {k} is required for key 'hyperparameters' in 'method'.")
+                rich_print(f"Error: {k} is required for key 'hyperparameters' in 'method'.")
                 error = True
 
         for k in CLIENT_HP_REQUIRED_KEYS:
             if k not in self.method.hyperparameters.client:
-                rich.print(f"Error: {k} is required as hyperparameter of 'client'.")
+                rich_print(f"Error: {k} is required as hyperparameter of 'client'.")
                 error = True
 
         if "logger" in self and self.logger.name in ["wandb", "WandBLog"]:
             for k in WANDB_REQUIRED_KEYS:
                 if k not in self.logger:
-                    rich.print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
+                    rich_print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
                     error = True
 
         if "save" in self and self.save:
             for k in SAVE_REQUIRED_KEYS:
                 if k not in self.save:
-                    rich.print(f"Error: {k} is required for key 'save'.")
+                    rich_print(f"Error: {k} is required for key 'save'.")
                     error = True
             for k in SAVE_OPT_KEYS:
                 if k not in self.save:

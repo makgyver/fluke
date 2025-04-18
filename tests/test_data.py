@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 
-# import numpy as np
 import pytest
 import torch
 from torchvision.transforms import v2
@@ -11,8 +10,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 from fluke import DDict  # NOQA
-from fluke.data import (DataContainer, DataSplitter, DummyDataContainer,  # NOQA
-                        FastDataLoader)
+from fluke.data import (DataContainer, DataSplitter,  # NOQA
+                        DummyDataContainer, FastDataLoader)
 from fluke.data.datasets import Datasets  # NOQA
 
 

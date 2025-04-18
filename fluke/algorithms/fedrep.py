@@ -165,8 +165,8 @@ class FedRepServer(Server):
 
 class FedRep(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedRepClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedRepServer

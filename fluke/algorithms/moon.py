@@ -108,5 +108,5 @@ class MOONClient(Client):
 
 class MOON(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return MOONClient

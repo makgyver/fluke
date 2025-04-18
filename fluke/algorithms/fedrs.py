@@ -47,11 +47,12 @@ class RSLoss(torch.nn.Module):
         out = logit * self.class_scaling.to(logit.device)
         return torch.nn.functional.cross_entropy(out, y, reduction=self.reduction)
 
-    def __str__(self):
-        return "RSLoss()"
+    def __str__(self, indent: int = 0) -> str:
+        indent_str = " " * indent
+        return f"{indent_str}RSLoss()"
 
-    def __repr__(self):
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
 
 class FedRSClient(Client):
@@ -83,5 +84,5 @@ class FedRSClient(Client):
 
 class FedRS(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedRSClient

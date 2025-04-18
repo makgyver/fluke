@@ -65,8 +65,8 @@ class FedPerServer(Server):
 
 class FedPer(PersonalizedFL):
 
-    def get_client_class(self) -> FedPerClient:
+    def get_client_class(self) -> type[Client]:
         return FedPerClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedPerServer

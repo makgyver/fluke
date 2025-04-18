@@ -48,11 +48,12 @@ class CalibratedLoss(torch.nn.Module):
         out = logit - self.tau * self.label_distrib.to(logit.device)**(-0.25)
         return torch.nn.functional.cross_entropy(out, y, reduction=self.reduction)
 
-    def __str__(self):
-        return f"CalibratedLoss(tau={self.tau}, reduction={self.reduction})"
+    def __str__(self, indent: int = 0) -> str:
+        indent_str = " " * indent
+        return f"{indent_str}CalibratedLoss(tau={self.tau}, reduction={self.reduction})"
 
-    def __repr__(self):
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
 
 class FedLCClient(Client):
@@ -82,5 +83,5 @@ class FedLCClient(Client):
 
 class FedLC(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedLCClient

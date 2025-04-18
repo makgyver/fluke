@@ -27,13 +27,13 @@ The following is the code for the [PerFedAVG](../algo/Per-FedAvg.md) class:
 
     class PerFedAVG(CentralizedFL):
 
-        def get_client_class(self) -> Client:
+        def get_client_class(self) -> type[Client]:
             return PerFedAVGClient
 
         def can_override_optimizer(self) -> bool:
             return False
 
-        def get_optimizer_class(self) -> Optimizer:
+        def get_optimizer_class(self) -> type[Optimizer]:
             return PerFedAVGOptimizer
 
 ```

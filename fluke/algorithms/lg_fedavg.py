@@ -75,8 +75,8 @@ class LGFedAVGServer(Server):
 
 class LGFedAVG(PersonalizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return LGFedAVGClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return LGFedAVGServer

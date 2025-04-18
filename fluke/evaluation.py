@@ -141,6 +141,9 @@ class ClassificationEval(Evaluator):
         if (model is None) or (eval_data_loader is None):
             return {}
 
+        model_device = torch.device("cpu")
+        if next(model.parameters(), None) is not None:
+            model_device = next(model.parameters()).device
         model.eval()
         model.to(device)
         task = "multiclass"  # if self.n_classes >= 2 else "binary"
@@ -188,7 +191,7 @@ class ClassificationEval(Evaluator):
             macro_f1s.append(macro_f1.compute().item())
             losses.append(loss / cnt)
 
-        model.cpu()
+        model.to(model_device)
         clear_cuda_cache()
 
         result = {

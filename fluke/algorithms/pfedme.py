@@ -147,11 +147,11 @@ class PFedMe(CentralizedFL):
     def can_override_optimizer(self) -> bool:
         return False
 
-    def get_optimizer_class(self) -> torch.optim.Optimizer:
+    def get_optimizer_class(self) -> type[torch.optim.Optimizer]:
         return PFedMeOptimizer
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return PFedMeClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return PFedMeServer

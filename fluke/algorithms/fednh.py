@@ -277,8 +277,8 @@ class FedNHServer(Server):
 
 class FedNH(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedNHClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedNHServer

@@ -128,8 +128,8 @@ class APFLServer(Server):
 
 class APFL(PersonalizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> type[PFLClient]:
         return APFLClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return APFLServer

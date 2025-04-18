@@ -116,5 +116,5 @@ class KafeServer(Server):
 
 class Kafe(CentralizedFL):
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return KafeServer

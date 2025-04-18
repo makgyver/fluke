@@ -20,24 +20,43 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "Server"
+    "Server",
+    "EarlyStopping"
 ]
 
 torch.serialization.add_safe_globals([set])
 
 
+class EarlyStopping(Exception):
+
+    """Exception raised when the fedearted training process is stopped early.
+
+    This exception is used to signal that the training process should be stopped early.
+    It is used to stop the :meth:`Server.fit` method.
+    """
+
+    def __init__(self, round: int) -> None:
+        msg = f"Early stopping at round {round}"
+        super().__init__(msg)
+        self.message = f"Early stopping at round {round}"
+        self.round = round
+
+    def __str__(self) -> str:
+        return self.message
+
+
 class Server(ObserverSubject):
     """Basic Server for Federated Learning.
 
-    This class is the base class for all servers in :mod:`fluke`. It implements the basic
+    This class is the base class for all servers in : mod: `fluke`. It implements the basic
     functionalities of a federated learning server. The default behaviour of this server is based
     on the Federated Averaging algorithm. The server is responsible for coordinating the learning
     process, selecting the clients for each round, sending the global model to the clients, and
     aggregating the models received from the clients at the end of the round. The server also
-    evaluates the model server-side (if the test data is provided).
+    evaluates the model server-side(if the test data is provided).
 
     Attributes:
-        hyper_params (DDict):
+        hyper_params(DDict):
           The hyper-parameters of the server. The default hyper-parameters are:
 
           - weighted: A boolean indicating if the clients should be weighted by the number of
@@ -45,21 +64,21 @@ class Server(ObserverSubject):
 
           When a new server class inherits from this class, it must add all its hyper-parameters
           to this dictionary.
-        device (torch.device): The device where the server runs.
-        model (torch.nn.Module): The federated model to be trained.
-        clients (Iterable[Client]): The clients that will participate in the federated learning
+        device(torch.device): The device where the server runs.
+        model(torch.nn.Module): The federated model to be trained.
+        clients(Iterable[Client]): The clients that will participate in the federated learning
           process.
-        n_clients (int): The number of clients that will participate in the federated learning
-        rounds (int): The number of rounds that have been executed.
-        test_set (FastDataLoader): The test data to evaluate the model. If None, the model
+        n_clients(int): The number of clients that will participate in the federated learning
+        rounds(int): The number of rounds that have been executed.
+        test_set(FastDataLoader): The test data to evaluate the model. If None, the model
           will not be evaluated server-side.
 
     Args:
-        model (torch.nn.Module): The federated model to be trained.
-        test_set (FastDataLoader): The test data to evaluate the model.
-        clients (Iterable[Client]): The clients that will participate in the federated learning
+        model(torch.nn.Module): The federated model to be trained.
+        test_set(FastDataLoader): The test data to evaluate the model.
+        clients(Iterable[Client]): The clients that will participate in the federated learning
           process.
-        weighted (bool): A boolean indicating if the clients should be weighted by the
+        weighted(bool): A boolean indicating if the clients should be weighted by the
           number of samples when aggregating the models. Defaults to False.
     """
 
@@ -173,6 +192,10 @@ class Server(ObserverSubject):
                 except KeyboardInterrupt:
                     self._notify_interrupt()
                     break
+
+                except EarlyStopping:
+                    break
+
             progress_fl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
@@ -391,12 +414,25 @@ class Server(ObserverSubject):
         for observer in self._observers:
             observer.interrupted()
 
-    def __str__(self) -> str:
-        hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
-        return f"{self.__class__.__name__}({hpstr})"
+    def _notify_track_item(self, item: str, value: Any) -> None:
+        """Notify the observers that an item has been tracked.
 
-    def __repr__(self) -> str:
-        return str(self)
+        Args:
+            round (int): The round number.
+            item (str): The item to track.
+            value (Any): The value of the item.
+        """
+        for observer in self._observers:
+            observer.track_item(self.rounds + 1, item, value)
+
+    def __str__(self, indent: int = 0) -> str:
+        clsname = self.__class__.__name__
+        indentstr = " " * (indent + len(clsname) + 1)
+        hpstr = f",\n{indentstr}".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
+        return f"{clsname}(\n{indentstr}{hpstr})"
+
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
     def state_dict(self) -> dict:
         """Return the server's state as a dictionary.

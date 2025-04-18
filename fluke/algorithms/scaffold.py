@@ -56,7 +56,8 @@ class SCAFFOLDClient(Client):
         self.server_control = self.channel.receive(self, self.server, msg_type="control").payload
         if self.model is None:
             self.model = model
-            self.control = state_dict_zero_like(model.state_dict())
+            if self.control is None:
+                self.control = state_dict_zero_like(model.state_dict())
         else:
             safe_load_state_dict(self.model, model.state_dict())
         self.server_model = deepcopy(model.state_dict())
@@ -166,8 +167,8 @@ class SCAFFOLDServer(Server):
 
 class SCAFFOLD(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return SCAFFOLDClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return SCAFFOLDServer

@@ -194,8 +194,8 @@ class FedProtoServer(Server):
 
 class FedProto(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedProtoClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedProtoServer

@@ -142,7 +142,7 @@ def test_centralized_fl():
 
     assert fl.server._observers == [obs]
 
-    strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN,Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
+    strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN(),Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
         "local_epochs=1,fine_tuning_epochs=0,clipping=0),Server(weighted=True,lr=1.0))"
 
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     # test_ccvr()
     # test_ditto()
     # test_fat()
-    test_fedamp()
+    # test_fedamp()
     # test_fedavg()
     # test_fedavgm()
     # test_fedaws()
@@ -509,7 +509,7 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_fedrod()
     # test_fedrs()
-    # test_fedsam()
+    test_fedsam()
     # test_fedsgd()
     # test_gear()
     # test_kafe()
