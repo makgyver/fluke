@@ -32,16 +32,9 @@ console = Console()
 
 
 def fluke_banner():
-    fluke_pretty = "    ██████  ████             █████              "
-    fluke_pretty += "\n   ███░░███░░███            ░░███               "
-    fluke_pretty += "\n  ░███ ░░░  ░███  █████ ████ ░███ █████  ██████ "
-    fluke_pretty += "\n ███████    ░███ ░░███ ░███  ░███░░███  ███░░███"
-    fluke_pretty += "\n░░░███░     ░███  ░███ ░███  ░██████░  ░███████ "
-    fluke_pretty += "\n  ░███      ░███  ░███ ░███  ░███░░███ ░███░░░  "
-    fluke_pretty += "\n  █████     █████ ░░████████ ████ █████░░██████ "
-    fluke_pretty += "\n ░░░░░     ░░░░░   ░░░░░░░░ ░░░░ ░░░░░  ░░░░░░ "
+    fluke_pretty = run.__doc__
     console.print(Panel(fluke_pretty,
-                  subtitle=f"v{__version__}", style="bold white"), width=52)
+                  subtitle=f"v{__version__}", style="bold white"), width=53)
 
 
 def version_callback(value: bool):
@@ -265,16 +258,16 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 @app.callback()
 def run(version: bool = typer.Option(None, "--version", help="Show the installed version of fluke",
                                      callback=version_callback)) -> None:
-    """
-    \b
-        ██████  ████             █████
-       ███░░███░░███            ░░███
-      ░███ ░░░  ░███  █████ ████ ░███ █████  ██████
-     ███████    ░███ ░░███ ░███  ░███░░███  ███░░███
-    ░░░███░     ░███  ░███ ░███  ░██████░  ░███████
-      ░███      ░███  ░███ ░███  ░███░░███ ░███░░░
-      █████     █████ ░░████████ ████ █████░░██████
-     ░░░░░     ░░░░░   ░░░░░░░░ ░░░░ ░░░░░  ░░░░░░
+    """\
+\b\
+    ██████  ████             █████
+   ███░░███░░███            ░░███
+  ░███ ░░░  ░███  █████ ████ ░███ █████  ██████
+ ███████    ░███ ░░███ ░███  ░███░░███  ███░░███
+░░░███░     ░███  ░███ ░███  ░██████░  ░███████
+  ░███      ░███  ░███ ░███  ░███░░███ ░███░░░
+  █████     █████ ░░████████ ████ █████░░██████
+ ░░░░░     ░░░░░   ░░░░░░░░ ░░░░ ░░░░░  ░░░░░░\
     """
 
     fluke_banner()
