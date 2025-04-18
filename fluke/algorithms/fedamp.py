@@ -150,8 +150,8 @@ class FedAMPServer(Server):
 
 class FedAMP(PersonalizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> type[PFLClient]:
         return FedAMPClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedAMPServer

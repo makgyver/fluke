@@ -48,5 +48,5 @@ class FedExPServer(Server):
 
 class FedExP(CentralizedFL):
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedExPServer

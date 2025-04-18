@@ -140,31 +140,31 @@ class CentralizedFL(ServerObserver):
         """
         return True
 
-    def get_optimizer_class(self) -> torch.optim.Optimizer:
+    def get_optimizer_class(self) -> type[torch.optim.Optimizer]:
         """Get the optimizer class.
 
         Returns:
-            torch.optim.Optimizer: Optimizer class.
+            type[torch.optim.Optimizer]: Optimizer class.
         """
         return torch.optim.SGD
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         """Get the client class.
         This method should be overriden by the subclasses when a different client class is defined.
         This allows to reuse all the logic of the algorithm and only change the client class.
 
         Returns:
-            Client: Client class.
+            type[Client]: Client class.
         """
         return Client
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         """Get the server class.
         This method should be overriden by the subclasses when a different server class is defined.
         This allows to reuse all the logic of the algorithm and only change the server class.
 
         Returns:
-            Server: Server class.
+            type[Server]: Server class.
         """
         return Server
 
@@ -173,9 +173,10 @@ class CentralizedFL(ServerObserver):
         if "name" not in cfg_opt:
             cfg_opt.name = "SGD"
 
-        if not self.can_override_optimizer() and \
-                (cfg_opt.name != self.get_optimizer_class().__name__ or
-                 not isinstance(cfg_opt.name, self.get_optimizer_class())):
+        if not self.can_override_optimizer():
+            if (cfg_opt.name == self.get_optimizer_class().__name__ or
+                    cfg_opt.name is self.get_optimizer_class()):
+                return
             old_name = cfg_opt.name if isinstance(cfg_opt.name, str) else cfg_opt.name.__name__
             warnings.warn(f"The algorithm does not support the optimizer {old_name}. "
                           f"Using {self.get_optimizer_class().__name__} instead.")
@@ -264,28 +265,34 @@ class CentralizedFL(ServerObserver):
         """
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
 
-    def __str__(self) -> str:
-        algo_hp = ",\n\t".join(
-            [f"{h}={str(v)}"
-             for h, v in self.hyper_params.items() if h not in ['client', 'server']]
+    def __str__(self, indent: int = 0) -> str:
+        algo_hp = f"\n\tmodel={str(self.hyper_params.model)}("
+        if "net_args" in self.hyper_params:
+            algo_hp += ", ".join([f'{k}={v}' for k, v in self.hyper_params.net_args.items()])
+        algo_hp += ")"
+        algo_hp += ",\n\t".join(
+            [f"{h}={v.__str__(indent=indent+4)}"
+             for h, v in self.hyper_params.items() if h not in ['client', 'server',
+                                                                'model', 'net_args']]
         )
-        algo_hp = f"\n\t{algo_hp}," if algo_hp else ""
+        algo_hp = f"\t{algo_hp}," if algo_hp else ""
 
         if self.clients is None:
             client_str = "Client?"
         else:
-            client_str = str(self.clients[0]).replace("[0]", f"[0-{self.n_clients-1}]")
+            client_str = self.clients[0].__str__(
+                indent=indent + 4).replace("[0](", f"[0-{self.n_clients-1}](")
 
         if self.server is None:
             server_str = "Server?"
         else:
-            server_str = str(self.server)
+            server_str = self.server.__str__(indent=indent+4)
 
         return f"{self.__class__.__name__}[{self._id}]" + \
             f"({algo_hp}\n\t{client_str},\n\t{server_str}\n)"
 
-    def __repr__(self) -> str:
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
     def save(self, path: str, global_only: bool = False, round: int | None = None) -> str:
         """Save the algorithm state into files in the specified directory.

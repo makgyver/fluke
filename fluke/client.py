@@ -431,14 +431,20 @@ class Client(ObserverSubject):
         self._last_round = state["last_round"]
         return state
 
-    def __str__(self) -> str:
-        hpstr = ", ".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
-        hpstr = ", " + hpstr if hpstr else ""
-        return f"{self.__class__.__name__}[{self._index}](optim={self._optimizer_cfg}, " + \
-            f"batch_size={self.train_set.batch_size}{hpstr})"
+    def __str__(self, indent: int = 0) -> str:
+        clsname = f"{self.__class__.__name__}[{self._index}]"
+        indentstr = " " * (indent + len(clsname))
+        hpstr = f",\n{indentstr}".join([f"{h}={str(v)}" for h, v in self.hyper_params.items()])
+        hpstr = f",\n{indentstr}" + hpstr if hpstr else ""
+        optcfg_str = ""
+        if self._optimizer_cfg is not None:
+            optcfg_str = f"{indentstr}optim=" + \
+                f"{self._optimizer_cfg.__str__(indent=7+indent+len(clsname))},\n"
+        return f"{clsname}(\n" + optcfg_str + \
+            f"{indentstr}batch_size = {self.train_set.batch_size}{hpstr})"
 
-    def __repr__(self) -> str:
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
     def _notify_evaluation(self,
                            round: int,
@@ -454,6 +460,10 @@ class Client(ObserverSubject):
     def _notify_end_fit(self, round: int, loss: float) -> None:
         for obs in self._observers:
             obs.end_fit(round, self.index, self.model, loss)
+
+    def _notify_track_item(self, round: int, item: str, value: Any) -> None:
+        for obs in self._observers:
+            obs.track_item(round, self.index, item, value)
 
     def _load_from_cache(self) -> None:
         """Load the model, optimizer, and scheduler from the cache.

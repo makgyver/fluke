@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'fluke'
 copyright = '2024, Mirko Polato'
 author = 'Mirko Polato'
-version = '0.7.1'
+version = '0.7.2'
 # release = 'alpha'
 
 # autodoc_mock_imports = ['algorithms'] # Fix the "No module named 'algorithms'" error

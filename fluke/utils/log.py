@@ -6,9 +6,9 @@ import time
 from typing import Any, Literal, Union
 
 import numpy as np
-import pandas as pd
-import psutil
-import rich
+from pandas import DataFrame
+from psutil import Process
+from rich import print as rich_print
 from rich.panel import Panel
 from rich.pretty import Pretty
 from torch.nn import Module
@@ -21,7 +21,7 @@ sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
-from ..utils import bytes2human  # NOQA
+from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
 
@@ -62,6 +62,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         self.comm_costs: dict = {0: 0}
         self.mem_costs: dict = {}
         self.current_round: int = 0
+        self.custom_fields: dict = {}
 
     def log(self, message: str) -> None:
         """Log a message.
@@ -69,7 +70,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         Args:
             message (str): The message to log.
         """
-        rich.print(message)
+        rich_print(message)
 
     def add_scalar(self, key: Any, value: float, round: int) -> None:
         """Add a scalar to the logger.
@@ -79,7 +80,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             value (float): The value of the scalar.
             round (int): The round.
         """
-        pass
+        if round not in self.custom_fields:
+            self.custom_fields[round] = {}
+        self.custom_fields[round][key] = value
 
     def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
         """Add scalars to the logger.
@@ -89,7 +92,10 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             values (dict[str, float]): The key-value pairs of the scalars.
             round (int): The round.
         """
-        pass
+        if round not in self.custom_fields:
+            self.custom_fields[round] = {}
+        for k, v in values.items():
+            self.custom_fields[round][f"{key}/{k}"] = v
 
     def pretty_log(self, data: Any, title: str) -> None:
         """Log a pretty-printed data.
@@ -98,7 +104,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             data (Any): The data to log.
             title (str): The title of the data.
         """
-        rich.print(Panel(Pretty(data, expand_all=True), title=title))
+        rich_print(Panel(Pretty(data, expand_all=True), title=title, width=100))
 
     def init(self, **kwargs: dict[str, Any]) -> None:
         """Initialize the logger.
@@ -108,20 +114,23 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             **kwargs: The configuration.
         """
         if kwargs:
-            rich.print(Panel(Pretty(kwargs, expand_all=True), title="Configuration"))
+            rich_print(Panel(Pretty(kwargs, expand_all=True), title="Configuration", width=100))
 
     def start_round(self, round: int, global_model: Module) -> None:
         self.comm_costs[round] = 0
         self.current_round = round
 
         if round == 1 and self.comm_costs[0] > 0:
-            rich.print(Panel(Pretty({"comm_costs": self.comm_costs[0]}), title=f"Round: {round-1}"))
+            rich_print(
+                Panel(Pretty({"comm_costs": self.comm_costs[0]}),
+                      title=f"Round: {round-1}",
+                      width=100))
 
     def end_round(self, round: int) -> None:
         stats = {}
         # Pre-fit summary
         if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = pd.DataFrame(self.prefit_eval[round].values()).mean(
+            client_mean = DataFrame(self.prefit_eval[round].values()).mean(
                 numeric_only=True).to_dict()
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.prefit_eval_summary[round] = client_mean
@@ -129,7 +138,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Post-fit summary
         if self.postfit_eval and round in self.postfit_eval and self.postfit_eval[round]:
-            client_mean = pd.DataFrame(self.postfit_eval[round].values()).mean(
+            client_mean = DataFrame(self.postfit_eval[round].values()).mean(
                 numeric_only=True).to_dict()
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.postfit_eval_summary[round] = client_mean
@@ -137,7 +146,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Locals summary
         if self.locals_eval and round in self.locals_eval and self.locals_eval[round]:
-            client_mean = pd.DataFrame(list(self.locals_eval[round].values())).mean(
+            client_mean = DataFrame(list(self.locals_eval[round].values())).mean(
                 numeric_only=True).to_dict()
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.locals_eval_summary[round] = client_mean
@@ -148,13 +157,15 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             stats['global'] = self.global_eval[round]
 
         stats['comm_cost'] = self.comm_costs[round]
-        proc = psutil.Process(os.getpid())
+        proc = Process(os.getpid())
         self.mem_costs[round] = proc.memory_full_info().uss
 
-        if len(stats) > 1:
-            rich.print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}"))
-            rich.print(f"  Memory usage: {bytes2human(self.mem_costs[round])}" +
-                       f"[{proc.memory_percent():.2f} %]")
+        if self.custom_fields and round in self.custom_fields:
+            stats.update(self.custom_fields[round])
+
+        rich_print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}", width=100))
+        rich_print(f"  Memory usage: {bytes2human(self.mem_costs[round])}" +
+                   f"[{proc.memory_percent():.2f} %]")
 
     def client_evaluation(self,
                           round: int,
@@ -167,7 +178,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             round = self.current_round + 1
         dict_ref = self.prefit_eval if phase == 'pre-fit' else self.postfit_eval
         dict_ref[round] = {client_id: evals}
-        self.postfit_eval_summary[round] = pd.DataFrame(list(dict_ref[round].values())).mean(
+        self.postfit_eval_summary[round] = DataFrame(list(dict_ref[round].values())).mean(
             numeric_only=True).to_dict()
 
     def server_evaluation(self,
@@ -194,7 +205,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Pre-fit summary
         if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = pd.DataFrame(self.prefit_eval[round].values()).mean(
+            client_mean = DataFrame(self.prefit_eval[round].values()).mean(
                 numeric_only=True).to_dict()
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.prefit_eval_summary[round] = client_mean
@@ -213,13 +224,18 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             stats['global'] = self.global_eval[max(self.global_eval.keys())]
 
         if stats:
-            rich.print(Panel(Pretty(stats, expand_all=True), title="Overall Performance"))
+            rich_print(Panel(Pretty(stats, expand_all=True),
+                       title="Overall Performance",
+                       width=100))
 
-        rich.print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
-                         title="Total communication cost"))
+        rich_print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
+                         title="Total communication cost", width=100))
 
     def interrupted(self):
-        rich.print("\n[bold italic yellow]The experiment has been interrupted by the user.")
+        rich_print("\n[bold italic yellow]The experiment has been interrupted by the user.")
+
+    def track_item(self, round, item, value):
+        self.add_scalar(item, value, round)
 
     def save(self, path: str) -> None:
         """Save the logger's history to a JSON file.
@@ -266,9 +282,11 @@ class TensorboardLog(Log):
         self._writer = SummaryWriter(**ts_config)
 
     def add_scalar(self, key: Any, value: float, round: int) -> None:
+        super().add_scalar(key, value, round)
         return self._writer.add_scalars(key, value, round)
 
     def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
+        super().add_scalars(key, values, round)
         return self._writer.add_scalars(key, values, round)
 
     def start_round(self, round: int, global_model: Module) -> None:
@@ -336,9 +354,11 @@ class WandBLog(Log):
         self.run = wandb.init(**self.config)
 
     def add_scalar(self, key: Any, value: float, round: int) -> None:
+        super().add_scalar(key, value, round)
         return self.run.log({key: value}, step=round)
 
     def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
+        super().add_scalars(key, values, round)
         return self.run.log({f"{key}/{k}": v for k, v in values.items()}, step=round)
 
     def start_round(self, round: int, global_model: Module) -> None:
@@ -409,7 +429,24 @@ class ClearMLLog(TensorboardLog):
 def get_logger(lname: str, **kwargs: dict[str, Any]) -> Log:
     """Get a logger from its name.
     This function is used to get a logger from its name. It is used to dynamically import loggers.
-    The supported loggers are the ones defined in the ``fluke.utils.log`` module.
+    The supported loggers are the ones defined in the ``fluke.utils.log`` module, but it can handle
+    any logger defined by the user.
+
+    Note:
+        To use a custom logger, it must be defined in a module and the full model name must be
+        provided in the configuration file. For example, if the logger ``MyLogger`` is defined in
+        the module ``my_module`` (i.e., a file called ``my_module.py``), the logger name must be
+        ``my_module.MyLogger``. The other logger's parameters must be passed as in the following
+        example:
+
+        .. code-block:: yaml
+
+            logger:
+                name: my_module.MyLogger
+                param1: value1
+                param2: value2
+                ...
+
 
     Args:
         lname (str): The name of the logger.
@@ -418,4 +455,6 @@ def get_logger(lname: str, **kwargs: dict[str, Any]) -> Log:
     Returns:
         Log | WandBLog | ClearMLLog | TensorboardLog: The logger.
     """
+    if "." in lname and not lname.startswith("fluke.utils.log"):
+        return get_class_from_qualified_name(lname)(**kwargs)
     return get_class_from_str("fluke.utils.log", lname)(**kwargs)

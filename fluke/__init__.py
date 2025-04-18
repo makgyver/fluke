@@ -376,15 +376,19 @@ class FlukeENV(metaclass=Singleton):
             seed (int): The seed.
         """
         self._seed = seed
+        np.random.seed(seed)
+        random.seed(seed)
         torch.manual_seed(seed)
         gen = torch.Generator()
         gen.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        np.random.seed(seed)
-        random.seed(seed)
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cudnn.deterministic = True
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.deterministic = True
+
+        # import os
+        # os.environ['PYTHONHASHSEED'] = str(seed)
 
     def auto_device(self) -> torch.device:
         """Set device to ``cuda`` or ``mps`` if available, otherwise ``cpu``.

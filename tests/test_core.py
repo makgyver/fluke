@@ -65,7 +65,6 @@ def test_env():
     assert os.path.exists(env.get_cache().cache_dir)
 
     cache = env.get_cache()
-    print(list(cache._cache.iterkeys()))
     assert cache.occupied == 0
     ref = cache.push("test1", "this is a test")
     assert isinstance(ref, FlukeCache._ObjectRef)

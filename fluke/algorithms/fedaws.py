@@ -114,5 +114,5 @@ class FedAwSServer(Server):
 
 class FedAwS(CentralizedFL):
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedAwSServer

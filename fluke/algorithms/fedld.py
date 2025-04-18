@@ -49,11 +49,12 @@ class MarginalLogLoss(Module):
             if hasattr(self, key) and value is not None:
                 setattr(self, key, value)
 
-    def __str__(self):
-        return f"MarginalLogLoss(base_loss={self.base_loss}, lambda={self.lam})"
+    def __str__(self, indent: int = 0) -> str:
+        indent_str = " " * indent
+        return f"{indent_str}MarginalLogLoss(base_loss={self.base_loss}, lambda={self.lam})"
 
-    def __repr__(self) -> str:
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
 
 class FedLDClient(Client):

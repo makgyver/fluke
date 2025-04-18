@@ -54,11 +54,13 @@ class MarginBasedCrossEntropyLoss(nn.Module):
         logits_adjusted[torch.arange(logits.shape[0]), targets] -= target_margins
         return F.cross_entropy(logits_adjusted, targets, reduction=self.reduction)
 
-    def __str__(self):
-        return "MarginBasedCrossEntropyLoss(delta={self.delta}, reduction={self.reduction})"
+    def __str__(self, indent: int = 0) -> str:
+        indent_str = " " * indent
+        return f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta}, \
+            reduction={self.reduction})"
 
-    def __repr__(self):
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
 
 class GEARClient(Client):

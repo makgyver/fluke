@@ -145,5 +145,5 @@ class SuPerFedClient(PFLClient):
 
 class SuPerFed(PersonalizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> type[PFLClient]:
         return SuPerFedClient

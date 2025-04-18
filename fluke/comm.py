@@ -121,7 +121,7 @@ class Message:
         return self.__sender
 
     def __get_size(self, obj: Any) -> int:
-        if obj is None or isinstance(obj, (int, float, bool)):
+        if obj is None or isinstance(obj, (int, float, bool, np.generic)):
             return 1
         elif isinstance(obj, str):
             return len(obj)
@@ -189,12 +189,18 @@ class Message:
         return self.__payload == other.__payload and self.msg_type == other.msg_type and \
             self.sender == other.sender
 
-    def __str__(self) -> str:
-        return f"Message[{self.id}](type={self.msg_type}, from={self.sender}, " + \
-            f"payload={self.__payload}, size={self.size}, inmemory={self.__inmemory})"
+    def __str__(self, indent: int = 0) -> str:
+        strname = "Message[{self.id}]"
+        indentstr = " " * (indent + len(strname) + 1)
+        tostr = f"{strname}(type={self.msg_type},"
+        tostr += f"{indentstr}from={self.sender}, "
+        tostr += f"{indentstr}payload={self.__payload}, "
+        tostr += f"{indentstr}size={self.size}, "
+        tostr += f"{indentstr}inmemory={self.__inmemory})"
+        return tostr
 
-    def __repr__(self) -> str:
-        return str(self)
+    def __repr__(self, indent: int = 0) -> str:
+        return self.__str__(indent=indent)
 
     def ram(self) -> bool:
         """Store the payload in memory.

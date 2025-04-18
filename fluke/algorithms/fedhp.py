@@ -272,11 +272,11 @@ class FedHPServer(Server):
 
 class FedHP(PersonalizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedHPClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return FedHPServer
 
-    def get_optimizer_class(self) -> Optimizer:
+    def get_optimizer_class(self) -> type[Optimizer]:
         return torch.optim.Adam

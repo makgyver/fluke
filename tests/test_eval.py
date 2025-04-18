@@ -44,6 +44,7 @@ def test_classification_eval():
                 return torch.FloatTensor([[0, 0, 1]])
 
     # test with model that only classifies with 0
+    zero = ModelZero()
     zero_eval = clf_eval.evaluate(1, ModelZero(), loader, loss_fn=torch.nn.CrossEntropyLoss())
     perfect_eval = clf_eval.evaluate(1, ModelPerfect(), loader, loss_fn=torch.nn.CrossEntropyLoss())
 

@@ -142,5 +142,5 @@ class DittoClient(PFLClient):
 
 class Ditto(PersonalizedFL):
 
-    def get_client_class(self) -> PFLClient:
+    def get_client_class(self) -> type[PFLClient]:
         return DittoClient

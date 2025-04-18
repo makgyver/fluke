@@ -187,8 +187,8 @@ class CCVRServer(Server):
 
 class CCVR(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return CCVRClient
 
-    def get_server_class(self) -> Server:
+    def get_server_class(self) -> type[Server]:
         return CCVRServer

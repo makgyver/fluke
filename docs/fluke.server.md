@@ -45,3 +45,20 @@
    :members: aggregate, broadcast_model, channel, evaluate, finalize, fit, get_eligible_clients, has_test, has_model, load, receive_client_models, save, state_dict, _get_client_weights
 
 ```
+
+<h3>
+
+{bdg-primary}`class` ``fluke.server.EarlyStopping``
+
+</h3>
+
+```{eval-rst}
+
+.. currentmodule:: fluke.server
+
+.. autosummary:: 
+   :nosignatures:
+
+.. autoclass:: EarlyStopping
+
+```

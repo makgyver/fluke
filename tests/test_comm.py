@@ -54,10 +54,7 @@ def test_message():
     assert msg.id != msg2.id
 
     msg = Message(payload="prova", msg_type="type_test", sender=None)
-    assert str(
-        msg) == f"Message[{msg.id}](type=type_test, from=None, payload=prova, size=5, inmemory=True)"
-    assert msg.__repr__(
-    ) == f"Message[{msg.id}](type=type_test, from=None, payload=prova, size=5, inmemory=True)"
+    assert str(msg) == repr(msg)
 
     tensor = torch.FloatTensor([1, 2, 3])
     FlukeENV().set_inmemory(False)

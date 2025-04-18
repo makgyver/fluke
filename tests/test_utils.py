@@ -86,7 +86,8 @@ def test_optimcfg():
     assert opt.defaults["momentum"] == 0.9
     assert sch.step_size == 1
     assert sch.gamma == 0.1
-    assert str(opt_cfg) == "OptCfg(SGD, lr=0.1, momentum=0.9, StepLR(step_size=1, gamma=0.1))"
+    assert str(opt_cfg).replace(" ", "").replace("\n", "").replace(
+        "\t", "") == "OptCfg(SGD,lr=0.1,momentum=0.9,StepLR(step_size=1,gamma=0.1))"
     assert str(opt_cfg) == opt_cfg.__repr__()
 
     with pytest.raises(ValueError):
@@ -346,7 +347,14 @@ def test_configuration():
         Configuration.from_ddict(DDict(cfg_))
 
 
+class MyLog(Log):
+    def __init__(self, value: int):
+        super().__init__()
+        self.value = value
+
+
 def test_log():
+
     log = Log()
     log.init(test="hello")
 
@@ -380,6 +388,14 @@ def test_log():
     assert log.postfit_eval_summary == {1: {'accuracy': 0.6}}
     assert log.comm_costs == {0: 0, 1: 4}
     assert log.current_round == 1
+
+    log.track_item(1, "test", 12)
+    assert 1 in log.custom_fields
+    assert log.custom_fields[1]["test"] == 12
+
+    log = get_logger("tests.test_utils.MyLog", value=17)
+    assert log.value == 17
+    assert isinstance(log, MyLog)
 
 
 # def test_wandb_log():

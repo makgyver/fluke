@@ -186,5 +186,5 @@ class FedRODClient(Client):
 
 class FedROD(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedRODClient

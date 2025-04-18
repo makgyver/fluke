@@ -45,5 +45,5 @@ class FedSGDClient(Client):
 
 class FedSGD(CentralizedFL):
 
-    def get_client_class(self) -> Client:
+    def get_client_class(self) -> type[Client]:
         return FedSGDClient
