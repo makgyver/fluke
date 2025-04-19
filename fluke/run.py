@@ -17,11 +17,18 @@ __version__ = "0.7.2"
 
 console = Console()
 
+def fluke_banner():
+    from rich.panel import Panel
+
+    fluke_pretty = run.__doc__
+    console.print(Panel(fluke_pretty,
+                  subtitle=f"v{__version__}", style="bold white"), width=53)
+
+
 def version_callback(value: bool):
     if value:
         print(f"fluke: {__version__}")
         raise typer.Exit()
-
 
 app = typer.Typer()
 
@@ -271,20 +278,19 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 @app.callback()
 def run(version: bool = typer.Option(None, "--version", help="Show the installed version of fluke",
                                      callback=version_callback)) -> None:
+    """\
+\b\
+    ██████  ████             █████
+   ███░░███░░███            ░░███
+  ░███ ░░░  ░███  █████ ████ ░███ █████  ██████
+ ███████    ░███ ░░███ ░███  ░███░░███  ███░░███
+░░░███░     ░███  ░███ ░███  ░██████░  ░███████
+  ░███      ░███  ░███ ░███  ░███░░███ ░███░░░
+  █████     █████ ░░████████ ████ █████░░██████
+ ░░░░░     ░░░░░   ░░░░░░░░ ░░░░ ░░░░░  ░░░░░░\
+    """
 
-    from rich.panel import Panel
-
-    fluke_pretty = "    ██████  ████             █████              "
-    fluke_pretty += "\n   ███░░███░░███            ░░███               "
-    fluke_pretty += "\n  ░███ ░░░  ░███  █████ ████ ░███ █████  ██████ "
-    fluke_pretty += "\n ███████    ░███ ░░███ ░███  ░███░░███  ███░░███"
-    fluke_pretty += "\n░░░███░     ░███  ░███ ░███  ░██████░  ░███████ "
-    fluke_pretty += "\n  ░███      ░███  ░███ ░███  ░███░░███ ░███░░░  "
-    fluke_pretty += "\n  █████     █████ ░░████████ ████ █████░░██████ "
-    fluke_pretty += "\n ░░░░░     ░░░░░   ░░░░░░░░ ░░░░ ░░░░░  ░░░░░░ "
-    console.print(Panel(fluke_pretty,
-                  subtitle=f"v{__version__}", style="bold white"), width=52)
-    pass
+    fluke_banner()
 
 
 def main() -> Any:
