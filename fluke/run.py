@@ -5,31 +5,17 @@ import sys
 import uuid
 from typing import Any, List
 
-import numpy as np
 import typer
-import yaml
-from pandas import DataFrame
-# from rich import print as console.print
 from rich.console import Console
-from rich.panel import Panel
-from rich.pretty import Pretty
-from rich.progress import track
-from torch.optim import SGD
 
 sys.path.append(".")
 
-from . import FlukeENV  # NOQA
-from .data import DataSplitter, FastDataLoader  # NOQA
-from .data.datasets import Datasets  # NOQA
-from .evaluation import ClassificationEval  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)
-from .utils.log import get_logger  # NOQA
 
 __version__ = "0.7.2"
 
 console = Console()
-
 
 def version_callback(value: bool):
     if value:
@@ -45,6 +31,14 @@ def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                 alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
     """Run a centralized learning experiment."""
+
+    from . import FlukeENV  # NOQA
+    from .data.datasets import Datasets  # NOQA
+    from .data import FastDataLoader  # NOQA
+    from torch.optim import SGD
+    from .evaluation import ClassificationEval  # NOQA
+    from .utils.log import get_logger  # NOQA
+    from rich.progress import track
 
     cfg = Configuration(exp_cfg, alg_cfg)
     FlukeENV().configure(cfg)
@@ -135,6 +129,17 @@ def sweep(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
 
 def _run_federation(cfg: Configuration, resume: str = None) -> None:
+    import yaml
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.pretty import Pretty
+
+    from . import FlukeENV  # NOQA
+    from .data import DataSplitter  # NOQA
+    from .data.datasets import Datasets  # NOQA
+    from .evaluation import ClassificationEval  # NOQA
+    from .utils.log import get_logger  # NOQA
+
     FlukeENV().configure(cfg)
     data_container = Datasets.get(**cfg.data.dataset)
     evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
@@ -186,6 +191,19 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                  alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
                  epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
     """Run a local training (for all clients) experiment."""
+
+    import numpy as np
+    from pandas import DataFrame
+    from rich.progress import track
+    from torch.optim import SGD
+
+    # sys.path.append(".")
+
+    from . import FlukeENV  # NOQA
+    from .data import DataSplitter  # NOQA
+    from .data.datasets import Datasets  # NOQA
+    from .evaluation import ClassificationEval  # NOQA
+    from .utils.log import get_logger  # NOQA
 
     cfg = Configuration(exp_cfg, alg_cfg)
     FlukeENV().configure(cfg)
@@ -253,6 +271,8 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 @app.callback()
 def run(version: bool = typer.Option(None, "--version", help="Show the installed version of fluke",
                                      callback=version_callback)) -> None:
+
+    from rich.panel import Panel
 
     fluke_pretty = "    ██████  ████             █████              "
     fluke_pretty += "\n   ███░░███░░███            ░░███               "
