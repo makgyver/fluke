@@ -8,7 +8,7 @@ References:
 """
 import copy
 import sys
-from typing import Any, Iterable, Literal, Generator
+from typing import Any, Generator, Iterable, Literal
 
 import torch
 import torch.optim as optim

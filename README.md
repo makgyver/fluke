@@ -3,6 +3,7 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fluke-fl?style=for-the-badge&logo=python&logoColor=yellow)
 ![GitHub License](https://img.shields.io/github/license/makgyver/fluke?style=for-the-badge)
 [![arXiv](https://img.shields.io/badge/arxiv-2412.15728-b31b1b.svg?style=for-the-badge&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2412.15728)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
 # **fluke**: **f**ederated **l**earning **u**tility framewor**k** for **e**xperimentation and research
 
@@ -10,12 +11,29 @@
 
 ## Installation
 
+### Pypi
+
 ``fluke`` is a Python package that can be installed via pip. To install it, you can run the following command:
 
 ```bash
 pip install fluke-fl
 ```
 
+### 🐳 Docker
+
+You can use this library directly inside a Docker container — no installation needed on your local machine.
+
+```bash
+docker build -t fluke_container .
+```
+
+Then, you can run an interactive session with
+
+```bash
+docker run --rm fluke_container fluke [ARGS]
+```
+
+where `ARGS` are the arguments you want to pass to the `fluke` command as described in the next section.
 
 ## Run a federated algorithm
 

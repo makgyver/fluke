@@ -194,6 +194,7 @@ class Server(ObserverSubject):
                     break
 
                 except EarlyStopping:
+                    self._notify_early_stop()
                     break
 
             progress_fl.remove_task(task_rounds)
@@ -413,6 +414,12 @@ class Server(ObserverSubject):
         """
         for observer in self._observers:
             observer.interrupted()
+
+    def _notify_early_stop(self) -> None:
+        """Notify the observers that the federated learning process has been stopped early.
+        """
+        for observer in self._observers:
+            observer.early_stop(self.rounds + 1)
 
     def _notify_track_item(self, item: str, value: Any) -> None:
         """Notify the observers that an item has been tracked.

@@ -10,12 +10,12 @@ from rich.console import Console
 
 sys.path.append(".")
 
+from . import __version__  # NOQA
 from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)
 
-__version__ = "0.7.2"
-
 console = Console()
+
 
 def fluke_banner():
     from rich.panel import Panel
@@ -30,6 +30,7 @@ def version_callback(value: bool):
         print(f"fluke: {__version__}")
         raise typer.Exit()
 
+
 app = typer.Typer()
 
 
@@ -39,13 +40,14 @@ def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                 epochs: int = typer.Option(0, help='Number of epochs to run')) -> None:
     """Run a centralized learning experiment."""
 
-    from . import FlukeENV  # NOQA
-    from .data.datasets import Datasets  # NOQA
-    from .data import FastDataLoader  # NOQA
+    from rich.progress import track
     from torch.optim import SGD
+
+    from . import FlukeENV  # NOQA
+    from .data import FastDataLoader  # NOQA
+    from .data.datasets import Datasets  # NOQA
     from .evaluation import ClassificationEval  # NOQA
     from .utils.log import get_logger  # NOQA
-    from rich.progress import track
 
     cfg = Configuration(exp_cfg, alg_cfg)
     FlukeENV().configure(cfg)
@@ -137,7 +139,6 @@ def sweep(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
 def _run_federation(cfg: Configuration, resume: str = None) -> None:
     import yaml
-    from rich.console import Console
     from rich.panel import Panel
     from rich.pretty import Pretty
 
@@ -205,7 +206,6 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
     from torch.optim import SGD
 
     # sys.path.append(".")
-
     from . import FlukeENV  # NOQA
     from .data import DataSplitter  # NOQA
     from .data.datasets import Datasets  # NOQA
@@ -224,23 +224,26 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
     device = FlukeENV().get_device()
 
     hp = cfg.method.hyperparameters
-    (clients_tr_data, clients_te_data), _ = \
+    if "name" not in hp.client.optimizer:
+        hp.client.optimizer.name = SGD
+
+    (clients_tr_data, clients_te_data), shared_test = \
         data_splitter.assign(cfg.protocol.n_clients, hp.client.batch_size)
 
     criterion = get_loss(hp.client.loss)
-    client_evals = []
+    client_local_evals = []
+    client_shared_evals = []
     if epochs == 0:
         epochs = int(cfg.protocol.n_rounds *
                      hp.client.local_epochs *
                      cfg.protocol.eligible_perc)
-    exp_name = "Clients-only_" + "_".join(str(cfg).split("_")[1:])
+    cfg.exp_id = uuid.uuid4().hex
+    exp_name = f"Clients-only_[{cfg.exp_id}]"
     log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
-    log.init(**cfg, exp_id=uuid.uuid4().hex)
+    log.init(**cfg)
 
-    if "name" not in hp.client.optimizer:
-        hp.client.optimizer.name = SGD
-
-    running_evals = {c: [] for c in range(cfg.protocol.n_clients)}
+    # running_local_evals = {c: [] for c in range(cfg.protocol.n_clients)}
+    # running_shared_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in enumerate(zip(clients_tr_data, clients_te_data)):
         log.log(f"Client [{i+1}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model, **hp.net_args if "net_args" in hp else {})
@@ -262,16 +265,38 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                 optimizer.step()
             scheduler.step()
 
-            client_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
-            log.add_scalar(f"Client[{i}]", client_eval, e+1)
-            running_evals[i].append(client_eval)
+            if test_loader is not None:
+                client_local_eval = evaluator.evaluate(
+                    e+1, model, test_loader, criterion, device=device)
+                log.add_scalar(f"Client[{i}].local_test", client_local_eval, e+1)
+                # running_local_evals[i].append(client_local_eval)
+            if shared_test is not None:
+                client_shared_eval = evaluator.evaluate(
+                    e+1, model, shared_test, criterion, device=device)
+                log.add_scalar(f"Client[{i}].shared_test", client_shared_eval, e+1)
+                # running_shared_evals[i].append(client_shared_eval)
 
-        log.pretty_log(client_eval, title=f"Client [{i}] Performance")
-        client_evals.append(client_eval)
+        perf = {}
+        if test_loader is not None:
+            perf["local_test"] = client_local_eval
+            client_local_evals.append(client_local_eval)
+        if shared_test is not None:
+            perf["shared_test"] = client_shared_eval
+            client_shared_evals.append(client_shared_eval)
+
+        log.pretty_log(perf, title=f"Client [{i}] Performance")
         model.cpu()
 
-    client_mean = DataFrame(client_evals).mean(numeric_only=True).to_dict()
-    client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+    client_mean = {}
+    if test_loader is not None:
+        client_mu = DataFrame(client_local_evals).mean(numeric_only=True).to_dict()
+        client_mean["local_test"] = {k: float(np.round(float(v), 5))
+                                     for k, v in client_mu.items()}
+    if shared_test is not None:
+        client_mu = DataFrame(client_shared_evals).mean(numeric_only=True).to_dict()
+        client_mean["shared_test"] = {k: float(np.round(float(v), 5))
+                                      for k, v in client_mu.items()}
+
     log.pretty_log(client_mean, title="Overall local performance")
 
 
