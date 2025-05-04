@@ -196,6 +196,15 @@ class ServerObserver():
         """This method is called when the federated learning process has been interrupted."""
         pass
 
+    def early_stop(self, round: int) -> None:
+        """This method is called when the federated learning process has been stopped due to an
+        early stopping criterion.
+
+        Args:
+            round (int): The last round number.
+        """
+        pass
+
     def track_item(self,
                    round: int,
                    item: str,

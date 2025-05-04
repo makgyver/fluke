@@ -231,10 +231,13 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         rich_print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
                          title="Total communication cost", width=100))
 
-    def interrupted(self):
+    def interrupted(self) -> None:
         rich_print("\n[bold italic yellow]The experiment has been interrupted by the user.")
 
-    def track_item(self, round, item, value):
+    def early_stop(self, round: int) -> None:
+        return self.end_round(round)
+
+    def track_item(self, round, item, value) -> None:
         self.add_scalar(item, value, round)
 
     def save(self, path: str) -> None:
@@ -248,7 +251,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             "comm_costs": self.comm_costs,
             "perf_locals": self.locals_eval_summary,
             "perf_prefit": self.prefit_eval_summary,
-            "perf_postfit": self.postfit_eval_summary
+            "perf_postfit": self.postfit_eval_summary,
+            "mem_costs": self.mem_costs,
+            "custom_fields": self.custom_fields
         }
         with open(path, 'w') as f:
             json.dump(json_to_save, f, indent=4)

@@ -40,6 +40,13 @@ __all__ = [
     'Singleton'
 ]
 
+__version__ = '0.7.3'
+__author__ = 'Mirko Polato'
+__email__ = 'mirko.polato@unito.it'
+__license__ = 'LGPLv2.1'
+__copyright__ = 'Copyright (c) 2025, Mirko Polato'
+__status__ = 'Development'
+
 
 class Singleton(type):
     """This metaclass is used to create singleton classes. A singleton class is a class that can

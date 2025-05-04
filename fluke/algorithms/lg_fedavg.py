@@ -50,7 +50,6 @@ class LGFedAVGClient(Client):
         super().__init__(index=index, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
-        self._load_from_cache()
         self.model = HeadGlobalEncoderLocalNet(model)
         self._save_to_cache()
 
