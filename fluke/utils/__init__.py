@@ -16,7 +16,8 @@ import pandas as pd
 import psutil
 import seaborn as sns
 import torch
-import yaml
+from omegaconf import OmegaConf
+from cerberus import Validator
 from rich import print as rich_print
 from torch.nn import Module
 from torch.optim import Optimizer
@@ -516,30 +517,28 @@ class Configuration(DDict):
                  force_validation: bool = True):
 
         if config_exp_path is not None and os.path.exists(config_exp_path):
-            with open(config_exp_path) as f:
-                config_exp = yaml.safe_load(f)
-            self.update(**config_exp)
+            cfg_exp = OmegaConf.load(config_exp_path)
+            self.update(DDict(**cfg_exp))
 
         if config_alg_path is not None and os.path.exists(config_alg_path):
-            with open(config_alg_path) as f:
-                config_alg = yaml.safe_load(f)
-            self.update(method=config_alg)
+            cfg_alg = OmegaConf.load(config_alg_path)
+            self.update(method=DDict(**cfg_alg))
 
         if force_validation:
             self._validate()
 
     @classmethod
-    def from_ddict(cls, ddict: DDict) -> Configuration:
-        """Create a configuration from a :class:`fluke.DDict`.
+    def from_dict(cls, cfg_dict: dict) -> Configuration:
+        """Create a configuration from a dictionary.
 
         Args:
-            ddict (DDict): The dictionary.
+            cfg_dict (dict): The dictionary.
 
         Returns:
             Configuration: The configuration.
         """
-        cfg = Configuration("", "", force_validation=False)
-        cfg.update(**ddict)
+        cfg = Configuration(force_validation=False)
+        cfg.update(**cfg_dict)
         cfg._validate()
         return cfg
 
@@ -577,7 +576,7 @@ class Configuration(DDict):
         cfgs = Configuration(config_exp_path, config_alg_path)
 
         for cfg in Configuration.__sweep(cfgs):
-            yield Configuration.from_ddict(cfg)
+            yield Configuration.from_dict(cfg)
 
     @staticmethod
     def __sweep(cfgs: DDict) -> Generator[DDict, None, None]:
@@ -636,139 +635,159 @@ class Configuration(DDict):
         """
         return self.method.hyperparameters.model
 
+    __SCHEMA = {
+        "data": {
+            "type": "dict",
+            "schema": {
+                "dataset": {
+                    "type": "dict",
+                    "required": True,
+                    "schema": {
+                        "name": {"type": "string", "required": True},
+                        "path": {"type": "string", "required": True}
+                    }
+                },
+                "distribution": {
+                    "type": "dict",
+                    "required": True,
+                    "schema": {
+                        "name": {"type": "string", "required": True}
+                    }
+                },
+                "sampling_perc": {"type": "float", "required": False,
+                                  "min": 0.001, "max": 1.0, "default": 1.0},
+                "client_split": {"type": "float", "required": False, "min": 0.0, "max": 1.0,
+                                 "default": 0.0},
+                "keep_test": {"type": "boolean", "required": False, "default": True},
+                "server_test": {"type": "boolean", "required": False, "default": True},
+                "server_split": {"type": "float", "required": False, "min": 0.001, "max": 1.0,
+                                 "default": 0.0},
+                "uniform_test": {"type": "boolean", "required": False, "default": False}
+            }
+        },
+        "exp": {
+            "type": "dict",
+            "schema": {
+                "device": {
+                    "type": "string",
+                    "required": False,
+                    "default": "cpu",
+                    "anyof": [{"allowed": ["cpu", "cuda", "mps"]},
+                              {"regex": "^cuda:[0-9]+$"}]
+                },
+                "seed": {"type": "integer", "required": False, "default": 42},
+                "inmemory": {"type": "boolean", "required": False, "default": True}
+            }
+        },
+        "eval": {
+            "type": "dict",
+            "schema": {
+                "task": {"type": "string", "required": False,
+                         "default": "classification", "allowed": ["classification"]},
+                "eval_every": {"type": "integer", "required": False, "default": 1, "min": 1},
+                "pre_fit": {"type": "boolean", "required": False, "default": False},
+                "post_fit": {"type": "boolean", "required": False, "default": True},
+                "locals": {"type": "boolean", "required": False, "default": False},
+                "server": {"type": "boolean", "required": False, "default": True}
+            }
+        },
+        "logger": {
+            "type": "dict",
+            "schema": {
+                "name": {"type": "string", "required": False, "default": "Log"}
+            }
+        },
+        "protocol": {
+            "type": "dict",
+            "schema": {
+                "eligible_perc": {"type": "float", "required": True, "min": 0.0, "max": 1.0},
+                "n_clients": {"type": "integer", "required": True, "min": 1},
+                "n_rounds": {"type": "integer", "required": True, "min": 1}
+            }
+        },
+        "method": {
+            "type": "dict",
+            "schema": {
+                "hyperparameters": {
+                    "type": "dict",
+                    "schema": {
+                        "client": {
+                            "type": "dict",
+                            "schema": {
+                                "batch_size": {"type": "integer", "required": True, "min": 1},
+                                "local_epochs": {"type": "integer", "required": True, "min": 1},
+                                "loss": {"type": "string", "required": True},
+                                "optimizer": {
+                                    "type": "dict",
+                                    "schema": {
+                                        "name": {"type": "string", "required": False,
+                                                 "default": "SGD"},
+                                        "lr": {"type": "float", "required": False, "default": 0.01},
+                                    }
+                                },
+                                "scheduler": {
+                                    "type": "dict",
+                                    "schema": {
+                                        "name": {"type": "string", "required": False,
+                                                 "default": "StepLR"}
+                                    }
+                                }
+                            }
+                        },
+                        "server": {
+                            "type": "dict",
+                            "schema": {
+                                "weighted": {"type": "boolean", "required": False, "default": True}
+                            }
+                        },
+                        "model": {"type": "string", "required": True}
+                    }
+                },
+                "name": {"type": "string", "required": True}
+            }
+        }
+    }
+
+    def __repair_save(self, data: dict) -> None:
+        if "save" not in data:
+            return {}, []
+
+        save_valid = Validator()
+        save_valid.schema = {
+            "save_every": {"type": "integer", "default": 1, "min": 1},
+            "path": {"type": "string", "default": "./models"},
+            "global_only": {"type": "boolean", "default": False}
+        }
+        save_valid.allow_unknown = False
+        valid_result = save_valid.validate(data["save"])
+        if not valid_result:
+            return None, valid_result.errors
+
+        return valid_result.document, []
+
     def _validate(self) -> bool:
 
-        EXP_OPT_KEYS = {
-            "device": "cpu",
-            "seed": 42,
-            "inmemory": True
-        }
+        validator = Validator()
+        validator.schema = self.__SCHEMA
+        validator.allow_unknown = True
 
-        LOG_OPT_KEYS = {
-            "name": "Log"
-        }
+        cfg_dict = self.to_dict()
+        valid_result = validator.validate(cfg_dict)
+        save_valid_result, save_errors = self.__repair_save(cfg_dict)
 
-        SAVE_REQUIRED_KEYS = ["path"]
+        errors = validator.errors
+        if save_errors:
+            errors.update(save=save_errors)
 
-        SAVE_OPT_KEYS = {
-            "save_every": -1,
-            "global_only": False
-        }
+        if not valid_result:
+            rich_print("[red]Invalid configuration:[/red]")
+            rich_print(errors)
+            exit(1)
 
-        EVAL_OPT_KEYS = {
-            "task": "classification",
-            "eval_every": 1,
-            "pre_fit": False,
-            "post_fit": True,
-            "server": True,
-            "locals": False
-        }
+        clean_cfg = validator.document
+        clean_cfg["save"] = save_valid_result
 
-        FIRST_LVL_KEYS = ["data", "protocol", "method"]
-        FIRST_LVL_OPT_KEYS = {
-            "eval": EVAL_OPT_KEYS,
-            "exp": EXP_OPT_KEYS,
-            "logger": LOG_OPT_KEYS
-        }
-        PROTO_REQUIRED_KEYS = ["n_clients", "eligible_perc", "n_rounds"]
-        DATA_REQUIRED_KEYS = ["distribution", "dataset"]
-        DATA_OPT_KEYS = {
-            "sampling_perc": 1.0,
-            "client_split": 0.0,
-            "keep_test": True,
-            "server_test": True,
-            "server_split": 0.0,
-            "uniform_test": False
-        }
-
-        ALG_1L_REQUIRED_KEYS = ["name", "hyperparameters"]
-        HP_REQUIRED_KEYS = ["model", "client", "server"]
-        CLIENT_HP_REQUIRED_KEYS = ["loss", "batch_size", "local_epochs", "optimizer"]
-        WANDB_REQUIRED_KEYS = ["project", "entity"]
-
-        error = False
-        for k in FIRST_LVL_KEYS:
-            if k not in self:
-                f = "experiment" if k != "method" else "algorithm"
-                rich_print(f"Error: {k} is required in the {f} configuration file")
-                error = True
-
-        for k, v in FIRST_LVL_OPT_KEYS.items():
-            if k not in self:
-                self[k] = DDict(**v)
-
-        for k in PROTO_REQUIRED_KEYS:
-            if k not in self.protocol:
-                rich_print(f"Error: {k} is required for key 'protocol'.")
-                error = True
-
-        for k in DATA_REQUIRED_KEYS:
-            if k not in self.data:
-                rich_print(f"Error: {k} is required for key 'data'.")
-                error = True
-
-        for k, v in DATA_OPT_KEYS.items():
-            if k not in self.data:
-                self.data[k] = v
-
-        for k, v in EVAL_OPT_KEYS.items():
-            if k not in self.eval:
-                self.eval[k] = v
-
-        for k, v in EXP_OPT_KEYS.items():
-            if k not in self.exp:
-                self.exp[k] = v
-
-        for k, v in LOG_OPT_KEYS.items():
-            if k not in self.logger:
-                self.logger[k] = v
-
-        for k in ALG_1L_REQUIRED_KEYS:
-            if k not in self.method:
-                rich_print(f"Error: {k} is required for key 'method'.")
-                error = True
-
-        for k in HP_REQUIRED_KEYS:
-            if k not in self.method.hyperparameters:
-                rich_print(f"Error: {k} is required for key 'hyperparameters' in 'method'.")
-                error = True
-
-        for k in CLIENT_HP_REQUIRED_KEYS:
-            if k not in self.method.hyperparameters.client:
-                rich_print(f"Error: {k} is required as hyperparameter of 'client'.")
-                error = True
-
-        if "logger" in self and self.logger.name in ["wandb", "WandBLog"]:
-            for k in WANDB_REQUIRED_KEYS:
-                if k not in self.logger:
-                    rich_print(f"Error: {k} is required for key 'logger' when using 'WandBLog'.")
-                    error = True
-
-        if "save" in self and self.save:
-            for k in SAVE_REQUIRED_KEYS:
-                if k not in self.save:
-                    rich_print(f"Error: {k} is required for key 'save'.")
-                    error = True
-            for k in SAVE_OPT_KEYS:
-                if k not in self.save:
-                    self.save[k] = SAVE_OPT_KEYS[k]
-        else:
-            self.save = {}
-
-        if error:
-            raise ValueError("Configuration validation failed.")
-
-    def __str__(self) -> str:
-        return f"{self.method.name if 'method' in self else 'EXP'}" + \
-            f"_data({self.data.dataset.name}, " + \
-            f"{self.data.distribution.name}(" + \
-            ", ".join([f"{k}={v}" for k, v in self.data.distribution.exclude('name').items()]) +\
-            f"))_proto(C{self.protocol.n_clients}, R{self.protocol.n_rounds}, " + \
-            f"E{self.protocol.eligible_perc})" + \
-            f"_seed({self.exp.seed})"
-
-    def __repr__(self) -> str:
-        return str(self)
+        self.update(clean_cfg)
 
     def verbose(self) -> str:
         return super().__str__()

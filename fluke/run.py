@@ -3,10 +3,14 @@
 import os
 import sys
 import uuid
-from typing import Any, List
+from typing import Any, List, Optional
 
 import typer
 from rich.console import Console
+from omegaconf import DictConfig
+from pathlib import Path
+from omegaconf import OmegaConf
+from hydra import compose, initialize_config_dir
 
 sys.path.append(".")
 
@@ -32,6 +36,16 @@ def version_callback(value: bool):
 
 
 app = typer.Typer()
+
+
+def _compose_config(cfg_base: str, overrides: Optional[List[str]]) -> DictConfig:
+    abs_config_path = (Path.cwd() / cfg_base).resolve()
+    cfg_base_folder = abs_config_path.parent
+    cfg_base_name = abs_config_path.stem
+    with initialize_config_dir(config_dir=str(cfg_base_folder),
+                               job_name="fluke_cli",
+                               version_base=None):
+        return compose(config_name=cfg_base_name, overrides=overrides)
 
 
 @app.command()
@@ -110,11 +124,23 @@ def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 @app.command()
 def federation(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                alg_cfg: str = typer.Argument(..., help='Config file for the algorithm to run'),
+               overrides: Optional[List[str]] =
+               typer.Argument(None,
+                              help='Overrides for the configuration, e.g. "exp.seed=10"'),
                resume: str = typer.Option(None,
                                           help='Path to the checkpoint file to load.')) -> None:
     """Run a federated learning experiment."""
 
-    cfg = Configuration(exp_cfg, alg_cfg)
+    if overrides is not None:
+        overrides_exp = [v for v in overrides if not v.startswith('method.')]
+        overrides_alg = [v for v in overrides if v.startswith('method.')]
+        exp_cfg = _compose_config(exp_cfg, overrides_exp)
+        alg_cfg = _compose_config(alg_cfg, overrides_alg)
+        OmegaConf.set_struct(exp_cfg, False)
+        alg_cfg = OmegaConf.create({"method": alg_cfg})
+        cfg = Configuration.from_dict(OmegaConf.merge(exp_cfg, alg_cfg))
+    else:
+        cfg = Configuration(exp_cfg, alg_cfg)
     _run_federation(cfg, resume)
 
 
@@ -138,9 +164,9 @@ def sweep(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
 
 def _run_federation(cfg: Configuration, resume: str = None) -> None:
-    import yaml
     from rich.panel import Panel
     from rich.pretty import Pretty
+    import yaml
 
     from . import FlukeENV  # NOQA
     from .data import DataSplitter  # NOQA
@@ -163,7 +189,7 @@ def _run_federation(cfg: Configuration, resume: str = None) -> None:
     fl_algo = fl_algo_class(cfg.protocol.n_clients,
                             data_splitter,
                             cfg.method.hyperparameters)
-    # plot_distribution(fl_algo.clients)
+
     if cfg.save and cfg.save.path:
         path = f"{cfg.save.path}_{fl_algo.id}"
         if not os.path.exists(path):
