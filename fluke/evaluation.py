@@ -93,6 +93,9 @@ class ClassificationEval(Evaluator):
     Args:
         eval_every (int): The evaluation frequency.
         n_classes (int): The number of classes.
+        **metrics (dict[str, Metric]): The metrics to use for evaluation. If not provided, the
+            default metrics are used: ``accuracy``, ``macro_precision``, ``macro_recall``,
+            ``macro_f1``, ``micro_precision``, ``micro_recall`` and ``micro_f1``.
 
     Attributes:
         eval_every (int): The evaluation frequency.
@@ -103,11 +106,11 @@ class ClassificationEval(Evaluator):
         super().__init__(eval_every=eval_every)
         self.n_classes: int = n_classes
 
-        self._metrics = {}
+        self.metrics = {}
 
         # if kwargs is empty
         if not metrics:
-            self._metrics = {
+            self.metrics = {
                 "accuracy":         Accuracy(task="multiclass", num_classes=self.n_classes,
                                              top_k=1),
                 "macro_precision":  Precision(task="multiclass", num_classes=self.n_classes,
@@ -124,7 +127,7 @@ class ClassificationEval(Evaluator):
                                             top_k=1, average="micro")
             }
         else:
-            self._metrics = metrics
+            self.metrics = metrics
 
     def add_metric(self, name: str, metric: Metric) -> None:
         """Add a metric to the evaluator.
@@ -133,9 +136,9 @@ class ClassificationEval(Evaluator):
             name (str): The name of the metric.
             metric (Metric): The metric to add.
         """
-        if name in self._metrics:
+        if name in self.metrics:
             raise ValueError(f"Metric {name} already exists.")
-        self._metrics[name] = metric
+        self.metrics[name] = metric
 
     @torch.no_grad
     def evaluate(self,
@@ -181,14 +184,14 @@ class ClassificationEval(Evaluator):
         model.eval()
         model.to(device)
         losses = []
-        matrics_values = {k: [] for k in self._metrics.keys()}
+        matrics_values = {k: [] for k in self.metrics.keys()}
         loss, cnt = 0, 0
 
         if not isinstance(eval_data_loader, list):
             eval_data_loader = [eval_data_loader]
 
         for data_loader in eval_data_loader:
-            for metric in self._metrics.values():
+            for metric in self.metrics.values():
                 metric.reset()
 
             loss = 0
@@ -199,12 +202,12 @@ class ClassificationEval(Evaluator):
                     if loss_fn is not None:
                         loss += loss_fn(y_hat, y).item()
 
-                for metric in self._metrics.values():
+                for metric in self.metrics.values():
                     metric.update(y_hat.cpu(), y.cpu())
 
             cnt += len(data_loader)
 
-            for k, v in self._metrics.items():
+            for k, v in self.metrics.items():
                 matrics_values[k].append(v.compute().item())
             losses.append(loss / cnt)
 
@@ -220,7 +223,7 @@ class ClassificationEval(Evaluator):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(eval_every={self.eval_every}" + \
-            f", n_classes={self.n_classes})[{', '.join(self._metrics.keys())}]"
+            f", n_classes={self.n_classes})[{', '.join(self.metrics.keys())}]"
 
     def __repr__(self) -> str:
         return str(self)
