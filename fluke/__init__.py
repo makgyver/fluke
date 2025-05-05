@@ -11,7 +11,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
-
+from omegaconf import DictConfig
 import numpy as np
 import torch
 from diskcache import Cache
@@ -119,7 +119,7 @@ class DDict(dict):
         for arg in args:
             if isinstance(arg, dict):
                 for k, v in arg.items():
-                    if isinstance(v, dict):
+                    if isinstance(v, (dict, DictConfig)):
                         self[k] = DDict(**v)
                     else:
                         self[k] = v
@@ -127,7 +127,7 @@ class DDict(dict):
                 warnings.warn(f"Argument {arg} is not a dictionary and will be ignored.")
 
         for k, v in kwargs.items():
-            if isinstance(v, dict):
+            if isinstance(v, (dict, DictConfig)):
                 self[k] = DDict(**v)
             else:
                 self[k] = v

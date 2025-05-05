@@ -344,7 +344,7 @@ def test_configuration():
     cfg_ = cfg.copy()
     cfg_["method"] = cfg_alg
     with pytest.raises(ValueError):
-        Configuration.from_ddict(DDict(cfg_))
+        Configuration.from_dict(DDict(cfg_))
 
 
 class MyLog(Log):
