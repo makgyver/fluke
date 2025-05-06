@@ -102,7 +102,8 @@ class FedAMPServer(Server):
                  test_set: FastDataLoader,  # not used
                  clients: Iterable[PFLClient],
                  sigma: float = 0.1,
-                 alpha: float = 0.1):
+                 alpha: float = 0.1,
+                 **kwargs: dict[str, Any]):
         super().__init__(model=model, test_set=None, clients=clients, weighted=False)
         self.hyper_params.update(
             sigma=sigma,

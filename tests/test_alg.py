@@ -31,8 +31,9 @@ def test_centralized_fl():
         model=MNIST_2NN(),
         client=DDict(batch_size=32,
                      local_epochs=1,
-                     loss=CrossEntropyLoss,
+                     loss="CrossEntropyLoss",
                      optimizer=DDict(
+                         name="SGD",
                          lr=0.1,
                          momentum=0.9),
                      scheduler=DDict(
@@ -46,7 +47,7 @@ def test_centralized_fl():
     fl = CentralizedFL(2, splitter, hparams)
 
     assert fl.n_clients == 2
-    assert fl.hyper_params == hparams
+    assert fl.hyper_params.match(hparams)
     assert len(fl.clients) == 2
     assert isinstance(fl.clients[0], Client)
     assert isinstance(fl.server, Server)
@@ -134,7 +135,7 @@ def test_centralized_fl():
             assert loss >= 0.0
             self.called_end_fit = True
 
-        def message_received(self, message: Message):
+        def message_received(self, by: Any, message: Message):
             pass
 
     obs = Observer()
@@ -177,6 +178,7 @@ def test_centralized_fl():
                      model=MNIST_2NN(),
                      loss=CrossEntropyLoss,
                      optimizer=DDict(
+                         name=SGD,
                          lr=0.1,
                          momentum=0.9),
                      scheduler=DDict(
@@ -490,7 +492,7 @@ if __name__ == "__main__":
     # test_ccvr()
     # test_ditto()
     # test_fat()
-    # test_fedamp()
+    test_fedamp()
     # test_fedavg()
     # test_fedavgm()
     # test_fedaws()
@@ -509,8 +511,8 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_fedrod()
     # test_fedrs()
-    test_fedsam()
-    # test_fedsgd()
+    # test_fedsam()
+    test_fedsgd()
     # test_gear()
     # test_kafe()
     # test_lgfedavg()

@@ -105,7 +105,9 @@ class CentralizedFL(ServerObserver):
                  **kwargs: dict[str, Any]):
         self._id = str(uuid.uuid4().hex)
         FlukeENV().open_cache(self._id)
-        self.hyper_params = hyper_params if isinstance(hyper_params, DDict) else DDict(hyper_params)
+        if isinstance(hyper_params, dict):
+            hyper_params = DDict(hyper_params)
+        self.hyper_params = hyper_params
         self.n_clients = n_clients
         (clients_tr_data, clients_te_data), server_data = \
             data_splitter.assign(n_clients, hyper_params.client.batch_size)
@@ -226,7 +228,10 @@ class CentralizedFL(ServerObserver):
             data (FastDataLoader): The server-side test set.
             config (DDict): Configuration of the server.
         """
-        self.server: Server = self.get_server_class()(model, data, self.clients, **config)
+        self.server: Server = self.get_server_class()(model=model,
+                                                      test_set=data,
+                                                      clients=self.clients,
+                                                      **config)
         if FlukeENV().get_save_options()[0] is not None:
             self.server.attach(self)
 

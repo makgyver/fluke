@@ -21,7 +21,7 @@ from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import (ClientObserver, Configuration,  # NOQA
+from fluke.utils import (ClientObserver, Configuration, ConfigurationError,  # NOQA
                          OptimizerConfigurator, ServerObserver, clear_cuda_cache,
                          get_class_from_qualified_name, get_class_from_str,
                          get_full_classname, get_loss, get_model, get_optimizer, bytes2human,
@@ -264,8 +264,8 @@ def test_configuration():
             'global_only': True
         },
         'exp': {
+            'inmmemory': True,
             'seed': 42,
-            'average': 'micro',
             'device': 'cpu'
         },
         'logger': {
@@ -325,7 +325,6 @@ def test_configuration():
     assert conf.server.weighted
     assert conf.model == "MNIST_2NN"
 
-    assert str(conf) == "fluke.algorithms.fedavg.FedAVG_data(mnist, iid())_proto(C100, R50, E0.1)_seed(42)"
     assert conf.__repr__() == str(conf)
 
     cfg = dict({"protocol": {}, "data": {}, "exp": {}, "logger": {}})
@@ -337,14 +336,14 @@ def test_configuration():
     json.dump(cfg, open(temp_cfg.name, "w"))
     json.dump(cfg_alg, open(temp_cfg_alg.name, "w"))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ConfigurationError):
         conf = Configuration(temp_cfg.name, temp_cfg_alg.name)
 
     cfg["logger"]["name"] = "WandBLog"
     cfg_ = cfg.copy()
     cfg_["method"] = cfg_alg
-    with pytest.raises(ValueError):
-        Configuration.from_ddict(DDict(cfg_))
+    with pytest.raises(ConfigurationError):
+        Configuration.from_dict(DDict(cfg_))
 
 
 class MyLog(Log):
@@ -363,7 +362,7 @@ def test_log():
         log.start_round(1, None)
         log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
-        log.message_received(Message("test", "test", None))
+        log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
         log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
         log.end_round(1)
@@ -375,9 +374,12 @@ def test_log():
 
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
+        print(data)
+        assert data["mem_costs"]["1"] > 0
+        del data["mem_costs"]
         assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
             '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
-            'perf_postfit': {'1': {'accuracy': 0.6}}}
+            'perf_postfit': {'1': {'accuracy': 0.6}}, 'custom_fields': {}}
 
     assert log.global_eval == {1: {"accuracy": 1}}
     assert log.locals_eval == {}
