@@ -134,7 +134,7 @@ def test_centralized_fl():
             assert loss >= 0.0
             self.called_end_fit = True
 
-        def message_received(self, message: Message):
+        def message_received(self, by: Any, message: Message):
             pass
 
     obs = Observer()

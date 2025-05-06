@@ -3,12 +3,14 @@ import json
 import os
 import sys
 import time
-from typing import Any, Literal, Union
+from typing import Any, Literal, Union, Iterable
 
 import numpy as np
 from pandas import DataFrame
 from psutil import Process
 from rich import print as rich_print
+import logging
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.pretty import Pretty
 from torch.nn import Module
@@ -19,7 +21,7 @@ import wandb
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import DDict  # NOQA
+from .. import DDict, FlukeENV  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
 from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
@@ -192,10 +194,11 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         elif type == "locals" and evals:
             self.locals_eval[round] = evals
 
-    def message_received(self, message: Message) -> None:
+    def message_received(self, by: Any, message: Message) -> None:
         """Update the communication costs.
 
         Args:
+            by (Any): The sender of the message.
             message (Message): The message received.
         """
         self.comm_costs[self.current_round] += message.size
@@ -261,6 +264,116 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
     def close(self) -> None:
         """Close the logger."""
         pass
+
+
+class DebugLog(Log):
+    """Debug Logger.
+    This type of logger extends the basic logger by adding debug information.
+    It can be seen as a more verbose version of the basic logger.
+
+    Args:
+        **kwargs: The configuration for the logger.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(message)s",
+            datefmt="[%X]",
+            handlers=[RichHandler(rich_tracebacks=True,
+                                  show_path=True,
+                                  markup=True)]
+        )
+
+        self.logger = logging.getLogger("rich")
+
+        # Example logs
+        # logger.debug("This is a [bold blue]debug[/] message.")
+        # logger.info("This is an [green]info[/] message.")
+        # logger.warning("This is a [yellow]warning[/] message.")
+        # logger.error("This is an [red]error[/] message.")
+        # logger.critical("This is a [bold red]critical[/] message.")
+
+    def init(self, **kwargs: dict[str, Any]) -> None:
+        self.logger.debug("Debug logging enabled")
+        super().init(**kwargs)
+
+    def start_round(self, round: int, global_model: Module) -> None:
+        self.logger.debug("Starting round %d", round)
+        super().start_round(round, global_model)
+
+    def end_round(self, round: int) -> None:
+        self.logger.debug("Ending round %d", round)
+        super().end_round(round)
+
+    def selected_clients(self, round: int, clients: Iterable) -> None:
+        clients_idx = [client.index for client in clients]
+        self.logger.debug(f"Selected {len(clients_idx)} clients for round {round}: {clients_idx}")
+        super().selected_clients(round, clients)
+
+    def server_evaluation(self,
+                          round: int,
+                          type: Literal["global", "locals"],
+                          evals: Union[dict[str, float], dict[int, dict[str, float]]],
+                          **kwargs: dict[str, Any]) -> None:
+        if type == "global":
+            self.logger.debug(f"Global evaluation for round {round}")
+        elif type == "locals":
+            self.logger.debug(f"Local models evaluated on server's test set for round {round}")
+        super().server_evaluation(round, type, evals, **kwargs)
+
+    def finished(self, round):
+        self.logger.debug(f"Round {round} completed")
+        return super().finished(round)
+
+    def interrupted(self) -> None:
+        self.logger.debug("Experiment interrupted by user")
+        return super().interrupted()
+
+    def early_stop(self, round: int) -> None:
+        self.logger.debug(f"Early stopping fired for round {round}")
+        return super().early_stop(round)
+
+    def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+        self.logger.debug(f"Starting fit for client {client_id}")
+        return super().start_fit(round, client_id, model, **kwargs)
+
+    def end_fit(self,
+                round: int,
+                client_id: int,
+                model: Module,
+                loss: float,
+                **kwargs: dict[str, Any]):
+        self.logger.debug(f"Fit for Client[{client_id}] ended with loss {loss}")
+        return super().end_fit(round, client_id, model, loss, **kwargs)
+
+    def client_evaluation(self,
+                          round: int,
+                          client_id: int,
+                          phase: Literal['pre-fit', 'post-fit'],
+                          evals: dict[str, float],
+                          **kwargs: dict[str, Any]) -> None:
+        self.logger.debug(f"Client[{client_id}] {phase} evaluation for round {round}")
+        return super().client_evaluation(round, client_id, phase, evals, **kwargs)
+
+    def message_received(self, by: Any, message: Message) -> None:
+        sender = str(message.sender).split("(")[0]
+        receiver = str(by).split("(")[0]
+        self.logger.debug(f"Message {message.id} from {sender} to {receiver} received")
+        return super().message_received(by, message)
+
+    def message_sent(self, to: Any, message: Message) -> None:
+        sender = str(message.sender).split("(")[0]
+        receiver = str(to).split("(")[0]
+        self.logger.debug(f"Message {message.id} from {sender} to {receiver} sent")
+        return super().message_sent(to, message)
+
+    def message_broadcasted(self, to: list[Any], message: Message) -> None:
+        sender = str(message.sender).split("(")[0]
+        self.logger.debug(f"Message {message.id} from {sender} broadcasted ")
+        return super().message_broadcasted(to, message)
 
 
 class TensorboardLog(Log):

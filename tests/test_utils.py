@@ -363,7 +363,7 @@ def test_log():
         log.start_round(1, None)
         log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
-        log.message_received(Message("test", "test", None))
+        log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
         log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
         log.end_round(1)
