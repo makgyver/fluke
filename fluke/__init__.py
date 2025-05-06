@@ -394,9 +394,6 @@ class FlukeENV(metaclass=Singleton):
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
 
-        # import os
-        # os.environ['PYTHONHASHSEED'] = str(seed)
-
     def auto_device(self) -> torch.device:
         """Set device to ``cuda`` or ``mps`` if available, otherwise ``cpu``.
 
@@ -593,6 +590,12 @@ class FlukeCache():
                 str: The unique identifier.
             """
             return self._id
+
+        def __str__(self) -> str:
+            return f"_ObjectRef({self._id})"
+
+        def __repr__(self):
+            return self.__str__()
 
     class _RefCounter():
         """A reference counter for an object in the cache."""

@@ -19,6 +19,7 @@ from .utils import (Configuration, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)
 
 console = Console()
+app = typer.Typer()
 
 
 def fluke_banner():
@@ -33,9 +34,6 @@ def version_callback(value: bool):
     if value:
         print(f"fluke: {__version__}")
         raise typer.Exit()
-
-
-app = typer.Typer()
 
 
 def _compose_config(cfg_base: str, overrides: Optional[List[str]]) -> DictConfig:
