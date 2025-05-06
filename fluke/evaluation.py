@@ -7,7 +7,7 @@ from typing import Any, Iterable, Optional, Union
 import numpy as np
 import torch
 from torch.nn import Module
-from torchmetrics import Accuracy, F1Score, Precision, Recall
+from torchmetrics import Accuracy, F1Score, Precision, Recall, Metric
 
 sys.path.append(".")
 sys.path.append("..")
@@ -93,15 +93,52 @@ class ClassificationEval(Evaluator):
     Args:
         eval_every (int): The evaluation frequency.
         n_classes (int): The number of classes.
+        **metrics (dict[str, Metric]): The metrics to use for evaluation. If not provided, the
+            default metrics are used: ``accuracy``, ``macro_precision``, ``macro_recall``,
+            ``macro_f1``, ``micro_precision``, ``micro_recall`` and ``micro_f1``.
 
     Attributes:
         eval_every (int): The evaluation frequency.
         n_classes (int): The number of classes.
     """
 
-    def __init__(self, eval_every: int, n_classes: int):
+    def __init__(self, eval_every: int, n_classes: int, **metrics: dict[str, Metric]):
         super().__init__(eval_every=eval_every)
         self.n_classes: int = n_classes
+
+        self.metrics = {}
+
+        # if kwargs is empty
+        if not metrics:
+            self.metrics = {
+                "accuracy":         Accuracy(task="multiclass", num_classes=self.n_classes,
+                                             top_k=1),
+                "macro_precision":  Precision(task="multiclass", num_classes=self.n_classes,
+                                              top_k=1, average="macro"),
+                "macro_recall":     Recall(task="multiclass", num_classes=self.n_classes,
+                                           top_k=1, average="macro"),
+                "macro_f1":         F1Score(task="multiclass", num_classes=self.n_classes,
+                                            top_k=1, average="macro"),
+                "micro_precision":  Precision(task="multiclass", num_classes=self.n_classes,
+                                              top_k=1, average="micro"),
+                "micro_recall":     Recall(task="multiclass", num_classes=self.n_classes,
+                                           top_k=1, average="micro"),
+                "micro_f1":         F1Score(task="multiclass", num_classes=self.n_classes,
+                                            top_k=1, average="micro")
+            }
+        else:
+            self.metrics = metrics
+
+    def add_metric(self, name: str, metric: Metric) -> None:
+        """Add a metric to the evaluator.
+
+        Args:
+            name (str): The name of the metric.
+            metric (Metric): The metric to add.
+        """
+        if name in self.metrics:
+            raise ValueError(f"Metric {name} already exists.")
+        self.metrics[name] = metric
 
     @torch.no_grad
     def evaluate(self,
@@ -146,25 +183,17 @@ class ClassificationEval(Evaluator):
             model_device = next(model.parameters()).device
         model.eval()
         model.to(device)
-        task = "multiclass"  # if self.n_classes >= 2 else "binary"
-        accs, losses = [], []
-        micro_precs, micro_recs, micro_f1s = [], [], []
-        macro_precs, macro_recs, macro_f1s = [], [], []
+        losses = []
+        matrics_values = {k: [] for k in self.metrics.keys()}
         loss, cnt = 0, 0
 
         if not isinstance(eval_data_loader, list):
             eval_data_loader = [eval_data_loader]
 
         for data_loader in eval_data_loader:
-            accuracy = Accuracy(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            micro_precision = Precision(
-                task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            micro_recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            micro_f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="micro")
-            macro_precision = Precision(
-                task=task, num_classes=self.n_classes, top_k=1, average="macro")
-            macro_recall = Recall(task=task, num_classes=self.n_classes, top_k=1, average="macro")
-            macro_f1 = F1Score(task=task, num_classes=self.n_classes, top_k=1, average="macro")
+            for metric in self.metrics.values():
+                metric.reset()
+
             loss = 0
             for X, y in data_loader:
                 X, y = X.to(device), y.to(device)
@@ -173,36 +202,19 @@ class ClassificationEval(Evaluator):
                     if loss_fn is not None:
                         loss += loss_fn(y_hat, y).item()
 
-                accuracy.update(y_hat.cpu(), y.cpu())
-                micro_precision.update(y_hat.cpu(), y.cpu())
-                micro_recall.update(y_hat.cpu(), y.cpu())
-                micro_f1.update(y_hat.cpu(), y.cpu())
-                macro_precision.update(y_hat.cpu(), y.cpu())
-                macro_recall.update(y_hat.cpu(), y.cpu())
-                macro_f1.update(y_hat.cpu(), y.cpu())
+                for metric in self.metrics.values():
+                    metric.update(y_hat.cpu(), y.cpu())
 
             cnt += len(data_loader)
-            accs.append(accuracy.compute().item())
-            micro_precs.append(micro_precision.compute().item())
-            micro_recs.append(micro_recall.compute().item())
-            micro_f1s.append(micro_f1.compute().item())
-            macro_precs.append(macro_precision.compute().item())
-            macro_recs.append(macro_recall.compute().item())
-            macro_f1s.append(macro_f1.compute().item())
+
+            for k, v in self.metrics.items():
+                matrics_values[k].append(v.compute().item())
             losses.append(loss / cnt)
 
         model.to(model_device)
         clear_cuda_cache()
 
-        result = {
-            "accuracy":  np.round(sum(accs) / len(accs), 5).item(),
-            "micro_precision": np.round(sum(micro_precs) / len(micro_precs), 5).item(),
-            "micro_recall":    np.round(sum(micro_recs) / len(micro_recs), 5).item(),
-            "micro_f1":        np.round(sum(micro_f1s) / len(micro_f1s), 5).item(),
-            "macro_precision": np.round(sum(macro_precs) / len(macro_precs), 5).item(),
-            "macro_recall":    np.round(sum(macro_recs) / len(macro_recs), 5).item(),
-            "macro_f1":        np.round(sum(macro_f1s) / len(macro_f1s), 5).item()
-        }
+        result = {m: np.round(sum(v) / len(v), 5).item() for m, v in matrics_values.items()}
 
         if loss_fn is not None:
             result["loss"] = np.round(sum(losses) / len(losses), 5).item()
@@ -211,7 +223,7 @@ class ClassificationEval(Evaluator):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(eval_every={self.eval_every}" + \
-            f", n_classes={self.n_classes})[accuracy, precision, recall, f1]"
+            f", n_classes={self.n_classes})[{', '.join(self.metrics.keys())}]"
 
     def __repr__(self) -> str:
         return str(self)
