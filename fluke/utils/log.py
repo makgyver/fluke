@@ -21,7 +21,7 @@ import wandb
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import DDict, FlukeENV  # NOQA
+from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
 from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
@@ -29,6 +29,7 @@ from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
 __all__ = [
     "Log",
+    "DebugLog",
     "TensorboardLog",
     "WandBLog",
     "ClearMLLog",
@@ -61,7 +62,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         self.locals_eval_summary: dict = {}  # round -> evals (mean across clients)
         self.prefit_eval_summary: dict = {}  # round -> evals (mean across clients)
         self.postfit_eval_summary: dict = {}  # round -> evals (mean across clients)
-        self.comm_costs: dict = {0: 0}
+        self.comm_costs: dict = {0: 0}  # round -> comm_cost
         self.mem_costs: dict = {}
         self.current_round: int = 0
         self.custom_fields: dict = {}
@@ -571,7 +572,7 @@ def get_logger(lname: str, **kwargs: dict[str, Any]) -> Log:
         **kwargs: The keyword arguments to pass to the logger's constructor.
 
     Returns:
-        Log | WandBLog | ClearMLLog | TensorboardLog: The logger.
+        Log | DebugLog | WandBLog | ClearMLLog | TensorboardLog: The logger.
     """
     if "." in lname and not lname.startswith("fluke.utils.log"):
         return get_class_from_qualified_name(lname)(**kwargs)
