@@ -28,7 +28,6 @@ torch.serialization.add_safe_globals([set])
 
 
 class EarlyStopping(Exception):
-
     """Exception raised when the fedearted training process is stopped early.
 
     This exception is used to signal that the training process should be stopped early.

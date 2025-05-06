@@ -75,11 +75,11 @@ def test_message():
 def test_channel():
 
     chobs = ChannelObserver()
-    chobs.message_received(Message("a", "type_test", "sender"))
+    chobs.message_received("b", Message("a", "type_test", "sender"))
     assert isinstance(chobs, ChannelObserver)
 
     class Observer(ChannelObserver):
-        def message_received(self, msg):
+        def message_received(self, by, msg):
             self.msg = msg
 
     FlukeENV().open_cache("tmp_comm")
