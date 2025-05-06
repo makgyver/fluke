@@ -190,7 +190,7 @@ class Message:
             self.sender == other.sender
 
     def __str__(self, indent: int = 0) -> str:
-        strname = "Message[{self.id}]"
+        strname = f"Message[{self.id}]"
         indentstr = " " * (indent + len(strname) + 1)
         tostr = f"{strname}(type={self.msg_type},"
         tostr += f"{indentstr}from={self.sender}, "
@@ -240,12 +240,33 @@ class ChannelObserver():
 
     """
 
-    def message_received(self, message: Message) -> None:
+    def message_received(self, by: Any, message: Message) -> None:
         """This method is called when a message is received, i.e., when a message is read from the
         message box of the receiver.
 
         Args:
+            by (Any): The receiver of the message.
             message (Message): The message received.
+        """
+        pass
+
+    def message_sent(self, to: Any, message: Message) -> None:
+        """This method is called when a message is sent, i.e., when a message is written to the
+        message box of the receiver.
+
+        Args:
+            to (Any): The receiver of the message.
+            message (Message): The message sent.
+        """
+        pass
+
+    def message_broadcasted(self, to: list[Any], message: Message) -> None:
+        """This method is called when a message is broadcasted, i.e., when a message is written to
+        the message box of all the receivers.
+
+        Args:
+            to (list[Any]): The list of receivers of the message.
+            message (Message): The message broadcasted.
         """
         pass
 
@@ -313,7 +334,9 @@ class Channel(ObserverSubject):
                 channel.send(Message("Hello", "greeting", server), client)
 
         """
-        self._buffer[mbox].append(message.clone())
+        msg = message.clone()
+        self._buffer[mbox].append(msg)
+        self._notify_message_sent(mbox, msg)
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
         """Receive (i.e., read) a message from a sender. The message is removed from the message box
@@ -345,14 +368,14 @@ class Channel(ObserverSubject):
         """
         if sender is None and msg_type is None:
             msg = self._buffer[mbox].pop()
-            self._notify_message_received(msg)
+            self._notify_message_received(mbox, msg)
             return msg
 
         for i, msg in enumerate(self._buffer[mbox]):
             if sender is None or msg.sender == sender:  # match sender
                 if msg_type is None or msg.msg_type == msg_type:  # match msg_type
                     msg = self._buffer[mbox].pop(i)
-                    self._notify_message_received(msg)
+                    self._notify_message_received(mbox, msg)
                     return msg
 
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
@@ -379,6 +402,7 @@ class Channel(ObserverSubject):
         for client in to:
             self.send(message, client)
         message.ram()
+        self._notify_message_broadcasted(to, message)
 
     def clear(self, mbox: Any) -> None:
         """Clear the message box of the given receiver.
@@ -398,11 +422,32 @@ class Channel(ObserverSubject):
 
         self._buffer[mbox].clear()
 
-    def _notify_message_received(self, message: Message) -> None:
+    def _notify_message_received(self, by: Any, message: Message) -> None:
         """Notify the observers that a message has been received.
 
         Args:
+            by (Any): The receiver of the message.
             message (Message): The message received.
         """
         for observer in self._observers:
-            observer.message_received(message)
+            observer.message_received(by, message)
+
+    def _notify_message_sent(self, to: Any, message: Message) -> None:
+        """Notify the observers that a message has been sent.
+
+        Args:
+            to (Any): The receiver of the message.
+            message (Message): The message sent.
+        """
+        for observer in self._observers:
+            observer.message_sent(to, message)
+
+    def _notify_message_broadcasted(self, to: list[Any], message: Message) -> None:
+        """Notify the observers that a message has been broadcasted.
+
+        Args:
+            to (list[Any]): The list of receivers of the message.
+            message (Message): The message broadcasted.
+        """
+        for observer in self._observers:
+            observer.message_broadcasted(to, message)

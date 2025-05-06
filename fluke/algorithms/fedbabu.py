@@ -44,7 +44,6 @@ class FedBABUClient(Client):
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(mode=mode)
-        self._load_from_cache()
         self.model = model
         self._save_to_cache()
 
