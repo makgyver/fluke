@@ -11,7 +11,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Iterable, Union
-
+from omegaconf import DictConfig
 import numpy as np
 import torch
 from diskcache import Cache
@@ -39,6 +39,13 @@ __all__ = [
     'ObserverSubject',
     'Singleton'
 ]
+
+__version__ = '0.7.3'
+__author__ = 'Mirko Polato'
+__email__ = 'mirko.polato@unito.it'
+__license__ = 'LGPLv2.1'
+__copyright__ = 'Copyright (c) 2025, Mirko Polato'
+__status__ = 'Development'
 
 
 class Singleton(type):
@@ -112,7 +119,7 @@ class DDict(dict):
         for arg in args:
             if isinstance(arg, dict):
                 for k, v in arg.items():
-                    if isinstance(v, dict):
+                    if isinstance(v, (dict, DictConfig)):
                         self[k] = DDict(**v)
                     else:
                         self[k] = v
@@ -120,7 +127,7 @@ class DDict(dict):
                 warnings.warn(f"Argument {arg} is not a dictionary and will be ignored.")
 
         for k, v in kwargs.items():
-            if isinstance(v, dict):
+            if isinstance(v, (dict, DictConfig)):
                 self[k] = DDict(**v)
             else:
                 self[k] = v
@@ -387,9 +394,6 @@ class FlukeENV(metaclass=Singleton):
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
 
-        # import os
-        # os.environ['PYTHONHASHSEED'] = str(seed)
-
     def auto_device(self) -> torch.device:
         """Set device to ``cuda`` or ``mps`` if available, otherwise ``cpu``.
 
@@ -586,6 +590,12 @@ class FlukeCache():
                 str: The unique identifier.
             """
             return self._id
+
+        def __str__(self) -> str:
+            return f"_ObjectRef({self._id})"
+
+        def __repr__(self):
+            return self.__str__()
 
     class _RefCounter():
         """A reference counter for an object in the cache."""

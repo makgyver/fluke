@@ -56,7 +56,6 @@ class FedRepClient(Client):
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
                          clipping=clipping, **kwargs)
-        self._load_from_cache()
         if isinstance(model, str):
             model = get_model(model)
         self._modopt = _ModOpt2(model=EncoderGlobalHeadLocalNet(model))
