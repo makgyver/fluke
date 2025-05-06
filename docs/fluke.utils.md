@@ -73,7 +73,6 @@ Functions included in ``fluke.utils``
    plot_distribution
    retrieve_obj
 
-
 ```
 
 ## Classes
@@ -103,6 +102,19 @@ Functions included in ``fluke.utils``
 ```{eval-rst}
 
 .. autoclass:: fluke.utils.Configuration
+   :members:
+
+```
+
+<h3>
+
+{bdg-primary}`class` ``fluke.utils.ConfigurationError``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.utils.ConfigurationError
    :members:
 
 ```
