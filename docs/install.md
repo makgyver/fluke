@@ -27,3 +27,5 @@ When installing `fluke`, the following dependencies are installed:
 - [`seaborn`](https://seaborn.pydata.org/): for plotting;
 - [`opacus`](https://opacus.ai/): for differential privacy;
 - [`diskcache`](http://www.grantjenks.com/docs/diskcache/): for caching;
+- [`cerberus`](https://docs.cerberus.org/en/stable/): for data validation;
+- [`hydra-core`](https://hydra.cc/docs/): for configuration management.
