@@ -15,7 +15,7 @@ from hydra import compose, initialize_config_dir
 sys.path.append(".")
 
 from . import __version__  # NOQA
-from .utils import (Configuration, OptimizerConfigurator,  # NOQA
+from .utils import (Configuration, ConfigurationError, OptimizerConfigurator,  # NOQA
                     get_class_from_qualified_name, get_loss, get_model)
 
 console = Console()
@@ -129,16 +129,23 @@ def federation(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                                           help='Path to the checkpoint file to load.')) -> None:
     """Run a federated learning experiment."""
 
-    if overrides is not None:
-        overrides_exp = [v for v in overrides if not v.startswith('method.')]
-        overrides_alg = [v for v in overrides if v.startswith('method.')]
-        exp_cfg = _compose_config(exp_cfg, overrides_exp)
-        alg_cfg = _compose_config(alg_cfg, overrides_alg)
-        OmegaConf.set_struct(exp_cfg, False)
-        alg_cfg = OmegaConf.create({"method": alg_cfg})
-        cfg = Configuration.from_dict(OmegaConf.merge(exp_cfg, alg_cfg))
-    else:
-        cfg = Configuration(exp_cfg, alg_cfg)
+    try:
+
+        if overrides is not None:
+            overrides_exp = [v for v in overrides if not v.startswith('method.')]
+            overrides_alg = [v for v in overrides if v.startswith('method.')]
+            exp_cfg = _compose_config(exp_cfg, overrides_exp)
+            alg_cfg = _compose_config(alg_cfg, overrides_alg)
+            OmegaConf.set_struct(exp_cfg, False)
+            alg_cfg = OmegaConf.create({"method": alg_cfg})
+            cfg = Configuration.from_dict(OmegaConf.merge(exp_cfg, alg_cfg))
+        else:
+            cfg = Configuration(exp_cfg, alg_cfg)
+    except ConfigurationError:
+        exit(1)
+    except Exception as e:
+        raise e
+
     _run_federation(cfg, resume)
 
 

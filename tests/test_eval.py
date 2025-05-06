@@ -69,7 +69,8 @@ def test_classification_eval():
     assert clf_eval.evaluate(1, None, None) == {}
 
     assert str(clf_eval) == "ClassificationEval(eval_every=1, n_classes=3)" + \
-        "[accuracy, precision, recall, f1]"
+        "[accuracy, macro_precision, macro_recall, macro_f1, " + \
+        "micro_precision, micro_recall, micro_f1]"
     assert repr(clf_eval) == str(clf_eval)
 
     class E(Evaluator):

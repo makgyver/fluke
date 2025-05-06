@@ -1,7 +1,7 @@
 # Results on this setting follows the one of the original paper 
 hyperparameters:
   client:
-    batch_size: 0
+    batch_size: 32
     local_epochs: 1
     loss: CrossEntropyLoss
     optimizer:

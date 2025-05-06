@@ -17,6 +17,7 @@ import psutil
 import seaborn as sns
 import torch
 from omegaconf import OmegaConf
+from omegaconf.listconfig import ListConfig
 from cerberus import Validator
 from rich import print as rich_print
 from torch.nn import Module
@@ -36,6 +37,7 @@ __all__ = [
     'log',
     'model',
     'Configuration',
+    'ConfigurationError',
     'ClientObserver',
     'OptimizerConfigurator',
     'ServerObserver',
@@ -539,6 +541,7 @@ class Configuration(DDict):
         """
         cfg = Configuration(force_validation=False)
         cfg.update(**cfg_dict)
+        print(cfg)
         cfg._validate()
         return cfg
 
@@ -573,7 +576,7 @@ class Configuration(DDict):
         Yields:
             Configuration: A configuration.
         """
-        cfgs = Configuration(config_exp_path, config_alg_path)
+        cfgs = Configuration(config_exp_path, config_alg_path, force_validation=False)
 
         for cfg in Configuration.__sweep(cfgs):
             yield Configuration.from_dict(cfg)
@@ -591,22 +594,26 @@ class Configuration(DDict):
         Yields:
             DDict: A configuration.
         """
-        if not isinstance(cfgs, dict):
-            yield cfgs
-            return
-
-        if not cfgs:
-            yield {}
-            return
-
-        keys, values = zip(*[
-            (k, (Configuration.__sweep(v) if isinstance(v, dict)
-                 else (v if isinstance(v, list) else [v])))
+        normalized = {
+            k: v if isinstance(v, (list, dict, ListConfig)) else [
+                v]  # strings of numbers treated as is
             for k, v in cfgs.items()
-        ])
+        }
 
-        for combination in product(*values):
-            yield dict(zip(keys, combination))
+        for k, v in normalized.items():
+            if isinstance(v, dict):
+                nested_combos = Configuration.__sweep(v)
+                normalized[k] = nested_combos
+
+        keys = normalized.keys()
+        values = normalized.values()
+
+        all_combinations = []
+        for combo in product(*values):
+            combined = {k: v for k, v in zip(keys, combo)}
+            all_combinations.append(combined)
+
+        return all_combinations
 
     @property
     def client(self) -> DDict:
@@ -644,7 +651,7 @@ class Configuration(DDict):
                     "required": True,
                     "schema": {
                         "name": {"type": "string", "required": True},
-                        "path": {"type": "string", "required": True}
+                        "path": {"type": "string", "required": False, "default": "./data"}
                     }
                 },
                 "distribution": {
@@ -660,7 +667,7 @@ class Configuration(DDict):
                                  "default": 0.0},
                 "keep_test": {"type": "boolean", "required": False, "default": True},
                 "server_test": {"type": "boolean", "required": False, "default": True},
-                "server_split": {"type": "float", "required": False, "min": 0.001, "max": 1.0,
+                "server_split": {"type": "float", "required": False, "min": 0.0, "max": 1.0,
                                  "default": 0.0},
                 "uniform_test": {"type": "boolean", "required": False, "default": False}
             }
@@ -714,7 +721,7 @@ class Configuration(DDict):
                         "client": {
                             "type": "dict",
                             "schema": {
-                                "batch_size": {"type": "integer", "required": True, "min": 1},
+                                "batch_size": {"type": "integer", "required": True, "min": 0},
                                 "local_epochs": {"type": "integer", "required": True, "min": 1},
                                 "loss": {"type": "string", "required": True},
                                 "optimizer": {
@@ -734,12 +741,7 @@ class Configuration(DDict):
                                 }
                             }
                         },
-                        "server": {
-                            "type": "dict",
-                            "schema": {
-                                "weighted": {"type": "boolean", "required": False, "default": True}
-                            }
-                        },
+                        "server": {"type": "dict"},
                         "model": {"type": "string", "required": True}
                     }
                 },
@@ -761,9 +763,9 @@ class Configuration(DDict):
         save_valid.allow_unknown = False
         valid_result = save_valid.validate(data["save"])
         if not valid_result:
-            return None, valid_result.errors
+            return None, save_valid.errors
 
-        return valid_result.document, []
+        return save_valid.document, []
 
     def _validate(self) -> bool:
 
@@ -782,7 +784,7 @@ class Configuration(DDict):
         if not valid_result:
             rich_print("[red]Invalid configuration:[/red]")
             rich_print(errors)
-            exit(1)
+            raise ConfigurationError()
 
         clean_cfg = validator.document
         clean_cfg["save"] = save_valid_result
@@ -864,6 +866,11 @@ def plot_distribution(clients: list[Client],
     plt.xlabel('clients')
     plt.ylabel('classes')
     plt.show()
+
+
+class ConfigurationError(Exception):
+    """Exception raised when the configuration is not valid."""
+    pass
 
 
 def bytes2human(n: int) -> str:
