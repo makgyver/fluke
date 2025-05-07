@@ -41,6 +41,7 @@ class Evaluator(ABC):
                  model: Module,
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
+                 additional_metrics: Optional[dict[str, Metric]] = None,
                  **kwargs: dict[str, Any]) -> dict[str, Any]:
         """Evaluate the model.
 
@@ -61,6 +62,7 @@ class Evaluator(ABC):
                  model: Module,
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
+                 additional_metrics: Optional[dict[str, Metric]] = None,
                  **kwargs: dict[str, Any]) -> dict:
         """Evaluate the model.
 
@@ -147,6 +149,7 @@ class ClassificationEval(Evaluator):
                  eval_data_loader: Union[FastDataLoader,
                                          Iterable[FastDataLoader]],
                  loss_fn: Optional[torch.nn.Module] = None,
+                 additional_metrics: Optional[dict[str, Metric]] = None,
                  device: torch.device = torch.device("cpu")) -> dict:
         """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
         ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
@@ -165,6 +168,8 @@ class ClassificationEval(Evaluator):
                 The data loader(s) to use for evaluation. If ``None``, the method returns an empty
                 dictionary.
             loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
+            additional_metrics (dict[str, Metric], optional): Additional metrics to use for
+                evaluation. If provided, they are added to the default metrics.
             device (torch.device, optional): The device to use for evaluation. Defaults to "cpu".
 
         Returns:
@@ -187,11 +192,19 @@ class ClassificationEval(Evaluator):
         matrics_values = {k: [] for k in self.metrics.keys()}
         loss, cnt = 0, 0
 
+        if additional_metrics is None:
+            additional_metrics = {}
+
+        add_metric_values = {k: [] for k in additional_metrics.keys()}
+
         if not isinstance(eval_data_loader, list):
             eval_data_loader = [eval_data_loader]
 
         for data_loader in eval_data_loader:
             for metric in self.metrics.values():
+                metric.reset()
+
+            for metric in additional_metrics.values():
                 metric.reset()
 
             loss = 0
@@ -205,16 +218,27 @@ class ClassificationEval(Evaluator):
                 for metric in self.metrics.values():
                     metric.update(y_hat.cpu(), y.cpu())
 
+                if additional_metrics:
+                    for metric in additional_metrics.values():
+                        metric.update(y_hat.cpu(), y.cpu())
+
             cnt += len(data_loader)
 
             for k, v in self.metrics.items():
                 matrics_values[k].append(v.compute().item())
+
+            if additional_metrics:
+                for k, v in additional_metrics.items():
+                    add_metric_values[k].append(v.compute().item())
+
             losses.append(loss / cnt)
 
         model.to(model_device)
         clear_cuda_cache()
 
         result = {m: np.round(sum(v) / len(v), 5).item() for m, v in matrics_values.items()}
+        result.update({m: np.round(sum(v) / len(v), 5).item()
+                      for m, v in add_metric_values.items()})
 
         if loss_fn is not None:
             result["loss"] = np.round(sum(losses) / len(losses), 5).item()
