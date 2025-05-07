@@ -24,7 +24,7 @@ __all__ = [
     "EarlyStopping"
 ]
 
-torch.serialization.add_safe_globals([set])
+# torch.serialization.add_safe_globals([set])
 
 
 class EarlyStopping(Exception):
@@ -449,7 +449,7 @@ class Server(ObserverSubject):
         return {
             "model": self.model.state_dict(),
             "rounds": self.rounds,
-            "participants": self._participants
+            "participants": tuple(self._participants)
         }
 
     def save(self, path: str) -> None:
@@ -460,13 +460,17 @@ class Server(ObserverSubject):
         """
         torch.save(self.state_dict(), path)
 
-    def load(self, path: str) -> None:
+    def load(self, path: str) -> dict[str, Any]:
         """Load the server's state from file.
 
         Args:
             path (str): The path to load the server's state.
+
+        Returns:
+            dict[str, Any]: The server's state.
         """
         state = torch.load(path, weights_only=True)
         self.model.load_state_dict(state["model"])
         self.rounds = state["rounds"]
         self._participants = set(state["participants"])
+        return state

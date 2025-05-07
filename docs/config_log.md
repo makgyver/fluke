@@ -19,6 +19,20 @@ logger:
 ...
 ```
 
+## Debug logger
+
+The *debug logger* is implemented in the class [DebugLog](#fluke.utils.log.DebugLog). This logger
+is similar to the local logger, but it logs additional information useful for debugging purposes.
+This logger does not require any additional argument and you can set it in the experiment
+configuration file as follows:
+
+```yaml
+...
+logger:
+  name: DebugLog
+...
+```
+
 
 ## Weights & Biases logger
 

@@ -91,9 +91,10 @@ def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
     epochs = epochs if epochs > 0 else int(
         max(1, cfg.protocol.n_rounds * cfg.protocol.eligible_perc))
 
-    exp_name = f"Centralized_{cfg.data.dataset.name}_E{epochs}_S{cfg.exp.seed}"
+    exp_id = uuid.uuid4().hex
+    exp_name = f"Centralized [{exp_id}]"
     log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
-    log.init(**cfg, exp_id=uuid.uuid4().hex)
+    log.init(**cfg, exp_id=exp_id)
     log.log(f"Centralized Learning [ #Epochs = {epochs} ]\n")
 
     for e in range(epochs):
@@ -269,7 +270,7 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                      hp.client.local_epochs *
                      cfg.protocol.eligible_perc)
     cfg.exp_id = uuid.uuid4().hex
-    exp_name = f"Clients-only_[{cfg.exp_id}]"
+    exp_name = f"Clients-only [{cfg.exp_id}]"
     log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
     log.init(**cfg)
 

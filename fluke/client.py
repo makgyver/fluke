@@ -417,7 +417,7 @@ class Client(ObserverSubject):
             model (torch.nn.Module): The model to use for the client.
 
         Returns:
-            dict: The loaded lient state.
+            dict: The loaded client state.
         """
         state = torch.load(path, weights_only=True)
         if state["modopt"]["model"] is not None:
