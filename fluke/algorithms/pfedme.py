@@ -7,7 +7,7 @@ References:
 from ..utils.model import safe_load_state_dict
 import sys
 from copy import deepcopy
-from typing import Any, Iterable, Optional
+from typing import Any, Collection, Optional
 
 import torch
 from torch.nn import Module
@@ -64,7 +64,7 @@ class PFedMeClient(Client):
                  k: int,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
 
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
@@ -74,7 +74,7 @@ class PFedMeClient(Client):
         self._attr_to_cache.append("internal_model")
 
     def receive_model(self) -> None:
-        model = self.channel.receive(self, self.server, msg_type="model").payload
+        model = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             self.model = model
             self.internal_model = deepcopy(model)
@@ -121,15 +121,15 @@ class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  beta: float = 0.5,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         agg_model_sd = aggregate_models(self.model,
                                         client_models,

@@ -7,7 +7,7 @@ References:
 
 """
 import sys
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import torch
 from torch.nn import CrossEntropyLoss, Module
@@ -68,7 +68,7 @@ class FedLDClient(Client):
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
                  margin_lam: float = 0.2,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index,
                          train_set=train_set,
                          test_set=test_set,
@@ -83,7 +83,7 @@ class FedLDClient(Client):
                                                          lam=margin_lam))
 
 
-def _get_client_grads(client_model: Module, server_model: Module):
+def _get_client_grads(client_model: Module, server_model: Module) -> torch.Tensor:
     grads = []
     for key in server_model.state_dict().keys():
         grads.append(client_model.state_dict()[key].data.clone().detach().flatten(
@@ -104,9 +104,9 @@ def _set_client_grads(client_model: Module,
     return client_model
 
 
-def pcgrad_svd(client_grads: Iterable[Module],
+def pcgrad_svd(client_grads: Collection[Module],
                grad_history: dict,
-               k_proportion: float = 0.1):
+               k_proportion: float = 0.1) -> tuple[torch.Tensor, dict]:
     """ Projecting conflicting gradients using SVD"""
     client_num = len(client_grads)
     client_grads_ = torch.stack(client_grads)
@@ -178,11 +178,11 @@ class FedLDServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  lr: float = 1.0,
                  k_proportion: float = 0.8,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model,
                          test_set=test_set,
                          clients=clients,
@@ -195,7 +195,7 @@ class FedLDServer(Server):
                                          for key, value in model.state_dict().items()}
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         client_models = list(client_models)
         local_clients_grads = [_get_client_grads(c_model, self.model) for c_model in client_models]
         grad_new, self.grad_history = pcgrad_svd(local_clients_grads,

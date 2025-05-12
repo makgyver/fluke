@@ -3,6 +3,7 @@ hyperparameters:
     batch_size: 64
     local_epochs: 10
     loss: CrossEntropyLoss
+    persistency: true
     optimizer:
       lr: 0.01
       momentum: 0.9

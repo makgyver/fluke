@@ -39,7 +39,7 @@ class MOONClient(Client):
                  tau: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -52,7 +52,7 @@ class MOONClient(Client):
         self._attr_to_cache.extend(["prev_model", "server_model"])
 
     def receive_model(self) -> None:
-        model = self.channel.receive(self, self.server, msg_type="model").payload
+        model = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             # one of these deepcopy is not needed
             self.model = deepcopy(model)

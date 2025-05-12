@@ -68,7 +68,7 @@ class FedLCClient(Client):
                  tau: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         label_counter = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):

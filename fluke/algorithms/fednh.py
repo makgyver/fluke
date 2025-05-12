@@ -8,7 +8,7 @@ References:
 """
 import sys
 from collections import defaultdict
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import torch
 from torch.nn import CrossEntropyLoss, Module, Parameter
@@ -89,7 +89,7 @@ class FedNHClient(Client):
                  n_protos: int,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 5,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs > 0 else local_epochs
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=CrossEntropyLoss(),
@@ -106,7 +106,7 @@ class FedNHClient(Client):
                                              minlength=self.train_set.num_labels)
         self._save_to_cache()
 
-    def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
+    def _update_protos(self, protos: Collection[torch.Tensor]) -> None:
         prototypes = self.model.prototypes.data
         for label, prts in protos.items():
             if prts.shape[0] > 0:
@@ -162,7 +162,8 @@ class FedNHClient(Client):
         self.fit(self.hyper_params.fine_tuning_epochs)
         metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
-            self._notify_evaluation(-1, "post-fit", metrics)
+            self.notify(event="client_evaluation", round=-1,
+                        client_id=self.index, phase="post-fit", evals=metrics)
         self._save_to_cache()
 
 
@@ -171,7 +172,7 @@ class FedNHServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = True,
                  n_protos: int = 10,
                  rho: float = 0.1):
@@ -183,7 +184,7 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
 
         # This could be the learning rate for the server (not used in the official implementation)
         # server_lr = self.hyper_params.lr * self.hyper_params.lr_decay ** self.round

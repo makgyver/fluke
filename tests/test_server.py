@@ -35,9 +35,9 @@ def test_server():
             assert len(clients) == 2
             assert round == 1
 
-        def server_evaluation(self, round, type, evals, **kwargs) -> None:
+        def server_evaluation(self, round, eval_type, evals, **kwargs) -> None:
             assert round == 1
-            assert type == "global"
+            assert eval_type == "global"
             assert "accuracy" in evals
 
         def finished(self, round):
@@ -85,8 +85,7 @@ def test_server():
     assert server.has_model
 
     for c in clients:
-        c.set_server(server)
-        assert c.server == server
+        c.set_channel(server.channel)
         assert c.channel == server.channel
 
     evaluator = ClassificationEval(1, 2)
@@ -123,7 +122,7 @@ def test_server():
     server.broadcast_model(clients)
 
     for c in clients:
-        m = c.channel.receive(c, server, "model")
+        m = c.channel.receive(c.index, "server", "model")
         assert id(m) != id(server.model)
         assert m is not server.model
 

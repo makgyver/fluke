@@ -102,13 +102,13 @@ class Datasets:
         The dataset has 10 classes, corresponding to the digits 0-9.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
               data through the data loader. Defaults to ``None``.
             channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
-              shape of the an example becomes (1, 28, 28). Defaults to ``False``.
+              shape of the example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The MNIST dataset.
@@ -151,7 +151,7 @@ class Datasets:
         The dataset has 10 classes, corresponding to the digits 0-9.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -203,11 +203,13 @@ class Datasets:
         has 47 classes, corresponding to the digits 0-9 and the uppercase and lowercase letters.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
               data through the data loader. Defaults to ``None``.
+            channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
+                shape of the example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The EMNIST dataset.
@@ -253,7 +255,7 @@ class Datasets:
         contains 10 classes, corresponding to the digits 0-9.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -307,7 +309,7 @@ class Datasets:
 
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -359,7 +361,7 @@ class Datasets:
         subsets - train, validation, and test - each of which contain 90,000 images.
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -404,7 +406,7 @@ class Datasets:
         (3, 32, 32).
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -454,7 +456,7 @@ class Datasets:
         The images shape is (28, 28).
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -499,7 +501,7 @@ class Datasets:
         The images shape is (3, 64, 64).
 
         Args:
-            path (str, optional): The path where the dataset is stored. Defaults to ``"../data"``.
+            path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
               ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
@@ -573,7 +575,7 @@ class Datasets:
                 path: str = "./data",
                 batch_size: int = 10,
                 filter: str = "all",
-                onthefly_transforms: Optional[callable] = None) -> DataContainer:
+                onthefly_transforms: Optional[callable] = None) -> DummyDataContainer:
         """
         Load the Federated EMNIST (FEMNIST) dataset.
         This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
@@ -617,31 +619,33 @@ class Datasets:
             filter (str, optional): The filter for the selection of a specific portion of the
                 dataset. The options are: ``all``, ``uppercase``, ``lowercase``, and ``digits``.
                 Defaults to ``"all"``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+                data through the data loader. Defaults to ``None``.
 
         Returns:
-            tuple: A tuple containing the training and testing data loaders for the clients. The
-                server data loader is ``None``.
+            DummyDataContainer: The ``DummyDataContainer`` object containing the training and testing data
+                loaders for the clients. The server data loader is ``None``.
         """
-        def _filter_femnist(udata, filter):
+        def _filter_femnist(user_data: dict, filter: str) -> tuple[dict, int]:
             # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
             # labels : 01234567890123456789012345678901234567890123456789012345678901
             if filter == "all":
-                return udata, 62
+                return user_data, 62
             elif filter == "uppercase":
-                udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 36 and y > 9]
-                udata["y"] = [y - 10 for y in udata["y"] if y < 36 and y > 9]
-                num_classes = 26
+                user_data["x"] = [x for x, y in zip(user_data["x"], user_data["y"]) if 9 < y < 36]
+                user_data["y"] = [y - 10 for y in user_data["y"] if 9 < y < 36]
+                n_classes = 26
             elif filter == "lowercase":
-                udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y > 35]
-                udata["y"] = [y - 36 for y in udata["y"] if y > 35]
-                num_classes = 26
+                user_data["x"] = [x for x, y in zip(user_data["x"], user_data["y"]) if y > 35]
+                user_data["y"] = [y - 36 for y in user_data["y"] if y > 35]
+                n_classes = 26
             elif filter == "digits":
-                udata["x"] = [x for x, y in zip(udata["x"], udata["y"]) if y < 10]
-                udata["y"] = [y for y in udata["y"] if y < 10]
-                num_classes = 10
+                user_data["x"] = [x for x, y in zip(user_data["x"], user_data["y"]) if y < 10]
+                user_data["y"] = [y for y in user_data["y"] if y < 10]
+                n_classes = 10
             else:
                 raise ValueError(f"Invalid filter: {filter}")
-            return udata, num_classes
+            return user_data, n_classes
 
         femnist_path = os.path.join(path, "FEMNIST")
         train_dir = os.path.join(femnist_path, 'train')
@@ -712,7 +716,7 @@ class Datasets:
     def SHAKESPEARE(cls,
                     path: str = "./data",
                     batch_size: int = 10,
-                    onthefly_transforms: Optional[callable] = None) -> tuple:
+                    onthefly_transforms: Optional[callable] = None) -> DummyDataContainer:
         """Load the Federated Shakespeare dataset.
         This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
         Shakespeare is a text dataset containing dialogues from Shakespeare's plays.
@@ -745,10 +749,12 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``"./data"``.
             batch_size (int, optional): The batch size. Defaults to ``10``.
+            onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
+                data through the data loader. Defaults to ``None``.
 
         Returns:
-            tuple: A tuple containing the training and testing data loaders for the clients. The
-                server data loader is ``None``.
+            DummyDataContainer: The ``DummyDataContainer`` object containing the training and testing data
+                loaders for the clients. The server data loader is ``None``.
         """
         shake_path = os.path.join(path, "shakespeare")
         train_dir = os.path.join(shake_path, 'train')

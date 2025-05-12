@@ -43,7 +43,7 @@ class MarginBasedCrossEntropyLoss(nn.Module):
         self.margins = self._compute_margins()
         self.reduction = reduction
 
-    def _compute_margins(self):
+    def _compute_margins(self) -> torch.Tensor:
         min_sqrt_n = torch.min(self.class_counts.pow(0.25))
         return self.delta * (min_sqrt_n / self.class_counts.pow(0.25))
 
@@ -78,7 +78,7 @@ class GEARClient(Client):
                  delta: float = 0.01,
                  alpha: float = 2.0 / 255,
                  adv_iters: int = 10,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         self.sample_per_class = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):

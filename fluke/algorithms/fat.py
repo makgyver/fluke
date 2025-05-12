@@ -43,7 +43,7 @@ class FATClient(Client):
                  alpha: float = 2.0 / 255,
                  adv_iters: int = 10,
                  k_prop: float = 1.0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         assert 0.0 <= k_prop <= 1.0, "k_prop must be in [0, 1]"
         self.sample_per_class = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)

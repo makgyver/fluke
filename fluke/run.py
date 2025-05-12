@@ -16,13 +16,13 @@ sys.path.append(".")
 
 from . import __version__  # NOQA
 from .utils import (Configuration, ConfigurationError, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)
+                    get_class_from_qualified_name, get_loss, get_model, plot_distribution)
 
 console = Console()
 app = typer.Typer()
 
 
-def fluke_banner():
+def fluke_banner() -> None:
     from rich.panel import Panel
 
     fluke_pretty = run.__doc__
@@ -30,7 +30,7 @@ def fluke_banner():
                   subtitle=f"v{__version__}", style="bold white"), width=53)
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     if value:
         print(f"fluke: {__version__}")
         raise typer.Exit()
@@ -113,8 +113,7 @@ def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
         epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
         history.append(epoch_eval)
-        for k, v in epoch_eval.items():
-            log.add_scalar(k, v, e+1)
+        log.add_scalars(f"Epoch {e+1}", epoch_eval, e+1)
         log.pretty_log(epoch_eval, title=f"Performance [Epoch {e+1}]")
         console.print()
     model.cpu()
@@ -207,6 +206,7 @@ def _run_federation(cfg: Configuration, resume: str = None) -> None:
     log.init(**cfg, exp_id=fl_algo.id)
 
     fl_algo.set_callbacks([log])
+    FlukeENV().set_logger(log)
     console.print(Panel(Pretty(fl_algo), title="FL algorithm", width=100))
 
     if resume is not None:
@@ -300,12 +300,12 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
             if test_loader is not None:
                 client_local_eval = evaluator.evaluate(
                     e+1, model, test_loader, criterion, device=device)
-                log.add_scalar(f"Client[{i}].local_test", client_local_eval, e+1)
+                log.add_scalars(f"Client[{i}].local_test", client_local_eval, e+1)
                 # running_local_evals[i].append(client_local_eval)
             if shared_test is not None:
                 client_shared_eval = evaluator.evaluate(
                     e+1, model, shared_test, criterion, device=device)
-                log.add_scalar(f"Client[{i}].shared_test", client_shared_eval, e+1)
+                log.add_scalars(f"Client[{i}].shared_test", client_shared_eval, e+1)
                 # running_shared_evals[i].append(client_shared_eval)
 
         perf = {}

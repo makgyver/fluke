@@ -37,13 +37,13 @@ class FedProxClient(Client):
                  mu: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(mu=mu)
 
-    def _proximal_loss(self, local_model, global_model):
+    def _proximal_loss(self, local_model: torch.nn.Module, global_model: torch.nn.Module) -> float:
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), global_model.parameters()):
             if w_t.requires_grad:

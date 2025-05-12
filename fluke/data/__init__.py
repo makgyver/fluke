@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Iterable, Any
+from typing import Optional, Any, Sequence
 import warnings
 
 import numpy as np
-import rich
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 from numpy.random import (choice, dirichlet, permutation, power, randint,
@@ -18,6 +17,7 @@ sys.path.append("..")
 
 
 from .. import DDict  # NOQA
+from ..utils import safe_train_test_split  # NOQA
 
 __all__ = [
     'datasets',
@@ -43,10 +43,10 @@ class DataContainer:
     """
 
     def __init__(self,
-                 X_train: torch.Tensor,
-                 y_train: torch.Tensor,
-                 X_test: torch.Tensor,
-                 y_test: torch.Tensor,
+                 X_train: torch.Tensor | None,
+                 y_train: torch.Tensor | None,
+                 X_test: torch.Tensor | None,
+                 y_test: torch.Tensor | None,
                  num_classes: int,
                  transforms: Optional[callable] = None):
         if X_train is not None:
@@ -62,15 +62,15 @@ class DummyDataContainer(DataContainer):
     Shakespeare and FCUBE.
 
     Args:
-        clients_tr (Iterable[FastDataLoader]): data loaders for the clients' training set.
-        clients_te (Iterable[FastDataLoader]): data loaders for the clients' test set.
+        clients_tr (Sequence[FastDataLoader]): data loaders for the clients' training set.
+        clients_te (Sequence[FastDataLoader]): data loaders for the clients' test set.
         server_data (FastDataLoader): data loader for the server's test set.
     """
 
     def __init__(self,
-                 clients_tr: Iterable[FastDataLoader],
-                 clients_te: Iterable[FastDataLoader],
-                 server_data: FastDataLoader,
+                 clients_tr: Sequence[FastDataLoader],
+                 clients_te: Sequence[FastDataLoader],
+                 server_data: FastDataLoader | None,
                  num_classes: int):
         super().__init__(None, None, None, None, num_classes=num_classes)
         self.clients_tr = clients_tr
@@ -133,22 +133,23 @@ class FastDataLoader:
                  percentage: float = 1.0,
                  skip_singleton: bool = True,
                  single_batch: bool = False,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         assert all(t.shape[0] == tensors[0].shape[0] for t in tensors), \
             "All tensors must have the same size along the first dimension."
-        self.tensors: Iterable[torch.Tensor] = tensors
+        self.tensors: Sequence[torch.Tensor] = tensors
         self.num_labels: int = num_labels
         self.max_size = self.tensors[0].shape[0]
         self.percentage: float = percentage
+        self.size: int = 0 # updated by set_sample_size
         self.set_sample_size(percentage)
         self.shuffle: bool = shuffle
         self.skip_singleton: bool = skip_singleton
         self.batch_size: int = batch_size if batch_size > 0 else self.size
         self.single_batch: bool = single_batch
-        self.transforms: callable = transforms
+        self.transforms: Optional[callable] = transforms
         self.__i: int = 0
 
-    def asDataLoader(self, **kwargs) -> DataLoader:
+    def as_dataloader(self, **kwargs) -> DataLoader:
         """Convert the ``FastDataLoader`` to a PyTorch DataLoader.
 
         Args:
@@ -260,24 +261,6 @@ class FastDataLoader:
 class DataSplitter:
     """Utility class for splitting the data across clients."""
 
-    def _safe_train_test_split(self,
-                               X: torch.Tensor,
-                               y: torch.Tensor,
-                               test_size: float,
-                               client_id: int | None = None) -> tuple[torch.Tensor, torch.Tensor]:
-        try:
-            if test_size == 0.0:
-                return X, None, y, None
-            else:
-                return train_test_split(X, y, test_size=test_size, stratify=y)
-        except ValueError:
-            client_str = f"[Client {client_id}]" if client_id is not None else ""
-            rich.print(
-                f"[bold red]Warning{client_str}: [/bold red] Stratified split failed. " +
-                "Falling back to random split."
-            )
-            return train_test_split(X, y, test_size=test_size)
-
     def __init__(self,
                  dataset: DataContainer,
                  distribution: str = "iid",
@@ -305,7 +288,6 @@ class DataSplitter:
             uniform_test (bool, optional): Whether to distribute the test set in a IID across the
               clients. If ``False``, the test set is distributed according to the distribution
               function. Defaults to ``False``.
-            builder_args (DDict, optional): The arguments for the dataset class. Defaults to None.
             dist_args (DDict, optional): The arguments for the distribution function. Defaults to
               ``None``.
 
@@ -342,8 +324,8 @@ class DataSplitter:
 
     def assign(self,
                n_clients: int,
-               batch_size: int = 32) -> tuple[tuple[FastDataLoader,
-                                                    Optional[FastDataLoader]],
+               batch_size: int = 32) -> tuple[tuple[list[FastDataLoader],
+                                                    Optional[list[FastDataLoader]]],
                                               FastDataLoader]:
         """Assign the data to the clients and the server according to the configuration.
         Specifically, we can have the following scenarios:
@@ -371,7 +353,7 @@ class DataSplitter:
             batch_size (Optional[int], optional): The batch size. Defaults to 32.
 
         Returns:
-            tuple[tuple[FastDataLoader, Optional[FastDataLoader]], FastDataLoader]:
+            tuple[tuple[list[FastDataLoader], Optional[list[FastDataLoader]]], FastDataLoader]:
               The clients' training and testing assignments and the server's testing assignment.
         """
         if isinstance(self.data_container, DummyDataContainer):
@@ -384,11 +366,11 @@ class DataSplitter:
             clients_te = [self.data_container.clients_te[i] for i in client_ids]
             return (clients_tr, clients_te), self.data_container.server_data
 
-        tranforms = self.data_container.transforms
+        transforms = self.data_container.transforms
         if self.server_test and self.keep_test:
             server_X, server_Y = self.data_container.test
             client_X, client_Y = self.data_container.train
-            client_Xtr, client_Xte, client_Ytr, client_Yte = self._safe_train_test_split(
+            client_Xtr, client_Xte, client_Ytr, client_Yte = safe_train_test_split(
                 client_X, client_Y, test_size=self.client_split)
         elif not self.keep_test:
             Xtr, ytr = self.data_container.train
@@ -404,7 +386,7 @@ class DataSplitter:
             else:
                 server_X, server_Y = None, None
                 client_X, client_Y = X, Y
-            client_Xtr, client_Xte, client_Ytr, client_Yte = self._safe_train_test_split(
+            client_Xtr, client_Xte, client_Ytr, client_Yte = safe_train_test_split(
                 client_X, client_Y, test_size=self.client_split)
 
         else:  # keep_test and not server_test
@@ -413,7 +395,6 @@ class DataSplitter:
             client_Xte, client_Yte = self.data_container.test
 
         assignments_tr, assignments_te = self._iidness_functions[self.distribution](
-            self,
             X_train=client_Xtr,
             y_train=client_Ytr,
             X_test=client_Xte if not self.uniform_test else None,
@@ -434,7 +415,7 @@ class DataSplitter:
                                                         num_labels=self.num_classes,
                                                         batch_size=batch_size,
                                                         shuffle=True,
-                                                        transforms=tranforms,
+                                                        transforms=transforms,
                                                         percentage=self.sampling_perc))
             if assignments_te is not None:
                 Xte_client = client_Xte[assignments_te[c]]
@@ -455,12 +436,12 @@ class DataSplitter:
                                    percentage=self.sampling_perc) if self.server_test else None
         return (client_tr_assignments, client_te_assignments), server_te
 
-    def iid(self,
-            X_train: torch.Tensor,
+    @staticmethod
+    def iid(X_train: torch.Tensor,
             y_train: torch.Tensor,
             X_test: Optional[torch.Tensor],
             y_test: Optional[torch.Tensor],
-            n: int) -> list[torch.Tensor]:
+            n: int) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """Distribute the examples uniformly across the users.
 
         Args:
@@ -471,35 +452,34 @@ class DataSplitter:
             n (int): The number of clients upon which the examples are distributed.
 
         Returns:
-            list[torch.Tensor]: The examples' ids assignment.
+            tuple[list[np.ndarray], list[np.ndarray]]: The examples' ids assignment.
         """
         assert X_train.shape[0] >= n, "# of instances must be > than #clients"
         assert X_test is None or X_test.shape[0] >= n, "# of instances must be > than #clients"
 
-        assigments = []
+        assignments = []
         for X in (X_train, X_test):
             if X is None:
-                assigments.append(None)
+                assignments.append(None)
                 continue
             ex_client = X.shape[0] // n
             idx = np.random.permutation(X.shape[0])
-            assigments.append([idx[range(ex_client*i, ex_client*(i+1))] for i in range(n)])
+            assignments.append([idx[range(ex_client*i, ex_client*(i+1))] for i in range(n)])
             # Assign the remaining examples one to every client until the examples are finished
             if X.shape[0] % n > 0:
-                # assigments[-1] = np.concatenate((assigments[-1], idx[ex_client*n:]))
                 for cid, eid in enumerate(range(ex_client*n, X.shape[0])):
-                    assigments[-1][cid] = np.append(assigments[-1][cid], idx[eid])
+                    assignments[-1][cid] = np.append(assignments[-1][cid], idx[eid])
 
-        return assigments[0], assigments[1]
+        return assignments[0], assignments[1]
 
-    def quantity_skew(self,
-                      X_train: torch.Tensor,
+    @staticmethod
+    def quantity_skew(X_train: torch.Tensor,
                       y_train: torch.Tensor,  # not used
                       X_test: Optional[torch.Tensor],
                       y_test: Optional[torch.Tensor],  # not used
                       n: int,
                       min_quantity: int = 2,
-                      alpha: float = 4.) -> list[torch.Tensor]:
+                      alpha: float = 4.) -> tuple[list[np.ndarray], list[np.ndarray] | None]:
         r"""
         Distribute the examples across the clients according to the following probability density
         function: :math:`P(x; a) = a x^{a-1}`
@@ -523,7 +503,7 @@ class DataSplitter:
             alpha (float, optional): The skewness parameter. Defaults to 4.
 
         Returns:
-            list[torch.Tensor]: The examples' ids assignment.
+            tuple[list[np.ndarray], list[np.ndarray] | None]: The examples' ids assignment.
         """
         assert min_quantity * \
             n <= X_train.shape[0], "# of training instances must be > than min_quantity*n"
@@ -531,33 +511,34 @@ class DataSplitter:
             n <= X_test.shape[0], "# of test instances must be > than min_quantity*n"
         assert min_quantity > 0, "min_quantity must be >= 1"
 
-        s = np.array(power(alpha, X_train.shape[0] - min_quantity*n) * n, dtype=int)
-        m = np.array([[i] * min_quantity for i in range(n)]).flatten()
-        assignment_tr = np.concatenate([s, m])
-        shuffle(assignment_tr)
+        def power_assignment(tensor: torch.Tensor) -> np.ndarray:
+            s = np.array(power(alpha, tensor.shape[0] - min_quantity*n) * n, dtype=int)
+            m = np.array([[i] * min_quantity for i in range(n)]).flatten()
+            assignment = np.concatenate([s, m])
+            shuffle(assignment)
+            return assignment
+
+        assignment_tr = power_assignment(X_train)
 
         if X_test is None:
             return [np.where(assignment_tr == i)[0] for i in range(n)], None
-
-        s = np.array(power(alpha, X_test.shape[0] - min_quantity*n) * n, dtype=int)
-        m = np.array([[i] * min_quantity for i in range(n)]).flatten()
-        assignment_te = np.concatenate([s, m])
-        shuffle(assignment_te)
+        else:
+            assignment_te = power_assignment(X_test)
 
         assignments_tr = [np.where(assignment_tr == i)[0] for i in range(n)]
         assignments_te = [np.where(assignment_te == i)[0] for i in range(n)]
         return assignments_tr, assignments_te
 
-    def label_quantity_skew(self,
-                            X_train: torch.Tensor,  # not used
+    @staticmethod
+    def label_quantity_skew(X_train: torch.Tensor,  # not used
                             y_train: torch.Tensor,
                             X_test: Optional[torch.Tensor],  # not used
                             y_test: Optional[torch.Tensor],
                             n: int,
-                            class_per_client: int = 2) -> list[torch.Tensor]:
+                            class_per_client: int = 2) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
         This method distribute the data across client according to a specific type of skewness of
-        the lables. Specifically:
+        the labels. Specifically:
         suppose each party only has data samples of ``class_per_client`` different labels.
         We first randomly assign ``class_per_client`` different label IDs to each party.
         Then, for the samples of each label, we randomly and equally divide them into the parties
@@ -574,7 +555,7 @@ class DataSplitter:
             class_per_client (int, optional): The number of classes per client. Defaults to 2.
 
         Returns:
-            list[torch.Tensor]: The examples' ids assignment.
+            tuple[list[np.ndarray], list[np.ndarray]]: The examples' ids assignment.
         """
         labels = set(torch.unique(torch.LongTensor(y_train)).numpy())
         assert 0 < class_per_client <= len(labels), "class_per_client must be > 0 and <= #classes"
@@ -603,15 +584,15 @@ class DataSplitter:
 
         return assignments[0], assignments[1]
 
-    def label_dirichlet_skew(self,
-                             X_train: torch.Tensor,
+    @staticmethod
+    def label_dirichlet_skew(X_train: torch.Tensor,
                              y_train: torch.Tensor,
                              X_test: Optional[torch.Tensor],
                              y_test: Optional[torch.Tensor],
                              n: int,
                              beta: float = .1,
                              min_ex_class: int = 2,
-                             balanced: bool = True) -> list[torch.Tensor]:
+                             balanced: bool = False) -> tuple[list[np.ndarray], list[np.ndarray] | None]:
         r"""
         The method samples :math:`p_k \sim \text{Dir}_n(\beta)` and allocates a :math:`p_{k,j}`
         proportion of the instances of class :math:`k` to party :math:`j`. Here
@@ -626,15 +607,17 @@ class DataSplitter:
             y_test (torch.Tensor): The test labels.
             n (int): The number of clients upon which the examples are distributed.
             beta (float, optional): The concentration parameter. Defaults to 0.1.
-            min_ex_class (int, optional): The minimum number of examples per class. Defaults to 2.
-            balanced (bool, optional): Whether to ensure a balanced distribution of the examples.
+            min_ex_class (int, optional): The minimum number of training examples per class. Defaults to 2.
+            balanced (bool, optional): Whether to ensure a balanced distribution of the examples. This feature
+                is not guaranteed to work. The method will do ten trials to balance the dataset, if not
+                successful, it will raise a warning. Defaults to False.
 
         Returns:
-            list[torch.Tensor]: The examples' ids assignment.
+            tuple[list[np.ndarray], list[np.ndarray] | None]: The examples' ids assignment.
         """
         assert beta > 0, "beta must be > 0"
         assert min_ex_class * \
-            n <= X_train.shape[0], "# of training nstances must be >= than min_ex_class * n"
+            n <= X_train.shape[0], "# of training instances must be >= than min_ex_class * n"
         assert X_test is None or min_ex_class * \
             n <= X_test.shape[0], "# of test instances must be >= than min_ex_class * n"
 
@@ -658,12 +641,13 @@ class DataSplitter:
                 ids = np.where(y == c)[0]
                 shuffle(ids)
 
-                # Assign the minimum number of examples per class
-                idx_batch[iy] = [
-                    idx_j + ids[i * min_ex_class: (i + 1) * min_ex_class].tolist()
-                    for i, idx_j in enumerate(idx_batch[iy])
-                ]
-                ids = ids[n * min_ex_class:]
+                if iy == 0: # this is applied only to the training set
+                    # Assign the minimum number of examples per class
+                    idx_batch[iy] = [
+                        idx_j + ids[i * min_ex_class: (i + 1) * min_ex_class].tolist()
+                        for i, idx_j in enumerate(idx_batch[iy])
+                    ]
+                    ids = ids[n * min_ex_class:]
 
                 # compute the proportions
                 proportions = np.array([p * (len(idx_j) < samples_avg)
@@ -722,27 +706,26 @@ class DataSplitter:
 
                     trials += 1
 
-        if trials > 10:
+        if trials >= 10:
             warnings.warn(
-                "Reached maximum number of trials (10) while trying to balanced the dataset \
-                    distribution")
+                "Reached maximum number of trials (10) while trying to balanced the dataset distribution")
         # change idx_batch according to cid_perm
-        idx_batch = [[idx_batch[i][cid_perm[j]] for j in range(n)] for i in range(2)]
+        idx_batch = [[np.array(idx_batch[i][cid_perm[j]]) for j in range(n)] for i in range(2)]
         return idx_batch[0], idx_batch[1] if y_test is not None else None
 
-    def label_pathological_skew(self,
-                                X_train: torch.Tensor,  # not used
+    @staticmethod
+    def label_pathological_skew(X_train: torch.Tensor,  # not used
                                 y_train: torch.Tensor,
                                 X_test: Optional[torch.Tensor],  # not used
                                 y_test: Optional[torch.Tensor],
                                 n: int,
-                                shards_per_client: int = 2) -> list[torch.Tensor]:
+                                shards_per_client: int = 2) -> tuple[list[np.ndarray], list[np.ndarray]]:
         """
         The method first sort the data by label, divide it into ``n * shards_per_client`` shards,
         and assign each of ``n`` clients ``shards_per_client`` shards. This is a pathological
         non-IID partition of the data, as most clients will only have examples of a limited number
         of classes.
-        See: http://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
+        See: https://proceedings.mlr.press/v54/mcmahan17a/mcmahan17a.pdf
 
         Args:
             X_train (torch.Tensor): The training examples. Not used.
@@ -753,7 +736,7 @@ class DataSplitter:
             shards_per_client (int, optional): The number of shards per client. Defaults to 2.
 
         Returns:
-            list[torch.Tensor]: The examples' ids assignment.
+            tuple[list[np.ndarray], list[np.ndarray]]: The examples' ids assignment.
         """
         n_shards = int(shards_per_client * n)
         sorted_ids_tr = np.argsort(y_train.numpy())
@@ -785,12 +768,11 @@ class DataSplitter:
             assignments_te = [np.where(assignments_te == i)[0] for i in range(n)]
         return assignments_tr, assignments_te
 
+
     _iidness_functions = {
         "iid": iid,
         "qnt": quantity_skew,
-        # "classwise_qnt": classwise_quantity_skew,
         "lbl_qnt": label_quantity_skew,
         "dir": label_dirichlet_skew,
         "pathological": label_pathological_skew,
-        # "covariate": covariate_shift
     }

@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2203.11834
 """
 import sys
-from typing import Any, Iterable, Union
+from typing import Any, Collection, Union
 
 import torch
 from torch.optim import Optimizer
@@ -32,11 +32,11 @@ __all__ = [
 class SAMOptimizer(torch.optim.Optimizer):
 
     def __init__(self,
-                 params: Union[Iterable[torch.Tensor], Iterable[dict[str, Any]]],
+                 params: Union[Collection[torch.Tensor], Collection[dict[str, Any]]],
                  base_optimizer: Optimizer = torch.optim.SGD,
                  rho: float = 0.05,
                  adaptive: bool = False,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         assert rho >= 0.0, f"Invalid rho, should be non-negative: {rho}"
 
         defaults = dict(rho=rho, adaptive=adaptive, **kwargs)
@@ -46,7 +46,7 @@ class SAMOptimizer(torch.optim.Optimizer):
         self.param_groups = self.base_optimizer.param_groups
 
     @torch.no_grad()
-    def first_step(self, zero_grad=False):
+    def first_step(self, zero_grad: bool = False) -> None:
         grad_norm = self._grad_norm()
         for group in self.param_groups:
             scale = group["rho"] / (grad_norm + 1e-12)
@@ -63,7 +63,7 @@ class SAMOptimizer(torch.optim.Optimizer):
             self.zero_grad()
 
     @torch.no_grad()
-    def second_step(self, zero_grad=False):
+    def second_step(self, zero_grad: bool = False) -> None:
         for group in self.param_groups:
             for p in group["params"]:
                 if p.grad is None:
@@ -76,7 +76,7 @@ class SAMOptimizer(torch.optim.Optimizer):
             self.zero_grad()
 
     @torch.no_grad()
-    def step(self, closure=None):
+    def step(self, closure: Union[None, callable] = None) -> float:
         assert closure is not None, "Sharpness Aware Minimization requires closure, \
             but it was not provided"
         closure = torch.enable_grad()(closure)  # the closure should do a full forward-backward pass
@@ -102,7 +102,7 @@ class SAMOptimizer(torch.optim.Optimizer):
         )
         return norm
 
-    def load_state_dict(self, state_dict):
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
         super().load_state_dict(state_dict)
         self.base_optimizer.param_groups = self.param_groups
 
@@ -128,13 +128,13 @@ class FedSAMClient(Client):
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
                  rho: float = 0.05,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.hyper_params.update(rho=rho)
 
-    def _get_closure(self, X: torch.Tensor, y: torch.Tensor):
+    def _get_closure(self, X: torch.Tensor, y: torch.Tensor) -> callable:
         def closure():
             y_hat = self.model(X)
             loss = self.hyper_params.loss_fn(y_hat, y)

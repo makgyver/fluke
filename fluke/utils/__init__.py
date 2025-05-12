@@ -7,8 +7,7 @@ import os
 import sys
 import warnings
 from itertools import product
-from typing import (TYPE_CHECKING, Any, Generator, Iterable, Literal, Optional,
-                    Union)
+from typing import (TYPE_CHECKING, Any, Collection, Literal, Optional, Union)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,9 +16,11 @@ import psutil
 import seaborn as sns
 import torch
 from omegaconf import OmegaConf
+from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
 from cerberus import Validator
 from rich import print as rich_print
+from sklearn.model_selection import train_test_split
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
@@ -55,7 +56,8 @@ __all__ = [
     'import_module_from_str',
     'memory_usage',
     'plot_distribution',
-    'retrieve_obj'
+    'retrieve_obj',
+    'safe_train_test_split'
 ]
 
 
@@ -66,7 +68,7 @@ class ClientObserver():
     :class:`fluke.utils.log.Log` class.
     """
 
-    def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+    def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
         """This method is called when the client starts the local training process.
 
         Args:
@@ -82,7 +84,7 @@ class ClientObserver():
                 client_id: int,
                 model: Module,
                 loss: float,
-                **kwargs: dict[str, Any]):
+                **kwargs):
         """This method is called when the client ends the local training process.
 
         Args:
@@ -99,7 +101,7 @@ class ClientObserver():
                           client_id: int,
                           phase: Literal["pre-fit", "post-fit"],
                           evals: dict[str, float],
-                          **kwargs: dict[str, Any]):
+                          **kwargs):
         """This method is called when the client evaluates the local model.
         The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
         training process. The 'pre-fit' evlauation is usually the evaluation of the global model on
@@ -121,7 +123,7 @@ class ClientObserver():
                    client_id: int,
                    item: str,
                    value: float,
-                   **kwargs: dict[str, Any]) -> None:
+                   **kwargs) -> None:
         """This method is called when the client aims to log an item.
 
         Args:
@@ -158,26 +160,26 @@ class ServerObserver():
         """
         pass
 
-    def selected_clients(self, round: int, clients: Iterable) -> None:
+    def selected_clients(self, round: int, clients: Collection) -> None:
         """This method is called when the clients have been selected for the current round.
 
         Args:
             round (int): The round number.
-            clients (Iterable): The clients selected for the current round.
+            clients (Collection): The clients selected for the current round.
         """
         pass
 
     def server_evaluation(self,
                           round: int,
-                          type: Literal["global", "locals"],
+                          eval_type: Literal["global", "locals"],
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs: dict[str, Any]) -> None:
+                          **kwargs) -> None:
         """This method is called when the server evaluates the global or the local models on its
         test set.
 
         Args:
             round (int): The round number.
-            type (Literal['global', 'locals']): The type of evaluation. If 'global', the evaluation
+            eval_type (Literal['global', 'locals']): The type of evaluation. If 'global', the evaluation
                 is done on the global model. If 'locals', the evaluation is done on the local models
                 of the clients on the test set of the server.
             evals (dict[str, float] | dict[int, dict[str, float]]): The evaluation metrics. In case
@@ -252,10 +254,10 @@ class OptimizerConfigurator:
                 and a gamma of 1. Defaults to ``None``.
         """
 
-        self.optimizer_cfg: DDict = None
-        self.scheduler_cfg: DDict = None
-        self.optimizer: type[Optimizer] = None
-        self.scheduler: type[LRScheduler] = None
+        self.optimizer_cfg: DDict | None = None
+        self.scheduler_cfg: DDict | None = None
+        self.optimizer: type[Optimizer] | None = None
+        self.scheduler: type[LRScheduler] | None = None
 
         if isinstance(optimizer_cfg, DDict):
             self.optimizer_cfg = optimizer_cfg
@@ -339,6 +341,23 @@ class OptimizerConfigurator:
         self.__dict__.update(state)
 
 
+def safe_train_test_split(X: torch.Tensor,
+                          y: torch.Tensor,
+                          test_size: float,
+                          client_id: int | None = None) -> tuple[torch.Tensor, Optional[torch.Tensor],
+                                                                 torch.Tensor, Optional[torch.Tensor]]:
+    try:
+        if test_size == 0.0:
+            return X, None, y, None
+        else:
+            return train_test_split(X, y, test_size=test_size, stratify=y)
+    except ValueError:
+        client_str = f"[Client {client_id}]" if client_id is not None else ""
+        warnings.warn(
+            f"Stratified split failed for {client_str}. Falling back to random split."
+        )
+        return train_test_split(X, y, test_size=test_size)
+
 def import_module_from_str(name: str) -> Any:
     """Import a module from its name.
 
@@ -400,7 +419,7 @@ def get_loss(lname: str) -> Module:
     return get_class_from_str("torch.nn", lname)()
 
 
-def get_model(mname: str, **kwargs: dict[str, Any]) -> Module:
+def get_model(mname: str, **kwargs) -> Module:
     """Get a model from its name.
     This function is used to get a torch model from its name and the name of the module where it is
     defined. It is used to dynamically import models. If ``mname`` is not a fully qualified name,
@@ -517,6 +536,7 @@ class Configuration(DDict):
                  config_exp_path: str = None,
                  config_alg_path: str = None,
                  force_validation: bool = True):
+        super().__init__()
 
         if config_exp_path is not None and os.path.exists(config_exp_path):
             cfg_exp = OmegaConf.load(config_exp_path)
@@ -530,18 +550,17 @@ class Configuration(DDict):
             self._validate()
 
     @classmethod
-    def from_dict(cls, cfg_dict: dict) -> Configuration:
+    def from_dict(cls, cfg_dict: dict | DictConfig) -> Configuration:
         """Create a configuration from a dictionary.
 
         Args:
-            cfg_dict (dict): The dictionary.
+            cfg_dict (dict | DictConfig): The dictionary.
 
         Returns:
             Configuration: The configuration.
         """
         cfg = Configuration(force_validation=False)
         cfg.update(**cfg_dict)
-        print(cfg)
         cfg._validate()
         return cfg
 
@@ -551,7 +570,7 @@ class Configuration(DDict):
         Returns:
             dict: The dictionary.
         """
-        def _to_dict(ddict: DDict) -> dict:
+        def _to_dict(ddict: DDict) -> dict | Any:
             if not isinstance(ddict, dict):
                 if isinstance(ddict, type):
                     return ddict.__name__
@@ -563,7 +582,7 @@ class Configuration(DDict):
     @classmethod
     def sweep(cls,
               config_exp_path: str,
-              config_alg_path: str) -> Generator[Configuration, None, None]:
+              config_alg_path: str) -> list[Configuration]:
         """Generate configurations from a sweep.
         This method is used to generate configurations from a sweep. The sweep is defined by the
         experiment configuration file. The method yields a configuration for each combination of
@@ -573,26 +592,24 @@ class Configuration(DDict):
             config_exp_path (str): The path to the experiment configuration file.
             config_alg_path (str): The path to the algorithm configuration file.
 
-        Yields:
-            Configuration: A configuration.
+        Returns:
+            list[Configuration]: A list of configurations.
         """
         cfgs = Configuration(config_exp_path, config_alg_path, force_validation=False)
-
-        for cfg in Configuration.__sweep(cfgs):
-            yield Configuration.from_dict(cfg)
+        return Configuration.__sweep(cfgs)
 
     @staticmethod
-    def __sweep(cfgs: DDict) -> Generator[DDict, None, None]:
+    def __sweep(cfgs: DDict | dict) -> list[Configuration]:
         """Generate configurations from a sweep.
         This method is used to generate configurations from a sweep. The sweep is defined by the
         experiment configuration file. The method yields a configuration for each combination of
         hyperparameters.
 
         Args:
-            cfgs (DDict): The configuration.
+            cfgs (DDict | dict): The configuration.
 
-        Yields:
-            DDict: A configuration.
+        Returns:
+            list[Configuration]: A list of configurations.
         """
         normalized = {
             k: v if isinstance(v, (list, dict, ListConfig)) else [
@@ -750,7 +767,7 @@ class Configuration(DDict):
         }
     }
 
-    def __repair_save(self, data: dict) -> None:
+    def __repair_save(self, data: dict) -> tuple:
         if "save" not in data:
             return {}, []
 
@@ -767,7 +784,7 @@ class Configuration(DDict):
 
         return save_valid.document, []
 
-    def _validate(self) -> bool:
+    def _validate(self) -> None:
 
         validator = Validator()
         validator.schema = self.__SCHEMA
@@ -797,14 +814,14 @@ class Configuration(DDict):
 
 def plot_distribution(clients: list[Client],
                       train: bool = True,
-                      type: str = "ball") -> None:
+                      plot_type: str = "ball") -> None:
     """Plot the distribution of classes for each client.
     This function is used to plot the distribution of classes for each client. The plot can be a
-    scatter plot, a heatmap, or a bar plot. The scatter plot (``type='ball'``) shows filled circles
-    whose size is proportional to the number of examples of a class. The heatmap (``type='mat'``)
+    scatter plot, a heatmap, or a bar plot. The scatter plot (``plot_type='ball'``) shows filled circles
+    whose size is proportional to the number of examples of a class. The heatmap (``plot_type='mat'``)
     shows a matrix where the rows represent the classes and the columns represent the clients with
     a color intensity proportional to the number of examples of a class. The bar plot
-    (``type='bar'``) shows a stacked bar plot where the height of the bars is proportional to the
+    (``plot_type='bar'``) shows a stacked bar plot where the height of the bars is proportional to the
     number of examples of a class.
 
     Warning:
@@ -815,13 +832,13 @@ def plot_distribution(clients: list[Client],
         clients (list[Client]): The list of clients.
         train (bool, optional): Whether to plot the distribution on the training set. If ``False``,
             the distribution is plotted on the test set. Defaults to ``True``.
-        type (str, optional): The type of plot. It can be ``'ball'``, ``'mat'``, or ``'bar'``.
+        plot_type (str, optional): The type of plot. It can be ``'ball'``, ``'mat'``, or ``'bar'``.
             Defaults to ``'ball'``.
     """
-    assert type in ["bar", "ball", "mat"], "Invalid plot type. Must be 'bar', 'ball' or 'mat'."
-    if len(clients) > 30 and type != "bar":
+    assert plot_type in ["bar", "ball", "mat"], "Invalid plot type. Must be 'bar', 'ball' or 'mat'."
+    if len(clients) > 30 and plot_type != "bar":
         warnings.warn("Too many clients to plot. Switching to 'bar' plot.")
-        type = "bar"
+        plot_type = "bar"
 
     client = {}
     for c in clients:
@@ -842,7 +859,7 @@ def plot_distribution(clients: list[Client],
         for class_idx, count in enumerate(counts):
             class_matrix[class_idx, client_idx] = count
             # Adjusting size based on the count
-            if type == "ball":
+            if plot_type == "ball":
                 size = count * 1  # Adjust the scaling factor as needed
                 ax.scatter(client_idx, class_idx, s=size, alpha=0.6)
                 ax.set_yticks(range(num_classes))
@@ -850,11 +867,11 @@ def plot_distribution(clients: list[Client],
                         ha='center', color='black', fontsize=9)
     plt.title('Number of Examples per Class for Each Client', fontsize=12)
     ax.grid(False)
-    if type == "mat":
+    if plot_type == "mat":
         ax.set_yticks(range(num_classes))
         sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix, fmt='g',
                     cbar=False, annot_kws={"fontsize": 6})
-    elif type == "bar":
+    elif plot_type == "bar":
         df = pd.DataFrame(class_matrix.T, index=[f'{i}' for i in range(len(client))],
                           columns=[f'{i}' for i in range(num_classes)])
         step = int(max(1, np.ceil(len(clients) / 50)))
@@ -956,7 +973,7 @@ def retrieve_obj(key: str,
 
 def cache_obj(obj: Any,
               key: str,
-              party: Server | Client | None = None) -> FlukeCache._ObjectRef | None:
+              party: Server | Client | None = None) -> FlukeCache.ObjectRef | None:
     """Move the object from the RAM to the disk cache to free up memory.
     If the object is ``None``, it returns ``None`` without caching it.
 
@@ -970,7 +987,7 @@ def cache_obj(obj: Any,
         party (Client | Server): the party for which to unload the model. Defaults to ``None``.
 
     Returns:
-        FlukeCache._ObjectRef: The object reference identifier. If the object is ``None``,
+        FlukeCache.ObjectRef: The object reference identifier. If the object is ``None``,
         it returns ``None``.
     """
     if obj is None:
@@ -982,7 +999,7 @@ def cache_obj(obj: Any,
     return cache.push(f"{prefix}{key}", obj)
 
 
-def _flatten_dict(d: dict, parent_key: str = '', sep: str = '.'):
+def _flatten_dict(d: dict, parent_key: str = '', sep: str = '.') -> dict:
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
@@ -999,7 +1016,7 @@ def flatten_dict(nested_dict: dict, sep: str = '.') -> dict:
     nested dictionary separated by a separator.
 
     Args:
-        d (dict): Nested dictionary.
+        nested_dict (dict): Nested dictionary.
         sep (str, optional): Separator. Defaults to '.'.
 
     Returns:
@@ -1014,4 +1031,4 @@ def flatten_dict(nested_dict: dict, sep: str = '.') -> dict:
             # Output: {'a': 1, 'b.c': 2, 'b.d.e': 3}
 
     """
-    return _flatten_dict(nested_dict)
+    return _flatten_dict(nested_dict, sep=sep)
