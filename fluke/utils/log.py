@@ -3,7 +3,7 @@ import json
 import os
 import sys
 import time
-from typing import Any, Literal, Union, Iterable
+from typing import Any, Literal, Union, Collection
 
 import numpy as np
 from pandas import DataFrame
@@ -54,7 +54,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         current_round (int): The current round.
     """
 
-    def __init__(self, **kwargs: dict[str, Any]):
+    def __init__(self, **kwargs):
         self.global_eval: dict = {}  # round -> evals
         self.locals_eval: dict = {}  # round -> {client_id -> evals}
         self.prefit_eval: dict = {}  # round -> {client_id -> evals}
@@ -109,7 +109,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         """
         rich_print(Panel(Pretty(data, expand_all=True), title=title, width=100))
 
-    def init(self, **kwargs: dict[str, Any]) -> None:
+    def init(self, **kwargs) -> None:
         """Initialize the logger.
         The initialization is done by printing the configuration in the console.
 
@@ -175,7 +175,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
                           client_id: int,
                           phase: Literal['pre-fit', 'post-fit'],
                           evals: dict[str, float],
-                          **kwargs: dict[str, Any]) -> None:
+                          **kwargs) -> None:
 
         if round == -1:
             round = self.current_round + 1
@@ -186,13 +186,13 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
     def server_evaluation(self,
                           round: int,
-                          type: Literal['global', 'locals'],
+                          eval_type: Literal['global', 'locals'],
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs: dict[str, Any]) -> None:
+                          **kwargs) -> None:
 
-        if type == 'global' and evals:
+        if eval_type == 'global' and evals:
             self.global_eval[round] = evals
-        elif type == "locals" and evals:
+        elif eval_type == "locals" and evals:
             self.locals_eval[round] = evals
 
     def message_received(self, by: Any, message: Message) -> None:
@@ -241,7 +241,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
     def early_stop(self, round: int) -> None:
         return self.end_round(round)
 
-    def track_item(self, round, item, value) -> None:
+    def track_item(self, round: int, item: str, value: Any) -> None:
         self.add_scalar(item, value, round)
 
     def save(self, path: str) -> None:
@@ -297,7 +297,7 @@ class DebugLog(Log):
         # logger.error("This is an [red]error[/] message.")
         # logger.critical("This is a [bold red]critical[/] message.")
 
-    def init(self, **kwargs: dict[str, Any]) -> None:
+    def init(self, **kwargs) -> None:
         self.logger.debug("Debug logging enabled")
         super().init(**kwargs)
 
@@ -309,23 +309,23 @@ class DebugLog(Log):
         self.logger.debug("Ending round %d", round)
         super().end_round(round)
 
-    def selected_clients(self, round: int, clients: Iterable) -> None:
+    def selected_clients(self, round: int, clients: Collection) -> None:
         clients_idx = [client.index for client in clients]
         self.logger.debug(f"Selected {len(clients_idx)} clients for round {round}: {clients_idx}")
         super().selected_clients(round, clients)
 
     def server_evaluation(self,
                           round: int,
-                          type: Literal["global", "locals"],
+                          eval_type: Literal["global", "locals"],
                           evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs: dict[str, Any]) -> None:
-        if type == "global":
+                          **kwargs) -> None:
+        if eval_type == "global":
             self.logger.debug(f"Global evaluation for round {round}")
-        elif type == "locals":
+        elif eval_type == "locals":
             self.logger.debug(f"Local models evaluated on server's test set for round {round}")
-        super().server_evaluation(round, type, evals, **kwargs)
+        super().server_evaluation(round, eval_type, evals, **kwargs)
 
-    def finished(self, round):
+    def finished(self, round: int) -> None:
         self.logger.debug(f"Round {round} completed")
         return super().finished(round)
 
@@ -337,7 +337,11 @@ class DebugLog(Log):
         self.logger.debug(f"Early stopping fired for round {round}")
         return super().early_stop(round)
 
-    def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+    def start_fit(self,
+                  round: int,
+                  client_id: int,
+                  model: Module,
+                  **kwargs) -> None:
         self.logger.debug(f"Starting fit for client {client_id}")
         return super().start_fit(round, client_id, model, **kwargs)
 
@@ -346,7 +350,7 @@ class DebugLog(Log):
                 client_id: int,
                 model: Module,
                 loss: float,
-                **kwargs: dict[str, Any]):
+                **kwargs) -> None:
         self.logger.debug(f"Fit for Client[{client_id}] ended with loss {loss}")
         return super().end_fit(round, client_id, model, loss, **kwargs)
 
@@ -355,7 +359,7 @@ class DebugLog(Log):
                           client_id: int,
                           phase: Literal['pre-fit', 'post-fit'],
                           evals: dict[str, float],
-                          **kwargs: dict[str, Any]) -> None:
+                          **kwargs) -> None:
         self.logger.debug(f"Client[{client_id}] {phase} evaluation for round {round}")
         return super().client_evaluation(round, client_id, phase, evals, **kwargs)
 
@@ -466,8 +470,9 @@ class WandBLog(Log):
     def __init__(self, **config):
         super().__init__(**config)
         self.config = config
+        self.run = None
 
-    def init(self, **kwargs: dict[str, Any]) -> None:
+    def init(self, **kwargs) -> None:
         super().init(**kwargs)
         self.config["config"] = kwargs
         self.run = wandb.init(**self.config)
@@ -537,7 +542,7 @@ class ClearMLLog(TensorboardLog):
         super().__init__(name=config['name'])
         self.config = DDict(**config)
 
-    def init(self, **kwargs: dict[str, Any]) -> None:
+    def init(self, **kwargs) -> None:
         super().init(**kwargs)
         # imported here to avoid issues with requests
         from clearml import Task
@@ -545,7 +550,7 @@ class ClearMLLog(TensorboardLog):
         self.task.connect(kwargs)
 
 
-def get_logger(lname: str, **kwargs: dict[str, Any]) -> Log:
+def get_logger(lname: str, **kwargs) -> Log:
     """Get a logger from its name.
     This function is used to get a logger from its name. It is used to dynamically import loggers.
     The supported loggers are the ones defined in the ``fluke.utils.log`` module, but it can handle

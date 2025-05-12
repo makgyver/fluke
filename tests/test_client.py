@@ -87,8 +87,7 @@ def _test_client(inmemory):
         clients=[client]
     )
 
-    client.set_server(server)
-    assert client.server == server
+    client.set_channel(server.channel)
     assert client.channel == server.channel
     server.broadcast_model([client])
 
@@ -97,7 +96,7 @@ def _test_client(inmemory):
     ev0 = client.evaluate(evaluator, client.test_set)
     client.local_update(1)
     ev1 = client.evaluate(evaluator, client.test_set)
-    assert server.channel._buffer[server]
+    assert server.channel._buffer["server"]
     assert not ev0
     assert ev1
     # if inmemory:
@@ -119,7 +118,7 @@ def _test_client(inmemory):
 
     client.send_model()
 
-    m = server.channel.receive(server, client, "model")
+    m = server.channel.receive("server", client.index, "model")
     assert id(m) != id(client.model)
     assert m is not client.model
     assert torch.all(client.local_model.weight.data == client.model.weight.data)
@@ -206,7 +205,7 @@ def test_pflclient():
         clients=[client]
     )
 
-    client.set_server(server)
+    client.set_channel(server.channel)
     client.pers_optimizer = SGD(client.personalized_model.parameters(), lr=0.1)
     client.pers_scheduler = torch.optim.lr_scheduler.StepLR(
         client.pers_optimizer, step_size=1, gamma=0.1)

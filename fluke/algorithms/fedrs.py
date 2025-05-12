@@ -68,7 +68,7 @@ class FedRSClient(Client):
                  count_as_missing: int = 2,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         uniq_val, uniq_cnt = np.unique(train_set.tensors[1], return_counts=True)
         class_scaling = torch.ones(train_set.num_labels) * alpha
         for i, c in enumerate(uniq_val):

@@ -33,7 +33,9 @@ class PerFedAVGOptimizer(Optimizer):
         defaults = dict(lr=lr)
         super(PerFedAVGOptimizer, self).__init__(params, defaults)
 
-    def step(self, closure=None, beta=0, grads=None):
+    def step(self, closure: Union[None, callable] = None,
+             beta: float = 0.0,
+             grads: Union[tuple[torch.Tensor, ...], None] = None) -> Union[float, None]:
         loss = None
         if closure is not None:
             loss = closure
@@ -65,7 +67,7 @@ class PerFedAVGClient(Client):
                  beta: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
 
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
@@ -76,7 +78,7 @@ class PerFedAVGClient(Client):
         )
         self.train_iterator = iter(self.train_set)
 
-    def _get_next_batch(self):
+    def _get_next_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         try:
             X, y = next(self.train_set)
         except StopIteration:

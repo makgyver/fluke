@@ -25,6 +25,7 @@ Classes included in ``fluke.utils.log``
    :nosignatures:
    
    Log
+   DebugLog
    WandBLog
    TensorboardLog
    ClearMLLog
@@ -41,6 +42,20 @@ Classes included in ``fluke.utils.log``
 
 .. autoclass:: fluke.utils.log.Log
    :members:
+
+```
+
+<h3>
+
+{bdg-primary}`class` ``fluke.utils.log.DebugLog``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.utils.log.DebugLog
+   :members:
+   :show-inheritance:
 
 ```
 

@@ -67,7 +67,7 @@ def test_env():
     cache = env.get_cache()
     assert cache.occupied == 0
     ref = cache.push("test1", "this is a test")
-    assert isinstance(ref, FlukeCache._ObjectRef)
+    assert isinstance(ref, FlukeCache.ObjectRef)
     assert cache.occupied == 1
     assert cache.get("test1") == "this is a test"
     assert cache.get("test2") is None

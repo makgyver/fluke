@@ -6,7 +6,7 @@ References:
        In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
 import sys
-from typing import Any, Iterable, Literal
+from typing import Any, Collection, Literal
 
 import torch
 from torch import nn
@@ -33,7 +33,7 @@ class SpreadModel(nn.Module):
         super().__init__()
         self.weights = nn.Parameter(weights)
 
-    def forward(self):
+    def forward(self) -> torch.Tensor:
         return F.normalize(self.weights, dim=1)
 
 
@@ -44,7 +44,7 @@ class SpreadLoss(nn.Module):
         self.margin = margin
         self.reduction = reduction
 
-    def forward(self, weights: torch.Tensor):
+    def forward(self, weights: torch.Tensor) -> torch.Tensor:
         ws_norm = F.normalize(weights, dim=1)
         cos_dis = 0.5 * (1.0 - torch.mm(ws_norm, ws_norm.transpose(0, 1)))
 
@@ -69,13 +69,13 @@ class FedAwSServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  aws_lr: float = 0.1,
                  aws_steps: int = 100,
                  margin: float = 0.5,
                  last_layer_name: str = "classifier",
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         assert (last_layer_name + ".weight") in model.state_dict().keys(), \
             f"Invalid last_layer_name: {last_layer_name}. Make sure that the last layer \
@@ -85,7 +85,7 @@ class FedAwSServer(Server):
                                  aws_steps=aws_steps,
                                  last_layer_name=last_layer_name + ".weight")
 
-    def _compute_spreadout(self):
+    def _compute_spreadout(self) -> None:
         ws = self.model.state_dict()[self.hyper_params.last_layer_name].data
         spread_model = SpreadModel(ws)
 
@@ -107,7 +107,7 @@ class FedAwSServer(Server):
             strict=False
         )
 
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[nn.Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[nn.Module]) -> None:
         super().aggregate(eligible, client_models)
         self._compute_spreadout()
 

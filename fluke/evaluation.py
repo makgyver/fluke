@@ -2,7 +2,7 @@
 of the model client-side and server-side."""
 import sys
 from abc import ABC, abstractmethod
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Collection, Optional, Union
 
 import numpy as np
 import torch
@@ -42,7 +42,7 @@ class Evaluator(ABC):
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
                  additional_metrics: Optional[dict[str, Metric]] = None,
-                 **kwargs: dict[str, Any]) -> dict[str, Any]:
+                 **kwargs) -> dict[str, Any]:
         """Evaluate the model.
 
         Args:
@@ -50,6 +50,8 @@ class Evaluator(ABC):
             model (Module): The model to evaluate.
             eval_data_loader (FastDataLoader): The data loader to use for evaluation.
             loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
+            additional_metrics (dict[str, Metric], optional): Additional metrics to use for
+                evaluation. If provided, they are added to the default metrics.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -63,7 +65,7 @@ class Evaluator(ABC):
                  eval_data_loader: FastDataLoader,
                  loss_fn: Optional[torch.nn.Module],
                  additional_metrics: Optional[dict[str, Metric]] = None,
-                 **kwargs: dict[str, Any]) -> dict:
+                 **kwargs) -> dict:
         """Evaluate the model.
 
         Note:
@@ -104,7 +106,7 @@ class ClassificationEval(Evaluator):
         n_classes (int): The number of classes.
     """
 
-    def __init__(self, eval_every: int, n_classes: int, **metrics: dict[str, Metric]):
+    def __init__(self, eval_every: int, n_classes: int, **metrics: Metric):
         super().__init__(eval_every=eval_every)
         self.n_classes: int = n_classes
 
@@ -142,12 +144,12 @@ class ClassificationEval(Evaluator):
             raise ValueError(f"Metric {name} already exists.")
         self.metrics[name] = metric
 
-    @torch.no_grad
+    @torch.no_grad()
     def evaluate(self,
                  round: int,
                  model: torch.nn.Module,
                  eval_data_loader: Union[FastDataLoader,
-                                         Iterable[FastDataLoader]],
+                                         Collection[FastDataLoader]],
                  loss_fn: Optional[torch.nn.Module] = None,
                  additional_metrics: Optional[dict[str, Metric]] = None,
                  device: torch.device = torch.device("cpu")) -> dict:
@@ -164,7 +166,7 @@ class ClassificationEval(Evaluator):
             round (int): The current round.
             model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
                 empty dictionary.
-            eval_data_loader (Union[FastDataLoader, Iterable[FastDataLoader]]):
+            eval_data_loader (Union[FastDataLoader, Collection[FastDataLoader]]):
                 The data loader(s) to use for evaluation. If ``None``, the method returns an empty
                 dictionary.
             loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.

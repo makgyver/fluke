@@ -50,6 +50,6 @@
 
 .. autoclass:: ClassificationEval
    :show-inheritance:
-   :members: evaluate
+   :members: evaluate, add_metric
 
 ```

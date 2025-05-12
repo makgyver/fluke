@@ -7,7 +7,7 @@ References:
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import torch
 from torch.nn import Module
@@ -75,7 +75,7 @@ class FedProtoClient(Client):
                  lam: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs else local_epochs
         super().__init__(index=index, model=model, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
@@ -92,13 +92,13 @@ class FedProtoClient(Client):
         self.global_protos = None
 
     def receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
+        msg = self.channel.receive(self.index, "server", msg_type="model")
         self.global_protos = msg.payload
 
-    def send_model(self):
-        self.channel.send(Message(self.prototypes, "model", self, inmemory=True), self.server)
+    def send_model(self) -> None:
+        self.channel.send(Message(self.prototypes, "model", self.index, inmemory=True), "server")
 
-    def _update_protos(self, protos: Iterable[torch.Tensor]) -> None:
+    def _update_protos(self, protos: Collection[torch.Tensor]) -> None:
         for label, prts in protos.items():
             self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
@@ -123,7 +123,7 @@ class FedProtoClient(Client):
                 y_hat = self.model.head(Z)
                 loss = self.hyper_params.loss_fn(y_hat, y)
 
-                if self.server.rounds > 0:  # this is actually illegal in fluke :)
+                if self._last_round > 0:
                     proto_new = deepcopy(Z.detach())
                     for i, yy in enumerate(y):
                         y_c = yy.item()
@@ -166,19 +166,20 @@ class FedProtoServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = True,
                  n_protos: int = 10):
         super().__init__(model=None, test_set=None, clients=clients, weighted=weighted)
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def broadcast_model(self, eligible: Iterable[Client]) -> None:
+    def broadcast_model(self, eligible: Collection[Client]) -> None:
         # This function broadcasts the prototypes to the clients
-        self.channel.broadcast(Message(self.prototypes, "model", self), eligible)
+        self.channel.broadcast(Message(self.prototypes, "model", "server"),
+                               [c.index for c in eligible])
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_protos = client_models
 

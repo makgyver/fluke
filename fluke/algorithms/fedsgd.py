@@ -34,7 +34,7 @@ class FedSGDClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, **kwargs)

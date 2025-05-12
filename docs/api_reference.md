@@ -33,8 +33,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
    DDict
    FlukeCache
-   FlukeCache._ObjectRef
-   FlukeCache._RefCounter
+   FlukeCache.ObjectRef
    FlukeENV
    ObserverSubject
    Singleton

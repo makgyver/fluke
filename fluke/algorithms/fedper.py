@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import torch
 
@@ -37,19 +37,19 @@ class FedPerClient(Client):
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.model = EncoderGlobalHeadLocalNet(model)
         self._save_to_cache()
 
-    def send_model(self):
-        self.channel.send(Message(deepcopy(self.model.get_global()), "model", self, inmemory=True),
-                          self.server)
+    def send_model(self) -> None:
+        self.channel.send(Message(deepcopy(self.model.get_global()), "model", self.index,
+                                  inmemory=True), "server")
 
     def receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
+        msg = self.channel.receive(self.index, "server", msg_type="model")
         safe_load_state_dict(self.model.get_global(), msg.payload.state_dict())
 
 
@@ -58,7 +58,7 @@ class FedPerServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_set: FastDataLoader,  # not used
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 

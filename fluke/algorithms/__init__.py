@@ -7,7 +7,7 @@ import sys
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Iterable, Union
+from typing import Any, Collection, Union, Callable
 
 import torch
 
@@ -102,7 +102,7 @@ class CentralizedFL(ServerObserver):
                  n_clients: int,
                  data_splitter: DataSplitter,
                  hyper_params: DDict | dict[str, Any],
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         self._id = str(uuid.uuid4().hex)
         FlukeENV().open_cache(self._id)
         if isinstance(hyper_params, dict):
@@ -115,13 +115,12 @@ class CentralizedFL(ServerObserver):
         model = get_model(mname=hyper_params.model,
                           **hyper_params.net_args if 'net_args' in hyper_params else {}
                           ) if isinstance(hyper_params.model, str) else hyper_params.model
-        self.clients = None
-        self.server = None
-        self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
-        self.init_server(model, server_data, hyper_params.server)
+
+        self.clients = self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
+        self.server = self.init_server(model, server_data, hyper_params.server)
 
         for client in self.clients:
-            client.set_server(self.server)
+            client.set_channel(self.server.channel)
 
     @property
     def id(self) -> str:
@@ -152,7 +151,7 @@ class CentralizedFL(ServerObserver):
 
     def get_client_class(self) -> type[Client]:
         """Get the client class.
-        This method should be overriden by the subclasses when a different client class is defined.
+        This method should be overridden by the subclasses when a different client class is defined.
         This allows to reuse all the logic of the algorithm and only change the client class.
 
         Returns:
@@ -162,7 +161,7 @@ class CentralizedFL(ServerObserver):
 
     def get_server_class(self) -> type[Server]:
         """Get the server class.
-        This method should be overriden by the subclasses when a different server class is defined.
+        This method should be overridden by the subclasses when a different server class is defined.
         This allows to reuse all the logic of the algorithm and only change the server class.
 
         Returns:
@@ -187,8 +186,8 @@ class CentralizedFL(ServerObserver):
     def init_clients(self,
                      clients_tr_data: list[FastDataLoader],
                      clients_te_data: list[FastDataLoader],
-                     config: DDict) -> None:
-        """Initialize the clients.
+                     config: DDict) -> Collection[Client]:
+        """Creates the clients.
 
         Args:
             clients_tr_data (list[FastDataLoader]): List of training data loaders, one for
@@ -198,44 +197,52 @@ class CentralizedFL(ServerObserver):
             config (DDict): Configuration of the clients.
 
         Important:
-            For more deatils about the configuration of the clients, see the
+            For more details about the configuration of the clients, see the
             :ref:`configuration <configuration>` page.
 
         See Also:
             :class:`fluke.client.Client`
+
+        Returns:
+            Collection[Client]: List of initialized clients.
         """
 
         self._fix_opt_cfg(config.optimizer)
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
-        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
-        self.clients = [
+        loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
+        clients = [
             self.get_client_class()(
                 index=i,
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
-                loss_fn=deepcopy(self.loss),
+                loss_fn=deepcopy(loss),
                 **config.exclude('optimizer', 'loss', 'batch_size', 'scheduler')
             )
             for i in range(self.n_clients)]
+        return clients
 
-    def init_server(self, model: Any, data: FastDataLoader, config: DDict):
-        """Initailize the server.
+    def init_server(self, model: Any, data: FastDataLoader, config: DDict) -> Server:
+        """Creates the server.
 
         Args:
             model (Any): The global model.
             data (FastDataLoader): The server-side test set.
             config (DDict): Configuration of the server.
-        """
-        self.server: Server = self.get_server_class()(model=model,
-                                                      test_set=data,
-                                                      clients=self.clients,
-                                                      **config)
-        if FlukeENV().get_save_options()[0] is not None:
-            self.server.attach(self)
 
-    def set_callbacks(self, callbacks: Union[callable, Iterable[callable]]):
+        Returns:
+            Server: The initialized server.
+        """
+        server: Server = self.get_server_class()(model=model,
+                                                 test_set=data,
+                                                 clients=self.clients,
+                                                 **config)
+        if FlukeENV().get_save_options()[0] is not None:
+            server.attach(self)
+        return server
+
+    def set_callbacks(self, callbacks: Union[callable, Collection[Callable]]) -> None:
         """Set the callbacks for the server the clients and the channel.
 
         The callbacks are expected to be instances of the :class:`fluke.server.ServerObserver`,
@@ -243,9 +250,9 @@ class CentralizedFL(ServerObserver):
         Each callback will be attached to the corresponding entity.
 
         Args:
-            callbacks (Union[callable, Iterable[callable]]): Callbacks to attach to the algorithm.
+            callbacks (Union[callable, Collection[callable]]): Callbacks to attach to the algorithm.
         """
-        if not isinstance(callbacks, Iterable):
+        if not isinstance(callbacks, Collection):
             callbacks = [callbacks]
         self.server.attach([c for c in callbacks if isinstance(c, ServerObserver)])
         self.server.channel.attach([c for c in callbacks if isinstance(c, ChannelObserver)])
@@ -256,7 +263,7 @@ class CentralizedFL(ServerObserver):
             n_rounds: int,
             eligible_perc: float,
             finalize: bool = True,
-            **kwargs: dict[str, Any]):
+            **kwargs) -> None:
         """Run the federated algorithm.
         This method will call the :meth:`Server.fit` method which will orchestrate the training
         process.
@@ -385,7 +392,7 @@ class PersonalizedFL(CentralizedFL):
     def init_clients(self,
                      clients_tr_data: list[FastDataLoader],
                      clients_te_data: list[FastDataLoader],
-                     config: DDict) -> None:
+                     config: DDict) -> Collection[Client]:
 
         if isinstance(config.model, str):
             model = get_model(mname=config.model, **config.net_args if 'net_args' in config else {})
@@ -398,15 +405,16 @@ class PersonalizedFL(CentralizedFL):
         self._fix_opt_cfg(config.optimizer)
         optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
                                               scheduler_cfg=config.scheduler)
-        self.loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
-        self.clients = [
+        loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
+        clients = [
             self.get_client_class()(
                 index=i,
                 model=deepcopy(model),
                 train_set=clients_tr_data[i],
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
-                loss_fn=deepcopy(self.loss),
+                loss_fn=deepcopy(loss),
                 **config.exclude('optimizer', 'loss', 'batch_size', 'model', 'scheduler')
             )
             for i in range(self.n_clients)]
+        return clients

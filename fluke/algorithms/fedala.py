@@ -45,7 +45,7 @@ class FedALAClient(Client):
                  eta: float = 1.0,
                  conergence_threshold: float = 0.001,
                  loss_window_size: int = 10,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -56,8 +56,7 @@ class FedALAClient(Client):
         self.weights = None
         self.start_phase = True
 
-    def adaptive_local_aggregation(self, server_model: EncoderHeadNet):
-
+    def adaptive_local_aggregation(self, server_model: EncoderHeadNet) -> None:
         # keep the server encoder weights
         safe_load_state_dict(self.model.encoder, server_model.encoder.state_dict())
 
@@ -136,7 +135,7 @@ class FedALAClient(Client):
         safe_load_state_dict(self.model.head, temp_model.head.state_dict())
 
     def receive_model(self) -> None:
-        server_model = self.channel.receive(self, self.server, msg_type="model").payload
+        server_model = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             self.model = server_model
         else:

@@ -35,7 +35,7 @@ class FedBNClient(Client):
         return keys
 
     def receive_model(self) -> None:
-        global_model = self.channel.receive(self, self.server, msg_type="model").payload
+        global_model = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             self.model = global_model
 

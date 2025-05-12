@@ -609,7 +609,7 @@ def test_plot_dist_ball(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, type="ball")
+    plot_distribution(fl.clients, plot_type="ball")
     FlukeENV().close_cache()
 
 
@@ -633,7 +633,7 @@ def test_plot_dist_bar(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, type="bar")
+    plot_distribution(fl.clients, plot_type="bar")
     FlukeENV().close_cache()
 
 
@@ -657,7 +657,7 @@ def test_plot_dist_mat(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, type="mat")
+    plot_distribution(fl.clients, plot_type="mat")
     FlukeENV().close_cache()
 
 

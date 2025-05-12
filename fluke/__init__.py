@@ -10,7 +10,7 @@ import shutil
 import uuid
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Iterable, Union
+from typing import TYPE_CHECKING, Any, Collection, Union
 from omegaconf import DictConfig
 import numpy as np
 import torch
@@ -40,7 +40,7 @@ __all__ = [
     'Singleton'
 ]
 
-__version__ = '0.7.5'
+__version__ = '0.7.8'
 __author__ = 'Mirko Polato'
 __email__ = 'mirko.polato@unito.it'
 __license__ = 'LGPLv2.1'
@@ -66,12 +66,13 @@ class Singleton(type):
     """
     _instances = {}
 
-    def __call__(cls, *args, **kwargs: dict[str, Any]):
+    def __call__(cls, *args, **kwargs) -> Any:
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
-    def clear(cls):
+    def clear(cls) -> None:
+        """Clear the singleton instances."""
         cls._instances = {}
 
 
@@ -96,10 +97,11 @@ class DDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
 
-    def __init__(self, *args: dict, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
         self.update(*args, **kwargs)
 
-    def update(self, *args: dict, **kwargs: dict[str, Any]):
+    def update(self, *args, **kwargs) -> None:
         """Update the :class:`DDict` with the specified key-value pairs.
 
         Args:
@@ -132,7 +134,7 @@ class DDict(dict):
             else:
                 self[k] = v
 
-    def exclude(self, *keys: str):
+    def exclude(self, *keys: str) -> DDict:
         """Create a new :class:`DDict` excluding the specified keys.
 
         Args:
@@ -205,7 +207,7 @@ class DDict(dict):
         self.__dict__.update(state)
 
 
-class ObserverSubject():
+class ObserverSubject:
     """Subject class for the observer pattern. The subject is the class that is observed and thus
     it holds the observers.
 
@@ -243,11 +245,11 @@ class ObserverSubject():
     def __init__(self):
         self._observers: list[Any] = []
 
-    def attach(self, observer: Union[Any, Iterable[Any]]):
+    def attach(self, observer: Union[Any, Collection[Any]]):
         """Attach one or more observers.
 
         Args:
-            observer (Union[Any, Iterable[Any]]): The observer or a list of observers.
+            observer (Union[Any, Collection[Any]]): The observer or a list of observers.
         """
         if observer is None:
             return
@@ -259,7 +261,7 @@ class ObserverSubject():
             if obs not in self._observers:
                 self._observers.append(obs)
 
-    def detach(self, observer: Any):
+    def detach(self, observer: Any) -> None:
         """Detach an observer.
 
         Args:
@@ -269,6 +271,11 @@ class ObserverSubject():
             self._observers.remove(observer)
         except ValueError:
             pass
+
+    def notify(self, event: str, **kwargs) -> None:
+        for obs in self._observers:
+            if hasattr(obs, event):
+                getattr(obs, event)(**kwargs)
 
 
 class FlukeENV(metaclass=Singleton):
@@ -290,7 +297,7 @@ class FlukeENV(metaclass=Singleton):
     _device: torch.device = torch.device('cpu')
     _seed: int = 0
     _inmemory: bool = True
-    _cache: FlukeCache = None
+    _cache: FlukeCache | None = None
 
     # saving settings
     _save_path: str = None
@@ -313,6 +320,9 @@ class FlukeENV(metaclass=Singleton):
     _rich_progress_server: Progress = None
     _live_renderer: Live = None
 
+    # global logger
+    _logger: Any = None
+
     def __init__(self):
         super().__init__()
         self._rich_progress_FL: Progress = Progress(transient=True)
@@ -326,7 +336,7 @@ class FlukeENV(metaclass=Singleton):
         """Configure the global settings.
 
         Args:
-            config (DDict): The configuration.
+            cfg (DDict): The configuration.
         """
         self.set_seed(cfg.exp.seed)
         self.set_device(cfg.exp.device)
@@ -499,6 +509,22 @@ class FlukeENV(metaclass=Singleton):
         if global_only is not None:
             self._global_only = global_only
 
+    def get_logger(self) -> Any:
+        """Get the global logger.
+
+        Returns:
+            Any: The logger.
+        """
+        return self._logger
+
+    def set_logger(self, logger: Any) -> None:
+        """Set the global logger.
+
+        Args:
+            logger (Any): The logger.
+        """
+        self._logger = logger
+
     def set_inmemory(self, inmemory: bool) -> None:
         """Set if the data is stored in memory.
 
@@ -570,10 +596,10 @@ class FlukeENV(metaclass=Singleton):
         self.__dict__.update(state)
 
 
-class FlukeCache():
+class FlukeCache:
     """A cache class that can store data on disk."""
 
-    class _ObjectRef():
+    class ObjectRef:
         """A reference to an object in the cache.
         The reference is a unique identifier that is used to store and retrieve the object from the
         cache.
@@ -592,21 +618,21 @@ class FlukeCache():
             return self._id
 
         def __str__(self) -> str:
-            return f"_ObjectRef({self._id})"
+            return f"ObjectRef({self._id})"
 
-        def __repr__(self):
+        def __repr__(self) -> str:
             return self.__str__()
 
-    class _RefCounter():
+    class _RefCounter:
         """A reference counter for an object in the cache."""
 
         def __init__(self, value: Any, refs: int = 1):
             self._value = value
             self._refs = refs
-            self._id = FlukeCache._ObjectRef()
+            self._id = FlukeCache.ObjectRef()
 
         @property
-        def id(self) -> FlukeCache._ObjectRef:
+        def id(self) -> FlukeCache.ObjectRef:
             """Get the unique identifier of the reference.
 
             Returns:
@@ -616,7 +642,7 @@ class FlukeCache():
 
         @property
         def value(self) -> Any:
-            """Get the value ppinted by the reference.
+            """Get the value pointed by the reference.
 
             Returns:
                 Any: The value.
@@ -654,9 +680,9 @@ class FlukeCache():
         if 'size_limit' not in kwargs:
             kwargs['size_limit'] = 2**34
         self._cache: Cache = Cache(f"tmp/{path}", **kwargs)
-        self._key2ref: dict[str, FlukeCache._ObjectRef] = {}
+        self._key2ref: dict[str, FlukeCache.ObjectRef] = {}
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> Any:
         return self._cache[self._key2ref[key].id].value
 
     @property
@@ -689,8 +715,9 @@ class FlukeCache():
         obj = self._cache.get(self._key2ref[key].id, default=default)
         if obj is not default:
             return obj.value
+        return default
 
-    def push(self, key: str, value: Any) -> FlukeCache._ObjectRef:
+    def push(self, key: str, value: Any) -> FlukeCache.ObjectRef:
         """Push an object to the cache.
 
         Note:
@@ -702,9 +729,9 @@ class FlukeCache():
             value (Any): The object to store in the cache.
 
         Returns:
-            FlukeCache._ObjectRef: The reference to the object in the cache.
+            FlukeCache.ObjectRef: The reference to the object in the cache.
         """
-        if isinstance(value, FlukeCache._ObjectRef):
+        if isinstance(value, FlukeCache.ObjectRef):
             assert value.id in self._cache, f"Reference {value.id} not in cache."
             self._key2ref[key] = value
             self._cache[value.id] = self._cache[value.id].inc()

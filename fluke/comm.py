@@ -41,11 +41,11 @@ class Message:
 
     Note:
         The payload can be stored in memory if and only if its type is :class:`torch.nn.Module`,
-        :class:`torch.Tensor` or :class:`fluke.FlukeCache._ObjectRef`. In the latter case, the
+        :class:`torch.Tensor` or :class:`fluke.FlukeCache.ObjectRef`. In the latter case, the
         reference count of the object is incremented by one.
 
     Example:
-        Let us consider a simple example where a client wants to send preparea  message to be sent
+        Let us consider a simple example where a client wants to send prepare a  message to be sent
         to the server with the content "Hello". The client can create a message as follows:
 
         .. code-block:: python
@@ -72,16 +72,16 @@ class Message:
         self.__inmemory: bool = inmemory if inmemory is not None else True
 
         if not FlukeENV().is_inmemory() and not inmemory:
-            if isinstance(payload, (torch.nn.Module, FlukeCache._ObjectRef, torch.Tensor)):
+            if isinstance(payload, (torch.nn.Module, FlukeCache.ObjectRef, torch.Tensor)):
                 self.__payload = cache_obj(payload, f"{self.__id}")
                 self.__inmemory = False
 
     @property
-    def id(self) -> int:
+    def id(self) -> str:
         """Get the unique identifier of the message.
 
         Returns:
-            int: The unique identifier of the message.
+            str: The unique identifier of the message.
         """
         return self.__id
 
@@ -133,9 +133,9 @@ class Message:
             return obj.size
         elif isinstance(obj, torch.Tensor):
             return obj.numel()
-        elif isinstance(obj, (torch.nn.Module)):
+        elif isinstance(obj, torch.nn.Module):
             return sum(p.numel() for p in obj.parameters())
-        elif isinstance(obj, FlukeCache._ObjectRef):
+        elif isinstance(obj, FlukeCache.ObjectRef):
             return 0
         else:
             warnings.warn(f"Unknown type {type(obj)} of object {obj} in payload." +
@@ -143,7 +143,7 @@ class Message:
             return 0
 
     def clone(self, inmemory: Optional[bool] = None) -> Message:
-        """Clone the message. The cloned message containes a deepcopy of the payload while
+        """Clone the message. The cloned message contains a deepcopy of the payload while
         keeping the same message type and the same reference to the sender.
 
         Args:
@@ -223,14 +223,14 @@ class Message:
             bool: ``True`` if the payload is moved to the cache, ``False`` otherwise.
         """
         if self.__inmemory:
-            if isinstance(self.__payload, (torch.nn.Module, FlukeCache._ObjectRef, torch.Tensor)):
+            if isinstance(self.__payload, (torch.nn.Module, FlukeCache.ObjectRef, torch.Tensor)):
                 self.__payload = cache_obj(self.__payload, f"{self.__id}")
                 self.__inmemory = False
                 return True
         return False
 
 
-class ChannelObserver():
+class ChannelObserver:
     """Channel observer interface for the Observer pattern.
     This interface is used to observe the communication channel during the federated learning
     process.
@@ -336,7 +336,7 @@ class Channel(ObserverSubject):
         """
         msg = message.clone()
         self._buffer[mbox].append(msg)
-        self._notify_message_sent(mbox, msg)
+        self.notify(event="message_sent", message=msg, to=mbox)
 
     def receive(self, mbox: Any, sender: Any = None, msg_type: str = None) -> Message:
         """Receive (i.e., read) a message from a sender. The message is removed from the message box
@@ -368,14 +368,14 @@ class Channel(ObserverSubject):
         """
         if sender is None and msg_type is None:
             msg = self._buffer[mbox].pop()
-            self._notify_message_received(mbox, msg)
+            self.notify(event="message_received", message=msg, by=mbox)
             return msg
 
         for i, msg in enumerate(self._buffer[mbox]):
             if sender is None or msg.sender == sender:  # match sender
                 if msg_type is None or msg.msg_type == msg_type:  # match msg_type
                     msg = self._buffer[mbox].pop(i)
-                    self._notify_message_received(mbox, msg)
+                    self.notify(event="message_received", message=msg, by=mbox)
                     return msg
 
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
@@ -402,7 +402,7 @@ class Channel(ObserverSubject):
         for client in to:
             self.send(message, client)
         message.ram()
-        self._notify_message_broadcasted(to, message)
+        self.notify(event="message_broadcasted", message=message, to=to)
 
     def clear(self, mbox: Any) -> None:
         """Clear the message box of the given receiver.
@@ -421,33 +421,3 @@ class Channel(ObserverSubject):
                 cache.delete(f"{msg.id}")
 
         self._buffer[mbox].clear()
-
-    def _notify_message_received(self, by: Any, message: Message) -> None:
-        """Notify the observers that a message has been received.
-
-        Args:
-            by (Any): The receiver of the message.
-            message (Message): The message received.
-        """
-        for observer in self._observers:
-            observer.message_received(by, message)
-
-    def _notify_message_sent(self, to: Any, message: Message) -> None:
-        """Notify the observers that a message has been sent.
-
-        Args:
-            to (Any): The receiver of the message.
-            message (Message): The message sent.
-        """
-        for observer in self._observers:
-            observer.message_sent(to, message)
-
-    def _notify_message_broadcasted(self, to: list[Any], message: Message) -> None:
-        """Notify the observers that a message has been broadcasted.
-
-        Args:
-            to (list[Any]): The list of receivers of the message.
-            message (Message): The message broadcasted.
-        """
-        for observer in self._observers:
-            observer.message_broadcasted(to, message)

@@ -103,13 +103,13 @@ def test_centralized_fl():
             assert round == 1
             self.called_end = True
 
-        def server_evaluation(self, round, type, evals) -> None:
+        def server_evaluation(self, round, eval_type, evals) -> None:
             assert round == 1
-            assert type == "global"
+            assert eval_type == "global"
             assert "accuracy" in evals
             self.called_server_eval = True
 
-        def client_evaluation(self, round, client_id, phase, evals, **kwargs: dict[str, Any]):
+        def client_evaluation(self, round, client_id, phase, evals, **kwargs):
             assert round == 1 or (round == -1 and phase == "pre-fit")
             assert phase == "post-fit" or phase == "pre-fit"
             assert client_id == 0 or client_id == 1
@@ -124,12 +124,12 @@ def test_centralized_fl():
             assert round == 2
             self.called_finished = True
 
-        def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+        def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
             assert round == 1
             assert client_id == 0 or client_id == 1
             self.called_start_fit = True
 
-        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs: dict[str, Any]):
+        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
             assert round == 1
             assert client_id == 0 or client_id == 1
             assert loss >= 0.0
@@ -487,22 +487,22 @@ def test_superfed():
 
 
 if __name__ == "__main__":
-    # test_centralized_fl()
+    test_centralized_fl()
     # test_apfl()
     # test_ccvr()
     # test_ditto()
     # test_fat()
-    test_fedamp()
+    # test_fedamp()
     # test_fedavg()
     # test_fedavgm()
     # test_fedaws()
-    # test_fedbabu()
+    test_fedbabu()
     # test_fedbn()
-    # test_feddyn()
+    test_feddyn()
     # test_fedexp()
-    # test_fedhp()
+    test_fedhp()
     # test_fedlc()
-    # test_fednh()
+    test_fednh()
     # test_fednova()
     # test_fedopt()
     # test_fedper()

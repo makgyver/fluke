@@ -43,7 +43,6 @@ The following excperts show the constructor of the [Client](../fluke.client.md) 
             self.optimizer: Optimizer = None
             self.scheduler: LRScheduler = None
             self.device: device = FlukeENV().get_device()
-            self._server: Server = None
             self._channel: Channel = None
             self._last_round: int = 0
 
@@ -193,7 +192,7 @@ Likewise the `Server` class, you should follow the following best practices:
       :linenos:
   
       def send_model(self) -> None:
-          self.channel.send(Message(self.model, "model", self), self.server)
+          self.channel.send(Message(self.model, "model", self.index), "server")
   ```
 
 - **Minimal changes principle**: this principle universally applies to software development but it is particularly important when overriding the `fit` method. Start by copying the standard implementation of the `fit` method and then modify only the parts that are specific to your federated protocol. This will help you to keep the code clean and to avoid introducing nasty bugs.
@@ -253,9 +252,9 @@ The following is an example of the `FedProxClient` class (see [FedProx](../algo/
 The `Client` class triggers callbacks to the observers that have been registered to the client.
 The default notifications are:
 
-- `_notify_start_fit`: triggered at the beginning of the `fit` method. It calls `ClientObserver.start_fit` on each observer;
-- `_notify_end_fit`: triggered at the end of the `fit` method. It calls `ClientObserver.end_fit` on each observer;
-- `_notify_evaluation`: it should be triggered after an evaluation has been performed. It calls `ClientObserver.evaluation` on each observer;
+- `notify(event="start_fit", ...)`: triggered at the beginning of the `fit` method. It calls `ClientObserver.start_fit` on each observer;
+- `notify(event="end_fit", ...)`: triggered at the end of the `fit` method. It calls `ClientObserver.end_fit` on each observer;
+- `notify(event="client_evaluation", ...)`: it should be triggered after an evaluation has been performed. It calls `ClientObserver.evaluation` on each observer;
 
 :::{hint}
     

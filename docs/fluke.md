@@ -44,8 +44,6 @@ Classes included in ``fluke``
 
    DDict
    FlukeCache
-   FlukeCache._ObjectRef
-   FlukeCache._RefCounter
    FlukeENV
    ObserverSubject
    Singleton
@@ -77,34 +75,6 @@ Classes included in ``fluke``
 ```{eval-rst}
 
 .. autoclass:: fluke.FlukeCache
-   :show-inheritance:
-   :members:
-
-```
-
-<h3>
-
-{bdg-primary}`private class` ``fluke.FlukeCache._ObjectRef``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.FlukeCache._ObjectRef
-   :show-inheritance:
-   :members:
-
-```
-
-<h3>
-
-{bdg-primary}`private class` ``fluke.FlukeCache._RefCounter``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.FlukeCache._RefCounter
    :show-inheritance:
    :members:
 

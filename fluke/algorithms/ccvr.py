@@ -6,7 +6,7 @@ References:
        (2021). URL: https://arxiv.org/abs/2106.05001
 """
 import sys
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import numpy as np
 import torch
@@ -69,7 +69,7 @@ class CCVRClient(Client):
 
         payload = (classes_mean, classes_cov, ex_x_class)
         self.model.cpu()
-        self.channel.send(Message(payload, "mean_cov", self, inmemory=True), self.server)
+        self.channel.send(Message(payload, "mean_cov", self.index, inmemory=True), "server")
         self._save_to_cache()
 
 
@@ -78,12 +78,12 @@ class CCVRServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  lr: float = 0.1,
                  batch_size: int = 64,
                  sample_per_class: int = 100,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(
             lr=lr,
@@ -95,7 +95,7 @@ class CCVRServer(Server):
         means, covs, ns = [], [], []
         for client in self.clients:
             client.compute_mean_cov()
-            mean, cov, n = self.channel.receive(self, client, msg_type="mean_cov").payload
+            mean, cov, n = self.channel.receive("server", client.index, msg_type="mean_cov").payload
             means.append(mean)
             covs.append(cov)
             ns.append(n)
@@ -129,8 +129,8 @@ class CCVRServer(Server):
         return classes_mean, classes_cov
 
     def _generate_virtual_repr(self,
-                               classes_mean: Iterable[torch.Tensor],
-                               classes_cov: Iterable[torch.Tensor]) -> tuple[torch.Tensor,
+                               classes_mean: Collection[torch.Tensor],
+                               classes_cov: Collection[torch.Tensor]) -> tuple[torch.Tensor,
                                                                              torch.Tensor]:
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):

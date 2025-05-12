@@ -6,7 +6,7 @@ References:
        In NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
 """
 import sys
-from typing import Any, Iterable
+from typing import Any, Collection
 
 import torch
 from torch.nn import Module
@@ -40,13 +40,13 @@ class FedNovaClient(Client):
                  local_epochs: int,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
         self.tau = 0
 
-    def _get_momentum(self):
+    def _get_momentum(self) -> float:
         if self.optimizer is None:
             if "momentum" in self._optimizer_cfg.optimizer_kwargs:
                 return self._optimizer_cfg.optimizer_kwargs["momentum"]
@@ -60,17 +60,17 @@ class FedNovaClient(Client):
         self.tau = self.hyper_params.local_epochs * self.train_set.n_batches
         rho = self._get_momentum()
         self.a = (self.tau - rho * (1.0 - pow(rho, self.tau)) / (1.0 - rho)) / (1.0 - rho)
-        self.channel.send(Message(self.a, "local_a", self, inmemory=True), self.server)
+        self.channel.send(Message(self.a, "local_a", self.index, inmemory=True), "server")
         return loss
 
 
 class FedNovaServer(Server):
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         a_i = [
-            self.channel.receive(self, client, "local_a").payload
+            self.channel.receive("server", client.index, "local_a").payload
             for client in eligible
         ]
         coeff = sum([a_i[i] * weights[i] for i in range(len(eligible))])
