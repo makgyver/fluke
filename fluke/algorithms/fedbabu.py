@@ -6,7 +6,7 @@ References:
        for Federated Image Classification. In ICLR (2022). URL: https://arxiv.org/abs/2106.06042
 """
 import sys
-from typing import Any, Collection
+from typing import Collection
 
 from rich.progress import Progress
 from torch.nn import Module
@@ -18,10 +18,11 @@ from .. import FlukeENV  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 

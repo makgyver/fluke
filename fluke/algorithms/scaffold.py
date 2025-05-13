@@ -8,7 +8,7 @@ References:
 import sys
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -20,9 +20,10 @@ from .. import FlukeENV  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
 
 __all__ = [

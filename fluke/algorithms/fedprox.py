@@ -7,7 +7,6 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any
 
 import torch
 
@@ -15,10 +14,10 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
-
 
 __all__ = [
     "FedProxClient",

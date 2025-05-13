@@ -9,6 +9,21 @@ from torch.nn import CrossEntropyLoss, Linear
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
 
+from fluke.utils import (ClientObserver, ServerObserver, bytes2human,
+                         cache_obj, clear_cuda_cache, flatten_dict,
+                         get_class_from_qualified_name, get_class_from_str,
+                         get_full_classname, get_loss, get_model,
+                         get_optimizer, get_scheduler, import_module_from_str,
+                         memory_usage, plot_distribution, retrieve_obj)
+from fluke.utils.model import (AllLayerOutputModel, MMMixin,
+                               batch_norm_to_group_norm, check_model_fit_mem,
+                               diff_model, flatten_parameters,
+                               get_activation_size, get_global_model_dict,
+                               get_local_model_dict, get_trainable_keys,
+                               merge_models, mix_networks,
+                               safe_load_state_dict, set_lambda_model,
+                               state_dict_zero_like)
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -17,24 +32,14 @@ from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import Message  # NOQA
+from fluke.config import (Configuration, ConfigurationError,  # NOQA
+                          OptimizerConfigurator)
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import (ClientObserver, Configuration, ConfigurationError,  # NOQA
-                         OptimizerConfigurator, ServerObserver, clear_cuda_cache,
-                         get_class_from_qualified_name, get_class_from_str,
-                         get_full_classname, get_loss, get_model, get_optimizer, bytes2human,
-                         get_scheduler, import_module_from_str, memory_usage,
-                         plot_distribution, retrieve_obj, cache_obj, flatten_dict)
 from fluke.utils.log import Log, get_logger  # NOQA
-from fluke.utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
-                               AllLayerOutputModel, MMMixin,
-                               batch_norm_to_group_norm, check_model_fit_mem,
-                               diff_model, flatten_parameters,
-                               get_global_model_dict, get_local_model_dict, get_trainable_keys,
-                               merge_models, mix_networks, get_activation_size,
-                               safe_load_state_dict, set_lambda_model, state_dict_zero_like)
+from fluke.utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 
 def test_optimcfg():

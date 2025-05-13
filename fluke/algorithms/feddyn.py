@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Collection
+from typing import Collection
 
 import numpy as np
 import torch
@@ -19,9 +19,10 @@ sys.path.append("..")
 from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import aggregate_models, safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
 

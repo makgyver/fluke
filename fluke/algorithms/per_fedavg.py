@@ -8,7 +8,7 @@ References:
 import sys
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Union
+from typing import Union
 
 import torch
 from torch.optim import Optimizer
@@ -18,8 +18,8 @@ sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 
 __all__ = [
     "PerFedAVGOptimizer",

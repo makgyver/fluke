@@ -6,7 +6,7 @@ References:
        In NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
 """
 import sys
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -17,9 +17,9 @@ sys.path.append("..")
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import aggregate_models  # NOQA
 
 __all__ = [

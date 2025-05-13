@@ -10,10 +10,10 @@ sys.path.append("..")
 
 from fluke import DDict, FlukeENV  # NOQA
 from fluke.client import Client, PFLClient  # NOQA
+from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import OptimizerConfigurator  # NOQA
 
 
 def test_client_cache():

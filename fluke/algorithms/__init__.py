@@ -7,9 +7,11 @@ import sys
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Collection, Union, Callable
+from typing import Any, Callable, Collection, Union
 
 import torch
+
+from ..utils import ServerObserver, get_loss, get_model
 
 sys.path.append(".")
 sys.path.append("..")
@@ -17,10 +19,10 @@ sys.path.append("..")
 from .. import DDict, FlukeENV  # NOQA
 from ..client import Client, PFLClient  # NOQA
 from ..comm import ChannelObserver  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import (ClientObserver, OptimizerConfigurator,  # NOQA
-                     ServerObserver, get_loss, get_model)
+from ..utils import ClientObserver  # NOQA
 
 __all__ = [
     'CentralizedFL',

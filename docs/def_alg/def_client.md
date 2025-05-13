@@ -12,7 +12,7 @@ In ``fluke``, the `Client` class represents the client-side logic of a federated
 The `Client` constructor is responsible for initializing the client. Usually, there is not much more to it than setting the client's attributes. However, there are some important notions that you should be aware of:
 
 - all the client's hyperparameters should be set in the `hyper_params` attribute that is a [DDict](../fluke.md). This best practice ensure that the hyperparameters are easily accessible and stored in a single place;
-- the optimizer and the scheduler are not initialized in the constructor becuase the client does not own a model yet. They are initialized in the `fit` method. This should be done using the `optimizer_cfg` (see [OptimizerConfigurator](../fluke.utils.md)) attribute that is a callable that returns the optimizer and the scheduler. This is done to allow the optimizer to be initialized with the correct model parameters.
+- the optimizer and the scheduler are not initialized in the constructor becuase the client does not own a model yet. They are initialized in the `fit` method. This should be done using the `optimizer_cfg` (see [OptimizerConfigurator](../fluke.config.md)) attribute that is a callable that returns the optimizer and the scheduler. This is done to allow the optimizer to be initialized with the correct model parameters.
 
 The following excperts show the constructor of the [Client](../fluke.client.md) class an hypothetical new client class.
 

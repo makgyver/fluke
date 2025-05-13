@@ -6,7 +6,6 @@ References:
        In AISTATS (2017). URL: https://arxiv.org/abs/1602.05629
 """
 import sys
-from typing import Any
 
 import torch
 
@@ -15,9 +14,8 @@ sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
-
 
 __all__ = [
     "FedSGDClient",

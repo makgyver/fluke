@@ -5,6 +5,7 @@ import sys
 import time
 from typing import Any, Literal, Union, Collection
 
+import clearml
 import numpy as np
 from pandas import DataFrame
 from psutil import Process
@@ -540,7 +541,8 @@ class ClearMLLog(TensorboardLog):
 
     def __init__(self, **config):
         super().__init__(name=config['name'])
-        self.config = DDict(**config)
+        self.config: DDict = DDict(**config)
+        self.task: clearml.task.Task = None
 
     def init(self, **kwargs) -> None:
         super().init(**kwargs)

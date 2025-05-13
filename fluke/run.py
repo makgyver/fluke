@@ -3,20 +3,21 @@
 import os
 import sys
 import uuid
+from pathlib import Path
 from typing import Any, List, Optional
 
 import typer
-from rich.console import Console
-from omegaconf import DictConfig
-from pathlib import Path
-from omegaconf import OmegaConf
 from hydra import compose, initialize_config_dir
+from omegaconf import DictConfig, OmegaConf
+from rich.console import Console
 
 sys.path.append(".")
 
 from . import __version__  # NOQA
-from .utils import (Configuration, ConfigurationError, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model, plot_distribution)
+from .config import (Configuration, ConfigurationError,  # NOQA
+                     OptimizerConfigurator)
+from .utils import (get_class_from_qualified_name, get_loss, get_model,  # NOQA
+                    plot_distribution)
 
 console = Console()
 app = typer.Typer()
@@ -169,9 +170,9 @@ def sweep(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
 
 def _run_federation(cfg: Configuration, resume: str = None) -> None:
+    import yaml
     from rich.panel import Panel
     from rich.pretty import Pretty
-    import yaml
 
     from . import FlukeENV  # NOQA
     from .data import DataSplitter  # NOQA

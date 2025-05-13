@@ -5,7 +5,7 @@ References:
        Federated Learning. In arXiv (2020). URL: https://arxiv.org/abs/2003.13461
 """
 import sys
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -15,9 +15,10 @@ sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client, PFLClient  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import merge_models  # NOQA
 
 __all__ = [

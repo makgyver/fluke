@@ -7,7 +7,7 @@ References:
        URL: https://arxiv.org/abs/2001.01523
 """
 import sys
-from typing import Any, Collection
+from typing import Collection
 
 # from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
@@ -18,10 +18,11 @@ sys.path.append("..")
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet, HeadGlobalEncoderLocalNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, get_model  # NOQA
+from ..utils import get_model  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 __all__ = [

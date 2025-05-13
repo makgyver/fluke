@@ -11,10 +11,11 @@ import uuid
 import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Collection, Union
-from omegaconf import DictConfig
+
 import numpy as np
 import torch
 from diskcache import Cache
+from omegaconf import DictConfig
 from rich.console import Group
 from rich.progress import Live, Progress
 
@@ -26,6 +27,7 @@ __all__ = [
     'algorithms',
     'client',
     'comm',
+    'config',
     'data',
     'evaluation',
     'get',

@@ -6,7 +6,6 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any
 
 import torch
 from torch.nn import CosineSimilarity
@@ -17,8 +16,9 @@ sys.path.append("..")
 from .. import FlukeENV  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 __all__ = [

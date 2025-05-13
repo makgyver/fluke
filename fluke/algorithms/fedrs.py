@@ -6,7 +6,7 @@ References:
        URL: https://doi.org/10.1145/3447548.3467254
 """
 import sys
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
@@ -15,8 +15,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
