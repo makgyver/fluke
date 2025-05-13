@@ -7,7 +7,7 @@ References:
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -17,11 +17,12 @@ sys.path.append("..")
 
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
+from ..utils import clear_cuda_cache, get_model  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [

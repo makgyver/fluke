@@ -8,7 +8,7 @@ References:
 """
 import copy
 import sys
-from typing import Any, Generator, Collection, Literal
+from typing import Collection, Generator, Literal
 
 import torch
 import torch.optim as optim
@@ -21,10 +21,11 @@ sys.path.append("..")
 from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import get_activation_size  # NOQA
 from . import PersonalizedFL  # NOQA
 

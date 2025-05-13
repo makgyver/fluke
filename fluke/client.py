@@ -9,19 +9,20 @@ from typing import Any
 import torch
 from torch import device
 from torch.nn import Module
-from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.utils.data import DataLoader
 
 sys.path.append(".")
 
 from . import DDict, FlukeCache, FlukeENV, ObserverSubject  # NOQA
 from .comm import Channel, Message  # NOQA
+from .config import OptimizerConfigurator  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
 from .server import Server  # NOQA
-from .utils import (OptimizerConfigurator, cache_obj, clear_cuda_cache,  # NOQA
-                    retrieve_obj, ClientObserver)
+from .utils import (ClientObserver, cache_obj, clear_cuda_cache,  # NOQA
+                    retrieve_obj)
 from .utils.model import ModOpt, safe_load_state_dict  # NOQA
 
 __all__ = [
@@ -71,14 +72,14 @@ class Client(ObserverSubject):
             after the local update.
 
     Attention:
-        Make sure to set the persistency of the client to false only if forgetting the model, 
-        optimizer and scheduler does not conflict with the training process. For example, the 
-        persistency should be set to false if the client is stateless and the model, optimizer 
-        and scheduler are re-initialized at each local update. If the client is stateful, the 
-        persistency should be set to true to avoid re-initializing the model, optimizer and 
-        scheduler at each local update. Moreover, the overall performance of the client may be 
-        affected if the persistency is set to false, in the sense that it may not coincide the same 
-        experiment with persistency set to true as the re-initialization of the model, optimizer and 
+        Make sure to set the persistency of the client to false only if forgetting the model,
+        optimizer and scheduler does not conflict with the training process. For example, the
+        persistency should be set to false if the client is stateless and the model, optimizer
+        and scheduler are re-initialized at each local update. If the client is stateful, the
+        persistency should be set to true to avoid re-initializing the model, optimizer and
+        scheduler at each local update. Moreover, the overall performance of the client may be
+        affected if the persistency is set to false, in the sense that it may not coincide the same
+        experiment with persistency set to true as the re-initialization of the model, optimizer and
         scheduler may lead to different results.
 
     Important:

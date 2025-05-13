@@ -6,8 +6,9 @@ References:
        URL: https://arxiv.org/abs/2102.07078
 """
 import sys
-from typing import Any, Collection
 from dataclasses import dataclass
+from typing import Collection
+
 import torch
 
 sys.path.append(".")
@@ -16,11 +17,12 @@ sys.path.append("..")
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
-from ..utils.model import safe_load_state_dict, ModOpt  # NOQA
+from ..utils import clear_cuda_cache, get_model  # NOQA
+from ..utils.model import ModOpt, safe_load_state_dict  # NOQA
 
 __all__ = [
     "FedRepClient",

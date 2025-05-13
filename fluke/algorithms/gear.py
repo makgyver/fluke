@@ -6,21 +6,22 @@ References:
        URL: https://federated-learning.org/fl-aaai-2022/Papers/FL-AAAI-22_paper_34.pdf
 
 """
-import torch.nn.functional as F
-import torch.nn as nn
 import sys
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [

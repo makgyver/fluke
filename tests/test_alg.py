@@ -2,9 +2,11 @@ import gc
 import sys
 import tempfile
 from typing import Any
+
+import numpy as np
 from torch.nn import CrossEntropyLoss, Module
 from torch.optim import SGD
-import numpy as np
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -12,12 +14,13 @@ from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import ChannelObserver, Message  # NOQA
+from fluke.config import Configuration  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
+from fluke.utils import (ClientObserver, ServerObserver,  # NOQA
                          get_class_from_qualified_name)
 from fluke.utils.log import Log  # NOQA
 

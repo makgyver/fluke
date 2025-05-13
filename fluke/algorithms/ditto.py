@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Iterator
+from typing import Iterator
 
 import torch
 from torch.nn.parameter import Parameter
@@ -17,8 +17,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import PFLClient  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from . import PersonalizedFL  # NOQA
 
 __all__ = [

@@ -8,7 +8,7 @@ References:
 """
 import sys
 from collections import defaultdict
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import CrossEntropyLoss, Module, Parameter
@@ -20,10 +20,11 @@ sys.path.append("..")
 
 from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
+from ..utils import clear_cuda_cache, get_model  # NOQA
 from ..utils.model import get_activation_size  # NOQA
 from . import CentralizedFL  # NOQA
 

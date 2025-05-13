@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2209.00189
 """
 import sys
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
@@ -15,10 +15,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
-
 
 __all__ = [
     "CalibratedLoss",

@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 
@@ -17,10 +17,10 @@ sys.path.append("..")
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 

@@ -7,7 +7,7 @@ References:
 
 """
 import sys
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import CrossEntropyLoss, Module
@@ -16,9 +16,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [

@@ -11,7 +11,7 @@ References:
        In ArXiv (2017). URL: https://arxiv.org/abs/1712.07557
 """
 import sys
-from typing import Collection, Any
+from typing import Collection
 
 import torch
 from opacus import PrivacyEngine
@@ -21,9 +21,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [

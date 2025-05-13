@@ -5,7 +5,6 @@ References:
        for Personalized Federated Learning. In KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
 import sys
-from typing import Any
 from copy import deepcopy
 
 import numpy as np
@@ -16,10 +15,12 @@ sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import PFLClient  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache, retrieve_obj  # NOQA
-from ..utils.model import (get_global_model_dict, get_local_model_dict, mix_networks,  # NOQA
-                           set_lambda_model, safe_load_state_dict, ModOpt)
+from ..utils import clear_cuda_cache, retrieve_obj  # NOQA
+from ..utils.model import (ModOpt, get_global_model_dict,  # NOQA
+                           get_local_model_dict, mix_networks,
+                           safe_load_state_dict, set_lambda_model)
 
 __all__ = [
     "SuPerFedClient",

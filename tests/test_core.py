@@ -11,8 +11,8 @@ from rich.progress import Progress
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke import DDict, FlukeENV, ObserverSubject, FlukeCache  # NOQA
-from fluke.utils import Configuration  # NOQA
+from fluke import DDict, FlukeCache, FlukeENV, ObserverSubject  # NOQA
+from fluke.config import Configuration  # NOQA
 
 
 def test_env():

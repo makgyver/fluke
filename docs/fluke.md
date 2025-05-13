@@ -20,8 +20,9 @@
 
    algorithms
    data
-   comm
    client
+   comm
+   config
    evaluation
    nets
    server

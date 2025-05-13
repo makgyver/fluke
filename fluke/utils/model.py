@@ -387,6 +387,84 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
             self.eps,
         )
 
+class AllLayerOutputModel(nn.Module):
+    """Wrapper class to get the output of all layers in a model.
+    Once the model is wrapped with this class, the activations of all layers can be accessed through
+    the attributes ``activations_in`` and ``activations_out``.
+
+    ``activations_in`` is a dictionary that contains the input activations of all layers.
+    ``activations_out`` is a dictionary that contains the output activations of all layers.
+
+    Note:
+        The activations are stored in the order in which they are computed during the forward pass.
+
+    Important:
+        If you need to access the activations of a specific layer after a potential activation
+        function, you should use the ``activations_in`` of the next layer. For example, if you
+        need the activations of the first layer after the ReLU activation, you should use the
+        activations_in of the second layer. These attribute may not include the activations of the
+        last layer if it includes an activation function.
+
+    Important:
+        If your model includes as submodule all the activations functions (e.g., of type
+        torch.nn.ReLU), then you can use the ``activations_out`` attribute to get all the
+        activations (i.e., before and after the activation functions).
+
+    Attributes:
+        model (torch.nn.Module): The model to wrap.
+        activations_in (OrderedDict): The input activations of all layers.
+        activations_out (OrderedDict): The output activations of all layers.
+
+    Args:
+        model (torch.nn.Module): The model to wrap.
+    """
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+        self.activations_in = OrderedDict()
+        self.activations_out = OrderedDict()
+        self._handles = []
+        self.activate()
+
+    def is_active(self) -> bool:
+        """Returns whether the all layer output model is active.
+
+        Returns:
+            bool: Whether the all layer output model is active.
+        """
+        return bool(self._handles)
+
+    def activate(self) -> None:
+        """Activate the all layer output functionality."""
+        _recursive_register_hook(self.model, self._get_activation, handles=self._handles)
+        # for layer in self.model.modules():
+        #     self._handles.append(layer.register_forward_hook(self._get_activation(layer)))
+
+    def deactivate(self, clear_activations: bool = True) -> None:
+        """Deactivate the all layer output functionality.
+
+        Args:
+            clear_activations (bool, optional): Whether to clear the stored activations. Defaults to
+                ``True``.
+        """
+        for h in self._handles:
+            h.remove()
+        self._handles = []
+        if clear_activations:
+            self.activations_in = OrderedDict()
+            self.activations_out = OrderedDict()
+
+    def _get_activation(self, name: str) -> callable:
+        def hook(model, input, output):
+            # if name not in self.activations_in:
+            self.activations_in[name] = input[0].detach()
+            self.activations_out[name] = output.detach()
+        return hook
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
+
 
 def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module) -> dict:
     layers = {}
@@ -901,81 +979,3 @@ def _recursive_register_hook(module: Module, hook: callable, name: str = "", han
             handles.append(sub_module.register_forward_hook(hook(current_name)))
     return empty
 
-
-class AllLayerOutputModel(nn.Module):
-    """Wrapper class to get the output of all layers in a model.
-    Once the model is wrapped with this class, the activations of all layers can be accessed through
-    the attributes ``activations_in`` and ``activations_out``.
-
-    ``activations_in`` is a dictionary that contains the input activations of all layers.
-    ``activations_out`` is a dictionary that contains the output activations of all layers.
-
-    Note:
-        The activations are stored in the order in which they are computed during the forward pass.
-
-    Important:
-        If you need to access the activations of a specific layer after a potential activation
-        function, you should use the ``activations_in`` of the next layer. For example, if you
-        need the activations of the first layer after the ReLU activation, you should use the
-        activations_in of the second layer. These attribute may not include the activations of the
-        last layer if it includes an activation function.
-
-    Important:
-        If your model includes as submodule all the activations functions (e.g., of type
-        torch.nn.ReLU), then you can use the ``activations_out`` attribute to get all the
-        activations (i.e., before and after the activation functions).
-
-    Attributes:
-        model (torch.nn.Module): The model to wrap.
-        activations_in (OrderedDict): The input activations of all layers.
-        activations_out (OrderedDict): The output activations of all layers.
-
-    Args:
-        model (torch.nn.Module): The model to wrap.
-    """
-
-    def __init__(self, model: nn.Module):
-        super().__init__()
-        self.model = model
-        self.activations_in = OrderedDict()
-        self.activations_out = OrderedDict()
-        self._handles = []
-        self.activate()
-
-    def is_active(self) -> bool:
-        """Returns whether the all layer output model is active.
-
-        Returns:
-            bool: Whether the all layer output model is active.
-        """
-        return bool(self._handles)
-
-    def activate(self) -> None:
-        """Activate the all layer output functionality."""
-        _recursive_register_hook(self.model, self._get_activation, handles=self._handles)
-        # for layer in self.model.modules():
-        #     self._handles.append(layer.register_forward_hook(self._get_activation(layer)))
-
-    def deactivate(self, clear_activations: bool = True) -> None:
-        """Deactivate the all layer output functionality.
-
-        Args:
-            clear_activations (bool, optional): Whether to clear the stored activations. Defaults to
-                ``True``.
-        """
-        for h in self._handles:
-            h.remove()
-        self._handles = []
-        if clear_activations:
-            self.activations_in = OrderedDict()
-            self.activations_out = OrderedDict()
-
-    def _get_activation(self, name: str) -> callable:
-        def hook(model, input, output):
-            # if name not in self.activations_in:
-            self.activations_in[name] = input[0].detach()
-            self.activations_out[name] = output.detach()
-        return hook
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
