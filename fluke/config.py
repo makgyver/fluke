@@ -81,7 +81,8 @@ class Configuration(DDict):
         return cfg
 
     @classmethod
-    def fromkeys(cls, cfg_dict: dict | DictConfig) -> Configuration:
+    def fromkeys(cls, *args, **kwargs) -> Configuration:
+        # Hides the fromkeys method of dict
         raise AttributeError("'Configuration' class has no method 'fromkeys'")
 
     def to_dict(self) -> dict:
@@ -90,7 +91,7 @@ class Configuration(DDict):
         Returns:
             dict: The dictionary.
         """
-        def _to_dict(ddict: DDict) -> dict | Any:
+        def _to_dict(ddict: DDict) -> Any:
             if not isinstance(ddict, dict):
                 if isinstance(ddict, type):
                     return ddict.__name__
@@ -132,8 +133,7 @@ class Configuration(DDict):
             list[Configuration]: A list of configurations.
         """
         normalized = {
-            k: v if isinstance(v, (list, dict, ListConfig)) else [
-                v]  # strings of numbers treated as is
+            k: v if isinstance(v, (list, dict, ListConfig)) else [v]
             for k, v in cfgs.items()
         }
 
@@ -213,11 +213,15 @@ class Configuration(DDict):
             "type": "dict",
             "schema": {
                 "device": {
-                    "type": "string",
                     "required": False,
                     "default": "cpu",
-                    "anyof": [{"allowed": ["cpu", "cuda", "mps"]},
-                              {"regex": "^cuda:[0-9]+$"}]
+                    "anyof":  [{
+                        "type": "string",
+                        "anyof": [{"allowed": ["cpu", "cuda", "mps"]},
+                                  {"regex": "^cuda:[0-9]+$"}]
+                    }, {
+                        "type": "list"
+                    }],
                 },
                 "seed": {"type": "integer", "required": False, "default": 42},
                 "inmemory": {"type": "boolean", "required": False, "default": True}

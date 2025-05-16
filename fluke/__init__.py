@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Collection, Union
 import numpy as np
 import torch
 from diskcache import Cache
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from rich.console import Group
 from rich.progress import Live, Progress
 
@@ -125,6 +125,8 @@ class DDict(dict):
                 for k, v in arg.items():
                     if isinstance(v, (dict, DictConfig)):
                         self[k] = DDict(**v)
+                    elif isinstance(v, ListConfig):
+                        self[k] = list(v)
                     else:
                         self[k] = v
             else:
@@ -133,6 +135,8 @@ class DDict(dict):
         for k, v in kwargs.items():
             if isinstance(v, (dict, DictConfig)):
                 self[k] = DDict(**v)
+            elif isinstance(v, ListConfig):
+                self[k] = list(v)
             else:
                 self[k] = v
 
@@ -297,6 +301,7 @@ class FlukeENV(metaclass=Singleton):
 
     # general settings
     _device: torch.device = torch.device('cpu')
+    _device_ids: list[int] = []
     _seed: int = 0
     _inmemory: bool = True
     _cache: FlukeCache | None = None
@@ -420,7 +425,7 @@ class FlukeENV(metaclass=Singleton):
             self._device = torch.device('cpu')
         return self._device
 
-    def set_device(self, device: str) -> torch.device:
+    def set_device(self, device: str | list) -> torch.device:
         """Set the device. The device can be ``cpu``, ``auto``, ``mps``, ``cuda`` or ``cuda:N``,
         where ``N`` is the GPU index.
 
@@ -430,15 +435,28 @@ class FlukeENV(metaclass=Singleton):
         Returns:
             torch.device: The selected device as torch.device.
         """
-        assert device in ['cpu', 'auto', 'mps', 'cuda'] or re.match(r'^cuda:\d+$', device), \
-            f"Invalid device {device}."
+        assert device in ['cpu', 'auto', 'mps', 'cuda'] or isinstance(device, list) \
+               or re.match(r'^cuda:\d+$', device), f"Invalid device {device}."
 
         if device == "auto":
             return FlukeENV().auto_device()
 
-        if device.startswith('cuda') and ":" in device:
+        if isinstance(device, list):
+            for d in device:
+                if isinstance(d, int):
+                    self._device_ids.append(d)
+                elif re.match(r'^cuda:\d+$', d):
+                    self._device_ids.append(int(d.split(':')[1]))
+                else:
+                    raise ValueError(f"Invalid device/device_id {d}.")
+
+            self._device = torch.device(device[0])
+
+        elif device.startswith('cuda') and ":" in device:
             idx = int(device.split(":")[1])
             self._device = torch.device("cuda", idx)
+            self._device_ids.append(idx)
+
         else:
             self._device = torch.device(device)
         return self._device
@@ -450,6 +468,27 @@ class FlukeENV(metaclass=Singleton):
             torch.device: The device.
         """
         return self._device
+
+    def get_device_ids(self) -> list[int]:
+        """Get the device ids if the device is ``cuda``.
+
+        Note:
+            The device ids are the indices of the GPUs that are used by the client. If the device is
+            ``cpu`` or ``mps``, an empty list is returned.
+
+        Returns:
+            list[int]: The device ids.
+        """
+        return self._device_ids
+
+    def is_parallel_client(self):
+        """
+        Check if the client runs in parallel mode, i.e., using multiple GPUs.
+
+        Returns:
+            bool: True if the client runs in parallel mode, False otherwise.
+        """
+        return len(self._device_ids) > 1
 
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.

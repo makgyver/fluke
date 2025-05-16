@@ -551,6 +551,13 @@ class ClearMLLog(TensorboardLog):
         self.task = Task.init(task_name=self.config.name, **self.config.exclude("name"))
         self.task.connect(kwargs)
 
+    def close(self) -> None:
+        from clearml import Task
+        super().close()
+        if self.task is not None:
+            self.task.close()
+            self.task = None
+
 
 def get_logger(lname: str, **kwargs) -> Log:
     """Get a logger from its name.

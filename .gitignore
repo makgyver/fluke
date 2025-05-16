@@ -19,3 +19,4 @@ checkpoint*/
 chk_*
 .vscode/launch.json
 .idea/
+logs/

@@ -275,6 +275,9 @@ class Client(ObserverSubject):
         """
         self.channel.send(Message(self.model, "model", self.index, inmemory=True), "server")
 
+    def _model_to_dataparallel(self):
+        self.model = torch.nn.DataParallel(self.model, device_ids=FlukeENV().get_device_ids())
+
     def local_update(self, current_round: int) -> None:
         """Client's local update procedure.
         Before starting the local training, the client receives the global model from the server.
@@ -290,8 +293,12 @@ class Client(ObserverSubject):
         self._load_from_cache()
         self.receive_model()
 
-        if FlukeENV().get_eval_cfg().pre_fit:
-            metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
+        fluke_env = FlukeENV()
+        if fluke_env.is_parallel_client():
+            self._model_to_dataparallel()
+
+        if fluke_env.get_eval_cfg().pre_fit:
+            metrics = self.evaluate(fluke_env.get_evaluator(), self.test_set)
             if metrics:
                 self.notify(event="client_evaluation",
                             round=current_round,
@@ -307,8 +314,8 @@ class Client(ObserverSubject):
                     model=self.model,
                     loss=loss)
 
-        if FlukeENV().get_eval_cfg().post_fit:
-            metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
+        if fluke_env.get_eval_cfg().post_fit:
+            metrics = self.evaluate(fluke_env.get_evaluator(), self.test_set)
             if metrics:
                 self.notify(event="client_evaluation",
                             round=current_round,
