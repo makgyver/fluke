@@ -20,9 +20,7 @@ from .comm import Channel, Message  # NOQA
 from .config import OptimizerConfigurator  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
-from .server import Server  # NOQA
-from .utils import (ClientObserver, cache_obj, clear_cuda_cache,  # NOQA
-                    retrieve_obj)
+from .utils import cache_obj, clear_cuda_cache, retrieve_obj  # NOQA
 from .utils.model import ModOpt, safe_load_state_dict  # NOQA
 
 __all__ = [
@@ -307,7 +305,15 @@ class Client(ObserverSubject):
                             evals=metrics)
 
         self.notify("start_fit", round=current_round, client_id=self.index, model=self.model)
-        loss = self.fit()
+
+        try:
+            loss = self.fit()
+        except KeyboardInterrupt:
+            if fluke_env.is_parallel_client():
+                self.model = self.model.module
+            self._check_persistency()
+            raise KeyboardInterrupt()
+
         self.notify("end_fit",
                     round=current_round,
                     client_id=self.index,
@@ -322,6 +328,9 @@ class Client(ObserverSubject):
                             client_id=self.index,
                             phase="post-fit",
                             evals=metrics)
+
+        if fluke_env.is_parallel_client():
+            self.model = self.model.module
 
         self.send_model()
         self._check_persistency()
