@@ -261,7 +261,7 @@ class Server(ObserverSubject):
             if not self._participants:
                 self._participants = set(range(self.n_clients))
             return self.clients
-        n = int(self.n_clients * eligible_perc)
+        n = max(1, int(self.n_clients * eligible_perc))
         selected = np.random.choice(self.clients, n, replace=False)
         return selected
 

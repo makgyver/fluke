@@ -272,12 +272,24 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                      cfg.protocol.eligible_perc)
     cfg.exp_id = uuid.uuid4().hex
     exp_name = f"Clients-only [{cfg.exp_id}]"
-    log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
-    log.init(**cfg)
+
+    if "tags" in cfg.logger:
+        cfg.logger.tags = [f"{cfg.exp_id}"] + cfg.logger.tags
+    elif cfg.logger.name in ["WandBLog", "ClearMLLog"]:
+        cfg.logger.tags = [f"{cfg.exp_id}"]
 
     # running_local_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     # running_shared_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in enumerate(zip(clients_tr_data, clients_te_data)):
+        name = f"Client [{i}]_{cfg.exp_id}"
+        if cfg.logger.name == "WandBLog":
+            cfg.logger.group = exp_name
+            cfg.logger.reinit = True
+
+
+        log = get_logger(cfg.logger.name, name=name, **cfg.logger.exclude('name'))
+        log.init(**cfg)
+
         log.log(f"Client [{i+1}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model, **hp.net_args if "net_args" in hp else {})
         model.to(device)
@@ -286,7 +298,7 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                        n_classes=data_container.num_classes)
-        for e in track(range(epochs), description="Traning...", transient=True):
+        for e in track(range(epochs), description="Training...", transient=True):
             model.to(device)
             model.train()
             for _, (X, y) in enumerate(train_loader):
@@ -301,11 +313,13 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
             if test_loader is not None:
                 client_local_eval = evaluator.evaluate(
                     e+1, model, test_loader, criterion, device=device)
+                client_local_eval["epoch"] = e+1
                 log.add_scalars(f"Client[{i}].local_test", client_local_eval, e+1)
                 # running_local_evals[i].append(client_local_eval)
             if shared_test is not None:
                 client_shared_eval = evaluator.evaluate(
                     e+1, model, shared_test, criterion, device=device)
+                client_shared_eval["epoch"] = e + 1
                 log.add_scalars(f"Client[{i}].shared_test", client_shared_eval, e+1)
                 # running_shared_evals[i].append(client_shared_eval)
 
@@ -319,6 +333,7 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
         log.pretty_log(perf, title=f"Client [{i}] Performance")
         model.cpu()
+        log.close()
 
     client_mean = {}
     if test_loader is not None:
