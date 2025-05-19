@@ -57,8 +57,8 @@ class MarginBasedCrossEntropyLoss(nn.Module):
 
     def __str__(self, indent: int = 0) -> str:
         indent_str = " " * indent
-        return f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta}, \
-            reduction={self.reduction})"
+        return f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta}," + \
+            f"reduction={self.reduction})"
 
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)

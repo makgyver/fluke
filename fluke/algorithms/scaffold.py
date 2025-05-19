@@ -24,7 +24,7 @@ from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
-from ..utils.model import safe_load_state_dict, state_dict_zero_like  # NOQA
+from ..utils.model import safe_load_state_dict, state_dict_zero_like, unwrap  # NOQA
 
 __all__ = [
     "SCAFFOLDClient",
@@ -84,7 +84,7 @@ class SCAFFOLDClient(Client):
                 loss = self.hyper_params.loss_fn(y_hat, y)
                 loss.backward()
 
-                for n, p in self.model.named_parameters():
+                for n, p in unwrap(self.model).named_parameters():
                     p.grad.data = p.grad.data + (self.server_control[n].to(self.device) -
                                                  self.control[n].to(self.device))
 
@@ -99,7 +99,7 @@ class SCAFFOLDClient(Client):
         with torch.no_grad():
             c_plus = state_dict_zero_like(self.control)
             c_delta = state_dict_zero_like(self.control)
-            model_params = self.model.state_dict()
+            model_params = unwrap(self.model).state_dict()
             for key in model_params:
                 c_plus[key] = self.control[key] - self.server_control[key] + \
                     (self.server_model[key] - model_params[key]) / \

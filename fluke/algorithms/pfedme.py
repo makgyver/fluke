@@ -17,6 +17,7 @@ from ..utils.model import safe_load_state_dict
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import FlukeENV  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
@@ -81,6 +82,15 @@ class PFedMeClient(Client):
             self.internal_model = deepcopy(model)
         else:
             safe_load_state_dict(self.model, model.state_dict())
+
+    def _model_to_dataparallel(self):
+        super()._model_to_dataparallel()
+        self.internal_model = torch.nn.DataParallel(self.internal_model, 
+                                                    device_ids=FlukeENV().get_device_ids())
+    
+    def _dataparallel_to_model(self):
+        super()._dataparallel_to_model()
+        self.internal_model = self.internal_model.module
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
