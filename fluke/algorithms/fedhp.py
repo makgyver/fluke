@@ -26,7 +26,7 @@ from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
-from ..utils.model import get_activation_size  # NOQA
+from ..utils.model import get_activation_size, unwrap  # NOQA
 from . import PersonalizedFL  # NOQA
 
 
@@ -152,7 +152,7 @@ class FedHPClient(Client):
                 _, dists = self.model.forward(X)
                 loss = self.hyper_params.loss_fn(dists, y)
                 loss_proto = torch.mean(1 - nn.CosineSimilarity(dim=1)
-                                        (self.model.prototypes, self.anchors))
+                                        (unwrap(self.model).prototypes, self.anchors))
                 loss += self.hyper_params.lam * loss_proto
                 loss.backward()
                 self._clip_grads(self.model)

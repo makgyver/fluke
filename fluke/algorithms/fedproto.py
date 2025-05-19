@@ -23,6 +23,7 @@ from ..evaluation import Evaluator  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache, get_model  # NOQA
+from ..utils.model import unwrap  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -47,7 +48,7 @@ class FedProtoModel(Module):
     @torch.no_grad()
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         mse_loss = torch.nn.MSELoss()
-        Z = self.model.encoder(x)
+        Z = unwrap(self.model).encoder(x)
         output = float('inf') * torch.ones(x.shape[0], self.num_classes).to(self.device)
         for i, r in enumerate(Z):
             for j, proto in self.prototypes.items():
@@ -120,8 +121,8 @@ class FedProtoClient(Client):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
-                Z = self.model.encoder(X)
-                y_hat = self.model.head(Z)
+                Z = unwrap(self.model).encoder(X)
+                y_hat = unwrap(self.model).head(Z)
                 loss = self.hyper_params.loss_fn(y_hat, y)
 
                 if self._last_round > 0:

@@ -25,7 +25,7 @@ from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache, get_model  # NOQA
-from ..utils.model import get_activation_size  # NOQA
+from ..utils.model import get_activation_size, unwrap  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -108,7 +108,7 @@ class FedNHClient(Client):
         self._save_to_cache()
 
     def _update_protos(self, protos: Collection[torch.Tensor]) -> None:
-        prototypes = self.model.prototypes.data
+        prototypes = unwrap(self.model).prototypes.data
         for label, prts in protos.items():
             if prts.shape[0] > 0:
                 prototypes[label] = torch.sum(prts, dim=0) / prts.shape[0]
@@ -147,7 +147,7 @@ class FedNHClient(Client):
         protos = defaultdict(list)
         for label in range(self.hyper_params.n_protos):
             Xlbl = self.train_set.tensors[0][self.train_set.tensors[1] == label]
-            protos[label] = self.model.encoder(Xlbl).detach().data
+            protos[label] = unwrap(self.model).encoder(Xlbl).detach().data
 
         self._update_protos(protos)
         return running_loss

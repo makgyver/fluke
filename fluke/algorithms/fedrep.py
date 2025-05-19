@@ -22,7 +22,7 @@ from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache, get_model  # NOQA
-from ..utils.model import ModOpt, safe_load_state_dict  # NOQA
+from ..utils.model import ModOpt, safe_load_state_dict, unwrap  # NOQA
 
 __all__ = [
     "FedRepClient",
@@ -98,13 +98,13 @@ class FedRepClient(Client):
         self.model.to(self.device)
 
         # update head layers
-        for parameter in self.model.get_local().parameters():
+        for parameter in unwrap(self.model).get_local().parameters():
             parameter.requires_grad = True
-        for parameter in self.model.get_global().parameters():
+        for parameter in unwrap(self.model).get_global().parameters():
             parameter.requires_grad = False
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(self.model.get_local())
+            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(unwrap(self.model).get_local())
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -120,13 +120,13 @@ class FedRepClient(Client):
             self.pers_scheduler.step()
 
         # update encoder layers
-        for parameter in self.model.get_local().parameters():
+        for parameter in unwrap(self.model).get_local().parameters():
             parameter.requires_grad = False
-        for parameter in self.model.get_global().parameters():
+        for parameter in unwrap(self.model).get_global().parameters():
             parameter.requires_grad = True
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self._optimizer_cfg(self.model.get_global())
+            self.optimizer, self.scheduler = self._optimizer_cfg(unwrap(self.model).get_global())
 
         for _ in range(self.hyper_params.tau):
             for _, (X, y) in enumerate(self.train_set):

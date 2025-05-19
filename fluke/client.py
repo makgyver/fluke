@@ -276,6 +276,9 @@ class Client(ObserverSubject):
     def _model_to_dataparallel(self):
         self.model = torch.nn.DataParallel(self.model, device_ids=FlukeENV().get_device_ids())
 
+    def _dataparallel_to_model(self):
+        self.model = self.model.module
+
     def local_update(self, current_round: int) -> None:
         """Client's local update procedure.
         Before starting the local training, the client receives the global model from the server.
@@ -310,7 +313,7 @@ class Client(ObserverSubject):
             loss = self.fit()
         except KeyboardInterrupt:
             if fluke_env.is_parallel_client():
-                self.model = self.model.module
+                self._dataparallel_to_model()
             self._check_persistency()
             raise KeyboardInterrupt()
 
@@ -330,7 +333,7 @@ class Client(ObserverSubject):
                             evals=metrics)
 
         if fluke_env.is_parallel_client():
-            self.model = self.model.module
+            self._dataparallel_to_model()
 
         self.send_model()
         self._check_persistency()
@@ -624,6 +627,15 @@ class PFLClient(Client):
     @pers_scheduler.setter
     def pers_scheduler(self, scheduler: LRScheduler) -> None:
         self._personalized_modopt.scheduler = scheduler
+
+    def _model_to_dataparallel(self):
+        super()._model_to_dataparallel()
+        self.personalized_model = torch.nn.DataParallel(self.personalized_model, 
+                                                        device_ids=FlukeENV().get_device_ids())
+
+    def _dataparallel_to_model(self):
+        super()._dataparallel_to_model()
+        self.personalized_model = self.personalized_model.module
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the personalized model on the :attr:`test_set`.

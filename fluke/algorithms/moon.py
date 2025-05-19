@@ -19,7 +19,7 @@ from ..client import Client  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..utils.model import safe_load_state_dict, unwrap  # NOQA
 
 __all__ = [
     "MOONClient",
@@ -58,9 +58,21 @@ class MOONClient(Client):
             self.model = deepcopy(model)
             self.prev_model = deepcopy(model)
         else:
-            self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
+            safe_load_state_dict(self.prev_model, deepcopy(self.model.state_dict()))
             safe_load_state_dict(self.model, deepcopy(model.state_dict()))
         self.server_model = model
+
+    def _model_to_dataparallel(self):
+        super()._model_to_dataparallel()
+        self.prev_model = torch.nn.DataParallel(self.prev_model, 
+                                                device_ids=FlukeENV().get_device_ids())
+        self.server_model = torch.nn.DataParallel(self.server_model,
+                                                  device_ids=FlukeENV().get_device_ids())
+
+    def _dataparallel_to_model(self):
+        super()._dataparallel_to_model()
+        self.prev_model = self.prev_model.module
+        self.server_model = self.server_model.module
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -79,12 +91,12 @@ class MOONClient(Client):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
 
-                z_local = self.model.encoder(X)  # , -1)
-                y_hat = self.model.head(z_local)
+                z_local = unwrap(self.model).encoder(X)  # , -1)
+                y_hat = unwrap(self.model).head(z_local)
                 loss_sup = self.hyper_params.loss_fn(y_hat, y)
 
-                z_prev = self.prev_model.encoder(X)  # , -1)
-                z_global = self.server_model.encoder(X)  # , -1)
+                z_prev = unwrap(self.prev_model).encoder(X)  # , -1)
+                z_global = unwrap(self.server_model).encoder(X)  # , -1)
 
                 sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
                 sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau

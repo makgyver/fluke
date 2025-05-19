@@ -40,7 +40,8 @@ __all__ = [
     "mix_networks",
     "set_lambda_model",
     "safe_load_state_dict",
-    "state_dict_zero_like"
+    "state_dict_zero_like",
+    "unwrap"
 ]
 
 # ("num_batches_tracked", "running_mean", "running_var")
@@ -618,8 +619,6 @@ def get_global_model_dict(model: Module) -> OrderedDict:
     Returns:
         OrderedDict: the global model state dictionary.
     """
-    if not isinstance(model, MMMixin):
-        raise TypeError("Model must be an instance of MMMixin")
     return OrderedDict({k: deepcopy(v) for k, v in model.state_dict().items() if "_local" not in k})
 
 
@@ -979,3 +978,16 @@ def _recursive_register_hook(module: Module, hook: callable, name: str = "", han
             handles.append(sub_module.register_forward_hook(hook(current_name)))
     return empty
 
+def unwrap(model: nn.Module | nn.DataParallel) -> nn.Module:
+    """Unwrap a model from a DataParallel wrapper if it is wrapped.
+
+    Args:
+        model (nn.Module | nn.DataParallel): The model to unwrap.
+
+    Returns:
+        nn.Module: The unwrapped model.
+    """
+    if isinstance(model, nn.DataParallel):
+        return model.module
+    else:
+        return model
