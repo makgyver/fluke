@@ -2,15 +2,15 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Sequence
 import warnings
+from typing import Optional, Sequence
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, TensorDataset
 from numpy.random import (choice, dirichlet, permutation, power, randint,
                           shuffle)
 from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, TensorDataset
 
 sys.path.append(".")
 sys.path.append("..")

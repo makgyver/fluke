@@ -5,7 +5,7 @@ import importlib
 import os
 import sys
 import warnings
-from typing import (TYPE_CHECKING, Any, Collection, Literal, Optional, Union)
+from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np

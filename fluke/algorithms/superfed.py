@@ -17,10 +17,9 @@ from ..algorithms import PersonalizedFL  # NOQA
 from ..client import PFLClient  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import clear_cuda_cache, retrieve_obj  # NOQA
-from ..utils.model import (ModOpt, get_global_model_dict,  # NOQA
-                           get_local_model_dict, mix_networks,
-                           safe_load_state_dict, set_lambda_model)
+from ..utils import clear_cuda_cache  # NOQA
+from ..utils.model import get_global_model_dict  # NOQA
+from ..utils.model import mix_networks, safe_load_state_dict, set_lambda_model  # NOQA
 
 __all__ = [
     "SuPerFedClient",
