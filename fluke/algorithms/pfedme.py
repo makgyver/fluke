@@ -85,9 +85,9 @@ class PFedMeClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.internal_model = torch.nn.DataParallel(self.internal_model, 
+        self.internal_model = torch.nn.DataParallel(self.internal_model,
                                                     device_ids=FlukeENV().get_device_ids())
-    
+
     def _dataparallel_to_model(self):
         super()._dataparallel_to_model()
         self.internal_model = self.internal_model.module

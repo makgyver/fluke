@@ -230,7 +230,11 @@ class Server(ObserverSubject):
                 the results.
         """
         if test_set is not None:
-            return evaluator.evaluate(self.rounds + 1, self.model, test_set, loss_fn=None, device=self.device)
+            return evaluator.evaluate(self.rounds + 1,
+                                      self.model,
+                                      test_set,
+                                      loss_fn=None,
+                                      device=self.device)
         return {}
 
     def finalize(self) -> None:

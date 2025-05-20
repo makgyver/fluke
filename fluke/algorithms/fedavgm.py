@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Collection
+from typing import Collection
 
 import torch
 from torch.nn import Module

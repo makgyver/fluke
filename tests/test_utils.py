@@ -22,7 +22,7 @@ from fluke.utils.model import (AllLayerOutputModel, MMMixin,
                                get_local_model_dict, get_trainable_keys,
                                merge_models, mix_networks,
                                safe_load_state_dict, set_lambda_model,
-                               state_dict_zero_like)
+                               state_dict_zero_like, unwrap)
 
 sys.path.append(".")
 sys.path.append("..")
@@ -463,6 +463,25 @@ def test_models():
         for n2, p2 in model_gn.named_parameters():
             if n1 == n2 and isinstance(p1, torch.nn.BatchNorm2d):
                 assert isinstance(p2, torch.nn.GroupNorm)
+    
+    class TestModel(torch.nn.Module):
+        def __init__(self):
+            super(TestModel, self).__init__()
+            self.fc1 = Linear(2, 2)
+            self.fc2 = Linear(2, 1)
+
+        def forward(self, x):
+            x = self.fc1(x)
+            x = self.fc2(x)
+            return x
+
+    model1 = TestModel()
+    model2 = torch.nn.DataParallel(TestModel())
+
+    assert isinstance(unwrap(model2).fc1, torch.nn.Linear)
+    assert isinstance(unwrap(model2).fc2, torch.nn.Linear)
+
+
 
 
 def test_mixing():

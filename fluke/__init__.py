@@ -23,6 +23,25 @@ if TYPE_CHECKING:
     from .evaluation import Evaluator
 
 
+def custom_formatwarning(msg: str, category: type, filename: str, lineno: int, *args) -> str:
+    # return f"[{category.__name__}] {filename}:{lineno} - {msg}\n"
+
+    # ANSI color codes
+    # RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    RESET = '\033[0m'
+
+    return (
+            f"{YELLOW}[{category.__name__}]{RESET} "
+            f"{BLUE}{filename}:{lineno}{RESET}\n"
+            f"{YELLOW}{msg}{RESET}\n"
+        )
+
+
+warnings.formatwarning = custom_formatwarning
+
+
 __all__ = [
     'algorithms',
     'client',
@@ -451,6 +470,10 @@ class FlukeENV(metaclass=Singleton):
                     raise ValueError(f"Invalid device/device_id {d}.")
 
             self._device = torch.device(device[0])
+            if len(self._device_ids) > 1:
+                warn_msg = "[EXPERIMENTAL Feature] Multi-GPU training is experimental" \
+                     " and may not work as expected. Please report any issues to the developers."
+                warnings.warn(warn_msg)
 
         elif device.startswith('cuda') and ":" in device:
             idx = int(device.split(":")[1])

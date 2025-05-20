@@ -6,7 +6,7 @@ References:
        (2021). URL: https://arxiv.org/abs/2106.05001
 """
 import sys
-from typing import Any, Collection
+from typing import Collection
 
 import numpy as np
 import torch
@@ -131,7 +131,7 @@ class CCVRServer(Server):
     def _generate_virtual_repr(self,
                                classes_mean: Collection[torch.Tensor],
                                classes_cov: Collection[torch.Tensor]) -> tuple[torch.Tensor,
-                                                                             torch.Tensor]:
+                                                                               torch.Tensor]:
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
             if mean is not None and cov is not None:

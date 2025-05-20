@@ -131,8 +131,8 @@ class FedRODClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.inner_model = torch.nn.DataParallel(self.inner_model, 
-                                                        device_ids=FlukeENV().get_device_ids())
+        self.inner_model = torch.nn.DataParallel(self.inner_model,
+                                                 device_ids=FlukeENV().get_device_ids())
 
     def _dataparallel_to_model(self):
         super()._dataparallel_to_model()

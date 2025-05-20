@@ -104,7 +104,8 @@ class FedRepClient(Client):
             parameter.requires_grad = False
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(unwrap(self.model).get_local())
+            self.pers_optimizer, self.pers_scheduler = \
+                self._optimizer_cfg(unwrap(self.model).get_local())
 
         running_loss = 0.0
         for _ in range(epochs):

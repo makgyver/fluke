@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional, Any, Sequence
+from typing import Optional, Sequence
 import warnings
 
 import numpy as np
@@ -140,7 +140,7 @@ class FastDataLoader:
         self.num_labels: int = num_labels
         self.max_size = self.tensors[0].shape[0]
         self.percentage: float = percentage
-        self.size: int = 0 # updated by set_sample_size
+        self.size: int = 0  # updated by set_sample_size
         self.set_sample_size(percentage)
         self.shuffle: bool = shuffle
         self.skip_singleton: bool = skip_singleton
@@ -592,7 +592,8 @@ class DataSplitter:
                              n: int,
                              beta: float = .1,
                              min_ex_class: int = 2,
-                             balanced: bool = False) -> tuple[list[np.ndarray], list[np.ndarray] | None]:
+                             balanced: bool = False) -> tuple[list[np.ndarray],
+                                                              list[np.ndarray] | None]:
         r"""
         The method samples :math:`p_k \sim \text{Dir}_n(\beta)` and allocates a :math:`p_{k,j}`
         proportion of the instances of class :math:`k` to party :math:`j`. Here
@@ -607,10 +608,11 @@ class DataSplitter:
             y_test (torch.Tensor): The test labels.
             n (int): The number of clients upon which the examples are distributed.
             beta (float, optional): The concentration parameter. Defaults to 0.1.
-            min_ex_class (int, optional): The minimum number of training examples per class. Defaults to 2.
-            balanced (bool, optional): Whether to ensure a balanced distribution of the examples. This feature
-                is not guaranteed to work. The method will do ten trials to balance the dataset, if not
-                successful, it will raise a warning. Defaults to False.
+            min_ex_class (int, optional): The minimum number of training examples per class.
+                Defaults to 2.
+            balanced (bool, optional): Whether to ensure a balanced distribution of the examples.
+                This feature is not guaranteed to work. The method will do ten trials to balance
+                the dataset, if not successful, it will raise a warning. Defaults to False.
 
         Returns:
             tuple[list[np.ndarray], list[np.ndarray] | None]: The examples' ids assignment.
@@ -641,7 +643,7 @@ class DataSplitter:
                 ids = np.where(y == c)[0]
                 shuffle(ids)
 
-                if iy == 0: # this is applied only to the training set
+                if iy == 0:  # this is applied only to the training set
                     # Assign the minimum number of examples per class
                     idx_batch[iy] = [
                         idx_j + ids[i * min_ex_class: (i + 1) * min_ex_class].tolist()
@@ -708,7 +710,9 @@ class DataSplitter:
 
         if trials >= 10:
             warnings.warn(
-                "Reached maximum number of trials (10) while trying to balanced the dataset distribution")
+                "Reached maximum number of trials (10) while trying to" +
+                "balanced the dataset distribution"
+            )
         # change idx_batch according to cid_perm
         idx_batch = [[np.array(idx_batch[i][cid_perm[j]]) for j in range(n)] for i in range(2)]
         return idx_batch[0], idx_batch[1] if y_test is not None else None
@@ -719,7 +723,8 @@ class DataSplitter:
                                 X_test: Optional[torch.Tensor],  # not used
                                 y_test: Optional[torch.Tensor],
                                 n: int,
-                                shards_per_client: int = 2) -> tuple[list[np.ndarray], list[np.ndarray]]:
+                                shards_per_client: int = 2) -> tuple[list[np.ndarray],
+                                                                     list[np.ndarray]]:
         """
         The method first sort the data by label, divide it into ``n * shards_per_client`` shards,
         and assign each of ``n`` clients ``shards_per_client`` shards. This is a pathological
@@ -767,7 +772,6 @@ class DataSplitter:
         if y_test is not None:
             assignments_te = [np.where(assignments_te == i)[0] for i in range(n)]
         return assignments_tr, assignments_te
-
 
     _iidness_functions = {
         "iid": iid,

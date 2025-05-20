@@ -278,7 +278,8 @@ class LinesLSTM(MMMixin, nn.LSTM):
                                self.lam * getattr(self, f'weight_hh_l{layer}_local'))
         return weight_list
 
-    def forward(self, x: torch.Tensor, **kwargs) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+    def forward(self, x: torch.Tensor, **kwargs) -> tuple[torch.Tensor,
+                                                          tuple[torch.Tensor, torch.Tensor]]:
         w = self.get_weight()
         h = (
             torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device),
@@ -387,6 +388,7 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
             exponential_average_factor,
             self.eps,
         )
+
 
 class AllLayerOutputModel(nn.Module):
     """Wrapper class to get the output of all layers in a model.
@@ -977,6 +979,7 @@ def _recursive_register_hook(module: Module, hook: callable, name: str = "", han
         if leaf:
             handles.append(sub_module.register_forward_hook(hook(current_name)))
     return empty
+
 
 def unwrap(model: nn.Module | nn.DataParallel) -> nn.Module:
     """Unwrap a model from a DataParallel wrapper if it is wrapped.
