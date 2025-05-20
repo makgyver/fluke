@@ -9,18 +9,18 @@ References:
 import sys
 from typing import Collection
 
-import torch
-from torch.nn import Module
 import numpy as np
+import torch
 from sklearn.neighbors import KernelDensity
+from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
-from . import CentralizedFL  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
+from . import CentralizedFL  # NOQA
 
 __all__ = [
     "KafeServer",

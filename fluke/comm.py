@@ -13,8 +13,9 @@ import torch
 
 sys.path.append(".")
 
-from . import ObserverSubject, FlukeENV, FlukeCache, custom_formatwarning  # NOQA
-from .utils import retrieve_obj, cache_obj  # NOQA
+from . import (FlukeCache, FlukeENV, ObserverSubject,  # NOQA
+               custom_formatwarning)
+from .utils import cache_obj, retrieve_obj  # NOQA
 
 warnings.formatwarning = custom_formatwarning
 

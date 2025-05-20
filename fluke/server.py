@@ -3,7 +3,7 @@ The module :mod:`fluke.server` provides the base classes for the servers in :mod
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generator, Collection, Iterable
+from typing import TYPE_CHECKING, Any, Collection, Generator, Iterable
 
 import numpy as np
 import torch

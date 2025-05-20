@@ -7,7 +7,7 @@ from typing import Any, Collection, Optional, Union
 import numpy as np
 import torch
 from torch.nn import Module
-from torchmetrics import Accuracy, F1Score, Precision, Recall, Metric
+from torchmetrics import Accuracy, F1Score, Metric, Precision, Recall
 
 sys.path.append(".")
 sys.path.append("..")

@@ -1,16 +1,16 @@
 """This submodule provides logging utilities."""
 import json
+import logging
 import os
 import sys
 import time
-from typing import Any, Literal, Union, Collection
+from typing import Any, Collection, Literal, Union
 
 import clearml
 import numpy as np
 from pandas import DataFrame
 from psutil import Process
 from rich import print as rich_print
-import logging
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.pretty import Pretty
@@ -26,7 +26,6 @@ from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
 from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
-
 
 __all__ = [
     "Log",
@@ -407,7 +406,7 @@ class TensorboardLog(Log):
 
     def add_scalar(self, key: Any, value: float, round: int) -> None:
         super().add_scalar(key, value, round)
-        return self._writer.add_scalars(key, value, round)
+        return self._writer.add_scalar(key, value, round)
 
     def add_scalars(self, key: Any, values: dict[str, float], round: int) -> None:
         super().add_scalars(key, values, round)

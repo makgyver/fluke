@@ -24,7 +24,8 @@ from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
-from ..utils.model import safe_load_state_dict, state_dict_zero_like, unwrap  # NOQA
+from ..utils.model import (safe_load_state_dict, state_dict_zero_like,  # NOQA
+                           unwrap)
 
 __all__ = [
     "SCAFFOLDClient",

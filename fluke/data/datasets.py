@@ -22,7 +22,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import get_class_from_qualified_name  # NOQA
-from . import DataContainer, DummyDataContainer, FastDataLoader, support  # NOQA
+from . import (DataContainer, DummyDataContainer, FastDataLoader,  # NOQA
+               support)
 
 __all__ = [
     "Datasets"
@@ -623,8 +624,8 @@ class Datasets:
                 data through the data loader. Defaults to ``None``.
 
         Returns:
-            DummyDataContainer: The ``DummyDataContainer`` object containing the training and testing data
-                loaders for the clients. The server data loader is ``None``.
+            DummyDataContainer: The ``DummyDataContainer`` object containing the training and
+                testing data loaders for the clients. The server data loader is ``None``.
         """
         def _filter_femnist(user_data: dict, filter: str) -> tuple[dict, int]:
             # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
@@ -753,8 +754,8 @@ class Datasets:
                 data through the data loader. Defaults to ``None``.
 
         Returns:
-            DummyDataContainer: The ``DummyDataContainer`` object containing the training and testing data
-                loaders for the clients. The server data loader is ``None``.
+            DummyDataContainer: The ``DummyDataContainer`` object containing the training and
+                testing data loaders for the clients. The server data loader is ``None``.
         """
         shake_path = os.path.join(path, "shakespeare")
         train_dir = os.path.join(shake_path, 'train')

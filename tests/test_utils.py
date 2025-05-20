@@ -38,7 +38,7 @@ from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils.log import Log, get_logger  # NOQA
+from fluke.utils.log import DebugLog, Log, get_logger, TensorboardLog  # NOQA
 from fluke.utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 
@@ -372,6 +372,7 @@ def test_log():
         log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
         log.end_round(1)
         log.finished(1)
+        log.early_stop(1)
         temp = tempfile.NamedTemporaryFile(mode="w")
         log.save(temp.name)
     except Exception:
@@ -404,7 +405,34 @@ def test_log():
     assert log.value == 17
     assert isinstance(log, MyLog)
 
+def test_tensorboard_log():
+    log = TensorboardLog(log_dir="tests/tmp/runs")
+    log.init(test="hello")
 
+    model = MNIST_2NN()
+    try:
+        log.comm_costs[0] = 1  # for testing
+        log.start_round(1, model)
+        log.comm_costs[0] = 0  # for testing
+        log.selected_clients(1, [1, 2, 3])
+        log.message_received("testA", Message("test", "test", None))
+        log.server_evaluation(1, "global", {"accuracy": 1})
+        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.end_round(1)
+        log.add_scalar("test", 1, 1)
+        log.add_scalars("test", {"test1": 1, "test2": 2}, 1)
+        log.finished(1)
+        log.early_stop(1)
+        temp = tempfile.NamedTemporaryFile(mode="w")
+        log.save(temp.name)
+        log.close()
+    except Exception:
+        pytest.fail("Unexpected error!")
+
+    assert log.custom_fields[1]["test/test1"] == 1
+    assert log.custom_fields[1]["test/test2"] == 2
+    assert log.custom_fields[1]["test"] == 1
+    
 # def test_wandb_log():
 #     log2 = WandBLog()
 #     log2.init()
@@ -431,6 +459,58 @@ def test_log():
 #     assert log2.client_history[1] == {"accuracy": 0.6}
 #     assert log2.comm_costs[1] == 4
 
+def test_debuglog():
+
+    log = DebugLog()
+    log.init(test="hello")
+
+    try:
+        log.comm_costs[0] = 1  # for testing
+        log.start_round(1, None)
+        log.comm_costs[0] = 0  # for testing
+        log.selected_clients(1, [Client(1, None, None, None, None), Client(2, None, None, None, None)])
+        log.message_received("testA", Message("test", "test", None))
+        log.server_evaluation(1, "global", {"accuracy": 1})
+        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.end_round(1)
+        log.finished(1)
+        log.message_broadcasted("testB", Message("test", "test", None))
+        log.message_sent("testC", Message("test", "test", None))
+        log.interrupted()
+        log.early_stop(1)
+        log.start_fit(1, 1, None)
+        log.end_fit(1, 1, None, 0.1)
+        temp = tempfile.NamedTemporaryFile(mode="w")
+        log.save(temp.name)
+    except Exception:
+        pytest.fail("Unexpected error!")
+
+    with open(temp.name, "r") as f:
+        data = dict(json.load(f))
+        print(data)
+        assert data["mem_costs"]["1"] > 0
+        del data["mem_costs"]
+        assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
+            '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
+            'perf_postfit': {'1': {'accuracy': 0.6}}, 'custom_fields': {}}
+
+    assert log.global_eval == {1: {"accuracy": 1}}
+    assert log.locals_eval == {}
+    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}}}
+    assert log.postfit_eval == {}
+    assert log.locals_eval_summary == {}
+    assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
+    assert log.postfit_eval_summary == {1: {'accuracy': 0.6}}
+    assert log.comm_costs == {0: 0, 1: 4}
+    assert log.current_round == 1
+
+    log.track_item(1, "test", 12)
+    assert 1 in log.custom_fields
+    assert log.custom_fields[1]["test"] == 12
+
+    log = get_logger("tests.test_utils.MyLog", value=17)
+    assert log.value == 17
+    assert isinstance(log, MyLog)
 
 def test_models():
     model1 = Linear(2, 1)
