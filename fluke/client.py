@@ -630,7 +630,7 @@ class PFLClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.personalized_model = torch.nn.DataParallel(self.personalized_model, 
+        self.personalized_model = torch.nn.DataParallel(self.personalized_model,
                                                         device_ids=FlukeENV().get_device_ids())
 
     def _dataparallel_to_model(self):

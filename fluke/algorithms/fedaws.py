@@ -6,7 +6,7 @@ References:
        In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
 import sys
-from typing import Any, Collection, Literal
+from typing import Collection, Literal
 
 import torch
 from torch import nn

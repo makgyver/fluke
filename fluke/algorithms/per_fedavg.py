@@ -1,6 +1,6 @@
 """Implementation of the [Per-FedAVG20]_ algorithm.
 
-.. Warning:: 
+.. Warning::
     This implementation of Per-FedAVG does not support client training on multiple GPUs.
 
 References:

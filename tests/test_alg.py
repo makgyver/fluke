@@ -363,7 +363,7 @@ def test_fedlc():
     #                         "./tests/configs/alg/fedlc.yaml", oncpu=False)
 
 
-def test_fedlc():
+def test_fedld():
     fedlc, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedld.yaml")
     # fedlc, log = _test_algo("./tests/configs/exp.yaml",
     #
@@ -499,13 +499,14 @@ if __name__ == "__main__":
     # test_fedavg()
     # test_fedavgm()
     # test_fedaws()
-    test_fedbabu()
+    # test_fedbabu()
     # test_fedbn()
-    test_feddyn()
+    # test_feddyn()
     # test_fedexp()
-    test_fedhp()
-    # test_fedlc()
-    test_fednh()
+    # test_fedhp()
+    test_fedlc()
+    # test_fedld()
+    # test_fednh()
     # test_fednova()
     # test_fedopt()
     # test_fedper()
@@ -515,7 +516,7 @@ if __name__ == "__main__":
     # test_fedrod()
     # test_fedrs()
     # test_fedsam()
-    test_fedsgd()
+    # test_fedsgd()
     # test_gear()
     # test_kafe()
     # test_lgfedavg()

@@ -25,7 +25,9 @@ if TYPE_CHECKING:
     from client import Client  # NOQA
     from server import Server  # NOQA
 
-from .. import DDict, FlukeCache, FlukeENV  # NOQA
+from .. import FlukeCache, FlukeENV, custom_formatwarning  # NOQA
+
+warnings.formatwarning = custom_formatwarning
 
 __all__ = [
     'log',
@@ -169,9 +171,9 @@ class ServerObserver:
 
         Args:
             round (int): The round number.
-            eval_type (Literal['global', 'locals']): The type of evaluation. If 'global', the evaluation
-                is done on the global model. If 'locals', the evaluation is done on the local models
-                of the clients on the test set of the server.
+            eval_type (Literal['global', 'locals']): The type of evaluation. If 'global', the
+                evaluation is done on the global model. If 'locals', the evaluation is done on the
+                local models of the clients on the test set of the server.
             evals (dict[str, float] | dict[int, dict[str, float]]): The evaluation metrics. In case
                 of 'global' evaluation, it is a dictionary with the evaluation metrics. In case of
                 'locals' evaluation, it is a dictionary of dictionaries where the keys are the
@@ -214,13 +216,13 @@ class ServerObserver:
         pass
 
 
-
-
 def safe_train_test_split(X: torch.Tensor,
                           y: torch.Tensor,
                           test_size: float,
-                          client_id: int | None = None) -> tuple[torch.Tensor, Optional[torch.Tensor],
-                                                                 torch.Tensor, Optional[torch.Tensor]]:
+                          client_id: int | None = None) -> tuple[torch.Tensor,
+                                                                 Optional[torch.Tensor],
+                                                                 torch.Tensor,
+                                                                 Optional[torch.Tensor]]:
     try:
         if test_size == 0.0:
             return X, None, y, None
@@ -232,6 +234,7 @@ def safe_train_test_split(X: torch.Tensor,
             f"Stratified split failed for {client_str}. Falling back to random split."
         )
         return train_test_split(X, y, test_size=test_size)
+
 
 def import_module_from_str(name: str) -> Any:
     """Import a module from its name.
@@ -392,20 +395,17 @@ def clear_cuda_cache(ipc: bool = False):
         torch.cuda.ipc_collect()
 
 
-
-
-
 def plot_distribution(clients: list[Client],
                       train: bool = True,
                       plot_type: str = "ball") -> None:
     """Plot the distribution of classes for each client.
     This function is used to plot the distribution of classes for each client. The plot can be a
-    scatter plot, a heatmap, or a bar plot. The scatter plot (``plot_type='ball'``) shows filled circles
-    whose size is proportional to the number of examples of a class. The heatmap (``plot_type='mat'``)
-    shows a matrix where the rows represent the classes and the columns represent the clients with
-    a color intensity proportional to the number of examples of a class. The bar plot
-    (``plot_type='bar'``) shows a stacked bar plot where the height of the bars is proportional to the
-    number of examples of a class.
+    scatter plot, a heatmap, or a bar plot. The scatter plot (``plot_type='ball'``) shows filled
+    circles whose size is proportional to the number of examples of a class. The heatmap
+    (``plot_type='mat'``) shows a matrix where the rows represent the classes and the columns
+    represent the clients with a color intensity proportional to the number of examples of a class.
+    The bar plot (``plot_type='bar'``) shows a stacked bar plot where the height of the bars is
+    proportional to the number of examples of a class.
 
     Warning:
         If the number of clients is greater than 30, the type is automatically switched to

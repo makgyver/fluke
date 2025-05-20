@@ -552,7 +552,6 @@ class ClearMLLog(TensorboardLog):
         self.task.connect(kwargs)
 
     def close(self) -> None:
-        from clearml import Task
         super().close()
         if self.task is not None:
             self.task.close()

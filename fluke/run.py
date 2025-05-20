@@ -286,7 +286,6 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
             cfg.logger.group = exp_name
             cfg.logger.reinit = True
 
-
         log = get_logger(cfg.logger.name, name=name, **cfg.logger.exclude('name'))
         log.init(**cfg)
 

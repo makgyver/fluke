@@ -64,7 +64,7 @@ class MOONClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.prev_model = torch.nn.DataParallel(self.prev_model, 
+        self.prev_model = torch.nn.DataParallel(self.prev_model,
                                                 device_ids=FlukeENV().get_device_ids())
         self.server_model = torch.nn.DataParallel(self.server_model,
                                                   device_ids=FlukeENV().get_device_ids())

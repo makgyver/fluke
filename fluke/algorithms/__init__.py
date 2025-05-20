@@ -16,13 +16,15 @@ from ..utils import ServerObserver, get_loss, get_model
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import DDict, FlukeENV  # NOQA
-from ..client import Client, PFLClient  # NOQA
+from .. import DDict, FlukeENV, custom_formatwarning  # NOQA
+from ..client import Client  # NOQA
 from ..comm import ChannelObserver  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils import ClientObserver  # NOQA
+
+warnings.formatwarning = custom_formatwarning
 
 __all__ = [
     'CentralizedFL',

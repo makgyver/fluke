@@ -44,8 +44,8 @@ For the purpose of this introductory page, we will use the configuration files p
 
     .. code-block:: bash
 
-        fluke-get exp
-        fluke-get fedavg
+        fluke-get config exp
+        fluke-get config fedavg
     
     These two file will be downloaded in the "./config" folder.
 ```
