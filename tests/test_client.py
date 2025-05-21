@@ -10,10 +10,10 @@ sys.path.append("..")
 
 from fluke import DDict, FlukeENV  # NOQA
 from fluke.client import Client, PFLClient  # NOQA
+from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import OptimizerConfigurator  # NOQA
 
 
 def test_client_cache():
@@ -38,7 +38,7 @@ def _test_client(inmemory):
     FlukeENV().set_inmemory(inmemory)
     if not inmemory:
         FlukeENV().open_cache("test_client")
-    FlukeENV().set_eval_cfg(DDict(pre_fit=True, post_fit=True))
+    FlukeENV().set_eval_cfg(pre_fit=True, post_fit=True)
 
     # function that taken a 10-dimensional input returns a 0 if the
     # sum of the first 7 elements is less than 2.5
@@ -87,8 +87,7 @@ def _test_client(inmemory):
         clients=[client]
     )
 
-    client.set_server(server)
-    assert client.server == server
+    client.set_channel(server.channel)
     assert client.channel == server.channel
     server.broadcast_model([client])
 
@@ -97,7 +96,7 @@ def _test_client(inmemory):
     ev0 = client.evaluate(evaluator, client.test_set)
     client.local_update(1)
     ev1 = client.evaluate(evaluator, client.test_set)
-    assert server.channel._buffer[server]
+    assert server.channel._buffer["server"]
     assert not ev0
     assert ev1
     # if inmemory:
@@ -119,7 +118,7 @@ def _test_client(inmemory):
 
     client.send_model()
 
-    m = server.channel.receive(server, client, "model")
+    m = server.channel.receive("server", client.index, "model")
     assert id(m) != id(client.model)
     assert m is not client.model
     assert torch.all(client.local_model.weight.data == client.model.weight.data)
@@ -206,7 +205,7 @@ def test_pflclient():
         clients=[client]
     )
 
-    client.set_server(server)
+    client.set_channel(server.channel)
     client.pers_optimizer = SGD(client.personalized_model.parameters(), lr=0.1)
     client.pers_scheduler = torch.optim.lr_scheduler.StepLR(
         client.pers_optimizer, step_size=1, gamma=0.1)

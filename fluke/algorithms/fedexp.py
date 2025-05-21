@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2301.09604
 """
 import sys
-from typing import Iterable
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -28,7 +28,7 @@ __all__ = [
 class FedExPServer(Server):
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         W = flatten_parameters(self.model)
         client_models = list(client_models)
         Wi = [flatten_parameters(client_model) for client_model in client_models]

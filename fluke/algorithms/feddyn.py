@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Collection
 
 import numpy as np
 import torch
@@ -19,9 +19,10 @@ sys.path.append("..")
 from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import aggregate_models, safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
 
@@ -73,7 +74,7 @@ class FedDynClient(Client):
                  alpha: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 5,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -86,7 +87,7 @@ class FedDynClient(Client):
         self._attr_to_cache.extend(["prev_grads", "weight"])
 
     def receive_model(self) -> None:
-        model, cld_mdl = self.channel.receive(self, self.server, msg_type="model").payload
+        model, cld_mdl = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             self.model = model
             self.prev_grads = torch.zeros_like(get_all_params_of(self.model), device=self.device)
@@ -94,17 +95,17 @@ class FedDynClient(Client):
             safe_load_state_dict(self.model, cld_mdl.state_dict())
 
     def _receive_weights(self) -> None:
-        self.weight = self.channel.receive(self, self.server, msg_type="weight").payload
+        self.weight = self.channel.receive(self.index, "server", msg_type="weight").payload
 
     def _send_weight(self) -> None:
         self.channel.send(Message(self.train_set.tensors[0].shape[0],
                                   "weight",
-                                  self,
-                                  inmemory=True), self.server)
+                                  self.index,
+                                  inmemory=True), "server")
 
     def send_model(self) -> None:
-        self.channel.send(Message(self.model, "model", self, inmemory=True), self.server)
-        self.channel.send(Message(self.prev_grads, "grads", self, inmemory=True), self.server)
+        self.channel.send(Message(self.model, "model", self.index, inmemory=True), "server")
+        self.channel.send(Message(self.prev_grads, "grads", self.index, inmemory=True), "server")
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -162,7 +163,7 @@ class FedDynServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = True,
                  alpha: float = 0.01):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
@@ -170,8 +171,9 @@ class FedDynServer(Server):
         self.device = FlukeENV().get_device()
         self.cld_mdl = deepcopy(self.model).to(self.device)
 
-    def broadcast_model(self, eligible: Iterable[Client]) -> None:
-        self.channel.broadcast(Message((self.model, self.cld_mdl), "model", self), eligible)
+    def broadcast_model(self, eligible: Collection[Client]) -> None:
+        self.channel.broadcast(Message((self.model, self.cld_mdl), "model", "server"),
+                               [c.index for c in eligible])
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
 
@@ -180,11 +182,11 @@ class FedDynServer(Server):
             client._send_weight()
 
         weights = np.array([self.channel.receive(
-            self, client, msg_type="weight").payload for client in self.clients])
+            "server", client.index, msg_type="weight").payload for client in self.clients])
         weights = weights / np.sum(weights) * self.n_clients
 
         for i, client in enumerate(self.clients):
-            self.channel.send(Message(weights[i], "weight", self), client)
+            self.channel.send(Message(weights[i], "weight", "server"), client.index)
 
         for client in self.clients:
             client._receive_weights()
@@ -192,7 +194,7 @@ class FedDynServer(Server):
         return super().fit(n_rounds, eligible_perc)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         agg_model_sd = aggregate_models(self.model,
                                         client_models,
@@ -203,7 +205,7 @@ class FedDynServer(Server):
         avg_grad = None
         grad_count = 0
         for client in eligible:
-            pg = self.channel.receive(self, client, msg_type="grads").payload
+            pg = self.channel.receive("server", client.index, msg_type="grads").payload
             if pg is not None:
                 grad_count += 1
                 if avg_grad is None:

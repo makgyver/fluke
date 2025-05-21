@@ -10,6 +10,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 - [`fluke.data`](fluke.data.md): contains classes for data handling;
 - [`fluke.data.datasets`](fluke.data.datasets.md): contains classes for datasets loading;
 - [`fluke.client`](fluke.client.md): contains classes for client-side functionalities;
+- [`fluke.config`](fluke.config.md): contains classes for configuration;
 - [`fluke.server`](fluke.server.md): contains classes for server-side functionalities;
 - [`fluke.comm`](fluke.comm.md): contains classes for communication;
 - [`fluke.nets`](fluke.nets.md): contains classes for neural networks;
@@ -33,8 +34,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
    DDict
    FlukeCache
-   FlukeCache._ObjectRef
-   FlukeCache._RefCounter
+   FlukeCache.ObjectRef
    FlukeENV
    ObserverSubject
    Singleton
@@ -160,9 +160,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
-   OptimizerConfigurator
-   Configuration
+
    ClientObserver
    ServerObserver
 

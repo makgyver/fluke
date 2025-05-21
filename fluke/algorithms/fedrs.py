@@ -6,7 +6,7 @@ References:
        URL: https://doi.org/10.1145/3447548.3467254
 """
 import sys
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
@@ -15,8 +15,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -68,7 +68,7 @@ class FedRSClient(Client):
                  count_as_missing: int = 2,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         uniq_val, uniq_cnt = np.unique(train_set.tensors[1], return_counts=True)
         class_scaling = torch.ones(train_set.num_labels) * alpha
         for i, c in enumerate(uniq_val):

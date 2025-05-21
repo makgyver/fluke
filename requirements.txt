@@ -17,3 +17,6 @@ opacus
 diskcache
 hydra-core
 cerberus
+requests
+pyyaml
+omegaconf

@@ -13,10 +13,11 @@ from fluke import DDict  # NOQA
 from fluke import FlukeENV  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import Channel  # NOQA
+from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import OptimizerConfigurator, ServerObserver  # NOQA
+from fluke.utils import ServerObserver  # NOQA
 
 
 def test_server():
@@ -35,10 +36,10 @@ def test_server():
             assert len(clients) == 2
             assert round == 1
 
-        def server_evaluation(self, round, type, evals, **kwargs) -> None:
+        def server_evaluation(self, round, eval_type, evals, **kwargs) -> None:
             assert round == 1
-            assert type == "global"
-            assert "accuracy" in evals
+            assert (eval_type == "locals") or (eval_type == "global")
+            assert ("accuracy" in evals) or ("accuracy" in evals[0])
 
         def finished(self, round):
             assert round == 1 or round == 2
@@ -51,6 +52,7 @@ def test_server():
         return 0 if x[:7].sum() < 2.5 else 1
 
     FlukeENV().set_inmemory(True)
+    FlukeENV().set_eval_cfg(locals=True)
     Xtr = [torch.rand((100, 10)), torch.rand((100, 10))]
     ytr = [torch.tensor([target_function(x) for x in Xtr[0]]),
            torch.tensor([target_function(x) for x in Xtr[1]])]
@@ -85,8 +87,7 @@ def test_server():
     assert server.has_model
 
     for c in clients:
-        c.set_server(server)
-        assert c.server == server
+        c.set_channel(server.channel)
         assert c.channel == server.channel
 
     evaluator = ClassificationEval(1, 2)
@@ -123,7 +124,7 @@ def test_server():
     server.broadcast_model(clients)
 
     for c in clients:
-        m = c.channel.receive(c, server, "model")
+        m = c.channel.receive(c.index, "server", "model")
         assert id(m) != id(server.model)
         assert m is not server.model
 

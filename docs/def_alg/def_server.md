@@ -116,7 +116,7 @@ The example follows the implementation of the [FedExP](#fluke.algorithms.fedexp.
         :emphasize-lines: 3,4,5,6,7
 
         @torch.no_grad()
-        def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+        def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
             W = flatten_parameters(self.model)
             client_models = list(client_models)
             Wi = [flatten_parameters(client_model) for client_model in client_models]
@@ -133,7 +133,7 @@ The example follows the implementation of the [FedExP](#fluke.algorithms.fedexp.
         :linenos:
 
         @torch.no_grad()
-        def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+        def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
             weights = self._get_client_weights(eligible)
             aggregate_models(self.model, client_models, weights, self.hyper_params.lr, inplace=True)
 
@@ -164,7 +164,8 @@ Similar considerations can be made for the other cases when the there is no need
 .. attention::
 
     When overriding methods that require to notify the observers, make sure to call the corresponding
-    notification method of the :class:`fluke.ObserverSubject` interface. For example, if you override the:meth:`fluke.server.Server.finalize` method you should call the ``_notify_finalize`` method at the end of the method. For example, see the implementation of :ref:`FedBABU <fluke.algorithms.fedbabu>`.
+    notification method of the :class:`fluke.ObserverSubject` interface. For example, if you override the :meth:`fluke.server.Server.finalize` method you should call the ``notify`` method for 
+    the event "finalize" at the end of the method. For example, see the implementation of :ref:`FedBABU <fluke.algorithms.fedbabu>`.
 ```
 
 
@@ -208,8 +209,8 @@ When overriding the [fit](#fluke.server.Server.fit) method, you should follow th
   .. code-block:: python
       :linenos:
   
-      def broadcast_model(self, eligible: Iterable[Client]) -> None:
-          self.channel.broadcast(Message(self.model, "model", self), eligible)
+      def broadcast_model(self, eligible: Collection[Client]) -> None:
+          self.channel.broadcast(Message(self.model, "model", self), [c.index for c in eligible])
   ```
 
 - **Minimal changes principle**: this principle universally applies to software development but it is particularly important when overriding the [fit](#fluke.server.Server.fit) method

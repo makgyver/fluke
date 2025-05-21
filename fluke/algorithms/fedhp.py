@@ -8,7 +8,7 @@ References:
 """
 import copy
 import sys
-from typing import Any, Generator, Iterable, Literal
+from typing import Collection, Generator, Literal
 
 import torch
 import torch.optim as optim
@@ -21,11 +21,12 @@ sys.path.append("..")
 from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
-from ..utils.model import get_activation_size  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
+from ..utils.model import get_activation_size, unwrap  # NOQA
 from . import PersonalizedFL  # NOQA
 
 
@@ -85,7 +86,7 @@ class FedHPClient(Client):
                  lam: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index,
                          train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
                          loss_fn=loss_fn, local_epochs=local_epochs,
@@ -115,14 +116,14 @@ class FedHPClient(Client):
 
     def receive_model(self) -> None:
         if self.anchors is None:
-            msg = self.channel.receive(self, self.server, msg_type="anchors")
+            msg = self.channel.receive(self.index, "server", msg_type="anchors")
             self.anchors = msg.payload.data
-        msg = self.channel.receive(self, self.server, msg_type="prototypes")
+        msg = self.channel.receive(self.index, "server", msg_type="prototypes")
         self.model.prototypes.data = msg.payload
 
     def send_model(self) -> None:
         self.channel.send(Message(copy.deepcopy(self.model.prototypes.data),
-                          "prototypes", self, inmemory=True), self.server)
+                          "prototypes", self.index, inmemory=True), "server")
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -151,7 +152,7 @@ class FedHPClient(Client):
                 _, dists = self.model.forward(X)
                 loss = self.hyper_params.loss_fn(dists, y)
                 loss_proto = torch.mean(1 - nn.CosineSimilarity(dim=1)
-                                        (self.model.prototypes, self.anchors))
+                                        (unwrap(self.model).prototypes, self.anchors))
                 loss += self.hyper_params.lam * loss_proto
                 loss.backward()
                 self._clip_grads(self.model)
@@ -176,7 +177,8 @@ class FedHPClient(Client):
         self.fit(self.hyper_params.fine_tuning_epochs)
         metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
-            self._notify_evaluation(-1, "post-fit", metrics)
+            self.notify(event="client_evaluation", round=-1,
+                        client_id=self.index, phase="post-fit", evals=metrics)
         self._save_to_cache()
 
 
@@ -184,11 +186,11 @@ class FedHPServer(Server):
     def __init__(self,
                  model: nn.Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = True,
                  n_protos: int = 10,
                  embedding_size: int = 100,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=ProtoNet(model, n_protos, embedding_size),
                          test_set=None,
                          clients=clients,
@@ -203,7 +205,8 @@ class FedHPServer(Server):
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
         if self.rounds == 0:
             self.anchors = self._hyperspherical_embedding().data
-            self.channel.broadcast(Message(self.anchors, "anchors", self), self.clients)
+            self.channel.broadcast(Message(self.anchors, "anchors", "server"),
+                                   [c.index for c in self.clients])
             self.prototypes = copy.deepcopy(self.anchors)
             client = {c.index: c.train_set.tensors[1] for c in self.clients}
             # Count the occurrences of each class for each client.
@@ -246,18 +249,19 @@ class FedHPServer(Server):
             mapping.div_(torch.norm(mapping, dim=1, keepdim=True))
         return mapping.detach()
 
-    def broadcast_model(self, eligible: Iterable[FedHPClient]) -> None:
-        self.channel.broadcast(Message(self.prototypes, "prototypes", self), eligible)
+    def broadcast_model(self, eligible: Collection[FedHPClient]) -> None:
+        self.channel.broadcast(Message(self.prototypes, "prototypes", "server"),
+                               [c.index for c in eligible])
 
     def receive_client_models(self,
-                              eligible: Iterable[Client],
+                              eligible: Collection[Client],
                               state_dict: bool = False) -> Generator[nn.Module, None, None]:
         for client in eligible:
-            yield self.channel.receive(self, client, "prototypes").payload
+            yield self.channel.receive("server", client.index, "prototypes").payload
 
     def aggregate(self,
-                  eligible: Iterable[FedHPClient],
-                  client_models: Iterable[nn.Module]) -> None:
+                  eligible: Collection[FedHPClient],
+                  client_models: Collection[nn.Module]) -> None:
         clients_prototypes = client_models
         clients_weights = self.clients_class_weights[:, [client.index for client in eligible]].T
         avg_proto = None

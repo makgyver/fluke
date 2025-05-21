@@ -58,8 +58,7 @@ Classes included in ``fluke.client``
    save
    scheduler
    send_model
-   server
-   set_server
+   set_channel
    state_dict
 
    _load_from_cache
@@ -72,7 +71,7 @@ Classes included in ``fluke.client``
 .. autoclass:: fluke.client.Client
    :member-order: bysource
    :show-inheritance:
-   :members: channel, evaluate, finalize, fit, index, load, local_model, local_update, model, optimizer, n_examples, receive_model, save, scheduler, send_model, server, set_server, state_dict, _load_from_cache, _save_to_cache
+   :members: channel, evaluate, finalize, fit, index, load, local_model, local_update, model, optimizer, n_examples, receive_model, save, scheduler, send_model, set_channel, state_dict, _load_from_cache, _save_to_cache
 
 ```
 

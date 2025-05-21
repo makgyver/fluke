@@ -11,7 +11,7 @@ References:
        In ArXiv (2017). URL: https://arxiv.org/abs/1712.07557
 """
 import sys
-from typing import Iterable, Any
+from typing import Collection
 
 import torch
 from opacus import PrivacyEngine
@@ -21,9 +21,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -63,7 +63,7 @@ class DPFedAVGClient(Client):
                  clipping: float = 0,
                  noise_mul: float = 1.1,
                  max_grad_norm: float = 1.0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -77,7 +77,7 @@ class DPFedAVGClient(Client):
         self.model, self.optimizer, self.train_set = self.privacy_engine.make_private(
             module=self.model._module,
             optimizer=self.optimizer,
-            data_loader=self.train_set.asDataLoader() if isinstance(
+            data_loader=self.train_set.as_dataloader() if isinstance(
                 self.train_set, FastDataLoader) else self.train_set,
             noise_multiplier=self.hyper_params.noise_mul,
             max_grad_norm=self.hyper_params.max_grad_norm,
@@ -98,10 +98,10 @@ class DPFedAVGServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  lr: float = 1.0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=_OpacusModelAdapter(model),
                          test_set=test_set, clients=clients, weighted=weighted, lr=lr, **kwargs)
 

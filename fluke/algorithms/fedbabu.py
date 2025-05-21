@@ -6,7 +6,7 @@ References:
        for Federated Image Classification. In ICLR (2022). URL: https://arxiv.org/abs/2106.06042
 """
 import sys
-from typing import Any, Iterable
+from typing import Collection
 
 from rich.progress import Progress
 from torch.nn import Module
@@ -18,10 +18,11 @@ from .. import FlukeENV  # NOQA
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 
@@ -38,7 +39,7 @@ class FedBABUClient(Client):
                  mode: str,
                  fine_tuning_epochs: int,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         assert mode in ["head", "body", "full"]
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
@@ -47,12 +48,12 @@ class FedBABUClient(Client):
         self.model = model
         self._save_to_cache()
 
-    def send_model(self):
+    def send_model(self) -> None:
         self.channel.send(Message(self.model.encoder,
-                          "model", self, inmemory=True), self.server)
+                          "model", self.index, inmemory=True), "server")
 
     def receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
+        msg = self.channel.receive(self.index, "server", msg_type="model")
         safe_load_state_dict(self.model.encoder, msg.payload.state_dict())
 
         # Deactivate gradient
@@ -100,7 +101,8 @@ class FedBABUClient(Client):
         self._load_from_cache()
         metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
-            self._notify_evaluation(-1, "post-fit", metrics)
+            self.notify(event="client_evaluation", round=-1,
+                        client_id=self.index, phase="post-fit", evals=metrics)
         self._save_to_cache()
 
 
@@ -109,7 +111,7 @@ class FedBABUServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,  # not used
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
@@ -123,7 +125,7 @@ class FedBABUServer(Server):
                 client.finalize()
                 progress.update(task, advance=1)
 
-        self._notify_finalize()
+        self.notify(event="finalize", round=self.rounds + 1)
 
 
 class FedBABU(PersonalizedFL):

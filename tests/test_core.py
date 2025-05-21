@@ -11,8 +11,8 @@ from rich.progress import Progress
 sys.path.append(".")
 sys.path.append("..")
 
-from fluke import DDict, FlukeENV, ObserverSubject, FlukeCache  # NOQA
-from fluke.utils import Configuration  # NOQA
+from fluke import DDict, FlukeCache, FlukeENV, ObserverSubject  # NOQA
+from fluke.config import Configuration  # NOQA
 
 
 def test_env():
@@ -26,8 +26,13 @@ def test_env():
     assert env.get_device() == torch.device("cuda")
     env.set_device("mps")
     assert env.get_device() == torch.device("mps")
+    env.set_device("cuda:0")
+    assert env.get_device() == torch.device("cuda:0")
+    env.set_device(["cuda:0", "cuda:1"])
+    assert env.get_device() == torch.device("cuda:0")
+    assert env.get_device_ids() == [0, 1]
     env.set_device("auto")
-    env.set_eval_cfg(DDict(pre_fit=True))
+    env.set_eval_cfg(pre_fit=True)
     assert env.get_eval_cfg().pre_fit
     env.set_save_options(path="temp", save_every=10, global_only=True)
     assert env.get_save_options() == ("temp", 10, True)
@@ -67,7 +72,7 @@ def test_env():
     cache = env.get_cache()
     assert cache.occupied == 0
     ref = cache.push("test1", "this is a test")
-    assert isinstance(ref, FlukeCache._ObjectRef)
+    assert isinstance(ref, FlukeCache.ObjectRef)
     assert cache.occupied == 1
     assert cache.get("test1") == "this is a test"
     assert cache.get("test2") is None
@@ -97,6 +102,7 @@ def test_observer():
     assert subj._observers == ["test"]
     subj.detach("test")
     assert subj._observers == []
+    subj.attach(None)
 
     subj.detach("test2")
 
@@ -107,7 +113,8 @@ def test_ddict():
         "b": 2,
         "c": {
             "d": 3,
-            "e": 4
+            "e": 4,
+            "f": ["g", "h", "i"]
         }
     })
 
@@ -115,6 +122,7 @@ def test_ddict():
     assert dd.b == 2
     assert dd.c.d == 3
     assert dd.c.e == 4
+    assert dd.c.f == ["g", "h", "i"]
 
     dd_nota = dd.exclude("a")
     assert "a" not in dd_nota
@@ -129,12 +137,18 @@ def test_ddict():
     dd2 = DDict({"a": 1, "b": 2}, c=3)
     assert dd.match(dd2)
     assert dd2.match(dd, full=True)
+    
     assert dd.diff(dd2) == {}
+    print(dd)
+    del dd2["c"]
+    print(dd2)
+    assert dd.match(dd2, full=False)
     d = DDict(a=1, b=2, c=3, e=DDict(a=1, b=2, c=3))
     e = DDict(a=1, b=3, c=4, e=DDict(a=1, b=1))
     assert d.diff(e) == {'b': 3, 'c': 4, 'e': {'b': 1}}
     assert e.diff(d) == {'b': 2, 'c': 3, 'e': {'b': 2, 'c': 3}}
     assert not d.match(e)
+
 
 
 if __name__ == "__main__":

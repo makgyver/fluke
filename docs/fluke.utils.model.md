@@ -61,6 +61,7 @@ Functions included in ``fluke.utils.model``
    set_lambda_model
    safe_load_state_dict
    state_dict_zero_like
+   unwrap
    
 ```
 
@@ -214,6 +215,8 @@ Functions included in ``fluke.utils.model``
 .. autofunction:: fluke.utils.model.safe_load_state_dict
 
 .. autofunction:: fluke.utils.model.state_dict_zero_like
+
+.. autofunction:: fluke.utils.model.unwrap
 
 
 ```

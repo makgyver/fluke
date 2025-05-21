@@ -4,23 +4,23 @@ The module :mod:`fluke.client` provides the base classes for the clients in :mod
 from __future__ import annotations
 
 import sys
-from typing import Any, Literal
+from typing import Any
 
 import torch
 from torch import device
 from torch.nn import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
+from torch.utils.data import DataLoader
 
 sys.path.append(".")
 
 from . import DDict, FlukeCache, FlukeENV, ObserverSubject  # NOQA
 from .comm import Channel, Message  # NOQA
+from .config import OptimizerConfigurator  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
-from .server import Server  # NOQA
-from .utils import (OptimizerConfigurator, cache_obj, clear_cuda_cache,  # NOQA
-                    retrieve_obj)
+from .utils import cache_obj, clear_cuda_cache, retrieve_obj  # NOQA
 from .utils.model import ModOpt, safe_load_state_dict  # NOQA
 
 __all__ = [
@@ -53,14 +53,32 @@ class Client(ObserverSubject):
 
         train_set (FastDataLoader): The local training set.
         test_set (FastDataLoader): The local test set.
-        optimizer_cfg (OptimizerConfigurator): The optimizer configurator. This is used to create
-          the optimizer and the learning rate scheduler.
         device (torch.device): The device where the client trains the model. By default, it is the
           device defined in :class:`fluke.FlukeENV`.
 
+    Args:
+        index (int): The client identifier. This might be useful to identify the client in the
+            federated learning process for logging or debugging purposes.
+        train_set (FastDataLoader): The local training set.
+        test_set (FastDataLoader): The local test set.
+        optimizer_cfg (OptimizerConfigurator): The optimizer configurator.
+        loss_fn (torch.nn.Module): The loss function.
+        local_epochs (int, optional): The number of local epochs, by default 3.
+        fine_tuning_epochs (int, optional): The number of fine-tuning epochs, by default 0.
+        clipping (float, optional): The clipping value for the gradients, by default 0.
+        persistency (bool, optional): If False the model, optimizer and scheduler are forgotten
+            after the local update.
+
     Attention:
-        **The client should not directly call methods of the server**. The communication between the
-        client and the server must be done through the :attr:`channel`.
+        Make sure to set the persistency of the client to false only if forgetting the model,
+        optimizer and scheduler does not conflict with the training process. For example, the
+        persistency should be set to false if the client is stateless and the model, optimizer
+        and scheduler are re-initialized at each local update. If the client is stateful, the
+        persistency should be set to true to avoid re-initializing the model, optimizer and
+        scheduler at each local update. Moreover, the overall performance of the client may be
+        affected if the persistency is set to false, in the sense that it may not coincide the same
+        experiment with persistency set to true as the re-initialization of the model, optimizer and
+        scheduler may lead to different results.
 
     Important:
         When inheriting from this class, make sure to handle the caching of the model, optimizer,
@@ -101,7 +119,8 @@ class Client(ObserverSubject):
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 persistency: bool = True,
+                 **kwargs):
         super().__init__()
         self.train_set: FastDataLoader = train_set
         self.test_set: FastDataLoader = test_set
@@ -116,9 +135,9 @@ class Client(ObserverSubject):
         self._index: int = index
         self._modopt: ModOpt = ModOpt()
         self._optimizer_cfg: OptimizerConfigurator = optimizer_cfg
-        self._server: Server = None
-        self._channel: Channel = None
+        self._channel: Channel | None = None
         self._last_round: int = 0
+        self._persistency: bool = persistency
         # List of additional attributes to cache
         self._attr_to_cache: list[str] = []
 
@@ -134,7 +153,7 @@ class Client(ObserverSubject):
         Returns:
             torch.nn.Module: The local model.
         """
-        if isinstance(self._modopt, FlukeCache._ObjectRef):
+        if isinstance(self._modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_modopt", self, pop=False).model
         return self._modopt.model
 
@@ -154,7 +173,7 @@ class Client(ObserverSubject):
         Returns:
             torch.optim.Optimizer: The optimizer.
         """
-        if isinstance(self._modopt, FlukeCache._ObjectRef):
+        if isinstance(self._modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_modopt", self, pop=False).optimizer
         return self._modopt.optimizer
 
@@ -174,7 +193,7 @@ class Client(ObserverSubject):
         Returns:
             torch.optim.lr_scheduler.LRScheduler: The learning rate scheduler.
         """
-        if isinstance(self._modopt, FlukeCache._ObjectRef):
+        if isinstance(self._modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_modopt", self, pop=False).scheduler
         return self._modopt.scheduler
 
@@ -211,9 +230,10 @@ class Client(ObserverSubject):
         """
         if isinstance(self.train_set, FastDataLoader):
             return self.train_set.size
+        elif isinstance(self.train_set, DataLoader):
+            return self.train_set.dataset.size
         else:
-            # Assume that the train_set is a PyTorch DataLoader
-            return len(self.train_set.dataset)
+            raise TypeError("The train_set must be a FastDataLoader or a DataLoader")
 
     @property
     def channel(self) -> Channel:
@@ -227,25 +247,13 @@ class Client(ObserverSubject):
         """
         return self._channel
 
-    @property
-    def server(self) -> Server:
-        """The server to which the client is connected. This reference must only be
-        used to send messages through the channel.
-
-        Returns:
-            Server: The server.
-        """
-        return self._server
-
-    def set_server(self, server: Server) -> None:
-        """Set the reference to the server. Along with the server, the communication channel is also
-        set and the client must use this channel to communicate with the server.
+    def set_channel(self, channel: Channel) -> None:
+        """Set the communication channel.
 
         Args:
-            server (Server): The server that orchestrates the federated learning process.
+            channel (Channel): The communication channel.
         """
-        self._server = server
-        self._channel = server.channel
+        self._channel = channel
 
     def receive_model(self) -> None:
         """Receive the global model from the server. This method is responsible for receiving the
@@ -253,7 +261,7 @@ class Client(ObserverSubject):
         as a payload of a :class:`fluke.comm.Message` with  ``msg_type="model"`` from the inbox
         of the client itself. The method uses the channel to receive the message.
         """
-        msg = self.channel.receive(self, self.server, msg_type="model")
+        msg = self.channel.receive(self.index, "server", msg_type="model")
         if self.model is None:
             self.model = msg.payload
         else:
@@ -263,7 +271,13 @@ class Client(ObserverSubject):
         """Send the current model to the server. The model is sent as a :class:`fluke.comm.Message`
         with ``msg_type`` "model" to the server. The method uses the channel to send the message.
         """
-        self.channel.send(Message(self.model, "model", self, inmemory=True), self.server)
+        self.channel.send(Message(self.model, "model", self.index, inmemory=True), "server")
+
+    def _model_to_dataparallel(self):
+        self.model = torch.nn.DataParallel(self.model, device_ids=FlukeENV().get_device_ids())
+
+    def _dataparallel_to_model(self):
+        self.model = self.model.module
 
     def local_update(self, current_round: int) -> None:
         """Client's local update procedure.
@@ -280,22 +294,57 @@ class Client(ObserverSubject):
         self._load_from_cache()
         self.receive_model()
 
-        if FlukeENV().get_eval_cfg().pre_fit:
-            metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
-            if metrics:
-                self._notify_evaluation(current_round, "pre-fit", metrics)
+        fluke_env = FlukeENV()
+        if fluke_env.is_parallel_client():
+            self._model_to_dataparallel()
 
-        self._notify_start_fit(current_round)
-        loss = self.fit()
-        self._notify_end_fit(current_round, loss)
-
-        if FlukeENV().get_eval_cfg().post_fit:
-            metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
+        if fluke_env.get_eval_cfg().pre_fit:
+            metrics = self.evaluate(fluke_env.get_evaluator(), self.test_set)
             if metrics:
-                self._notify_evaluation(current_round, "post-fit", metrics)
+                self.notify(event="client_evaluation",
+                            round=current_round,
+                            client_id=self.index,
+                            phase="pre-fit",
+                            evals=metrics)
+
+        self.notify("start_fit", round=current_round, client_id=self.index, model=self.model)
+
+        try:
+            loss = self.fit()
+        except KeyboardInterrupt:
+            if fluke_env.is_parallel_client():
+                self._dataparallel_to_model()
+            self._check_persistency()
+            raise KeyboardInterrupt()
+
+        self.notify("end_fit",
+                    round=current_round,
+                    client_id=self.index,
+                    model=self.model,
+                    loss=loss)
+
+        if fluke_env.get_eval_cfg().post_fit:
+            metrics = self.evaluate(fluke_env.get_evaluator(), self.test_set)
+            if metrics:
+                self.notify(event="client_evaluation",
+                            round=current_round,
+                            client_id=self.index,
+                            phase="post-fit",
+                            evals=metrics)
+
+        if fluke_env.is_parallel_client():
+            self._dataparallel_to_model()
 
         self.send_model()
+        self._check_persistency()
         self._save_to_cache()
+
+    def _check_persistency(self) -> None:
+        """Check if the client should persist the model, optimizer and scheduler.
+        If the client is not persistent, the model, optimizer and scheduler are set to None.
+        """
+        if not self._persistency:
+            self._modopt = ModOpt()
 
     def _clip_grads(self, model: Module) -> None:
         if self.hyper_params.clipping > 0:
@@ -357,7 +406,7 @@ class Client(ObserverSubject):
         model = self.model  # ensure to call the retrieve_obj only once
         if test_set is not None and model is not None:
             evaluation = evaluator.evaluate(self._last_round, model, test_set,
-                                            device=self.device)
+                                            device=self.device, loss_fn=None)
             return evaluation
         return {}
 
@@ -383,7 +432,11 @@ class Client(ObserverSubject):
         if FlukeENV().get_eval_cfg().pre_fit:
             metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
             if metrics:
-                self._notify_evaluation(-1, "pre-fit", metrics)
+                self.notify("client_evaluation",
+                            round=-1,
+                            client_id=self.index,
+                            phase="pre-fit",
+                            evals=metrics)
 
         self._save_to_cache()
 
@@ -394,7 +447,7 @@ class Client(ObserverSubject):
             dict: The client state.
         """
         modopt = retrieve_obj("_modopt", self, pop=False) \
-            if isinstance(self._modopt, FlukeCache._ObjectRef) else self._modopt
+            if isinstance(self._modopt, FlukeCache.ObjectRef) else self._modopt
         return {
             "modopt": modopt.state_dict(),
             "index": self.index,
@@ -446,24 +499,10 @@ class Client(ObserverSubject):
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)
 
-    def _notify_evaluation(self,
-                           round: int,
-                           phase: Literal["pre-fit", "post-fit"],
-                           metrics: dict[str, float]) -> None:
+    def notify(self, event: str, **kwargs) -> None:
         for obs in self._observers:
-            obs.client_evaluation(round, self.index, phase, metrics)
-
-    def _notify_start_fit(self, round: int) -> None:
-        for obs in self._observers:
-            obs.start_fit(round, self.index, self.model)
-
-    def _notify_end_fit(self, round: int, loss: float) -> None:
-        for obs in self._observers:
-            obs.end_fit(round, self.index, self.model, loss)
-
-    def _notify_track_item(self, round: int, item: str, value: Any) -> None:
-        for obs in self._observers:
-            obs.track_item(round, self.index, item, value)
+            if hasattr(obs, event):
+                getattr(obs, event)(**kwargs)
 
     def _load_from_cache(self) -> None:
         """Load the model, optimizer, and scheduler from the cache.
@@ -476,7 +515,7 @@ class Client(ObserverSubject):
         """
         if not FlukeENV().is_inmemory():
             for attr_name, attr_value in vars(self).items():
-                if isinstance(attr_value, FlukeCache._ObjectRef):
+                if isinstance(attr_value, FlukeCache.ObjectRef):
                     new_value = retrieve_obj(attr_name, self)
                     setattr(self, attr_name, new_value)
 
@@ -490,14 +529,14 @@ class Client(ObserverSubject):
         if not FlukeENV().is_inmemory():
             # Cache the model, optimizer, and scheduler
             for attr_name, attr_value in vars(self).items():
-                if not isinstance(attr_value, FlukeCache._ObjectRef) and \
+                if not isinstance(attr_value, FlukeCache.ObjectRef) and \
                         isinstance(attr_value, ModOpt):
                     setattr(self, attr_name, cache_obj(attr_value, attr_name, self))
 
             # Cache additional attributes
             for attr in self._attr_to_cache:
                 obj = getattr(self, attr)
-                if not isinstance(obj, FlukeCache._ObjectRef):
+                if not isinstance(obj, FlukeCache.ObjectRef):
                     setattr(self, attr, cache_obj(obj, attr, self))
 
 
@@ -522,7 +561,7 @@ class PFLClient(Client):
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -541,12 +580,12 @@ class PFLClient(Client):
         Returns:
             torch.nn.Module: The personalized model.
         """
-        if isinstance(self._modopt, FlukeCache._ObjectRef):
+        if isinstance(self._modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).model
         return self._personalized_modopt.model
 
     @personalized_model.setter
-    def personalized_model(self, model: Module | FlukeCache._ObjectRef) -> None:
+    def personalized_model(self, model: Module | FlukeCache.ObjectRef) -> None:
         self._personalized_modopt.model = model
 
     @property
@@ -561,12 +600,12 @@ class PFLClient(Client):
         Returns:
             torch.optim.Optimizer: The optimizer.
         """
-        if isinstance(self._modopt, FlukeCache._ObjectRef):
+        if isinstance(self._modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).optimizer
         return self._personalized_modopt.optimizer
 
     @pers_optimizer.setter
-    def pers_optimizer(self, optimizer: Optimizer | FlukeCache._ObjectRef) -> None:
+    def pers_optimizer(self, optimizer: Optimizer | FlukeCache.ObjectRef) -> None:
         self._personalized_modopt.optimizer = optimizer
 
     @property
@@ -581,13 +620,22 @@ class PFLClient(Client):
         Returns:
             torch.optim.lr_scheduler.LRScheduler: The learning rate scheduler.
         """
-        if isinstance(self._modopt, FlukeCache._ObjectRef):
+        if isinstance(self._modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).scheduler
         return self._personalized_modopt.scheduler
 
     @pers_scheduler.setter
     def pers_scheduler(self, scheduler: LRScheduler) -> None:
         self._personalized_modopt.scheduler = scheduler
+
+    def _model_to_dataparallel(self):
+        super()._model_to_dataparallel()
+        self.personalized_model = torch.nn.DataParallel(self.personalized_model,
+                                                        device_ids=FlukeENV().get_device_ids())
+
+    def _dataparallel_to_model(self):
+        super()._dataparallel_to_model()
+        self.personalized_model = self.personalized_model.module
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the personalized model on the :attr:`test_set`.
@@ -606,13 +654,14 @@ class PFLClient(Client):
             return evaluator.evaluate(self._last_round,
                                       self.personalized_model,
                                       test_set,
-                                      device=self.device)
+                                      device=self.device,
+                                      loss_fn=None)
         return {}
 
     def state_dict(self) -> dict[str, Any]:
         state = super().state_dict()
         pmodopt = retrieve_obj("_personalized_modopt", self, pop=False) \
-            if isinstance(self._personalized_modopt, FlukeCache._ObjectRef) \
+            if isinstance(self._personalized_modopt, FlukeCache.ObjectRef) \
             else self._personalized_modopt
         state["personalized_modopt"] = pmodopt.state_dict()
         return state

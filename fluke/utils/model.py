@@ -4,7 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Iterable
+from typing import Any, Collection, Iterable
 
 import numpy as np
 import torch
@@ -40,7 +40,8 @@ __all__ = [
     "mix_networks",
     "set_lambda_model",
     "safe_load_state_dict",
-    "state_dict_zero_like"
+    "state_dict_zero_like",
+    "unwrap"
 ]
 
 # ("num_batches_tracked", "running_mean", "running_var")
@@ -58,7 +59,7 @@ class ModOpt:
     """
     model: Module = field(default=None, metadata={"help": "The model"})
     optimizer: Optimizer = field(default=None, metadata={"help": "The optimizer"})
-    scheduler: lr_scheduler._LRScheduler = field(
+    scheduler: lr_scheduler.LRScheduler = field(
         default=None, metadata={"help": "The scheduler"})
     additional: dict[str, Any] = field(default=None, metadata={"help": "Additional fields"})
 
@@ -110,7 +111,7 @@ class MMMixin:
 
             # C is a class that extends torch.nn.Module
             class M(MMMixin, C):
-                def __init__(self, *args, **kwargs: dict[str, Any]):
+                def __init__(self, *args, **kwargs):
                     super().__init__(*args, **kwargs)
                     self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
 
@@ -123,7 +124,7 @@ class MMMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lam: float = None
+        self.lam: float | None = None
 
     def set_lambda(self, lam) -> None:
         """Set the interpolation constant.
@@ -157,7 +158,7 @@ class MMMixin:
 
 
 class LinesLinear(MMMixin, nn.Linear):
-    """Linear layer with gloabl and local weights. The weights are interpolated using the
+    """Linear layer with global and local weights. The weights are interpolated using the
     interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
     weights.
 
@@ -170,13 +171,13 @@ class LinesLinear(MMMixin, nn.Linear):
         bias_local (torch.Tensor): The local bias.
     """
 
-    def __init__(self, *args, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
             self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
 
-    def get_weight(self):
+    def get_weight(self) -> tuple[torch.Tensor, torch.Tensor]:
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
         if self.bias is not None:
             b = (1 - self.lam) * self.bias + self.lam * self.bias_local
@@ -184,7 +185,7 @@ class LinesLinear(MMMixin, nn.Linear):
             b = None
         return w, b
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         w, b = self.get_weight()
         x = F.linear(input=x, weight=w, bias=b)
         return x
@@ -204,13 +205,13 @@ class LinesConv2d(MMMixin, nn.Conv2d):
         bias_local (torch.Tensor): The local bias.
     """
 
-    def __init__(self, *args, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
         if self.bias is not None:
             self.bias_local = nn.Parameter(torch.zeros_like(self.bias))
 
-    def get_weight(self):
+    def get_weight(self) -> tuple[torch.Tensor, torch.Tensor]:
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
         if self.bias is not None:
             b = (1 - self.lam) * self.bias + self.lam * self.bias_local
@@ -218,7 +219,7 @@ class LinesConv2d(MMMixin, nn.Conv2d):
             b = None
         return w, b
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         w, b = self.get_weight()
         x = F.conv2d(input=x,
                      weight=w,
@@ -231,7 +232,7 @@ class LinesConv2d(MMMixin, nn.Conv2d):
 
 
 class LinesLSTM(MMMixin, nn.LSTM):
-    """LSTM layer with gloabl and local weights. The weights are interpolated using the
+    """LSTM layer with global and local weights. The weights are interpolated using the
     interpolation constant ``lam``. Thus, the forward pass of this layer will use the interpolated
     weights.
 
@@ -253,7 +254,7 @@ class LinesLSTM(MMMixin, nn.LSTM):
         bias_ih_l{layer}_local (torch.Tensor): The local input-hidden biases of layer ``layer``.
     """
 
-    def __init__(self, *args, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for layer in range(self.num_layers):
             setattr(self, f'weight_hh_l{layer}_local', nn.Parameter(
@@ -266,7 +267,7 @@ class LinesLSTM(MMMixin, nn.LSTM):
                 setattr(self, f'bias_ih_l{layer}_local', nn.Parameter(
                     torch.zeros_like(getattr(self, f'bias_ih_l{layer}'))))
 
-    def get_weight(self):
+    def get_weight(self) -> list[torch.Tensor]:
         weight_list = []
         for layer in range(self.num_layers):
             weight_list.append((1 - self.lam) * getattr(self,
@@ -277,7 +278,8 @@ class LinesLSTM(MMMixin, nn.LSTM):
                                self.lam * getattr(self, f'weight_hh_l{layer}_local'))
         return weight_list
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor, **kwargs) -> tuple[torch.Tensor,
+                                                          tuple[torch.Tensor, torch.Tensor]]:
         w = self.get_weight()
         h = (
             torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device),
@@ -317,11 +319,11 @@ class LinesEmbedding(MMMixin, nn.Embedding):
         weight_local (torch.Tensor): The local weights.
     """
 
-    def __init__(self, *args, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.zeros_like(self.weight))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         w = self.get_weight()
         x = F.embedding(input=x, weight=w)
         return x
@@ -341,12 +343,12 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
         bias_local (torch.Tensor): The local bias.
     """
 
-    def __init__(self, *args, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.weight_local = nn.Parameter(torch.Tensor(self.num_features))
         self.bias_local = nn.Parameter(torch.Tensor(self.num_features))
 
-    def get_weight(self):
+    def get_weight(self) -> tuple[torch.Tensor, torch.Tensor]:
         w = (1 - self.lam) * self.weight + self.lam * self.weight_local
         if self.bias is not None:
             b = (1 - self.lam) * self.bias + self.lam * self.bias_local
@@ -354,7 +356,7 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
             b = None
         return w, b
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # call get_weight, which samples from the subspace, then use the corresponding weight.
         w, b = self.get_weight()
 
@@ -386,6 +388,85 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
             exponential_average_factor,
             self.eps,
         )
+
+
+class AllLayerOutputModel(nn.Module):
+    """Wrapper class to get the output of all layers in a model.
+    Once the model is wrapped with this class, the activations of all layers can be accessed through
+    the attributes ``activations_in`` and ``activations_out``.
+
+    ``activations_in`` is a dictionary that contains the input activations of all layers.
+    ``activations_out`` is a dictionary that contains the output activations of all layers.
+
+    Note:
+        The activations are stored in the order in which they are computed during the forward pass.
+
+    Important:
+        If you need to access the activations of a specific layer after a potential activation
+        function, you should use the ``activations_in`` of the next layer. For example, if you
+        need the activations of the first layer after the ReLU activation, you should use the
+        activations_in of the second layer. These attribute may not include the activations of the
+        last layer if it includes an activation function.
+
+    Important:
+        If your model includes as submodule all the activations functions (e.g., of type
+        torch.nn.ReLU), then you can use the ``activations_out`` attribute to get all the
+        activations (i.e., before and after the activation functions).
+
+    Attributes:
+        model (torch.nn.Module): The model to wrap.
+        activations_in (OrderedDict): The input activations of all layers.
+        activations_out (OrderedDict): The output activations of all layers.
+
+    Args:
+        model (torch.nn.Module): The model to wrap.
+    """
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+        self.activations_in = OrderedDict()
+        self.activations_out = OrderedDict()
+        self._handles = []
+        self.activate()
+
+    def is_active(self) -> bool:
+        """Returns whether the all layer output model is active.
+
+        Returns:
+            bool: Whether the all layer output model is active.
+        """
+        return bool(self._handles)
+
+    def activate(self) -> None:
+        """Activate the all layer output functionality."""
+        _recursive_register_hook(self.model, self._get_activation, handles=self._handles)
+        # for layer in self.model.modules():
+        #     self._handles.append(layer.register_forward_hook(self._get_activation(layer)))
+
+    def deactivate(self, clear_activations: bool = True) -> None:
+        """Deactivate the all layer output functionality.
+
+        Args:
+            clear_activations (bool, optional): Whether to clear the stored activations. Defaults to
+                ``True``.
+        """
+        for h in self._handles:
+            h.remove()
+        self._handles = []
+        if clear_activations:
+            self.activations_in = OrderedDict()
+            self.activations_out = OrderedDict()
+
+    def _get_activation(self, name: str) -> callable:
+        def hook(model, input, output):
+            # if name not in self.activations_in:
+            self.activations_in[name] = input[0].detach()
+            self.activations_out[name] = output.detach()
+        return hook
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.model(x)
 
 
 def _recursive_mix_networks(merged_net: Module, global_model: Module, local_model: Module) -> dict:
@@ -439,7 +520,7 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
     return layers
 
 
-def _recursive_set_layer(module: Module, layers: dict):
+def _recursive_set_layer(module: Module, layers: dict) -> None:
     for n, l in layers.items():
         if isinstance(l, dict):
             _recursive_set_layer(getattr(module, n), l)
@@ -450,7 +531,7 @@ def _recursive_set_layer(module: Module, layers: dict):
 def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMMixin:
     """Mix two networks using a linear interpolation.
     This method takes two models and a lambda value and returns a new model that is a linear
-    interpolation of the two input models. It transparenly handles the interpolation of the
+    interpolation of the two input models. It transparently handles the interpolation of the
     different layers of the models. The returned model implements the :class:`MMMixin` class and
     has all the layers swapped with the corresponding interpolated layers.
 
@@ -501,12 +582,12 @@ def _set_lambda(module: MMMixin, lam: float, layerwise: bool = False) -> None:
         setattr(module, 'lam', lam)
 
 
-def set_lambda_model(model: MMMixin, lam: float, layerwise: bool = False) -> None:
+def set_lambda_model(model: Module, lam: float, layerwise: bool = False) -> None:
     """Set model interpolation constant.
 
     Warning:
         This function performs an inplace operation on the model, and
-        it assumes that the model has been built using the :class:`MMMixin` classes.
+        it assumes that the submodules inherit from the class :class:`MMMixin`.
 
     Args:
         model (torch.nn.Module): model
@@ -518,7 +599,7 @@ def set_lambda_model(model: MMMixin, lam: float, layerwise: bool = False) -> Non
     model.apply(partial(_set_lambda, lam=lam, layerwise=layerwise))
 
 
-def get_local_model_dict(model: MMMixin) -> OrderedDict:
+def get_local_model_dict(model: Module) -> OrderedDict:
     """Get the local model state dictionary.
 
     Args:
@@ -531,7 +612,7 @@ def get_local_model_dict(model: MMMixin) -> OrderedDict:
                         for k, v in model.state_dict().items() if "_local" in k})
 
 
-def get_global_model_dict(model: MMMixin) -> OrderedDict:
+def get_global_model_dict(model: Module) -> OrderedDict:
     """Get the global model state dictionary.
 
     Args:
@@ -553,7 +634,7 @@ def get_output_shape(model: Module, input_dim: tuple[int, ...]) -> tuple[int, ..
     Returns:
         tuple[int, ...]: The output shape of the model.
     """
-    return model(torch.rand(*(input_dim))).data.shape
+    return model(torch.rand(*input_dim)).data.shape
 
 
 def diff_model(model_dict1: dict, model_dict2: dict) -> OrderedDict:
@@ -741,7 +822,7 @@ def get_trainable_keys(model: nn.Module) -> list[str]:
 
 def aggregate_models(target_model: nn.Module,
                      models: Iterable[nn.Module],
-                     weights: Iterable[float],
+                     weights: Collection[float],
                      eta: float,
                      inplace: bool = True) -> nn.Module:
     r"""Aggregate the models using a weighted average.
@@ -812,7 +893,7 @@ def check_model_fit_mem(model: torch.nn.Module,
                         input_size: tuple[int, ...],
                         num_clients: int,
                         device: str = 'cuda',
-                        mps_default: bool = True):
+                        mps_default: bool = True) -> bool:
     """Check if the models fit in the memory of the device.
     The method estimates the memory usage of the models, when all clients and the server own a
     single neural network, on the device and checks if the models fit in the memory of the device.
@@ -828,6 +909,9 @@ def check_model_fit_mem(model: torch.nn.Module,
         num_clients (int): The number of clients in the federation.
         device (str, optional): The device to check. Defaults to 'cuda'.
         mps_default (bool, optional): The default value to return if the device is MPS.
+
+    Returns:
+        bool: ``True`` if the model fits in the memory of the device, ``False`` otherwise.
     """
 
     # Ensure the device is available
@@ -849,7 +933,7 @@ def check_model_fit_mem(model: torch.nn.Module,
 def _check_model_fit_mem_cuda(model: torch.nn.Module,
                               input_size: tuple[int, ...],
                               num_clients: int,
-                              device: torch.device):
+                              device: str) -> bool:
 
     # Get the current CUDA device
     cuda_device = torch.device(device)
@@ -897,80 +981,16 @@ def _recursive_register_hook(module: Module, hook: callable, name: str = "", han
     return empty
 
 
-class AllLayerOutputModel(nn.Module):
-    """Wrapper class to get the output of all layers in a model.
-    Once the model is wrapped with this class, the activations of all layers can be accessed through
-    the attributes ``activations_in`` and ``activations_out``.
-
-    ``activations_in`` is a dictionary that contains the input activations of all layers.
-    ``activations_out`` is a dictionary that contains the output activations of all layers.
-
-    Note:
-        The activations are stored in the order in which they are computed during the forward pass.
-
-    Important:
-        If you need to access the activations of a specific layer after a potential activation
-        function, you should use the ``activations_in`` of the next layer. For example, if you
-        need the activations of the first layer after the ReLU activation, you should use the
-        activations_in of the second layer. These attribute may not include the activations of the
-        last layer if it includes an activation function.
-
-    Important:
-        If your model includes as submodule all the activations functions (e.g., of type
-        torch.nn.ReLU), then you can use the ``activations_out`` attribute to get all the
-        activations (i.e., before and after the activation functions).
-
-    Attributes:
-        model (torch.nn.Module): The model to wrap.
-        activations_in (OrderedDict): The input activations of all layers.
-        activations_out (OrderedDict): The output activations of all layers.
+def unwrap(model: nn.Module | nn.DataParallel) -> nn.Module:
+    """Unwrap a model from a DataParallel wrapper if it is wrapped.
 
     Args:
-        model (torch.nn.Module): The model to wrap.
+        model (nn.Module | nn.DataParallel): The model to unwrap.
+
+    Returns:
+        nn.Module: The unwrapped model.
     """
-
-    def __init__(self, model: nn.Module):
-        super().__init__()
-        self.model = model
-        self.activations_in = OrderedDict()
-        self.activations_out = OrderedDict()
-        self._handles = []
-        self.activate()
-
-    def is_active(self) -> bool:
-        """Returns whether the all layer output model is active.
-
-        Returns:
-            bool: Whether the all layer output model is active.
-        """
-        return bool(self._handles)
-
-    def activate(self) -> None:
-        """Activate the all layer output functionality."""
-        _recursive_register_hook(self.model, self._get_activation, handles=self._handles)
-        # for layer in self.model.modules():
-        #     self._handles.append(layer.register_forward_hook(self._get_activation(layer)))
-
-    def deactivate(self, clear_activations: bool = True) -> None:
-        """Deactivate the all layer output functionality.
-
-        Args:
-            clear_activations (bool, optional): Whether to clear the stored activations. Defaults to
-                ``True``.
-        """
-        for h in self._handles:
-            h.remove()
-        self._handles = []
-        if clear_activations:
-            self.activations_in = OrderedDict()
-            self.activations_out = OrderedDict()
-
-    def _get_activation(self, name):
-        def hook(model, input, output):
-            # if name not in self.activations_in:
-            self.activations_in[name] = input[0].detach()
-            self.activations_out[name] = output.detach()
-        return hook
-
-    def forward(self, x):
-        return self.model(x)
+    if isinstance(model, nn.DataParallel):
+        return model.module
+    else:
+        return model

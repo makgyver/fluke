@@ -29,3 +29,28 @@ When installing `fluke`, the following dependencies are installed:
 - [`diskcache`](http://www.grantjenks.com/docs/diskcache/): for caching;
 - [`cerberus`](https://docs.cerberus.org/en/stable/): for data validation;
 - [`hydra-core`](https://hydra.cc/docs/): for configuration management.
+
+
+## 🐳 Docker
+
+You can use also use `fluke` directly inside a Docker container — no installation needed on your local machine.
+To do this, you can use the provided Dockerfile. First, clone the repository:
+
+```bash
+git clone https://github.com/makgyver/fluke.git
+cd fluke
+```
+
+Then, build the Docker image:
+
+```bash
+docker build -t fluke_container .
+```
+
+Then, you can run an interactive session with
+
+```bash
+docker run --rm fluke_container fluke [ARGS]
+```
+
+where `ARGS` are the arguments you want to pass to the `fluke` command as described in the [fluke CLI](./examples/run.md) section.

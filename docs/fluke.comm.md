@@ -92,6 +92,6 @@
 ```{eval-rst}
 
 .. autoclass:: fluke.comm.ChannelObserver
-   :members: message_received
+   :members:
 
 ```

@@ -38,8 +38,6 @@ Classes included in ``fluke.utils``
    :nosignatures:
 
    ClientObserver
-   Configuration
-   OptimizerConfigurator
    ServerObserver
 
 ```
@@ -93,47 +91,6 @@ Functions included in ``fluke.utils``
 
 ```
 
-<h3>
-
-{bdg-primary}`class` ``fluke.utils.Configuration``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.utils.Configuration
-   :members:
-
-```
-
-<h3>
-
-{bdg-primary}`class` ``fluke.utils.ConfigurationError``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.utils.ConfigurationError
-   :members:
-
-```
-
-
-<h3>
-
-{bdg-primary}`class` ``fluke.utils.OptimizerConfigurator``
-
-</h3>
-
-```{eval-rst}
-
-.. autoclass:: fluke.utils.OptimizerConfigurator
-   :members: __call__
-
-```
-
-<h3>
 
 {bdg-secondary}`interface` ``fluke.utils.ServerObserver``
 

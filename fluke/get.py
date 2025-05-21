@@ -10,7 +10,7 @@ app = typer.Typer()
 
 
 @app.command()
-def list():
+def list() -> None:
     """
     List all available configuration files.
     """
@@ -28,7 +28,7 @@ def list():
 
 
 @app.command()
-def config(name: str, outdir: str = typer.Option("config", help="Output directory")):
+def config(name: str, outdir: str = typer.Option("config", help="Output directory")) -> None:
     """
     Get a configuration file by name.
     """
@@ -64,7 +64,7 @@ def config(name: str, outdir: str = typer.Option("config", help="Output director
         yaml.dump(config, f)
 
 
-def main():
+def main() -> None:
     app()
 
 

@@ -8,7 +8,7 @@ References:
 import sys
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Iterable
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -32,7 +32,7 @@ class FedOptServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  mode: str = "adam",
                  lr: float = 0.001,
                  beta1: float = 0.9,
@@ -54,7 +54,7 @@ class FedOptServer(Server):
         )
         self._init_moments()
 
-    def _init_moments(self):
+    def _init_moments(self) -> None:
         self.m_t = OrderedDict()
         self.v_t = OrderedDict()
         for key in self.model.state_dict().keys():
@@ -64,7 +64,7 @@ class FedOptServer(Server):
                 self.v_t[key] = torch.zeros_like(self.model.state_dict()[key])
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         prev_model = deepcopy(self.model)
         super().aggregate(eligible, client_models)
         aggregated = self.model.state_dict()

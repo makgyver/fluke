@@ -6,7 +6,7 @@ References:
        URL: https://arxiv.org/abs/2209.00189
 """
 import sys
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
@@ -15,10 +15,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from . import CentralizedFL  # NOQA
-
 
 __all__ = [
     "CalibratedLoss",
@@ -68,7 +67,7 @@ class FedLCClient(Client):
                  tau: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         label_counter = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):

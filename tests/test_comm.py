@@ -40,7 +40,7 @@ def test_message():
     assert msg.size == 3
     msg = Message(payload=torch.nn.Linear(10, 10), msg_type="type_test", sender=None)
     assert msg.size == 100 + 10
-    msg = Message(payload=FlukeCache._ObjectRef(), msg_type="type_test", sender=None)
+    msg = Message(payload=FlukeCache.ObjectRef(), msg_type="type_test", sender=None)
     assert msg.size == 0
 
     class A():
@@ -79,8 +79,14 @@ def test_channel():
     assert isinstance(chobs, ChannelObserver)
 
     class Observer(ChannelObserver):
-        def message_received(self, by, msg):
-            self.msg = msg
+        def message_received(self, by, message):
+            self.msg = message
+
+        def message_sent(self, to, message):
+            return super().message_sent(to, message)
+
+        def message_broadcast(self, msg):
+            return super().message_broadcast(msg)
 
     FlukeENV().open_cache("tmp_comm")
     channel = Channel()
@@ -117,6 +123,7 @@ def test_channel():
     with pytest.raises(ValueError):
         channel.receive("pippo", "sender", "type_test")
 
+    FlukeENV().get_cache().cleanup()
     FlukeENV().close_cache()
 
 

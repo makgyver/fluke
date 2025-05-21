@@ -81,6 +81,7 @@ Check out the tutorials to get acquainted with **``fluke``**.
     fluke.algorithms
     fluke.client
     fluke.comm
+    fluke.config
     fluke.data
     fluke.evaluation
     fluke.nets

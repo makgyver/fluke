@@ -7,20 +7,20 @@ References:
 
 """
 import sys
-from typing import Iterable
+from typing import Collection
 
-import torch
-from torch.nn import Module
 import numpy as np
+import torch
 from sklearn.neighbors import KernelDensity
+from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
-from . import CentralizedFL  # NOQA
-from ..data import FastDataLoader  # NOQA
 from ..client import Client  # NOQA
+from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
+from . import CentralizedFL  # NOQA
 
 __all__ = [
     "KafeServer",
@@ -33,13 +33,13 @@ class KafeServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  bandwidth: float = 1.0):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(bandwidth=bandwidth)
 
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
 
         # get last layer of m clients' weights
