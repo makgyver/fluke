@@ -38,8 +38,8 @@ def test_server():
 
         def server_evaluation(self, round, eval_type, evals, **kwargs) -> None:
             assert round == 1
-            assert eval_type == "global"
-            assert "accuracy" in evals
+            assert (eval_type == "locals") or (eval_type == "global")
+            assert ("accuracy" in evals) or ("accuracy" in evals[0])
 
         def finished(self, round):
             assert round == 1 or round == 2
@@ -52,6 +52,7 @@ def test_server():
         return 0 if x[:7].sum() < 2.5 else 1
 
     FlukeENV().set_inmemory(True)
+    FlukeENV().set_eval_cfg(locals=True)
     Xtr = [torch.rand((100, 10)), torch.rand((100, 10))]
     ytr = [torch.tensor([target_function(x) for x in Xtr[0]]),
            torch.tensor([target_function(x) for x in Xtr[1]])]

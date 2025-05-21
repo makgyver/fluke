@@ -368,7 +368,7 @@ class FlukeENV(metaclass=Singleton):
         self.set_device(cfg.exp.device)
         self.set_inmemory(cfg.exp.inmemory)
         self.set_save_options(**cfg.save)
-        self.set_eval_cfg(cfg.eval)
+        self.set_eval_cfg(**cfg.eval)
 
     def get_seed(self) -> int:
         """Get the seed.
@@ -386,11 +386,11 @@ class FlukeENV(metaclass=Singleton):
         """
         return DDict(self._eval_cfg)
 
-    def set_eval_cfg(self, cfg: DDict) -> None:
+    def set_eval_cfg(self, **cfg: DDict | dict) -> None:
         """Set the evaluation configuration.
 
         Args:
-            cfg (DDict): The evaluation configuration.
+            **cfg (DDict | dict): The evaluation configuration.
         """
         for key, value in cfg.items():
             self._eval_cfg[key] = value
@@ -461,6 +461,7 @@ class FlukeENV(metaclass=Singleton):
             return FlukeENV().auto_device()
 
         if isinstance(device, list):
+            self._device_ids = []
             for d in device:
                 if isinstance(d, int):
                     self._device_ids.append(d)
@@ -476,6 +477,7 @@ class FlukeENV(metaclass=Singleton):
                 warnings.warn(warn_msg)
 
         elif device.startswith('cuda') and ":" in device:
+            self._device_ids = []
             idx = int(device.split(":")[1])
             self._device = torch.device("cuda", idx)
             self._device_ids.append(idx)
