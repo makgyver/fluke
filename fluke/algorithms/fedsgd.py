@@ -6,7 +6,6 @@ References:
        In AISTATS (2017). URL: https://arxiv.org/abs/1602.05629
 """
 import sys
-from typing import Any
 
 import torch
 
@@ -15,9 +14,8 @@ sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
-
 
 __all__ = [
     "FedSGDClient",
@@ -34,7 +32,7 @@ class FedSGDClient(Client):
                  loss_fn: torch.nn.Module,
                  local_epochs: int = 3,
                  fine_tuning_epochs: int = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, **kwargs)

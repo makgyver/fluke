@@ -167,6 +167,12 @@ def test_ftdl():
     assert x0_tr[0].shape == torch.Size([3, 224, 224])
     assert torch.any(x0_tr[0] != X[0])
 
+    dataloader = loader.as_dataloader()
+    assert isinstance(dataloader, torch.utils.data.DataLoader)
+    assert dataloader.batch_size == 1
+    assert len(dataloader.dataset) == 5
+
+
 
 def test_splitter():
     cfg = DDict(
@@ -195,10 +201,10 @@ def test_splitter():
     assert splitter.distribution == "iid"
 
     # OK uniform
-    (ctr, cte), ste = splitter.assign(10, batch_size=10)
+    (ctr, cte), ste = splitter.assign(11, batch_size=10)
 
-    assert len(ctr) == 10
-    assert len(cte) == 10
+    assert len(ctr) == 11
+    assert len(cte) == 11
     assert isinstance(ctr[0], FastDataLoader)
     x, y = next(iter(ctr[0]))
     assert x.shape == torch.Size([10, 28, 28])
@@ -215,6 +221,7 @@ def test_splitter():
 
     # OK
     splitter.distribution = "dir"
+    splitter.dist_args.balanced = True
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
     # OK?
@@ -225,6 +232,7 @@ def test_splitter():
     # splitter.distribution = "classwise_qnt"
     # (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
+    del splitter.dist_args["balanced"]
     splitter.distribution = "pathological"
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
@@ -238,28 +246,6 @@ def test_splitter():
     splitter.dist_args.balanced = False
     (ctr, cte), ste = splitter.assign(n_clients, batch_size=10)
 
-    # freq = []
-    # for i in range(n_clients):
-    #     arr = np.concatenate([ctr[i].tensors[1].numpy(), cte[i].tensors[1].numpy()])
-    #     freq.append({val: np.sum(arr == val) for val in np.unique(arr)})
-    #     # print(i, freq[-1])
-
-    # freq0 = np.array([freq[i][0] - 2 for i in range(n_clients)], dtype=float)
-    # freq0 /= np.sum(freq0, dtype=float)
-
-    # print(",".join([str(x) for x in freq0]))
-
-    # keep_test
-    # - server_test + client_split = 0
-    # - server_test + client_split > 0
-    # - not server_test + client_split > 0
-    # not keep_test
-    # - server_test + client_split = 0
-    # - server_test + client_split > 0
-    # - not server_test + client_split > 0
-
-    # ERROR: keep_test=False, server_test=False, client_split=0
-    # ERROR: keep_test=False, server_test=True, server_split=0
     cfg = DDict(
         dataset={
             "name": "mnist",

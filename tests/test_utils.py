@@ -1,4 +1,5 @@
 import json
+import shutil
 import sys
 import tempfile
 from unittest.mock import patch
@@ -9,6 +10,21 @@ from torch.nn import CrossEntropyLoss, Linear
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
 
+from fluke.utils import (ClientObserver, ServerObserver, bytes2human,
+                         cache_obj, clear_cuda_cache, flatten_dict,
+                         get_class_from_qualified_name, get_class_from_str,
+                         get_full_classname, get_loss, get_model,
+                         get_optimizer, get_scheduler, import_module_from_str,
+                         memory_usage, plot_distribution, retrieve_obj)
+from fluke.utils.model import (AllLayerOutputModel, MMMixin, aggregate_models,
+                               batch_norm_to_group_norm, check_model_fit_mem,
+                               diff_model, flatten_parameters,
+                               get_activation_size, get_global_model_dict,
+                               get_local_model_dict, get_output_shape,
+                               get_trainable_keys, merge_models, mix_networks,
+                               safe_load_state_dict, set_lambda_model,
+                               state_dict_zero_like, unwrap)
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -17,24 +33,14 @@ from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import Message  # NOQA
+from fluke.config import (Configuration, ConfigurationError,  # NOQA
+                          OptimizerConfigurator)
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import (ClientObserver, Configuration, ConfigurationError,  # NOQA
-                         OptimizerConfigurator, ServerObserver, clear_cuda_cache,
-                         get_class_from_qualified_name, get_class_from_str,
-                         get_full_classname, get_loss, get_model, get_optimizer, bytes2human,
-                         get_scheduler, import_module_from_str, memory_usage,
-                         plot_distribution, retrieve_obj, cache_obj, flatten_dict)
-from fluke.utils.log import Log, get_logger  # NOQA
-from fluke.utils.model import (STATE_DICT_KEYS_TO_IGNORE,  # NOQA
-                               AllLayerOutputModel, MMMixin,
-                               batch_norm_to_group_norm, check_model_fit_mem,
-                               diff_model, flatten_parameters,
-                               get_global_model_dict, get_local_model_dict, get_trainable_keys,
-                               merge_models, mix_networks, get_activation_size,
-                               safe_load_state_dict, set_lambda_model, state_dict_zero_like)
+from fluke.utils.log import DebugLog, Log, TensorboardLog, get_logger  # NOQA
+from fluke.utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 
 def test_optimcfg():
@@ -367,6 +373,7 @@ def test_log():
         log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
         log.end_round(1)
         log.finished(1)
+        log.early_stop(1)
         temp = tempfile.NamedTemporaryFile(mode="w")
         log.save(temp.name)
     except Exception:
@@ -399,6 +406,35 @@ def test_log():
     assert log.value == 17
     assert isinstance(log, MyLog)
 
+def test_tensorboard_log():
+    log = TensorboardLog(log_dir="tests/tmp/runs")
+    log.init(test="hello")
+
+    model = MNIST_2NN()
+    try:
+        log.comm_costs[0] = 1  # for testing
+        log.start_round(1, model)
+        log.comm_costs[0] = 0  # for testing
+        log.selected_clients(1, [1, 2, 3])
+        log.message_received("testA", Message("test", "test", None))
+        log.server_evaluation(1, "global", {"accuracy": 1})
+        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.end_round(1)
+        log.add_scalar("test", 1, 1)
+        log.add_scalars("test", {"test1": 1, "test2": 2}, 1)
+        log.finished(1)
+        log.early_stop(1)
+        temp = tempfile.NamedTemporaryFile(mode="w")
+        log.save(temp.name)
+        log.close()
+    except Exception:
+        pytest.fail("Unexpected error!")
+
+    assert log.custom_fields[1]["test/test1"] == 1
+    assert log.custom_fields[1]["test/test2"] == 2
+    assert log.custom_fields[1]["test"] == 1
+    
+    shutil.rmtree("tests/tmp/runs")
 
 # def test_wandb_log():
 #     log2 = WandBLog()
@@ -426,6 +462,58 @@ def test_log():
 #     assert log2.client_history[1] == {"accuracy": 0.6}
 #     assert log2.comm_costs[1] == 4
 
+def test_debuglog():
+
+    log = DebugLog()
+    log.init(test="hello")
+
+    try:
+        log.comm_costs[0] = 1  # for testing
+        log.start_round(1, None)
+        log.comm_costs[0] = 0  # for testing
+        log.selected_clients(1, [Client(1, None, None, None, None), Client(2, None, None, None, None)])
+        log.message_received("testA", Message("test", "test", None))
+        log.server_evaluation(1, "global", {"accuracy": 1})
+        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.end_round(1)
+        log.finished(1)
+        log.message_broadcasted("testB", Message("test", "test", None))
+        log.message_sent("testC", Message("test", "test", None))
+        log.interrupted()
+        log.early_stop(1)
+        log.start_fit(1, 1, None)
+        log.end_fit(1, 1, None, 0.1)
+        temp = tempfile.NamedTemporaryFile(mode="w")
+        log.save(temp.name)
+    except Exception:
+        pytest.fail("Unexpected error!")
+
+    with open(temp.name, "r") as f:
+        data = dict(json.load(f))
+        print(data)
+        assert data["mem_costs"]["1"] > 0
+        del data["mem_costs"]
+        assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
+            '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
+            'perf_postfit': {'1': {'accuracy': 0.6}}, 'custom_fields': {}}
+
+    assert log.global_eval == {1: {"accuracy": 1}}
+    assert log.locals_eval == {}
+    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}}}
+    assert log.postfit_eval == {}
+    assert log.locals_eval_summary == {}
+    assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
+    assert log.postfit_eval_summary == {1: {'accuracy': 0.6}}
+    assert log.comm_costs == {0: 0, 1: 4}
+    assert log.current_round == 1
+
+    log.track_item(1, "test", 12)
+    assert 1 in log.custom_fields
+    assert log.custom_fields[1]["test"] == 12
+
+    log = get_logger("tests.test_utils.MyLog", value=17)
+    assert log.value == 17
+    assert isinstance(log, MyLog)
 
 def test_models():
     model1 = Linear(2, 1)
@@ -458,6 +546,25 @@ def test_models():
         for n2, p2 in model_gn.named_parameters():
             if n1 == n2 and isinstance(p1, torch.nn.BatchNorm2d):
                 assert isinstance(p2, torch.nn.GroupNorm)
+    
+    class TestModel(torch.nn.Module):
+        def __init__(self):
+            super(TestModel, self).__init__()
+            self.fc1 = Linear(2, 2)
+            self.fc2 = Linear(2, 1)
+
+        def forward(self, x):
+            x = self.fc1(x)
+            x = self.fc2(x)
+            return x
+
+    model1 = TestModel()
+    model2 = torch.nn.DataParallel(TestModel())
+
+    assert isinstance(unwrap(model2).fc1, torch.nn.Linear)
+    assert isinstance(unwrap(model2).fc2, torch.nn.Linear)
+
+    assert get_output_shape(model1, (1, 2)) == (1, 1)
 
 
 def test_mixing():
@@ -609,7 +716,7 @@ def test_plot_dist_ball(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, type="ball")
+    plot_distribution(fl.clients, plot_type="ball")
     FlukeENV().close_cache()
 
 
@@ -633,7 +740,7 @@ def test_plot_dist_bar(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, type="bar")
+    plot_distribution(fl.clients, plot_type="bar")
     FlukeENV().close_cache()
 
 
@@ -657,7 +764,7 @@ def test_plot_dist_mat(mock_show):
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
     fl = CentralizedFL(10, splitter, hparams)
-    plot_distribution(fl.clients, type="mat")
+    plot_distribution(fl.clients, plot_type="mat")
     FlukeENV().close_cache()
 
 
@@ -669,6 +776,10 @@ def test_check_mem():
 
     if torch.cuda.is_available():
         assert check_model_fit_mem(net, (28 * 28,), 100, "cuda")
+
+    if not torch.cuda.is_available():
+        with pytest.raises(RuntimeError):
+            check_model_fit_mem(net, (28 * 28,), 100, "cuda")
 
 
 def test_get_activation_size():
@@ -682,7 +793,26 @@ def test_get_activation_size():
     with pytest.raises(ValueError):
         get_activation_size(net.encoder, None)
     assert 10 == get_activation_size(net, x)
+    assert 6272 == get_activation_size(net.encoder, x)
 
+def test_agg():
+    loss = CrossEntropyLoss()
+    net1 = FedBN_CNN()
+    net2 = FedBN_CNN()
+    optimizer = SGD(net1.parameters(), lr=0.01)
+    optimizer2 = SGD(net2.parameters(), lr=0.01)
+    x = torch.randn(10, 1, 28, 28)
+    net1.zero_grad()
+    net2.zero_grad()
+    loss1 = loss(net1(x), torch.randint(0, 10, (10,)))
+    loss2 = loss(net2(x), torch.randint(0, 10, (10,)))
+    loss1.backward()
+    loss2.backward()
+    optimizer.step()
+    optimizer2.step()
+    net = FedBN_CNN()
+    _ = aggregate_models(net, [net1, net2], [0.5, 0.5], eta=1.0)
+    
 
 def test_alllayeroutput():
     net = MNIST_2NN()

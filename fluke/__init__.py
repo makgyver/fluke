@@ -10,11 +10,12 @@ import shutil
 import uuid
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Iterable, Union
-from omegaconf import DictConfig
+from typing import TYPE_CHECKING, Any, Collection, Union
+
 import numpy as np
 import torch
 from diskcache import Cache
+from omegaconf import DictConfig, ListConfig
 from rich.console import Group
 from rich.progress import Live, Progress
 
@@ -22,10 +23,30 @@ if TYPE_CHECKING:
     from .evaluation import Evaluator
 
 
+def custom_formatwarning(msg: str, category: type, filename: str, lineno: int, *args) -> str:
+    # return f"[{category.__name__}] {filename}:{lineno} - {msg}\n"
+
+    # ANSI color codes
+    # RED = '\033[91m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    RESET = '\033[0m'
+
+    return (
+            f"{YELLOW}[{category.__name__}]{RESET} "
+            f"{BLUE}{filename}:{lineno}{RESET}\n"
+            f"{YELLOW}{msg}{RESET}\n"
+        )
+
+
+warnings.formatwarning = custom_formatwarning
+
+
 __all__ = [
     'algorithms',
     'client',
     'comm',
+    'config',
     'data',
     'evaluation',
     'get',
@@ -40,7 +61,7 @@ __all__ = [
     'Singleton'
 ]
 
-__version__ = '0.7.5'
+__version__ = '0.7.8'
 __author__ = 'Mirko Polato'
 __email__ = 'mirko.polato@unito.it'
 __license__ = 'LGPLv2.1'
@@ -66,12 +87,13 @@ class Singleton(type):
     """
     _instances = {}
 
-    def __call__(cls, *args, **kwargs: dict[str, Any]):
+    def __call__(cls, *args, **kwargs) -> Any:
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
-    def clear(cls):
+    def clear(cls) -> None:
+        """Clear the singleton instances."""
         cls._instances = {}
 
 
@@ -96,10 +118,11 @@ class DDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
 
-    def __init__(self, *args: dict, **kwargs: dict[str, Any]):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
         self.update(*args, **kwargs)
 
-    def update(self, *args: dict, **kwargs: dict[str, Any]):
+    def update(self, *args, **kwargs) -> None:
         """Update the :class:`DDict` with the specified key-value pairs.
 
         Args:
@@ -121,6 +144,8 @@ class DDict(dict):
                 for k, v in arg.items():
                     if isinstance(v, (dict, DictConfig)):
                         self[k] = DDict(**v)
+                    elif isinstance(v, ListConfig):
+                        self[k] = list(v)
                     else:
                         self[k] = v
             else:
@@ -129,10 +154,12 @@ class DDict(dict):
         for k, v in kwargs.items():
             if isinstance(v, (dict, DictConfig)):
                 self[k] = DDict(**v)
+            elif isinstance(v, ListConfig):
+                self[k] = list(v)
             else:
                 self[k] = v
 
-    def exclude(self, *keys: str):
+    def exclude(self, *keys: str) -> DDict:
         """Create a new :class:`DDict` excluding the specified keys.
 
         Args:
@@ -205,7 +232,7 @@ class DDict(dict):
         self.__dict__.update(state)
 
 
-class ObserverSubject():
+class ObserverSubject:
     """Subject class for the observer pattern. The subject is the class that is observed and thus
     it holds the observers.
 
@@ -243,11 +270,11 @@ class ObserverSubject():
     def __init__(self):
         self._observers: list[Any] = []
 
-    def attach(self, observer: Union[Any, Iterable[Any]]):
+    def attach(self, observer: Union[Any, Collection[Any]]):
         """Attach one or more observers.
 
         Args:
-            observer (Union[Any, Iterable[Any]]): The observer or a list of observers.
+            observer (Union[Any, Collection[Any]]): The observer or a list of observers.
         """
         if observer is None:
             return
@@ -259,7 +286,7 @@ class ObserverSubject():
             if obs not in self._observers:
                 self._observers.append(obs)
 
-    def detach(self, observer: Any):
+    def detach(self, observer: Any) -> None:
         """Detach an observer.
 
         Args:
@@ -269,6 +296,11 @@ class ObserverSubject():
             self._observers.remove(observer)
         except ValueError:
             pass
+
+    def notify(self, event: str, **kwargs) -> None:
+        for obs in self._observers:
+            if hasattr(obs, event):
+                getattr(obs, event)(**kwargs)
 
 
 class FlukeENV(metaclass=Singleton):
@@ -288,9 +320,10 @@ class FlukeENV(metaclass=Singleton):
 
     # general settings
     _device: torch.device = torch.device('cpu')
+    _device_ids: list[int] = []
     _seed: int = 0
     _inmemory: bool = True
-    _cache: FlukeCache = None
+    _cache: FlukeCache | None = None
 
     # saving settings
     _save_path: str = None
@@ -313,6 +346,9 @@ class FlukeENV(metaclass=Singleton):
     _rich_progress_server: Progress = None
     _live_renderer: Live = None
 
+    # global logger
+    _logger: Any = None
+
     def __init__(self):
         super().__init__()
         self._rich_progress_FL: Progress = Progress(transient=True)
@@ -326,13 +362,13 @@ class FlukeENV(metaclass=Singleton):
         """Configure the global settings.
 
         Args:
-            config (DDict): The configuration.
+            cfg (DDict): The configuration.
         """
         self.set_seed(cfg.exp.seed)
         self.set_device(cfg.exp.device)
         self.set_inmemory(cfg.exp.inmemory)
         self.set_save_options(**cfg.save)
-        self.set_eval_cfg(cfg.eval)
+        self.set_eval_cfg(**cfg.eval)
 
     def get_seed(self) -> int:
         """Get the seed.
@@ -350,11 +386,11 @@ class FlukeENV(metaclass=Singleton):
         """
         return DDict(self._eval_cfg)
 
-    def set_eval_cfg(self, cfg: DDict) -> None:
+    def set_eval_cfg(self, **cfg: DDict | dict) -> None:
         """Set the evaluation configuration.
 
         Args:
-            cfg (DDict): The evaluation configuration.
+            **cfg (DDict | dict): The evaluation configuration.
         """
         for key, value in cfg.items():
             self._eval_cfg[key] = value
@@ -408,7 +444,7 @@ class FlukeENV(metaclass=Singleton):
             self._device = torch.device('cpu')
         return self._device
 
-    def set_device(self, device: str) -> torch.device:
+    def set_device(self, device: str | list) -> torch.device:
         """Set the device. The device can be ``cpu``, ``auto``, ``mps``, ``cuda`` or ``cuda:N``,
         where ``N`` is the GPU index.
 
@@ -418,15 +454,34 @@ class FlukeENV(metaclass=Singleton):
         Returns:
             torch.device: The selected device as torch.device.
         """
-        assert device in ['cpu', 'auto', 'mps', 'cuda'] or re.match(r'^cuda:\d+$', device), \
-            f"Invalid device {device}."
+        assert device in ['cpu', 'auto', 'mps', 'cuda'] or isinstance(device, list) \
+               or re.match(r'^cuda:\d+$', device), f"Invalid device {device}."
 
         if device == "auto":
             return FlukeENV().auto_device()
 
-        if device.startswith('cuda') and ":" in device:
+        if isinstance(device, list):
+            self._device_ids = []
+            for d in device:
+                if isinstance(d, int):
+                    self._device_ids.append(d)
+                elif re.match(r'^cuda:\d+$', d):
+                    self._device_ids.append(int(d.split(':')[1]))
+                else:
+                    raise ValueError(f"Invalid device/device_id {d}.")
+
+            self._device = torch.device(device[0])
+            if len(self._device_ids) > 1:
+                warn_msg = "[EXPERIMENTAL Feature] Multi-GPU training is experimental" \
+                     " and may not work as expected. Please report any issues to the developers."
+                warnings.warn(warn_msg)
+
+        elif device.startswith('cuda') and ":" in device:
+            self._device_ids = []
             idx = int(device.split(":")[1])
             self._device = torch.device("cuda", idx)
+            self._device_ids.append(idx)
+
         else:
             self._device = torch.device(device)
         return self._device
@@ -438,6 +493,27 @@ class FlukeENV(metaclass=Singleton):
             torch.device: The device.
         """
         return self._device
+
+    def get_device_ids(self) -> list[int]:
+        """Get the device ids if the device is ``cuda``.
+
+        Note:
+            The device ids are the indices of the GPUs that are used by the client. If the device is
+            ``cpu`` or ``mps``, an empty list is returned.
+
+        Returns:
+            list[int]: The device ids.
+        """
+        return self._device_ids
+
+    def is_parallel_client(self):
+        """
+        Check if the client runs in parallel mode, i.e., using multiple GPUs.
+
+        Returns:
+            bool: True if the client runs in parallel mode, False otherwise.
+        """
+        return len(self._device_ids) > 1
 
     def get_progress_bar(self, progress_type: str) -> Progress:
         """Get the progress bar.
@@ -498,6 +574,22 @@ class FlukeENV(metaclass=Singleton):
             self._save_every = save_every
         if global_only is not None:
             self._global_only = global_only
+
+    def get_logger(self) -> Any:
+        """Get the global logger.
+
+        Returns:
+            Any: The logger.
+        """
+        return self._logger
+
+    def set_logger(self, logger: Any) -> None:
+        """Set the global logger.
+
+        Args:
+            logger (Any): The logger.
+        """
+        self._logger = logger
 
     def set_inmemory(self, inmemory: bool) -> None:
         """Set if the data is stored in memory.
@@ -570,10 +662,10 @@ class FlukeENV(metaclass=Singleton):
         self.__dict__.update(state)
 
 
-class FlukeCache():
+class FlukeCache:
     """A cache class that can store data on disk."""
 
-    class _ObjectRef():
+    class ObjectRef:
         """A reference to an object in the cache.
         The reference is a unique identifier that is used to store and retrieve the object from the
         cache.
@@ -592,21 +684,21 @@ class FlukeCache():
             return self._id
 
         def __str__(self) -> str:
-            return f"_ObjectRef({self._id})"
+            return f"ObjectRef({self._id})"
 
-        def __repr__(self):
+        def __repr__(self) -> str:
             return self.__str__()
 
-    class _RefCounter():
+    class _RefCounter:
         """A reference counter for an object in the cache."""
 
         def __init__(self, value: Any, refs: int = 1):
             self._value = value
             self._refs = refs
-            self._id = FlukeCache._ObjectRef()
+            self._id = FlukeCache.ObjectRef()
 
         @property
-        def id(self) -> FlukeCache._ObjectRef:
+        def id(self) -> FlukeCache.ObjectRef:
             """Get the unique identifier of the reference.
 
             Returns:
@@ -616,7 +708,7 @@ class FlukeCache():
 
         @property
         def value(self) -> Any:
-            """Get the value ppinted by the reference.
+            """Get the value pointed by the reference.
 
             Returns:
                 Any: The value.
@@ -654,9 +746,9 @@ class FlukeCache():
         if 'size_limit' not in kwargs:
             kwargs['size_limit'] = 2**34
         self._cache: Cache = Cache(f"tmp/{path}", **kwargs)
-        self._key2ref: dict[str, FlukeCache._ObjectRef] = {}
+        self._key2ref: dict[str, FlukeCache.ObjectRef] = {}
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> Any:
         return self._cache[self._key2ref[key].id].value
 
     @property
@@ -689,8 +781,9 @@ class FlukeCache():
         obj = self._cache.get(self._key2ref[key].id, default=default)
         if obj is not default:
             return obj.value
+        return default
 
-    def push(self, key: str, value: Any) -> FlukeCache._ObjectRef:
+    def push(self, key: str, value: Any) -> FlukeCache.ObjectRef:
         """Push an object to the cache.
 
         Note:
@@ -702,9 +795,9 @@ class FlukeCache():
             value (Any): The object to store in the cache.
 
         Returns:
-            FlukeCache._ObjectRef: The reference to the object in the cache.
+            FlukeCache.ObjectRef: The reference to the object in the cache.
         """
-        if isinstance(value, FlukeCache._ObjectRef):
+        if isinstance(value, FlukeCache.ObjectRef):
             assert value.id in self._cache, f"Reference {value.id} not in cache."
             self._key2ref[key] = value
             self._cache[value.id] = self._cache[value.id].inc()

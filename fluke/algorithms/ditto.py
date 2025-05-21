@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Iterator
+from typing import Iterator
 
 import torch
 from torch.nn.parameter import Parameter
@@ -17,8 +17,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..client import PFLClient  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from . import PersonalizedFL  # NOQA
 
 __all__ = [
@@ -33,7 +34,7 @@ class PerturbedGradientDescent(Optimizer):
                  params: Iterator[Parameter],
                  lr: float = 0.01,
                  lam: float = 0.0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         default = dict(lr=lr, lam=lam)
         super().__init__(params, default)
 
@@ -60,7 +61,7 @@ class DittoClient(PFLClient):
                  clipping: float = 0,
                  tau: int = 3,
                  lam: float = 0.1,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -72,7 +73,9 @@ class DittoClient(PFLClient):
         )
         self._save_to_cache()
 
-    def _proximal_loss(self, local_model, global_model):
+    def _proximal_loss(self,
+                       local_model: torch.nn.Module,
+                       global_model: torch.nn.Module) -> torch.Tensor:
         proximal_term = 0.0
         for name, param in local_model.named_parameters():
             # if 'weight' not in name:

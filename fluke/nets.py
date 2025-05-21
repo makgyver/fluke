@@ -154,10 +154,10 @@ class GlobalLocalNet(nn.Module):
         """
         raise NotImplementedError
 
-    def forward_local(self, x) -> torch.Tensor:
+    def forward_local(self, x: torch.Tensor) -> torch.Tensor:
         return self.get_local()(x)
 
-    def forward_global(self, x) -> torch.Tensor:
+    def forward_global(self, x: torch.Tensor) -> torch.Tensor:
         return self.get_global()(x)
 
 
@@ -478,7 +478,7 @@ class CifarConv2_E(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         x = x.view(-1, 64 * 5 * 5)
@@ -499,7 +499,7 @@ class CifarConv2_D(nn.Module):
         self.linear2 = nn.Linear(384, 192)
         self.linear3 = nn.Linear(192, 10, bias=False)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
         logits = self.linear3(x)
@@ -512,11 +512,6 @@ class CifarConv2(EncoderHeadNet):
     layers with 64 filters, followed by two fully connected layers with 384 and 100 neurons,
     respectively. The convolutional layers are followed by ReLU activations and max pooling.
     The last classification layer is a linear layer with 10 neurons.
-
-    Args:
-        embedding_size (int, optional): Size of the embedding after the second linear layer.
-            Defaults to 100.
-        num_classes (int, optional): Number of classes. Defaults to 10.
 
     See Also:
         - :class:`CifarConv2_E`
@@ -841,7 +836,6 @@ class VGG9(EncoderHeadNet):
     considered as the head network.
 
     Args:
-        input_size (int, optional): Size of the input tensor. Defaults to 784.
         output_size (int, optional): Number of output classes. Defaults to 62.
         seed (int, optional): Seed used for weight initialization. Defaults to 98765.
 
@@ -939,7 +933,7 @@ class ResNet18(nn.Module):
         output_size (int, optional): Number of output classes. Defaults to 10.
     """
 
-    def __init__(self, output_size=10):
+    def __init__(self, output_size: int = 10):
         super(ResNet18, self).__init__()
         self.resnet = resnet18(num_classes=output_size)
 

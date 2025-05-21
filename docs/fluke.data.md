@@ -69,7 +69,7 @@ Classes
    :nosignatures:
 
    __getitem__
-   asDataLoader
+   as_dataloader
    batch_size
    set_sample_size
 
@@ -78,7 +78,7 @@ Classes
 ```{eval-rst}
 
 .. autoclass:: fluke.data.FastDataLoader
-   :members: __getitem__, asDataLoader, batch_size, set_sample_size
+   :members: __getitem__, as_dataloader, batch_size, set_sample_size
 
 ```
 

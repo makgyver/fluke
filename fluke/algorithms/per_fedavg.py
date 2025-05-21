@@ -1,5 +1,8 @@
 """Implementation of the [Per-FedAVG20]_ algorithm.
 
+.. Warning::
+    This implementation of Per-FedAVG does not support client training on multiple GPUs.
+
 References:
     .. [Per-FedAVG20] Alireza Fallah, Aryan Mokhtari, Asuman Ozdaglar. Personalized Federated
        Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach.
@@ -8,7 +11,7 @@ References:
 import sys
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Union
+from typing import Union
 
 import torch
 from torch.optim import Optimizer
@@ -18,8 +21,8 @@ sys.path.append("..")
 
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 
 __all__ = [
     "PerFedAVGOptimizer",
@@ -33,7 +36,9 @@ class PerFedAVGOptimizer(Optimizer):
         defaults = dict(lr=lr)
         super(PerFedAVGOptimizer, self).__init__(params, defaults)
 
-    def step(self, closure=None, beta=0, grads=None):
+    def step(self, closure: Union[None, callable] = None,
+             beta: float = 0.0,
+             grads: Union[tuple[torch.Tensor, ...], None] = None) -> Union[float, None]:
         loss = None
         if closure is not None:
             loss = closure
@@ -65,7 +70,7 @@ class PerFedAVGClient(Client):
                  beta: float,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
 
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
@@ -76,7 +81,7 @@ class PerFedAVGClient(Client):
         )
         self.train_iterator = iter(self.train_set)
 
-    def _get_next_batch(self):
+    def _get_next_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
         try:
             X, y = next(self.train_set)
         except StopIteration:

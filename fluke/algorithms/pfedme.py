@@ -4,23 +4,25 @@ References:
     .. [pFedMe20] Canh T. Dinh, Nguyen H. Tran, and Tuan Dung Nguyen. Personalized Federated
        Learning with Moreau Envelopes. In NeurIPS (2020). URL: https://arxiv.org/abs/2006.08848
 """
-from ..utils.model import safe_load_state_dict
 import sys
 from copy import deepcopy
-from typing import Any, Iterable, Optional
+from typing import Collection, Optional
 
 import torch
 from torch.nn import Module
 from torch.optim import Optimizer
 
+from ..utils.model import safe_load_state_dict
+
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import FlukeENV  # NOQA
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator  # NOQA
 from ..utils.model import aggregate_models  # NOQA
 
 __all__ = [
@@ -64,7 +66,7 @@ class PFedMeClient(Client):
                  k: int,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
 
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
@@ -74,12 +76,21 @@ class PFedMeClient(Client):
         self._attr_to_cache.append("internal_model")
 
     def receive_model(self) -> None:
-        model = self.channel.receive(self, self.server, msg_type="model").payload
+        model = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             self.model = model
             self.internal_model = deepcopy(model)
         else:
             safe_load_state_dict(self.model, model.state_dict())
+
+    def _model_to_dataparallel(self):
+        super()._model_to_dataparallel()
+        self.internal_model = torch.nn.DataParallel(self.internal_model,
+                                                    device_ids=FlukeENV().get_device_ids())
+
+    def _dataparallel_to_model(self):
+        super()._dataparallel_to_model()
+        self.internal_model = self.internal_model.module
 
     def fit(self, override_local_epochs: int = 0) -> float:
         epochs: int = (override_local_epochs if override_local_epochs > 0
@@ -121,15 +132,15 @@ class PFedMeServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  beta: float = 0.5,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         agg_model_sd = aggregate_models(self.model,
                                         client_models,

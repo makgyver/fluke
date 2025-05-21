@@ -6,21 +6,22 @@ References:
        URL: https://federated-learning.org/fl-aaai-2022/Papers/FL-AAAI-22_paper_34.pdf
 
 """
-import torch.nn.functional as F
-import torch.nn as nn
 import sys
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn import Module
 
 sys.path.append(".")
 sys.path.append("..")
 
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -43,7 +44,7 @@ class MarginBasedCrossEntropyLoss(nn.Module):
         self.margins = self._compute_margins()
         self.reduction = reduction
 
-    def _compute_margins(self):
+    def _compute_margins(self) -> torch.Tensor:
         min_sqrt_n = torch.min(self.class_counts.pow(0.25))
         return self.delta * (min_sqrt_n / self.class_counts.pow(0.25))
 
@@ -56,8 +57,8 @@ class MarginBasedCrossEntropyLoss(nn.Module):
 
     def __str__(self, indent: int = 0) -> str:
         indent_str = " " * indent
-        return f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta}, \
-            reduction={self.reduction})"
+        return f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta}," + \
+            f"reduction={self.reduction})"
 
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)
@@ -78,7 +79,7 @@ class GEARClient(Client):
                  delta: float = 0.01,
                  alpha: float = 2.0 / 255,
                  adv_iters: int = 10,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         self.sample_per_class = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):

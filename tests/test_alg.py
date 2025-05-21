@@ -1,10 +1,13 @@
 import gc
+import shutil
 import sys
 import tempfile
 from typing import Any
+
+import numpy as np
 from torch.nn import CrossEntropyLoss, Module
 from torch.optim import SGD
-import numpy as np
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -12,17 +15,19 @@ from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL, PersonalizedFL  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import ChannelObserver, Message  # NOQA
+from fluke.config import Configuration  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import (ClientObserver, Configuration, ServerObserver,  # NOQA
+from fluke.utils import (ClientObserver, ServerObserver,  # NOQA
                          get_class_from_qualified_name)
 from fluke.utils.log import Log  # NOQA
 
 FlukeENV().set_evaluator(ClassificationEval(1, 10))
-FlukeENV().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
+FlukeENV().set_eval_cfg(post_fit=True, pre_fit=True)
+FlukeENV().set_save_options(path="tests/tmp/tmp", save_every=1, global_only=True)
 
 
 def test_centralized_fl():
@@ -103,13 +108,13 @@ def test_centralized_fl():
             assert round == 1
             self.called_end = True
 
-        def server_evaluation(self, round, type, evals) -> None:
+        def server_evaluation(self, round, eval_type, evals) -> None:
             assert round == 1
-            assert type == "global"
+            assert eval_type == "global"
             assert "accuracy" in evals
             self.called_server_eval = True
 
-        def client_evaluation(self, round, client_id, phase, evals, **kwargs: dict[str, Any]):
+        def client_evaluation(self, round, client_id, phase, evals, **kwargs):
             assert round == 1 or (round == -1 and phase == "pre-fit")
             assert phase == "post-fit" or phase == "pre-fit"
             assert client_id == 0 or client_id == 1
@@ -124,12 +129,12 @@ def test_centralized_fl():
             assert round == 2
             self.called_finished = True
 
-        def start_fit(self, round: int, client_id: int, model: Module, **kwargs: dict[str, Any]):
+        def start_fit(self, round: int, client_id: int, model: Module, **kwargs):
             assert round == 1
             assert client_id == 0 or client_id == 1
             self.called_start_fit = True
 
-        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs: dict[str, Any]):
+        def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
             assert round == 1
             assert client_id == 0 or client_id == 1
             assert loss >= 0.0
@@ -141,7 +146,7 @@ def test_centralized_fl():
     obs = Observer()
     fl.set_callbacks(obs)
 
-    assert fl.server._observers == [obs]
+    assert fl.server._observers == [fl, obs]
 
     strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN(),Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
@@ -168,6 +173,8 @@ def test_centralized_fl():
         fl2.load(temppath)
 
         assert fl2.server.rounds == fl.server.rounds
+
+    shutil.rmtree(f"tests/tmp/tmp_{fl.id}")
 
     FlukeENV().set_inmemory(True)
     hparams = DDict(
@@ -209,6 +216,7 @@ def test_centralized_fl():
 
         assert fl2.server.rounds == fl.server.rounds
 
+    shutil.rmtree(f"tests/tmp/tmp_{fl.id}")
 
 def get_splitter(cfg):
     dataset = Datasets.get(**cfg.data.dataset)
@@ -258,6 +266,7 @@ def _test_algo(exp_config, alg_config, rounds=2, oncpu=True):
         algo.set_callbacks(log)
         algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
         FlukeENV().close_cache()
+        shutil.rmtree(f"tests/tmp/tmp_{algo.id}")
         del algo
         if log.global_eval:
             accs.append(log.global_eval[cfg.protocol.n_rounds]["accuracy"])
@@ -360,7 +369,7 @@ def test_fedlc():
     #                         "./tests/configs/alg/fedlc.yaml", oncpu=False)
 
 
-def test_fedlc():
+def test_fedld():
     fedlc, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedld.yaml")
     # fedlc, log = _test_algo("./tests/configs/exp.yaml",
     #
@@ -487,12 +496,12 @@ def test_superfed():
 
 
 if __name__ == "__main__":
-    # test_centralized_fl()
+    test_centralized_fl()
     # test_apfl()
     # test_ccvr()
     # test_ditto()
     # test_fat()
-    test_fedamp()
+    # test_fedamp()
     # test_fedavg()
     # test_fedavgm()
     # test_fedaws()
@@ -502,6 +511,7 @@ if __name__ == "__main__":
     # test_fedexp()
     # test_fedhp()
     # test_fedlc()
+    # test_fedld()
     # test_fednh()
     # test_fednova()
     # test_fedopt()
@@ -512,7 +522,7 @@ if __name__ == "__main__":
     # test_fedrod()
     # test_fedrs()
     # test_fedsam()
-    test_fedsgd()
+    # test_fedsgd()
     # test_gear()
     # test_kafe()
     # test_lgfedavg()

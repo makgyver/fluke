@@ -3,26 +3,27 @@
 import os
 import sys
 import uuid
+from pathlib import Path
 from typing import Any, List, Optional
 
 import typer
-from rich.console import Console
-from omegaconf import DictConfig
-from pathlib import Path
-from omegaconf import OmegaConf
 from hydra import compose, initialize_config_dir
+from omegaconf import DictConfig, OmegaConf
+from rich.console import Console
 
 sys.path.append(".")
 
 from . import __version__  # NOQA
-from .utils import (Configuration, ConfigurationError, OptimizerConfigurator,  # NOQA
-                    get_class_from_qualified_name, get_loss, get_model)
+from .config import (Configuration, ConfigurationError,  # NOQA
+                     OptimizerConfigurator)
+from .utils import (get_class_from_qualified_name, get_loss, get_model,  # NOQA
+                    plot_distribution)
 
 console = Console()
 app = typer.Typer()
 
 
-def fluke_banner():
+def fluke_banner() -> None:
     from rich.panel import Panel
 
     fluke_pretty = run.__doc__
@@ -30,7 +31,7 @@ def fluke_banner():
                   subtitle=f"v{__version__}", style="bold white"), width=53)
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     if value:
         print(f"fluke: {__version__}")
         raise typer.Exit()
@@ -113,8 +114,7 @@ def centralized(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
         epoch_eval = evaluator.evaluate(e+1, model, test_loader, criterion, device=device)
         history.append(epoch_eval)
-        for k, v in epoch_eval.items():
-            log.add_scalar(k, v, e+1)
+        log.add_scalars(f"Epoch {e+1}", epoch_eval, e+1)
         log.pretty_log(epoch_eval, title=f"Performance [Epoch {e+1}]")
         console.print()
     model.cpu()
@@ -170,9 +170,9 @@ def sweep(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
 
 def _run_federation(cfg: Configuration, resume: str = None) -> None:
+    import yaml
     from rich.panel import Panel
     from rich.pretty import Pretty
-    import yaml
 
     from . import FlukeENV  # NOQA
     from .data import DataSplitter  # NOQA
@@ -207,6 +207,7 @@ def _run_federation(cfg: Configuration, resume: str = None) -> None:
     log.init(**cfg, exp_id=fl_algo.id)
 
     fl_algo.set_callbacks([log])
+    FlukeENV().set_logger(log)
     console.print(Panel(Pretty(fl_algo), title="FL algorithm", width=100))
 
     if resume is not None:
@@ -271,12 +272,23 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
                      cfg.protocol.eligible_perc)
     cfg.exp_id = uuid.uuid4().hex
     exp_name = f"Clients-only [{cfg.exp_id}]"
-    log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude('name'))
-    log.init(**cfg)
+
+    if "tags" in cfg.logger:
+        cfg.logger.tags = [f"{cfg.exp_id}"] + cfg.logger.tags
+    elif cfg.logger.name in ["WandBLog", "ClearMLLog"]:
+        cfg.logger.tags = [f"{cfg.exp_id}"]
 
     # running_local_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     # running_shared_evals = {c: [] for c in range(cfg.protocol.n_clients)}
     for i, (train_loader, test_loader) in enumerate(zip(clients_tr_data, clients_te_data)):
+        name = f"Client [{i}]_{cfg.exp_id}"
+        if cfg.logger.name == "WandBLog":
+            cfg.logger.group = exp_name
+            cfg.logger.reinit = True
+
+        log = get_logger(cfg.logger.name, name=name, **cfg.logger.exclude('name'))
+        log.init(**cfg)
+
         log.log(f"Client [{i+1}/{cfg.protocol.n_clients}]")
         model = get_model(mname=hp.model, **hp.net_args if "net_args" in hp else {})
         model.to(device)
@@ -285,7 +297,7 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
         optimizer, scheduler = optimizer_cfg(model)
         evaluator = ClassificationEval(eval_every=cfg.eval.eval_every,
                                        n_classes=data_container.num_classes)
-        for e in track(range(epochs), description="Traning...", transient=True):
+        for e in track(range(epochs), description="Training...", transient=True):
             model.to(device)
             model.train()
             for _, (X, y) in enumerate(train_loader):
@@ -300,12 +312,14 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
             if test_loader is not None:
                 client_local_eval = evaluator.evaluate(
                     e+1, model, test_loader, criterion, device=device)
-                log.add_scalar(f"Client[{i}].local_test", client_local_eval, e+1)
+                client_local_eval["epoch"] = e+1
+                log.add_scalars(f"Client[{i}].local_test", client_local_eval, e+1)
                 # running_local_evals[i].append(client_local_eval)
             if shared_test is not None:
                 client_shared_eval = evaluator.evaluate(
                     e+1, model, shared_test, criterion, device=device)
-                log.add_scalar(f"Client[{i}].shared_test", client_shared_eval, e+1)
+                client_shared_eval["epoch"] = e + 1
+                log.add_scalars(f"Client[{i}].shared_test", client_shared_eval, e+1)
                 # running_shared_evals[i].append(client_shared_eval)
 
         perf = {}
@@ -318,6 +332,7 @@ def clients_only(exp_cfg: str = typer.Argument(..., help="Configuration file"),
 
         log.pretty_log(perf, title=f"Client [{i}] Performance")
         model.cpu()
+        log.close()
 
     client_mean = {}
     if test_loader is not None:

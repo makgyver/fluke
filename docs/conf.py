@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 project = 'fluke'
 copyright = '2024, Mirko Polato'
 author = 'Mirko Polato'
-version = '0.7.5'
+version = '0.7.8'
 # release = 'alpha'
 
 # autodoc_mock_imports = ['algorithms'] # Fix the "No module named 'algorithms'" error
@@ -57,7 +57,9 @@ intersphinx_mapping = {
     # 'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     # 'matplotlib': ('http://matplotlib.org/stable', None),
     'torch': ("https://pytorch.org/docs/main/", None),
-    'torchvision': ("https://pytorch.org/vision/stable/", None)
+    'torchvision': ("https://pytorch.org/vision/stable/", None),
+    'torchmetrics': ('https://torchmetrics.readthedocs.io/en/latest/', None),
+    'omegaconf': ('https://omegaconf.readthedocs.io/en/latest/', None)
 }
 
 # -- Options for HTML output -------------------------------------------------

@@ -5,7 +5,7 @@ References:
        Federated Learning. In arXiv (2020). URL: https://arxiv.org/abs/2003.13461
 """
 import sys
-from typing import Any, Iterable
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -15,9 +15,10 @@ sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import Client, PFLClient  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import merge_models  # NOQA
 
 __all__ = [
@@ -40,7 +41,7 @@ class APFLClient(PFLClient):
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
                  lam: float = 0.25,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -103,21 +104,21 @@ class APFLServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False,
                  tau: int = 3,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(tau=tau)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[Client], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         """Aggregate the models of the eligible clients every `hyper_params.tau` rounds.
 
         Args:
-            eligible (Iterable[Client]): The clients that are eligible to participate in the
+            eligible (Collection[Client]): The clients that are eligible to participate in the
                 aggregation.
-            client_models (Iterable[Module]): The models of the clients to aggregate.
+            client_models (Collection[Module]): The models of the clients to aggregate.
         """
         if self.rounds % self.hyper_params.tau != 0:
             # Ignore the sent models and clear the channel's cache

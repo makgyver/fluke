@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import torch
@@ -18,12 +18,14 @@ from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..nets import EncoderHeadNet  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
-from ..utils.model import ModOpt  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
+from ..utils.model import ModOpt, unwrap  # NOQA
 from . import CentralizedFL  # NOQA
 
 __all__ = [
@@ -52,8 +54,8 @@ class RODModel(torch.nn.Module):
         self.global_model = global_model
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        rep = self.global_model.encoder(x)
-        out_g = self.global_model.head(rep)
+        rep = unwrap(self.global_model).encoder(x)
+        out_g = unwrap(self.global_model).head(rep)
         out_p = self.local_head(rep.detach())
         output = out_g.detach() + out_p
         return output
@@ -92,7 +94,7 @@ class FedRODClient(Client):
                  local_epochs: int,
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -127,6 +129,15 @@ class FedRODClient(Client):
     def scheduler_head(self, scheduler: LRScheduler) -> None:
         self._inner_modopt.scheduler = scheduler
 
+    def _model_to_dataparallel(self):
+        super()._model_to_dataparallel()
+        self.inner_model = torch.nn.DataParallel(self.inner_model,
+                                                 device_ids=FlukeENV().get_device_ids())
+
+    def _dataparallel_to_model(self):
+        super()._dataparallel_to_model()
+        self.inner_model = self.inner_model.module
+
     def receive_model(self) -> None:
         super().receive_model()
         if self.inner_model is None:
@@ -150,8 +161,8 @@ class FedRODClient(Client):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
 
-                rep = self.model.encoder(X)
-                out_g = self.model.head(rep)
+                rep = unwrap(self.model).encoder(X)
+                out_g = unwrap(self.model).head(rep)
                 loss = bsm_loss(y, out_g)
                 self.optimizer.zero_grad()
                 loss.backward()

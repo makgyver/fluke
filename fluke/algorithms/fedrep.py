@@ -6,8 +6,9 @@ References:
        URL: https://arxiv.org/abs/2102.07078
 """
 import sys
-from typing import Any, Iterable
 from dataclasses import dataclass
+from typing import Collection
+
 import torch
 
 sys.path.append(".")
@@ -16,11 +17,12 @@ sys.path.append("..")
 from ..algorithms import CentralizedFL  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderGlobalHeadLocalNet, EncoderHeadNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache, get_model  # NOQA
-from ..utils.model import safe_load_state_dict, ModOpt  # NOQA
+from ..utils import clear_cuda_cache, get_model  # NOQA
+from ..utils.model import ModOpt, safe_load_state_dict, unwrap  # NOQA
 
 __all__ = [
     "FedRepClient",
@@ -51,7 +53,7 @@ class FedRepClient(Client):
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
                  tau: int = 3,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, train_set=train_set,
                          test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
                          local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
@@ -96,13 +98,14 @@ class FedRepClient(Client):
         self.model.to(self.device)
 
         # update head layers
-        for parameter in self.model.get_local().parameters():
+        for parameter in unwrap(self.model).get_local().parameters():
             parameter.requires_grad = True
-        for parameter in self.model.get_global().parameters():
+        for parameter in unwrap(self.model).get_global().parameters():
             parameter.requires_grad = False
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(self.model.get_local())
+            self.pers_optimizer, self.pers_scheduler = \
+                self._optimizer_cfg(unwrap(self.model).get_local())
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -118,13 +121,13 @@ class FedRepClient(Client):
             self.pers_scheduler.step()
 
         # update encoder layers
-        for parameter in self.model.get_local().parameters():
+        for parameter in unwrap(self.model).get_local().parameters():
             parameter.requires_grad = False
-        for parameter in self.model.get_global().parameters():
+        for parameter in unwrap(self.model).get_global().parameters():
             parameter.requires_grad = True
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self._optimizer_cfg(self.model.get_global())
+            self.optimizer, self.scheduler = self._optimizer_cfg(unwrap(self.model).get_global())
 
         for _ in range(self.hyper_params.tau):
             for _, (X, y) in enumerate(self.train_set):
@@ -141,12 +144,12 @@ class FedRepClient(Client):
         clear_cuda_cache()
         return running_loss
 
-    def send_model(self):
-        self.channel.send(Message(self.model.get_global(), "model", self, inmemory=True),
-                          self.server)
+    def send_model(self) -> None:
+        self.channel.send(Message(self.model.get_global(), "model", self.index, inmemory=True),
+                          "server")
 
     def receive_model(self) -> None:
-        server_model = self.channel.receive(self, self.server, msg_type="model").payload
+        server_model = self.channel.receive(self.index, "server", msg_type="model").payload
         if self.model is None:
             self.model = EncoderGlobalHeadLocalNet(server_model)
         safe_load_state_dict(self.model.get_global(), server_model.state_dict())
@@ -157,7 +160,7 @@ class FedRepServer(Server):
     def __init__(self,
                  model: torch.nn.Module,
                  test_set: FastDataLoader,  # test_set is not used
-                 clients: Iterable[Client],
+                 clients: Collection[Client],
                  weighted: bool = False):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 

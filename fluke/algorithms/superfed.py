@@ -5,7 +5,6 @@ References:
        for Personalized Federated Learning. In KDD (2022). URL: https://arxiv.org/abs/2109.07628v3
 """
 import sys
-from typing import Any
 from copy import deepcopy
 
 import numpy as np
@@ -16,10 +15,11 @@ sys.path.append("..")
 
 from ..algorithms import PersonalizedFL  # NOQA
 from ..client import PFLClient  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache, retrieve_obj  # NOQA
-from ..utils.model import (get_global_model_dict, get_local_model_dict, mix_networks,  # NOQA
-                           set_lambda_model, safe_load_state_dict, ModOpt)
+from ..utils import clear_cuda_cache  # NOQA
+from ..utils.model import get_global_model_dict  # NOQA
+from ..utils.model import mix_networks, safe_load_state_dict, set_lambda_model  # NOQA
 
 __all__ = [
     "SuPerFedClient",
@@ -43,7 +43,7 @@ class SuPerFedClient(PFLClient):
                  start_mix: int = 10,
                  mu: float = 0.1,
                  nu: float = 0.1,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         assert mode in ["mm", "lm"]
 
         super().__init__(index=index, model=mix_networks(model, deepcopy(model), 0),
@@ -58,7 +58,7 @@ class SuPerFedClient(PFLClient):
         )
 
     def receive_model(self) -> None:
-        msg = self.channel.receive(self, self.server, msg_type="model")
+        msg = self.channel.receive(self.index, "server", msg_type="model")
         if self.model is None:
             self.model = msg.payload
         else:
@@ -68,7 +68,7 @@ class SuPerFedClient(PFLClient):
         epochs: int = (override_local_epochs if override_local_epochs > 0
                        else self.hyper_params.local_epochs)
 
-        if self.server.rounds >= self.hyper_params.start_mix:
+        if self._last_round >= self.hyper_params.start_mix:
             local_dict = {k: v for k, v in self.personalized_model.state_dict().items()
                           if '_local' in k}
         else:
@@ -93,7 +93,7 @@ class SuPerFedClient(PFLClient):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
 
-                if self.server.rounds >= self.hyper_params.start_mix:
+                if self._last_round >= self.hyper_params.start_mix:
                     if self.hyper_params.mode == "mm":
                         set_lambda_model(self.personalized_model, np.random.uniform(0.0, 1.0))
                     elif self.hyper_params.mode == "lm":
@@ -114,7 +114,7 @@ class SuPerFedClient(PFLClient):
                         prox_term += (internal_param - prev_param).norm(2)
                     loss += self.hyper_params.mu * prox_term
 
-                if self.server.rounds >= self.hyper_params.start_mix:
+                if self._last_round >= self.hyper_params.start_mix:
                     numerator, norm_1, norm_2 = 0, 0, 0
                     for name, param_l in self.personalized_model.named_parameters():
                         if '_local' not in name:

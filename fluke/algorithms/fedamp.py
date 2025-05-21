@@ -7,7 +7,7 @@ References:
 """
 import sys
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Collection
 
 import torch
 from torch.nn import Module
@@ -17,9 +17,10 @@ sys.path.append("..")
 
 from ..client import PFLClient  # NOQA
 from ..comm import Message  # NOQA
+from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
-from ..utils import OptimizerConfigurator, clear_cuda_cache  # NOQA
+from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from . import PersonalizedFL  # NOQA
 
@@ -36,7 +37,7 @@ class FedAMPClient(PFLClient):
                  fine_tuning_epochs: int = 0,
                  clipping: float = 0,
                  lam: float = 0.2,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
                          optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
                          fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
@@ -45,7 +46,7 @@ class FedAMPClient(PFLClient):
     def _alpha(self):
         return self.optimizer.param_groups[0]["lr"]
 
-    def _proximal_loss(self, local_model, u_model):
+    def _proximal_loss(self, local_model: Module, u_model: Module) -> float:
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), u_model.parameters()):
             proximal_term += torch.norm(w - w_t)**2
@@ -53,7 +54,7 @@ class FedAMPClient(PFLClient):
 
     def receive_model(self) -> None:
         try:
-            msg = self.channel.receive(self, self.server, msg_type="model")
+            msg = self.channel.receive(self.index, "server", msg_type="model")
             safe_load_state_dict(self.personalized_model, msg.payload.state_dict())
         except ValueError:
             pass
@@ -89,7 +90,7 @@ class FedAMPClient(PFLClient):
 
         return running_loss
 
-    def _load_from_cache(self):
+    def _load_from_cache(self) -> None:
         super()._load_from_cache()
         if self.model is None:
             self.model = deepcopy(self.personalized_model)
@@ -100,27 +101,27 @@ class FedAMPServer(Server):
     def __init__(self,
                  model: Module,
                  test_set: FastDataLoader,  # not used
-                 clients: Iterable[PFLClient],
+                 clients: Collection[PFLClient],
                  sigma: float = 0.1,
                  alpha: float = 0.1,
-                 **kwargs: dict[str, Any]):
+                 **kwargs):
         super().__init__(model=model, test_set=None, clients=clients, weighted=False)
         self.hyper_params.update(
             sigma=sigma,
             alpha=alpha
         )
 
-    def __e(self, x: float):
+    def __e(self, x: float) -> float:
         return torch.exp(-x / self.hyper_params.sigma) / self.hyper_params.sigma
 
-    def _empty_model(self):
+    def _empty_model(self) -> Module:
         empty_model = deepcopy(self.model)
         for param in empty_model.parameters():
             param.data.zero_()
         return empty_model
 
     @torch.no_grad()
-    def aggregate(self, eligible: Iterable[PFLClient], client_models: Iterable[Module]) -> None:
+    def aggregate(self, eligible: Collection[PFLClient], client_models: Collection[Module]) -> None:
 
         client_models = list(client_models)
         for i, (client, ci_model) in enumerate(zip(eligible, client_models)):
@@ -142,9 +143,9 @@ class FedAMPServer(Server):
                 for param_i, param_j in zip(ui_model.parameters(), cj_model.parameters()):
                     param_i.data += coef[j] * param_j
 
-            self.channel.send(Message(ui_model, "model", self, inmemory=True), client)
+            self.channel.send(Message(ui_model, "model", "server", inmemory=True), client.index)
 
-    def broadcast_model(self, eligible: Iterable[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Collection[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate
         pass
 
