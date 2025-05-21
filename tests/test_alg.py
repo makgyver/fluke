@@ -1,4 +1,5 @@
 import gc
+import shutil
 import sys
 import tempfile
 from typing import Any
@@ -25,7 +26,8 @@ from fluke.utils import (ClientObserver, ServerObserver,  # NOQA
 from fluke.utils.log import Log  # NOQA
 
 FlukeENV().set_evaluator(ClassificationEval(1, 10))
-FlukeENV().set_eval_cfg(DDict(post_fit=True, pre_fit=True))
+FlukeENV().set_eval_cfg(post_fit=True, pre_fit=True)
+FlukeENV().set_save_options(path="tests/tmp/tmp", save_every=1, global_only=True)
 
 
 def test_centralized_fl():
@@ -144,7 +146,7 @@ def test_centralized_fl():
     obs = Observer()
     fl.set_callbacks(obs)
 
-    assert fl.server._observers == [obs]
+    assert fl.server._observers == [fl, obs]
 
     strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN(),Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
         "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
@@ -171,6 +173,8 @@ def test_centralized_fl():
         fl2.load(temppath)
 
         assert fl2.server.rounds == fl.server.rounds
+
+    shutil.rmtree(f"tests/tmp/tmp_{fl.id}")
 
     FlukeENV().set_inmemory(True)
     hparams = DDict(
@@ -212,6 +216,7 @@ def test_centralized_fl():
 
         assert fl2.server.rounds == fl.server.rounds
 
+    shutil.rmtree(f"tests/tmp/tmp_{fl.id}")
 
 def get_splitter(cfg):
     dataset = Datasets.get(**cfg.data.dataset)
@@ -261,6 +266,7 @@ def _test_algo(exp_config, alg_config, rounds=2, oncpu=True):
         algo.set_callbacks(log)
         algo.run(cfg.protocol.n_rounds, cfg.protocol.eligible_perc)
         FlukeENV().close_cache()
+        shutil.rmtree(f"tests/tmp/tmp_{algo.id}")
         del algo
         if log.global_eval:
             accs.append(log.global_eval[cfg.protocol.n_rounds]["accuracy"])
@@ -504,7 +510,7 @@ if __name__ == "__main__":
     # test_feddyn()
     # test_fedexp()
     # test_fedhp()
-    test_fedlc()
+    # test_fedlc()
     # test_fedld()
     # test_fednh()
     # test_fednova()

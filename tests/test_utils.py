@@ -1,4 +1,5 @@
 import json
+import shutil
 import sys
 import tempfile
 from unittest.mock import patch
@@ -15,12 +16,12 @@ from fluke.utils import (ClientObserver, ServerObserver, bytes2human,
                          get_full_classname, get_loss, get_model,
                          get_optimizer, get_scheduler, import_module_from_str,
                          memory_usage, plot_distribution, retrieve_obj)
-from fluke.utils.model import (AllLayerOutputModel, MMMixin,
+from fluke.utils.model import (AllLayerOutputModel, MMMixin, aggregate_models,
                                batch_norm_to_group_norm, check_model_fit_mem,
                                diff_model, flatten_parameters,
                                get_activation_size, get_global_model_dict,
-                               get_local_model_dict, get_trainable_keys,
-                               merge_models, mix_networks,
+                               get_local_model_dict, get_output_shape,
+                               get_trainable_keys, merge_models, mix_networks,
                                safe_load_state_dict, set_lambda_model,
                                state_dict_zero_like, unwrap)
 
@@ -38,7 +39,7 @@ from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils.log import DebugLog, Log, get_logger, TensorboardLog  # NOQA
+from fluke.utils.log import DebugLog, Log, TensorboardLog, get_logger  # NOQA
 from fluke.utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 
@@ -433,6 +434,8 @@ def test_tensorboard_log():
     assert log.custom_fields[1]["test/test2"] == 2
     assert log.custom_fields[1]["test"] == 1
     
+    shutil.rmtree("tests/tmp/runs")
+
 # def test_wandb_log():
 #     log2 = WandBLog()
 #     log2.init()
@@ -561,7 +564,7 @@ def test_models():
     assert isinstance(unwrap(model2).fc1, torch.nn.Linear)
     assert isinstance(unwrap(model2).fc2, torch.nn.Linear)
 
-
+    assert get_output_shape(model1, (1, 2)) == (1, 1)
 
 
 def test_mixing():
@@ -774,6 +777,10 @@ def test_check_mem():
     if torch.cuda.is_available():
         assert check_model_fit_mem(net, (28 * 28,), 100, "cuda")
 
+    if not torch.cuda.is_available():
+        with pytest.raises(RuntimeError):
+            check_model_fit_mem(net, (28 * 28,), 100, "cuda")
+
 
 def test_get_activation_size():
     net = MNIST_2NN()
@@ -786,7 +793,26 @@ def test_get_activation_size():
     with pytest.raises(ValueError):
         get_activation_size(net.encoder, None)
     assert 10 == get_activation_size(net, x)
+    assert 6272 == get_activation_size(net.encoder, x)
 
+def test_agg():
+    loss = CrossEntropyLoss()
+    net1 = FedBN_CNN()
+    net2 = FedBN_CNN()
+    optimizer = SGD(net1.parameters(), lr=0.01)
+    optimizer2 = SGD(net2.parameters(), lr=0.01)
+    x = torch.randn(10, 1, 28, 28)
+    net1.zero_grad()
+    net2.zero_grad()
+    loss1 = loss(net1(x), torch.randint(0, 10, (10,)))
+    loss2 = loss(net2(x), torch.randint(0, 10, (10,)))
+    loss1.backward()
+    loss2.backward()
+    optimizer.step()
+    optimizer2.step()
+    net = FedBN_CNN()
+    _ = aggregate_models(net, [net1, net2], [0.5, 0.5], eta=1.0)
+    
 
 def test_alllayeroutput():
     net = MNIST_2NN()

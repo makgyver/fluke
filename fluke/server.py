@@ -377,7 +377,7 @@ class Server(ObserverSubject):
             dict: The server's state.
         """
         return {
-            "model": self.model.state_dict(),
+            "model": self.model.state_dict() if self.model is not None else None,
             "rounds": self.rounds,
             "participants": tuple(self._participants)
         }
@@ -400,7 +400,8 @@ class Server(ObserverSubject):
             dict[str, Any]: The server's state.
         """
         state = torch.load(path, weights_only=True)
-        self.model.load_state_dict(state["model"])
+        if self.model is not None:
+            self.model.load_state_dict(state["model"])
         self.rounds = state["rounds"]
         self._participants = set(state["participants"])
         return state

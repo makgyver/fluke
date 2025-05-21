@@ -38,7 +38,7 @@ def _test_client(inmemory):
     FlukeENV().set_inmemory(inmemory)
     if not inmemory:
         FlukeENV().open_cache("test_client")
-    FlukeENV().set_eval_cfg(DDict(pre_fit=True, post_fit=True))
+    FlukeENV().set_eval_cfg(pre_fit=True, post_fit=True)
 
     # function that taken a 10-dimensional input returns a 0 if the
     # sum of the first 7 elements is less than 2.5
