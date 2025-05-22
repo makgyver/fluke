@@ -21,15 +21,12 @@ from .utils import get_optimizer, get_scheduler  # NOQA
 sys.path.append(".")
 
 
-__all__ = [
-    "Configuration",
-    "ConfigurationError",
-    "OptimizerConfigurator"
-]
+__all__ = ["Configuration", "ConfigurationError", "OptimizerConfigurator"]
 
 
 class ConfigurationError(Exception):
     """Exception raised when the configuration is not valid."""
+
     pass
 
 
@@ -48,10 +45,12 @@ class Configuration(DDict):
         ValueError: If the configuration is not valid.
     """
 
-    def __init__(self,
-                 config_exp_path: str = None,
-                 config_alg_path: str = None,
-                 force_validation: bool = True):
+    def __init__(
+        self,
+        config_exp_path: str = None,
+        config_alg_path: str = None,
+        force_validation: bool = True,
+    ):
         super().__init__()
 
         if config_exp_path is not None and os.path.exists(config_exp_path):
@@ -91,6 +90,7 @@ class Configuration(DDict):
         Returns:
             dict: The dictionary.
         """
+
         def _to_dict(ddict: DDict) -> Any:
             if not isinstance(ddict, dict):
                 if isinstance(ddict, type):
@@ -101,9 +101,7 @@ class Configuration(DDict):
         return _to_dict(self)
 
     @classmethod
-    def sweep(cls,
-              config_exp_path: str,
-              config_alg_path: str) -> list[Configuration]:
+    def sweep(cls, config_exp_path: str, config_alg_path: str) -> list[Configuration]:
         """Generate configurations from a sweep.
         This method is used to generate configurations from a sweep. The sweep is defined by the
         experiment configuration file. The method yields a configuration for each combination of
@@ -133,8 +131,7 @@ class Configuration(DDict):
             list[Configuration]: A list of configurations.
         """
         normalized = {
-            k: v if isinstance(v, (list, dict, ListConfig)) else [v]
-            for k, v in cfgs.items()
+            k: v if isinstance(v, (list, dict, ListConfig)) else [v] for k, v in cfgs.items()
         }
 
         for k, v in normalized.items():
@@ -188,26 +185,47 @@ class Configuration(DDict):
                     "required": True,
                     "schema": {
                         "name": {"type": "string", "required": True},
-                        "path": {"type": "string", "required": False, "default": "./data"}
-                    }
+                        "path": {
+                            "type": "string",
+                            "required": False,
+                            "default": "./data",
+                        },
+                    },
                 },
                 "distribution": {
                     "type": "dict",
                     "required": True,
-                    "schema": {
-                        "name": {"type": "string", "required": True}
-                    }
+                    "schema": {"name": {"type": "string", "required": True}},
                 },
-                "sampling_perc": {"type": "float", "required": False,
-                                  "min": 0.001, "max": 1.0, "default": 1.0},
-                "client_split": {"type": "float", "required": False, "min": 0.0, "max": 1.0,
-                                 "default": 0.0},
+                "sampling_perc": {
+                    "type": "float",
+                    "required": False,
+                    "min": 0.001,
+                    "max": 1.0,
+                    "default": 1.0,
+                },
+                "client_split": {
+                    "type": "float",
+                    "required": False,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "default": 0.0,
+                },
                 "keep_test": {"type": "boolean", "required": False, "default": True},
                 "server_test": {"type": "boolean", "required": False, "default": True},
-                "server_split": {"type": "float", "required": False, "min": 0.0, "max": 1.0,
-                                 "default": 0.0},
-                "uniform_test": {"type": "boolean", "required": False, "default": False}
-            }
+                "server_split": {
+                    "type": "float",
+                    "required": False,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "default": 0.0,
+                },
+                "uniform_test": {
+                    "type": "boolean",
+                    "required": False,
+                    "default": False,
+                },
+            },
         },
         "exp": {
             "type": "dict",
@@ -215,43 +233,58 @@ class Configuration(DDict):
                 "device": {
                     "required": False,
                     "default": "cpu",
-                    "anyof":  [{
-                        "type": "string",
-                        "anyof": [{"allowed": ["cpu", "cuda", "mps"]},
-                                  {"regex": "^cuda:[0-9]+$"}]
-                    }, {
-                        "type": "list"
-                    }],
+                    "anyof": [
+                        {
+                            "type": "string",
+                            "anyof": [
+                                {"allowed": ["cpu", "cuda", "mps"]},
+                                {"regex": "^cuda:[0-9]+$"},
+                            ],
+                        },
+                        {"type": "list"},
+                    ],
                 },
                 "seed": {"type": "integer", "required": False, "default": 42},
-                "inmemory": {"type": "boolean", "required": False, "default": True}
-            }
+                "inmemory": {"type": "boolean", "required": False, "default": True},
+            },
         },
         "eval": {
             "type": "dict",
             "schema": {
-                "task": {"type": "string", "required": False,
-                         "default": "classification", "allowed": ["classification"]},
-                "eval_every": {"type": "integer", "required": False, "default": 1, "min": 1},
+                "task": {
+                    "type": "string",
+                    "required": False,
+                    "default": "classification",
+                    "allowed": ["classification"],
+                },
+                "eval_every": {
+                    "type": "integer",
+                    "required": False,
+                    "default": 1,
+                    "min": 1,
+                },
                 "pre_fit": {"type": "boolean", "required": False, "default": False},
                 "post_fit": {"type": "boolean", "required": False, "default": True},
                 "locals": {"type": "boolean", "required": False, "default": False},
-                "server": {"type": "boolean", "required": False, "default": True}
-            }
+                "server": {"type": "boolean", "required": False, "default": True},
+            },
         },
         "logger": {
             "type": "dict",
-            "schema": {
-                "name": {"type": "string", "required": False, "default": "Log"}
-            }
+            "schema": {"name": {"type": "string", "required": False, "default": "Log"}},
         },
         "protocol": {
             "type": "dict",
             "schema": {
-                "eligible_perc": {"type": "float", "required": True, "min": 0.0, "max": 1.0},
+                "eligible_perc": {
+                    "type": "float",
+                    "required": True,
+                    "min": 0.0,
+                    "max": 1.0,
+                },
                 "n_clients": {"type": "integer", "required": True, "min": 1},
-                "n_rounds": {"type": "integer", "required": True, "min": 1}
-            }
+                "n_rounds": {"type": "integer", "required": True, "min": 1},
+            },
         },
         "method": {
             "type": "dict",
@@ -262,33 +295,51 @@ class Configuration(DDict):
                         "client": {
                             "type": "dict",
                             "schema": {
-                                "batch_size": {"type": "integer", "required": True, "min": 0},
-                                "local_epochs": {"type": "integer", "required": True, "min": 1},
+                                "batch_size": {
+                                    "type": "integer",
+                                    "required": True,
+                                    "min": 0,
+                                },
+                                "local_epochs": {
+                                    "type": "integer",
+                                    "required": True,
+                                    "min": 1,
+                                },
                                 "loss": {"type": "string", "required": True},
                                 "optimizer": {
                                     "type": "dict",
                                     "schema": {
-                                        "name": {"type": "string", "required": False,
-                                                 "default": "SGD"},
-                                        "lr": {"type": "float", "required": False, "default": 0.01},
-                                    }
+                                        "name": {
+                                            "type": "string",
+                                            "required": False,
+                                            "default": "SGD",
+                                        },
+                                        "lr": {
+                                            "type": "float",
+                                            "required": False,
+                                            "default": 0.01,
+                                        },
+                                    },
                                 },
                                 "scheduler": {
                                     "type": "dict",
                                     "schema": {
-                                        "name": {"type": "string", "required": False,
-                                                 "default": "StepLR"}
-                                    }
-                                }
-                            }
+                                        "name": {
+                                            "type": "string",
+                                            "required": False,
+                                            "default": "StepLR",
+                                        }
+                                    },
+                                },
+                            },
                         },
                         "server": {"type": "dict"},
-                        "model": {"type": "string", "required": True}
-                    }
+                        "model": {"type": "string", "required": True},
+                    },
                 },
-                "name": {"type": "string", "required": True}
-            }
-        }
+                "name": {"type": "string", "required": True},
+            },
+        },
     }
 
     @staticmethod
@@ -300,7 +351,7 @@ class Configuration(DDict):
         save_valid.schema = {
             "save_every": {"type": "integer", "default": 1, "min": 1},
             "path": {"type": "string", "default": "./models"},
-            "global_only": {"type": "boolean", "default": False}
+            "global_only": {"type": "boolean", "default": False},
         }
         save_valid.allow_unknown = False
         valid_result = save_valid.validate(data["save"])
@@ -347,9 +398,7 @@ class OptimizerConfigurator:
         scheduler_cfg (DDict): The scheduler keyword arguments.
     """
 
-    def __init__(self,
-                 optimizer_cfg: DDict | dict,
-                 scheduler_cfg: DDict | dict = None):
+    def __init__(self, optimizer_cfg: DDict | dict, scheduler_cfg: DDict | dict = None):
         """Initialize the optimizer configurator. In both the ``optimizer_cfg`` and the
         ``scheduler_cfg`` dictionaries, the key "name" is used to specify the optimizer and the
         scheduler, respectively. If not present, the default optimizer is the ``SGD`` optimizer, and
@@ -390,8 +439,9 @@ class OptimizerConfigurator:
 
         if isinstance(self.optimizer_cfg.name, str):
             self.optimizer = get_optimizer(self.optimizer_cfg.name)
-        elif inspect.isclass(self.optimizer_cfg.name) and \
-                issubclass(self.optimizer_cfg.name, Optimizer):
+        elif inspect.isclass(self.optimizer_cfg.name) and issubclass(
+            self.optimizer_cfg.name, Optimizer
+        ):
             self.optimizer = self.optimizer_cfg.name
         else:
             raise ValueError("Invalid optimizer name. Must be a string or an optimizer class.")
@@ -400,8 +450,9 @@ class OptimizerConfigurator:
             self.scheduler = get_scheduler("StepLR")
         elif isinstance(self.scheduler_cfg.name, str):
             self.scheduler = get_scheduler(self.scheduler_cfg.name)
-        elif inspect.isclass(self.scheduler_cfg.name) and \
-                issubclass(self.scheduler_cfg.name, LRScheduler):
+        elif inspect.isclass(self.scheduler_cfg.name) and issubclass(
+            self.scheduler_cfg.name, LRScheduler
+        ):
             self.scheduler = self.scheduler_cfg.name
         else:
             raise ValueError("Invalid scheduler name. Must be a string or a scheduler class.")
@@ -415,7 +466,7 @@ class OptimizerConfigurator:
         Args:
             model (Module): The model whose parameters will be optimized.
             filter_fun (callable): This must be a function of the model and it must returns the set
-              of parameters that the optimizer will consider.
+                of parameters that the optimizer will consider.
             override_kwargs (dict): The optimizer's keyword arguments to override the default ones.
 
         Returns:
@@ -425,11 +476,12 @@ class OptimizerConfigurator:
             self.optimizer_cfg.update(**override_kwargs)
 
         if filter_fun is None:
-            optimizer = self.optimizer(filter(lambda p: p.requires_grad, model.parameters()),
-                                       **self.optimizer_cfg)
+            optimizer = self.optimizer(
+                filter(lambda p: p.requires_grad, model.parameters()),
+                **self.optimizer_cfg,
+            )
         else:
-            optimizer = self.optimizer(filter_fun(model),
-                                       **self.optimizer_cfg)
+            optimizer = self.optimizer(filter_fun(model), **self.optimizer_cfg)
         scheduler = self.scheduler(optimizer, **self.scheduler_cfg)
         return optimizer, scheduler
 

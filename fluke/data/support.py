@@ -1,4 +1,5 @@
 """This module contains utility classes for loading datasets."""
+
 import os
 import sys
 from typing import Any
@@ -13,27 +14,37 @@ from torchvision.transforms import ToTensor
 sys.path.append(".")
 sys.path.append("..")
 
-__all__ = [
-    "MNISTM",
-    "CINIC10"
-]
+__all__ = ["MNISTM", "CINIC10"]
 
 
 class MNISTM(VisionDataset):
-    """MNIST-M Dataset.
-    """
+    """MNIST-M Dataset."""
 
     resources = [
-        ('https://github.com/liyxi/mnist-m/releases/download/data/mnist_m_train.pt.tar.gz',
-         '191ed53db9933bd85cc9700558847391'),
-        ('https://github.com/liyxi/mnist-m/releases/download/data/mnist_m_test.pt.tar.gz',
-         'e11cb4d7fff76d7ec588b1134907db59')
+        (
+            "https://github.com/liyxi/mnist-m/releases/download/data/mnist_m_train.pt.tar.gz",
+            "191ed53db9933bd85cc9700558847391",
+        ),
+        (
+            "https://github.com/liyxi/mnist-m/releases/download/data/mnist_m_test.pt.tar.gz",
+            "e11cb4d7fff76d7ec588b1134907db59",
+        ),
     ]
 
     training_file = "mnist_m_train.pt"
     test_file = "mnist_m_test.pt"
-    classes = ['0 - zero', '1 - one', '2 - two', '3 - three', '4 - four',
-               '5 - five', '6 - six', '7 - seven', '8 - eight', '9 - nine']
+    classes = [
+        "0 - zero",
+        "1 - one",
+        "2 - two",
+        "3 - three",
+        "4 - four",
+        "5 - five",
+        "6 - six",
+        "7 - seven",
+        "8 - eight",
+        "9 - nine",
+    ]
 
     def __init__(self, root, train=True, transform=None, target_transform=None, download=True):
         """Init MNIST-M dataset."""
@@ -45,13 +56,12 @@ class MNISTM(VisionDataset):
             self.download()
 
         if not self._check_exists():
-            raise RuntimeError("Dataset not found." +
-                               " You can use download=True to download it")
+            raise RuntimeError("Dataset not found." + " You can use download=True to download it")
 
-        data_file = (self.training_file if self.train
-                     else self.test_file)
-        self.data, self.targets = torch.load(os.path.join(self.processed_folder, data_file),
-                                             weights_only=False)
+        data_file = self.training_file if self.train else self.test_file
+        self.data, self.targets = torch.load(
+            os.path.join(self.processed_folder, data_file), weights_only=False
+        )
 
     def __getitem__(self, index):
         """Get images and target for data loader.
@@ -81,19 +91,20 @@ class MNISTM(VisionDataset):
 
     @property
     def raw_folder(self):
-        return os.path.join(self.root, self.__class__.__name__, 'raw')
+        return os.path.join(self.root, self.__class__.__name__, "raw")
 
     @property
     def processed_folder(self):
-        return os.path.join(self.root, self.__class__.__name__, 'processed')
+        return os.path.join(self.root, self.__class__.__name__, "processed")
 
     @property
     def class_to_idx(self):
         return {_class: i for i, _class in enumerate(self.classes)}
 
     def _check_exists(self):
-        return (os.path.exists(os.path.join(self.processed_folder, self.training_file)) and
-                os.path.exists(os.path.join(self.processed_folder, self.test_file)))
+        return os.path.exists(
+            os.path.join(self.processed_folder, self.training_file)
+        ) and os.path.exists(os.path.join(self.processed_folder, self.test_file))
 
     def download(self):
         """Download the MNIST-M data."""
@@ -106,10 +117,14 @@ class MNISTM(VisionDataset):
 
         # download files
         for url, md5 in self.resources:
-            filename = url.rpartition('/')[2]
-            download_and_extract_archive(url, download_root=self.raw_folder,
-                                         extract_root=self.processed_folder,
-                                         filename=filename, md5=md5)
+            filename = url.rpartition("/")[2]
+            download_and_extract_archive(
+                url,
+                download_root=self.raw_folder,
+                extract_root=self.processed_folder,
+                filename=filename,
+                md5=md5,
+            )
 
 
 class CINIC10(VisionDataset):
@@ -150,14 +165,16 @@ class CINIC10(VisionDataset):
         "frog",
         "horse",
         "ship",
-        "truck"
+        "truck",
     ]
 
-    def __init__(self,
-                 root: str = "../data",
-                 split: str = "train",
-                 #  transform: Optional[Callable] = None,
-                 download: bool = True):
+    def __init__(
+        self,
+        root: str = "../data",
+        split: str = "train",
+        #  transform: Optional[Callable] = None,
+        download: bool = True,
+    ):
 
         super().__init__(root)
         self.split = split
@@ -191,9 +208,7 @@ class CINIC10(VisionDataset):
         if os.path.isdir(os.path.join(self.root, self.split)):
             return
         else:
-            download_and_extract_archive(self.url,
-                                         download_root=self.root,
-                                         md5=CINIC10.file_md5)
+            download_and_extract_archive(self.url, download_root=self.root, md5=CINIC10.file_md5)
 
     @property
     def class_to_idx(self):

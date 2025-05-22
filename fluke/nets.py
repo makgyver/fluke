@@ -2,6 +2,7 @@
 This module contains the definition of several neural networks used in state-of-the-art
 federated learning papers.
 """
+
 import string
 import sys
 from abc import abstractmethod
@@ -18,48 +19,48 @@ from . import FlukeENV  # NOQA
 from .utils.model import batch_norm_to_group_norm  # NOQA
 
 __all__ = [
-    'EncoderHeadNet',
-    'GlobalLocalNet',
-    'HeadGlobalEncoderLocalNet',
-    'EncoderGlobalHeadLocalNet',
-    'MNIST_2NN',
-    'MNIST_2NN_E',
-    'MNIST_2NN_D',
-    'MNIST_CNN',
-    'MNIST_CNN_E',
-    'MNIST_CNN_D',
-    'FedBN_CNN',
-    'FedBN_CNN_E',
-    'FedBN_CNN_D',
-    'MNIST_LR',
-    'CifarConv2',
-    'CifarConv2_E',
-    'CifarConv2_D',
-    'ResNet9',
-    'ResNet9_E',
-    'ResNet9_D',
-    'FEMNIST_CNN',
-    'FEMNIST_CNN_E',
-    'FEMNIST_CNN_D',
-    'VGG9_E',
-    'VGG9_D',
-    'VGG9',
-    'ResNet18',
-    'ResNet34',
-    'ResNet50',
-    'ResNet18GN',
-    'FedAVGCNN_E',
-    'FedAVGCNN_D',
-    'FedAVGCNN',
-    'MoonCNN_E',
-    'MoonCNN_D',
-    'MoonCNN',
-    'LeNet5_E',
-    'LeNet5_D',
-    'LeNet5',
-    'Shakespeare_LSTM_E',
-    'Shakespeare_LSTM_D',
-    'Shakespeare_LSTM'
+    "EncoderHeadNet",
+    "GlobalLocalNet",
+    "HeadGlobalEncoderLocalNet",
+    "EncoderGlobalHeadLocalNet",
+    "MNIST_2NN",
+    "MNIST_2NN_E",
+    "MNIST_2NN_D",
+    "MNIST_CNN",
+    "MNIST_CNN_E",
+    "MNIST_CNN_D",
+    "FedBN_CNN",
+    "FedBN_CNN_E",
+    "FedBN_CNN_D",
+    "MNIST_LR",
+    "CifarConv2",
+    "CifarConv2_E",
+    "CifarConv2_D",
+    "ResNet9",
+    "ResNet9_E",
+    "ResNet9_D",
+    "FEMNIST_CNN",
+    "FEMNIST_CNN_E",
+    "FEMNIST_CNN_D",
+    "VGG9_E",
+    "VGG9_D",
+    "VGG9",
+    "ResNet18",
+    "ResNet34",
+    "ResNet50",
+    "ResNet18GN",
+    "FedAVGCNN_E",
+    "FedAVGCNN_D",
+    "FedAVGCNN",
+    "MoonCNN_E",
+    "MoonCNN_D",
+    "MoonCNN",
+    "LeNet5_E",
+    "LeNet5_D",
+    "LeNet5",
+    "Shakespeare_LSTM_E",
+    "Shakespeare_LSTM_D",
+    "Shakespeare_LSTM",
 ]
 
 
@@ -230,10 +231,9 @@ class MNIST_2NN_E(nn.Module):
         - :class:`MNIST_2NN_D`
     """
 
-    def __init__(self,
-                 hidden_size: tuple[int, int] = (200, 100)):
+    def __init__(self, hidden_size: tuple[int, int] = (200, 100)):
         super(MNIST_2NN_E, self).__init__()
-        self.fc1 = nn.Linear(28*28, hidden_size[0])
+        self.fc1 = nn.Linear(28 * 28, hidden_size[0])
         self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -256,9 +256,7 @@ class MNIST_2NN_D(nn.Module):
         - :class:`MNIST_2NN_E`
     """
 
-    def __init__(self,
-                 hidden_size: int = 100,
-                 use_softmax: bool = False):
+    def __init__(self, hidden_size: int = 100, use_softmax: bool = False):
         super(MNIST_2NN_D, self).__init__()
         self.use_softmax = use_softmax
         self.fc3 = nn.Linear(hidden_size, 10)
@@ -307,12 +305,9 @@ class MNIST_2NN(EncoderHeadNet):
             In ICLR (2021).
     """
 
-    def __init__(self,
-                 hidden_size: tuple[int, int] = (200, 100),
-                 softmax: bool = False):
+    def __init__(self, hidden_size: tuple[int, int] = (200, 100), softmax: bool = False):
         super(MNIST_2NN, self).__init__(
-            MNIST_2NN_E(hidden_size),
-            MNIST_2NN_D(hidden_size[1], softmax)
+            MNIST_2NN_E(hidden_size), MNIST_2NN_D(hidden_size[1], softmax)
         )
 
 
@@ -553,34 +548,45 @@ class MNIST_LR(nn.Module):
 
 class _ResidualBlock(nn.Module):
 
-    def __init__(self,
-                 in_channels: int,
-                 out_channels: int,
-                 kernel_size: int,
-                 padding: int,
-                 stride: int):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        padding: int,
+        stride: int,
+    ):
         super(_ResidualBlock, self).__init__()
-        self.conv_res1 = nn.Conv2d(in_channels=in_channels,
-                                   out_channels=out_channels,
-                                   kernel_size=kernel_size,
-                                   padding=padding,
-                                   stride=stride,
-                                   bias=False)
+        self.conv_res1 = nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            stride=stride,
+            bias=False,
+        )
         self.conv_res1_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
-        self.conv_res2 = nn.Conv2d(in_channels=out_channels,
-                                   out_channels=out_channels,
-                                   kernel_size=kernel_size,
-                                   padding=padding,
-                                   bias=False)
+        self.conv_res2 = nn.Conv2d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=False,
+        )
         self.conv_res2_bn = nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
 
         if stride != 1:
             # in case stride is not set to 1, we need to downsample the residual so that
             # the dimensions are the same when we add them together
             self.downsample = nn.Sequential(
-                nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                          kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(num_features=out_channels, momentum=0.9)
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(num_features=out_channels, momentum=0.9),
             )
         else:
             self.downsample = None
@@ -611,23 +617,47 @@ class ResNet9_E(nn.Module):
     def __init__(self):
         super(ResNet9_E, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3,
-                      stride=1, padding=1, bias=False),
+            nn.Conv2d(
+                in_channels=3,
+                out_channels=64,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
             nn.BatchNorm2d(num_features=64, momentum=0.9),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=64, out_channels=128,
-                      kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(
+                in_channels=64,
+                out_channels=128,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
             nn.BatchNorm2d(num_features=128, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             _ResidualBlock(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1),
-            nn.Conv2d(in_channels=128, out_channels=256,
-                      kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(
+                in_channels=128,
+                out_channels=256,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(in_channels=256, out_channels=256,
-                      kernel_size=3, stride=1, padding=1, bias=False),
+            nn.Conv2d(
+                in_channels=256,
+                out_channels=256,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
             nn.BatchNorm2d(num_features=256, momentum=0.9),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
@@ -746,17 +776,26 @@ class VGG9_E(nn.Module):
     """
 
     @classmethod
-    def _conv_layer(self,
-                    in_channels: int,
-                    out_channels: int,
-                    kernel_size: int,
-                    stride: int = 1,
-                    padding: int = 0,
-                    groups: int = 1,
-                    bias: bool = False,
-                    seed: int = 0) -> nn.Conv2d:
-        conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,
-                         padding=padding, groups=groups, stride=stride, bias=bias)
+    def _conv_layer(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        padding: int = 0,
+        groups: int = 1,
+        bias: bool = False,
+        seed: int = 0,
+    ) -> nn.Conv2d:
+        conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            groups=groups,
+            stride=stride,
+            bias=bias,
+        )
         torch.manual_seed(seed)
         torch.nn.init.xavier_normal_(conv.weight)
         return conv
@@ -764,29 +803,65 @@ class VGG9_E(nn.Module):
     def __init__(self, seed: int = 98765):
         super(VGG9_E, self).__init__()
         self.encoder = nn.Sequential(
-            VGG9_E._conv_layer(in_channels=1, out_channels=16, kernel_size=3,
-                               padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(
+                in_channels=1,
+                out_channels=16,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                seed=seed,
+            ),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            VGG9_E._conv_layer(in_channels=16, out_channels=32, kernel_size=3,
-                               padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(
+                in_channels=16,
+                out_channels=32,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                seed=seed,
+            ),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            VGG9_E._conv_layer(in_channels=32, out_channels=64, kernel_size=3,
-                               padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(
+                in_channels=32,
+                out_channels=64,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                seed=seed,
+            ),
             nn.ReLU(True),
-            VGG9_E._conv_layer(in_channels=64, out_channels=128, kernel_size=3,
-                               padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(
+                in_channels=64,
+                out_channels=128,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                seed=seed,
+            ),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            VGG9_E._conv_layer(in_channels=128, out_channels=256,
-                               kernel_size=3, padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(
+                in_channels=128,
+                out_channels=256,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                seed=seed,
+            ),
             nn.ReLU(True),
-            VGG9_E._conv_layer(in_channels=256, out_channels=512,
-                               kernel_size=3, padding=1, bias=False, seed=seed),
+            VGG9_E._conv_layer(
+                in_channels=256,
+                out_channels=512,
+                kernel_size=3,
+                padding=1,
+                bias=False,
+                seed=seed,
+            ),
             nn.ReLU(True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Flatten()
+            nn.Flatten(),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -805,12 +880,11 @@ class VGG9_D(nn.Module):
         - :class:`VGG9`
         - :class:`VGG9_E`
     """
+
     @classmethod
-    def _linear_layer(cls,
-                      in_features: int,
-                      out_features: int,
-                      bias: bool = False,
-                      seed: int = 0) -> nn.Linear:
+    def _linear_layer(
+        cls, in_features: int, out_features: int, bias: bool = False, seed: int = 0
+    ) -> nn.Linear:
         fc = nn.Linear(in_features, out_features, bias=bias)
         torch.manual_seed(seed)
         torch.nn.init.xavier_normal_(fc.weight)
@@ -821,7 +895,7 @@ class VGG9_D(nn.Module):
         self.downstream = nn.Sequential(
             VGG9_D._linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
             nn.ReLU(True),
-            VGG9_D._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed)
+            VGG9_D._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -846,8 +920,7 @@ class VGG9(EncoderHeadNet):
 
     def __init__(self, output_size: int = 62, seed: int = 98765):
         super(VGG9, self).__init__(
-            VGG9_E(seed),
-            VGG9_D(input_size=512, output_size=output_size, seed=seed)
+            VGG9_E(seed), VGG9_D(input_size=512, output_size=output_size, seed=seed)
         )
 
 
@@ -917,8 +990,7 @@ class FedAVGCNN(EncoderHeadNet):
     """
 
     def __init__(self, output_size: int = 10):
-        super(FedAVGCNN, self).__init__(FedAVGCNN_E(),
-                                        FedAVGCNN_D(output_size))
+        super(FedAVGCNN, self).__init__(FedAVGCNN_E(), FedAVGCNN_D(output_size))
 
 
 # FedOpt: https://openreview.net/pdf?id=SkgwE5Ss3N (CIFAR-10)
@@ -1005,6 +1077,7 @@ class LeNet5_E(nn.Module):
         - :class:`LeNet5`
         - :class:`LeNet5_D`
     """
+
     # Expected input size: 32x32x3
 
     def __init__(self):
@@ -1013,12 +1086,14 @@ class LeNet5_E(nn.Module):
             nn.Conv2d(3, 6, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(6),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
         self.layer2 = nn.Sequential(
             nn.Conv2d(6, 16, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2))
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out = self.layer1(x)
@@ -1097,11 +1172,7 @@ class Shakespeare_LSTM_E(nn.Module):
         super(Shakespeare_LSTM_E, self).__init__()
         self.encoder = nn.Embedding(256, 8)
         self.rnn = nn.LSTM(
-            input_size=8,
-            hidden_size=256,
-            num_layers=2,
-            batch_first=True,
-            bias=False
+            input_size=8, hidden_size=256, num_layers=2, batch_first=True, bias=False
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -1122,7 +1193,8 @@ class Shakespeare_LSTM_D(nn.Module):
         super(Shakespeare_LSTM_D, self).__init__()
         self._output_size = len(string.printable)
         self.classifier = VGG9_D._linear_layer(
-            256, self._output_size, bias=False, seed=FlukeENV().get_seed())
+            256, self._output_size, bias=False, seed=FlukeENV().get_seed()
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.classifier(x)

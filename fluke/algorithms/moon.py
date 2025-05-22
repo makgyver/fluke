@@ -4,6 +4,7 @@ References:
     .. [Moon21] Qinbin Li, Bingsheng He, and Dawn Song. Model-Contrastive Federated Learning.
        In CVPR (2021). URL: https://arxiv.org/abs/2103.16257
 """
+
 import sys
 from copy import deepcopy
 
@@ -21,32 +22,36 @@ from ..data import FastDataLoader  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import safe_load_state_dict, unwrap  # NOQA
 
-__all__ = [
-    "MOONClient",
-    "MOON"
-]
+__all__ = ["MOONClient", "MOON"]
 
 
 class MOONClient(Client):
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 mu: float,
-                 tau: float,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
-        self.hyper_params.update(
-            mu=mu,
-            tau=tau
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        mu: float,
+        tau: float,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
         )
+        self.hyper_params.update(mu=mu, tau=tau)
         self.prev_model = None
         self.server_model = None
         self._attr_to_cache.extend(["prev_model", "server_model"])
@@ -64,10 +69,12 @@ class MOONClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.prev_model = torch.nn.DataParallel(self.prev_model,
-                                                device_ids=FlukeENV().get_device_ids())
-        self.server_model = torch.nn.DataParallel(self.server_model,
-                                                  device_ids=FlukeENV().get_device_ids())
+        self.prev_model = torch.nn.DataParallel(
+            self.prev_model, device_ids=FlukeENV().get_device_ids()
+        )
+        self.server_model = torch.nn.DataParallel(
+            self.server_model, device_ids=FlukeENV().get_device_ids()
+        )
 
     def _dataparallel_to_model(self):
         super()._dataparallel_to_model()
@@ -75,8 +82,9 @@ class MOONClient(Client):
         self.server_model = self.server_model.module
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
         cos = CosineSimilarity(dim=-1).to(self.device)
         self.model.to(self.device)
         self.prev_model.to(self.device)
@@ -100,8 +108,9 @@ class MOONClient(Client):
 
                 sim_lg = cos(z_local, z_global).reshape(-1, 1) / self.hyper_params.tau
                 sim_lp = cos(z_local, z_prev).reshape(-1, 1) / self.hyper_params.tau
-                loss_con = -torch.log(torch.exp(sim_lg) /
-                                      (torch.exp(sim_lg) + torch.exp(sim_lp))).mean()
+                loss_con = -torch.log(
+                    torch.exp(sim_lg) / (torch.exp(sim_lg) + torch.exp(sim_lp))
+                ).mean()
 
                 loss = loss_sup + self.hyper_params.mu * loss_con
                 loss.backward()
@@ -110,7 +119,7 @@ class MOONClient(Client):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.prev_model.cpu()
         self.server_model.cpu()
         self.model.cpu()

@@ -1,6 +1,7 @@
 """
 The module :mod:`fluke.server` provides the base classes for the servers in :mod:`fluke`.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Generator, Iterable
@@ -19,10 +20,7 @@ if TYPE_CHECKING:
     from .client import Client
 
 
-__all__ = [
-    "Server",
-    "EarlyStopping"
-]
+__all__ = ["Server", "EarlyStopping"]
 
 # torch.serialization.add_safe_globals([set])
 
@@ -81,18 +79,17 @@ class Server(ObserverSubject):
           number of samples when aggregating the models. Defaults to False.
     """
 
-    def __init__(self,
-                 model: torch.nn.Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = False,
-                 lr: float = 1.0,
-                 **kwargs):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        weighted: bool = False,
+        lr: float = 1.0,
+        **kwargs,
+    ):
         super().__init__()
-        self.hyper_params = DDict(
-            weighted=weighted,
-            lr=lr
-        )
+        self.hyper_params = DDict(weighted=weighted, lr=lr)
         self.device: torch.device = FlukeENV().get_device()
         self.model: torch.nn.Module = model
         self.clients: Collection[Client] = clients
@@ -140,14 +137,13 @@ class Server(ObserverSubject):
         Args:
             eligible (Collection[Client]): The clients that will receive the global model.
         """
-        self.channel.broadcast(Message(self.model, "model", "server", inmemory=None),
-                               [c.index for c in eligible])
+        self.channel.broadcast(
+            Message(self.model, "model", "server", inmemory=None), [c.index for c in eligible]
+        )
 
-    def fit(self,
-            n_rounds: int = 10,
-            eligible_perc: float = 0.1,
-            finalize: bool = True,
-            **kwargs) -> None:
+    def fit(
+        self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
+    ) -> None:
         """Run the federated learning algorithm.
         The default behaviour of this method is to run the Federated Averaging algorithm. The server
         selects a percentage of the clients to participate in each round, sends the global model to
@@ -166,7 +162,7 @@ class Server(ObserverSubject):
             progress_fl = FlukeENV().get_progress_bar("FL")
             progress_client = FlukeENV().get_progress_bar("clients")
             client_x_round = int(self.n_clients * eligible_perc)
-            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds*client_x_round)
+            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds * client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
             total_rounds = self.rounds + n_rounds
@@ -180,7 +176,7 @@ class Server(ObserverSubject):
                     for c, client in enumerate(eligible):
                         client.local_update(rnd + 1)
                         self._participants.update([client.index])
-                        progress_client.update(task_id=task_local, completed=c+1)
+                        progress_client.update(task_id=task_local, completed=c + 1)
                         progress_fl.update(task_id=task_rounds, advance=1)
 
                     client_models = self.receive_client_models(eligible, state_dict=False)
@@ -202,24 +198,22 @@ class Server(ObserverSubject):
 
         if finalize:
             self.finalize()
+        self.notify(event="finished", round=self.rounds + 1)
 
     def _compute_evaluation(self, round: int, eligible: Collection[Client]) -> None:
         evaluator = FlukeENV().get_evaluator()
 
         if FlukeENV().get_eval_cfg().locals:
-            client_evals = {client.index: client.evaluate(evaluator, self.test_set)
-                            for client in eligible}
-            self.notify(event="server_evaluation",
-                        round=round + 1,
-                        eval_type="locals",
-                        evals=client_evals)
+            client_evals = {
+                client.index: client.evaluate(evaluator, self.test_set) for client in eligible
+            }
+            self.notify(
+                event="server_evaluation", round=round + 1, eval_type="locals", evals=client_evals
+            )
 
         if FlukeENV().get_eval_cfg().server:
             evals = self.evaluate(evaluator, self.test_set)
-            self.notify(event="server_evaluation",
-                        round=round + 1,
-                        eval_type="global",
-                        evals=evals)
+            self.notify(event="server_evaluation", round=round + 1, eval_type="global", evals=evals)
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the global federated model on the :attr:`test_set`.
@@ -230,11 +224,9 @@ class Server(ObserverSubject):
                 the results.
         """
         if test_set is not None:
-            return evaluator.evaluate(self.rounds + 1,
-                                      self.model,
-                                      test_set,
-                                      loss_fn=None,
-                                      device=self.device)
+            return evaluator.evaluate(
+                self.rounds + 1, self.model, test_set, loss_fn=None, device=self.device
+            )
         return {}
 
     def finalize(self) -> None:
@@ -248,8 +240,6 @@ class Server(ObserverSubject):
         self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
             client.finalize()
-        # self._compute_evaluation(self.rounds, client_to_eval)
-        self.notify(event="finished", round=self.rounds + 1)
 
     def get_eligible_clients(self, eligible_perc: float) -> Collection[Client]:
         """Get the clients that will participate in the current round.
@@ -269,9 +259,9 @@ class Server(ObserverSubject):
         selected = np.random.choice(self.clients, n, replace=False)
         return selected
 
-    def receive_client_models(self,
-                              eligible: Collection[Client],
-                              state_dict: bool = True) -> Generator[torch.nn.Module, None, None]:
+    def receive_client_models(
+        self, eligible: Collection[Client], state_dict: bool = True
+    ) -> Generator[torch.nn.Module, None, None]:
         """Retrieve the models of the clients.
         This method assumes that the clients have already sent their models to the server.
         The models are received through the channel in the same order as the clients in
@@ -322,12 +312,12 @@ class Server(ObserverSubject):
             tot_ex = sum(num_ex)
             return [num_ex[i] / tot_ex for i in range(len(eligible))]
         else:
-            return [1. / len(eligible)] * len(eligible)
+            return [1.0 / len(eligible)] * len(eligible)
 
     @torch.no_grad()
-    def aggregate(self,
-                  eligible: Collection[Client],
-                  client_models: Iterable[torch.nn.Module]) -> None:
+    def aggregate(
+        self, eligible: Collection[Client], client_models: Iterable[torch.nn.Module]
+    ) -> None:
         r"""Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
         ``weighted`` is ``True``, the clients are weighted by their number of samples.
@@ -379,7 +369,7 @@ class Server(ObserverSubject):
         return {
             "model": self.model.state_dict() if self.model is not None else None,
             "rounds": self.rounds,
-            "participants": tuple(self._participants)
+            "participants": tuple(self._participants),
         }
 
     def save(self, path: str) -> None:

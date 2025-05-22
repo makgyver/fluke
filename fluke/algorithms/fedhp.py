@@ -6,6 +6,7 @@ References:
        FedHP: Federated Learning with Hyperspherical Prototypical Regularization. In ESANN (2024).
        URL: https://www.esann.org/sites/default/files/proceedings/2024/ES2024-183.pdf
 """
+
 import copy
 import sys
 from typing import Collection, Generator, Literal
@@ -34,8 +35,7 @@ class ProtoNet(nn.Module):
     def __init__(self, encoder: nn.Module, n_protos: int, proto_size: int):
         super(ProtoNet, self).__init__()
         self._encoder = encoder
-        self.prototypes = nn.Parameter(torch.rand((n_protos, proto_size)),
-                                       requires_grad=True)
+        self.prototypes = nn.Parameter(torch.rand((n_protos, proto_size)), requires_grad=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         embeddings = self._encoder(x)
@@ -44,8 +44,7 @@ class ProtoNet(nn.Module):
 
 
 class FedHPModel(nn.Module):
-    def __init__(self,
-                 model: nn.Module):
+    def __init__(self, model: nn.Module):
         super().__init__()
         self.model: nn.Module = model
 
@@ -63,8 +62,9 @@ class SeparationLoss(nn.Module):
 
     def forward(self, protos: torch.Tensor) -> torch.Tensor:
         # protos: (N_prototypes x Embedding_dimension)
-        M = torch.matmul(protos, protos.transpose(0, 1)) - 2 * torch.eye(
-            protos.shape[0]).to(protos.device)
+        M = torch.matmul(protos, protos.transpose(0, 1)) - 2 * torch.eye(protos.shape[0]).to(
+            protos.device
+        )
         loss = M.max(dim=1)[0]
         if self.reduction == "mean":
             return loss.mean()
@@ -74,23 +74,32 @@ class SeparationLoss(nn.Module):
 
 
 class FedHPClient(Client):
-    def __init__(self,
-                 index: int,
-                 model: nn.Module,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 n_protos: int,
-                 lam: float,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
-        super().__init__(index=index,
-                         train_set=train_set, test_set=test_set, optimizer_cfg=optimizer_cfg,
-                         loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        model: nn.Module,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        n_protos: int,
+        lam: float,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         embedding_size = get_activation_size(model, train_set.tensors[0][0])
         self.model = ProtoNet(model, n_protos, embedding_size)
         self.hyper_params.update(n_protos=n_protos, lam=lam)
@@ -122,25 +131,28 @@ class FedHPClient(Client):
         self.model.prototypes.data = msg.payload
 
     def send_model(self) -> None:
-        self.channel.send(Message(copy.deepcopy(self.model.prototypes.data),
-                          "prototypes", self.index, inmemory=True), "server")
+        self.channel.send(
+            Message(
+                copy.deepcopy(self.model.prototypes.data), "prototypes", self.index, inmemory=True
+            ),
+            "server",
+        )
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
         self.model.train()
         self.model.to(self.device)
 
-        def filter_fun(model): return [param for name, param in model.named_parameters()
-                                       if 'prototype' not in name]
+        def filter_fun(model):
+            return [param for name, param in model.named_parameters() if "prototype" not in name]
 
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self._optimizer_cfg(
-                self.model, filter_fun=filter_fun)
+            self.optimizer, self.scheduler = self._optimizer_cfg(self.model, filter_fun=filter_fun)
 
         if self.proto_opt is None:
-            proto_params = [p for name, p in self.model.named_parameters()
-                            if 'proto' in name]
+            proto_params = [p for name, p in self.model.named_parameters() if "proto" in name]
             self.proto_opt = optim.Adam(proto_params, lr=0.005)
 
         running_loss = 0.0
@@ -151,8 +163,9 @@ class FedHPClient(Client):
                 self.proto_opt.zero_grad()
                 _, dists = self.model.forward(X)
                 loss = self.hyper_params.loss_fn(dists, y)
-                loss_proto = torch.mean(1 - nn.CosineSimilarity(dim=1)
-                                        (unwrap(self.model).prototypes, self.anchors))
+                loss_proto = torch.mean(
+                    1 - nn.CosineSimilarity(dim=1)(unwrap(self.model).prototypes, self.anchors)
+                )
                 loss += self.hyper_params.lam * loss_proto
                 loss.backward()
                 self._clip_grads(self.model)
@@ -160,7 +173,7 @@ class FedHPClient(Client):
                 self.proto_opt.step()
                 running_loss += loss.item()
             self.scheduler.step()
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss
@@ -177,26 +190,34 @@ class FedHPClient(Client):
         self.fit(self.hyper_params.fine_tuning_epochs)
         metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
         if metrics:
-            self.notify(event="client_evaluation", round=-1,
-                        client_id=self.index, phase="post-fit", evals=metrics)
+            self.notify(
+                event="client_evaluation",
+                round=-1,
+                client_id=self.index,
+                phase="post-fit",
+                evals=metrics,
+            )
         self._save_to_cache()
 
 
 class FedHPServer(Server):
-    def __init__(self,
-                 model: nn.Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = True,
-                 n_protos: int = 10,
-                 embedding_size: int = 100,
-                 **kwargs):
-        super().__init__(model=ProtoNet(model, n_protos, embedding_size),
-                         test_set=None,
-                         clients=clients,
-                         weighted=weighted)
-        self.hyper_params.update(n_protos=n_protos,
-                                 embedding_size=embedding_size)
+    def __init__(
+        self,
+        model: nn.Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        weighted: bool = True,
+        n_protos: int = 10,
+        embedding_size: int = 100,
+        **kwargs,
+    ):
+        super().__init__(
+            model=ProtoNet(model, n_protos, embedding_size),
+            test_set=None,
+            clients=clients,
+            weighted=weighted,
+        )
+        self.hyper_params.update(n_protos=n_protos, embedding_size=embedding_size)
         self.device = FlukeENV().get_device()
         self.anchors = None
         self.prototypes = None
@@ -205,15 +226,18 @@ class FedHPServer(Server):
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
         if self.rounds == 0:
             self.anchors = self._hyperspherical_embedding().data
-            self.channel.broadcast(Message(self.anchors, "anchors", "server"),
-                                   [c.index for c in self.clients])
+            self.channel.broadcast(
+                Message(self.anchors, "anchors", "server"), [c.index for c in self.clients]
+            )
             self.prototypes = copy.deepcopy(self.anchors)
             client = {c.index: c.train_set.tensors[1] for c in self.clients}
             # Count the occurrences of each class for each client.
             # This is "illegal" in fluke :)
             n_classes = self.clients[0].train_set.num_labels
-            class_counts = {client_idx: torch.bincount(client_data, minlength=n_classes).tolist()
-                            for client_idx, client_data in enumerate(client.values())}
+            class_counts = {
+                client_idx: torch.bincount(client_data, minlength=n_classes).tolist()
+                for client_idx, client_data in enumerate(client.values())
+            }
             if self.hyper_params.weighted:
                 tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))
                 for ind, val in enumerate(class_counts.values()):
@@ -234,8 +258,11 @@ class FedHPServer(Server):
         n_steps = 1000
         wd = 1e-4
         # torch.manual_seed(seed)
-        mapping = torch.rand((self.hyper_params.n_protos, self.hyper_params.embedding_size),
-                             device=self.device, requires_grad=True)
+        mapping = torch.rand(
+            (self.hyper_params.n_protos, self.hyper_params.embedding_size),
+            device=self.device,
+            requires_grad=True,
+        )
         optimizer = torch.optim.SGD([mapping], lr=lr, momentum=momentum, weight_decay=wd)
         loss_fn = SeparationLoss()
         for _ in track(range(n_steps), "[SERVER] Learning prototypes..."):
@@ -250,18 +277,19 @@ class FedHPServer(Server):
         return mapping.detach()
 
     def broadcast_model(self, eligible: Collection[FedHPClient]) -> None:
-        self.channel.broadcast(Message(self.prototypes, "prototypes", "server"),
-                               [c.index for c in eligible])
+        self.channel.broadcast(
+            Message(self.prototypes, "prototypes", "server"), [c.index for c in eligible]
+        )
 
-    def receive_client_models(self,
-                              eligible: Collection[Client],
-                              state_dict: bool = False) -> Generator[nn.Module, None, None]:
+    def receive_client_models(
+        self, eligible: Collection[Client], state_dict: bool = False
+    ) -> Generator[nn.Module, None, None]:
         for client in eligible:
             yield self.channel.receive("server", client.index, "prototypes").payload
 
-    def aggregate(self,
-                  eligible: Collection[FedHPClient],
-                  client_models: Collection[nn.Module]) -> None:
+    def aggregate(
+        self, eligible: Collection[FedHPClient], client_models: Collection[nn.Module]
+    ) -> None:
         clients_prototypes = client_models
         clients_weights = self.clients_class_weights[:, [client.index for client in eligible]].T
         avg_proto = None

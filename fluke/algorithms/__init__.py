@@ -1,5 +1,6 @@
 """This module contains (as submodules) the implementation of several the federated learning
 algorithms."""
+
 from __future__ import annotations
 
 import os
@@ -27,44 +28,44 @@ from ..utils import ClientObserver  # NOQA
 warnings.formatwarning = custom_formatwarning
 
 __all__ = [
-    'CentralizedFL',
-    'PersonalizedFL',
-    'apfl',
-    'ccvr',
-    'ditto',
-    'dpfedavg',
-    'fat',
-    'fedala',
-    'fedamp',
-    'fedavg',
-    'fedavgm',
-    'fedaws',
-    'fedbabu',
-    'fedbn',
-    'feddyn',
-    'fedexp',
-    'fedhp',
-    'fedlc',
-    'fedld',
-    'fednh',
-    'fednova',
-    'fedopt',
-    'fedper',
-    'fedproto',
-    'fedprox',
-    'fedrep',
-    'fedrod',
-    'fedrs',
-    'fedsam',
-    'fedsgd',
-    'gear',
-    'kafe',
-    'lg_fedavg',
-    'moon',
-    'per_fedavg',
-    'pfedme',
-    'scaffold',
-    'superfed'
+    "CentralizedFL",
+    "PersonalizedFL",
+    "apfl",
+    "ccvr",
+    "ditto",
+    "dpfedavg",
+    "fat",
+    "fedala",
+    "fedamp",
+    "fedavg",
+    "fedavgm",
+    "fedaws",
+    "fedbabu",
+    "fedbn",
+    "feddyn",
+    "fedexp",
+    "fedhp",
+    "fedlc",
+    "fedld",
+    "fednh",
+    "fednova",
+    "fedopt",
+    "fedper",
+    "fedproto",
+    "fedprox",
+    "fedrep",
+    "fedrod",
+    "fedrs",
+    "fedsam",
+    "fedsgd",
+    "gear",
+    "kafe",
+    "lg_fedavg",
+    "moon",
+    "per_fedavg",
+    "pfedme",
+    "scaffold",
+    "superfed",
 ]
 
 
@@ -94,7 +95,17 @@ class CentralizedFL(ServerObserver):
         n_clients (int): Number of clients.
         data_splitter (DataSplitter): Data splitter object.
         hyper_params (DDict): Hyperparameters of the algorithm. This set of hyperparameteers should
-          be divided in two parts: the client hyperparameters and the server hyperparameters.
+            be divided in two parts: the client hyperparameters and the server hyperparameters.
+        clients (list[Client], optional): List of already initialized clients. If not `None`, the
+            clients will be used instead of creating new ones, so `n_clients` and `data_splitter`
+            will be ignored. Defaults to ``None``.
+        server (Server, optional): Server object. If not `None`, the server will be used instead of
+            initializing a new one. Defaults to ``None``.
+        **kwargs (dict[str, Any]): Additional keyword arguments.
+
+    Important:
+        When clients are provided, then also the server must be provided and vice versa. In case
+        only one of them is provided a :class:`ValueError` will be raised.
 
     See Also:
         - :class:`fluke.client.Client`
@@ -102,26 +113,62 @@ class CentralizedFL(ServerObserver):
         - :class:`PersonalizedFL`
     """
 
-    def __init__(self,
-                 n_clients: int,
-                 data_splitter: DataSplitter,
-                 hyper_params: DDict | dict[str, Any],
-                 **kwargs):
+    def __init__(
+        self,
+        n_clients: int,
+        data_splitter: DataSplitter,
+        hyper_params: DDict | dict[str, Any],
+        clients: list[Client] = None,
+        server: Server = None,
+        **kwargs,
+    ):
+
+        if (clients is not None and server is None) or (clients is None and server is not None):
+            raise ValueError("Both clients and server must be provided or neither of them.")
+
         self._id = str(uuid.uuid4().hex)
         FlukeENV().open_cache(self._id)
-        if isinstance(hyper_params, dict):
-            hyper_params = DDict(hyper_params)
-        self.hyper_params = hyper_params
-        self.n_clients = n_clients
-        (clients_tr_data, clients_te_data), server_data = \
-            data_splitter.assign(n_clients, hyper_params.client.batch_size)
-        # Federated model
-        model = get_model(mname=hyper_params.model,
-                          **hyper_params.net_args if 'net_args' in hyper_params else {}
-                          ) if isinstance(hyper_params.model, str) else hyper_params.model
 
-        self.clients = self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
-        self.server = self.init_server(model, server_data, hyper_params.server)
+        if clients is not None:
+            self.clients = clients
+            self.n_clients = len(clients)
+            if self.n_clients != n_clients:
+                warnings.warn(
+                    f"Number of clients provided ({self.n_clients}) is different from"
+                    + f"the number of clients expected ({n_clients}). Overwriting "
+                    + f"the number of clients to {self.n_clients}."
+                )
+            self.server = server
+            model_name = "Unknown"
+            if server.model is not None:
+                model_name = server.model.__class__.__name__
+            else:
+                model_name = clients[0].model.__class__.__name__
+            hyper_params = DDict(
+                client=clients[0].hyper_params, server=server.hyper_params, model=model_name
+            )
+
+        else:
+            if isinstance(hyper_params, dict):
+                hyper_params = DDict(hyper_params)
+
+            self.hyper_params = hyper_params
+            self.n_clients = n_clients
+            (clients_tr_data, clients_te_data), server_data = data_splitter.assign(
+                n_clients, hyper_params.client.batch_size
+            )
+            # Federated model
+            model = (
+                get_model(
+                    mname=hyper_params.model,
+                    **hyper_params.net_args if "net_args" in hyper_params else {},
+                )
+                if isinstance(hyper_params.model, str)
+                else hyper_params.model
+            )
+
+            self.clients = self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
+            self.server = self.init_server(model, server_data, hyper_params.server)
 
         for client in self.clients:
             client.set_channel(self.server.channel)
@@ -174,23 +221,29 @@ class CentralizedFL(ServerObserver):
         return Server
 
     def _fix_opt_cfg(self, cfg_opt: DDict) -> None:
-
+        # Guess it is not useful anymore
         if "name" not in cfg_opt:
             cfg_opt.name = "SGD"
 
         if not self.can_override_optimizer():
-            if (cfg_opt.name == self.get_optimizer_class().__name__ or
-                    cfg_opt.name is self.get_optimizer_class()):
+            if (
+                cfg_opt.name == self.get_optimizer_class().__name__
+                or cfg_opt.name is self.get_optimizer_class()
+            ):
                 return
             old_name = cfg_opt.name if isinstance(cfg_opt.name, str) else cfg_opt.name.__name__
-            warnings.warn(f"The algorithm does not support the optimizer {old_name}. "
-                          f"Using {self.get_optimizer_class().__name__} instead.")
+            warnings.warn(
+                f"The algorithm does not support the optimizer {old_name}. "
+                f"Using {self.get_optimizer_class().__name__} instead."
+            )
             cfg_opt.name = self.get_optimizer_class()
 
-    def init_clients(self,
-                     clients_tr_data: list[FastDataLoader],
-                     clients_te_data: list[FastDataLoader],
-                     config: DDict) -> Collection[Client]:
+    def init_clients(
+        self,
+        clients_tr_data: list[FastDataLoader],
+        clients_te_data: list[FastDataLoader],
+        config: DDict,
+    ) -> Collection[Client]:
         """Creates the clients.
 
         Args:
@@ -212,8 +265,9 @@ class CentralizedFL(ServerObserver):
         """
 
         self._fix_opt_cfg(config.optimizer)
-        optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
-                                              scheduler_cfg=config.scheduler)
+        optimizer_cfg = OptimizerConfigurator(
+            optimizer_cfg=config.optimizer, scheduler_cfg=config.scheduler
+        )
         loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
         clients = [
             self.get_client_class()(
@@ -222,9 +276,10 @@ class CentralizedFL(ServerObserver):
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
                 loss_fn=deepcopy(loss),
-                **config.exclude('optimizer', 'loss', 'batch_size', 'scheduler')
+                **config.exclude("optimizer", "loss", "batch_size", "scheduler"),
             )
-            for i in range(self.n_clients)]
+            for i in range(self.n_clients)
+        ]
         return clients
 
     def init_server(self, model: Any, data: FastDataLoader, config: DDict) -> Server:
@@ -238,10 +293,9 @@ class CentralizedFL(ServerObserver):
         Returns:
             Server: The initialized server.
         """
-        server: Server = self.get_server_class()(model=model,
-                                                 test_set=data,
-                                                 clients=self.clients,
-                                                 **config)
+        server: Server = self.get_server_class()(
+            model=model, test_set=data, clients=self.clients, **config
+        )
         if FlukeENV().get_save_options()[0] is not None:
             server.attach(self)
         return server
@@ -263,11 +317,7 @@ class CentralizedFL(ServerObserver):
         for client in self.clients:
             client.attach([c for c in callbacks if isinstance(c, ClientObserver)])
 
-    def run(self,
-            n_rounds: int,
-            eligible_perc: float,
-            finalize: bool = True,
-            **kwargs) -> None:
+    def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs) -> None:
         """Run the federated algorithm.
         This method will call the :meth:`Server.fit` method which will orchestrate the training
         process.
@@ -276,7 +326,7 @@ class CentralizedFL(ServerObserver):
             n_rounds (int): Number of rounds.
             eligible_perc (float): Percentage of eligible clients.
             finalize (bool, optional): Whether to finalize the training process.
-              Defaults to ``True``.
+                Defaults to ``True``.
             **kwargs (dict[str, Any]): Additional keyword arguments.
         """
         self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
@@ -284,28 +334,35 @@ class CentralizedFL(ServerObserver):
     def __str__(self, indent: int = 0) -> str:
         algo_hp = f"\n\tmodel={str(self.hyper_params.model)}("
         if "net_args" in self.hyper_params:
-            algo_hp += ", ".join([f'{k}={v}' for k, v in self.hyper_params.net_args.items()])
+            algo_hp += ", ".join([f"{k}={v}" for k, v in self.hyper_params.net_args.items()])
         algo_hp += ")"
         algo_hp += ",\n\t".join(
-            [f"{h}={v.__str__(indent=indent+4)}"
-             for h, v in self.hyper_params.items() if h not in ['client', 'server',
-                                                                'model', 'net_args']]
+            [
+                f"{h}={v.__str__(indent=indent + 4)}"
+                for h, v in self.hyper_params.items()
+                if h not in ["client", "server", "model", "net_args"]
+            ]
         )
         algo_hp = f"\t{algo_hp}," if algo_hp else ""
 
         if self.clients is None:
             client_str = "Client?"
         else:
-            client_str = self.clients[0].__str__(
-                indent=indent + 4).replace("[0](", f"[0-{self.n_clients-1}](")
+            client_str = (
+                self.clients[0]
+                .__str__(indent=indent + 4)
+                .replace("[0](", f"[0-{self.n_clients - 1}](")
+            )
 
         if self.server is None:
             server_str = "Server?"
         else:
-            server_str = self.server.__str__(indent=indent+4)
+            server_str = self.server.__str__(indent=indent + 4)
 
-        return f"{self.__class__.__name__}[{self._id}]" + \
-            f"({algo_hp}\n\t{client_str},\n\t{server_str}\n)"
+        return (
+            f"{self.__class__.__name__}[{self._id}]"
+            + f"({algo_hp}\n\t{client_str},\n\t{server_str}\n)"
+        )
 
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)
@@ -370,9 +427,10 @@ class CentralizedFL(ServerObserver):
 
     # ServerObserver methods
     def finished(self, round: int) -> None:
+        FlukeENV().close_cache()
         path, freq, g_only = FlukeENV().get_save_options()
         if freq == -1:
-            self.save(path, g_only, round-1)
+            self.save(path, g_only, round - 1)
 
 
 class PersonalizedFL(CentralizedFL):
@@ -393,22 +451,27 @@ class PersonalizedFL(CentralizedFL):
         - :class:`fluke.client.PFLClient`
     """
 
-    def init_clients(self,
-                     clients_tr_data: list[FastDataLoader],
-                     clients_te_data: list[FastDataLoader],
-                     config: DDict) -> Collection[Client]:
+    def init_clients(
+        self,
+        clients_tr_data: list[FastDataLoader],
+        clients_te_data: list[FastDataLoader],
+        config: DDict,
+    ) -> Collection[Client]:
 
         if isinstance(config.model, str):
-            model = get_model(mname=config.model, **config.net_args if 'net_args' in config else {})
+            model = get_model(mname=config.model, **config.net_args if "net_args" in config else {})
         elif isinstance(config.model, torch.nn.Module):
             model = config.model
         else:
-            raise ValueError("Invalid model configuration. \
-                             It should be a string or a torch.nn.Module")
+            raise ValueError(
+                "Invalid model configuration. \
+                             It should be a string or a torch.nn.Module"
+            )
 
         self._fix_opt_cfg(config.optimizer)
-        optimizer_cfg = OptimizerConfigurator(optimizer_cfg=config.optimizer,
-                                              scheduler_cfg=config.scheduler)
+        optimizer_cfg = OptimizerConfigurator(
+            optimizer_cfg=config.optimizer, scheduler_cfg=config.scheduler
+        )
         loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
         clients = [
             self.get_client_class()(
@@ -418,7 +481,8 @@ class PersonalizedFL(CentralizedFL):
                 test_set=clients_te_data[i],
                 optimizer_cfg=optimizer_cfg,
                 loss_fn=deepcopy(loss),
-                **config.exclude('optimizer', 'loss', 'batch_size', 'model', 'scheduler')
+                **config.exclude("optimizer", "loss", "batch_size", "model", "scheduler"),
             )
-            for i in range(self.n_clients)]
+            for i in range(self.n_clients)
+        ]
         return clients

@@ -1,6 +1,7 @@
 """
 This module contains the datasets for loading the supported datasets.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,12 +23,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from ..utils import get_class_from_qualified_name  # NOQA
-from . import (DataContainer, DummyDataContainer, FastDataLoader,  # NOQA
-               support)
+from . import DataContainer, DummyDataContainer, FastDataLoader, support  # NOQA
 
-__all__ = [
-    "Datasets"
-]
+__all__ = ["Datasets"]
 
 
 def _apply_transforms(dataset: VisionDataset, transforms: Optional[callable]) -> VisionDataset:
@@ -84,17 +82,22 @@ class Datasets:
                 if "." in name:
                     raise e
                 else:
-                    raise ValueError(f"Dataset {name} not found. The supported datasets are: " +
-                                     ", ".join(Datasets._DATASET_MAP.keys()) + ".")
+                    raise ValueError(
+                        f"Dataset {name} not found. The supported datasets are: "
+                        + ", ".join(Datasets._DATASET_MAP.keys())
+                        + "."
+                    )
 
         return Datasets._DATASET_MAP[name](**kwargs)
 
     @classmethod
-    def MNIST(cls,
-              path: str = "../data",
-              transforms: Optional[callable] = None,
-              onthefly_transforms: Optional[callable] = None,
-              channel_dim: bool = False) -> DataContainer:
+    def MNIST(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+        channel_dim: bool = False,
+    ) -> DataContainer:
         """Load the MNIST dataset.
         The dataset is split into training and testing sets according to the default split of the
         :class:`torchvision.datasets.MNIST` class. If no transformations are provided, the data is
@@ -114,37 +117,33 @@ class Datasets:
         Returns:
             DataContainer: The MNIST dataset.
         """
-        train_data = datasets.MNIST(
-            root=path,
-            train=True,
-            download=True
-        )
+        train_data = datasets.MNIST(root=path, train=True, download=True)
 
-        test_data = datasets.MNIST(
-            root=path,
-            train=False,
-            download=True
-        )
+        test_data = datasets.MNIST(root=path, train=False, download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
         if transforms is None:
-            train_data.data = torch.Tensor(train_data.data / 255.)
-            test_data.data = torch.Tensor(test_data.data / 255.)
+            train_data.data = torch.Tensor(train_data.data / 255.0)
+            test_data.data = torch.Tensor(test_data.data / 255.0)
 
-        return DataContainer(train_data.data if not channel_dim else train_data.data[:, None, :, :],
-                             train_data.targets,
-                             test_data.data if not channel_dim else test_data.data[:, None, :, :],
-                             test_data.targets,
-                             10,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data if not channel_dim else train_data.data[:, None, :, :],
+            train_data.targets,
+            test_data.data if not channel_dim else test_data.data[:, None, :, :],
+            test_data.targets,
+            10,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def MNISTM(cls,
-               path: str = "../data",
-               transforms: Optional[callable] = None,
-               onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def MNISTM(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """Load the MNIST-M dataset. MNIST-M is a dataset where the MNIST digits are placed on
         random color patches. The dataset is split into training and testing sets according to the
         default split of the data at https://github.com/liyxi/mnist-m/releases/download/data/.
@@ -167,35 +166,35 @@ class Datasets:
             download=True,
         )
 
-        test_data = support.MNISTM(
-            root=path,
-            train=False,
-            download=True
-        )
+        test_data = support.MNISTM(root=path, train=False, download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
         if transforms is None:
-            train_data.data = train_data.data / 255.
-            test_data.data = test_data.data / 255.
+            train_data.data = train_data.data / 255.0
+            test_data.data = test_data.data / 255.0
 
             train_data.data = torch.movedim(train_data.data, 3, 1)
             test_data.data = torch.movedim(test_data.data, 3, 1)
 
-        return DataContainer(train_data.data,
-                             train_data.targets,
-                             test_data.data,
-                             test_data.targets,
-                             10,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data,
+            train_data.targets,
+            test_data.data,
+            test_data.targets,
+            10,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def EMNIST(cls,
-               path: str = "../data",
-               transforms: Optional[callable] = None,
-               onthefly_transforms: Optional[callable] = None,
-               channel_dim: bool = False) -> DataContainer:
+    def EMNIST(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+        channel_dim: bool = False,
+    ) -> DataContainer:
         """Load the Extended MNIST (EMNIST) dataset. The dataset is split into training and testing
         sets according to the default split of the data at
         https://www.westernsydney.edu.au/bens/home/reproducible_research/emnist as provided by
@@ -216,39 +215,33 @@ class Datasets:
             DataContainer: The EMNIST dataset.
         """
 
-        train_data = datasets.EMNIST(
-            root=path,
-            split="balanced",
-            train=True,
-            download=True
-        )
+        train_data = datasets.EMNIST(root=path, split="balanced", train=True, download=True)
 
-        test_data = datasets.EMNIST(
-            root=path,
-            split="balanced",
-            train=False,
-            download=True
-        )
+        test_data = datasets.EMNIST(root=path, split="balanced", train=False, download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
         if transforms is None:
-            train_data.data = train_data.data / 255.
-            test_data.data = test_data.data / 255.
+            train_data.data = train_data.data / 255.0
+            test_data.data = test_data.data / 255.0
 
-        return DataContainer(train_data.data if not channel_dim else train_data.data[:, None, :, :],
-                             train_data.targets,
-                             test_data.data if not channel_dim else test_data.data[:, None, :, :],
-                             test_data.targets,
-                             47,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data if not channel_dim else train_data.data[:, None, :, :],
+            train_data.targets,
+            test_data.data if not channel_dim else test_data.data[:, None, :, :],
+            test_data.targets,
+            47,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def SVHN(cls,
-             path: str = "../data",
-             transforms: Optional[callable] = None,
-             onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def SVHN(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """
         Load the Street View House Numbers (SVHN) dataset. The dataset is split into training and
         testing sets according to the default split of the :class:`torchvision.datasets.SVHN` class.
@@ -265,17 +258,9 @@ class Datasets:
         Returns:
             DataContainer: The SVHN dataset.
         """
-        train_data = datasets.SVHN(
-            root=path,
-            split="train",
-            download=True
-        )
+        train_data = datasets.SVHN(root=path, split="train", download=True)
 
-        test_data = datasets.SVHN(
-            root=path,
-            split="test",
-            download=True
-        )
+        test_data = datasets.SVHN(root=path, split="test", download=True)
 
         # Force targets to be named "targets" instead of "labels" for compatibility
         setattr(train_data, "targets", train_data.labels)
@@ -285,21 +270,25 @@ class Datasets:
         test_data = _apply_transforms(test_data, transforms)
 
         if transforms is None:
-            train_data.data = torch.Tensor(train_data.data / 255.)
-            test_data.data = torch.Tensor(test_data.data / 255.)
+            train_data.data = torch.Tensor(train_data.data / 255.0)
+            test_data.data = torch.Tensor(test_data.data / 255.0)
 
-        return DataContainer(train_data.data,
-                             train_data.targets,
-                             test_data.data,
-                             test_data.targets,
-                             10,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data,
+            train_data.targets,
+            test_data.data,
+            test_data.targets,
+            10,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def CIFAR10(cls,
-                path: str = "../data",
-                transforms: Optional[callable] = None,
-                onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def CIFAR10(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """
         Load the CIFAR-10 dataset. The dataset is split into training and testing sets according to
         the default split of the :class:`torchvision.datasets.CIFAR10` class.
@@ -319,40 +308,36 @@ class Datasets:
         Returns:
             DataContainer: The CIFAR-10 dataset.
         """
-        train_data = datasets.CIFAR10(
-            root=path,
-            train=True,
-            download=True
-        )
+        train_data = datasets.CIFAR10(root=path, train=True, download=True)
 
-        test_data = datasets.CIFAR10(
-            root=path,
-            train=False,
-            download=True
-        )
+        test_data = datasets.CIFAR10(root=path, train=False, download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
         if transforms is None:
-            train_data.data = train_data.data / 255.
-            test_data.data = test_data.data / 255.
+            train_data.data = train_data.data / 255.0
+            test_data.data = test_data.data / 255.0
 
             train_data.data = torch.movedim(train_data.data, 3, 1)
             test_data.data = torch.movedim(test_data.data, 3, 1)
 
-        return DataContainer(train_data.data,
-                             train_data.targets,
-                             test_data.data,
-                             test_data.targets,
-                             10,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data,
+            train_data.targets,
+            test_data.data,
+            test_data.targets,
+            10,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def CINIC10(cls,
-                path: str = "../data",
-                transforms: Optional[callable] = None,
-                onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def CINIC10(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """
         Load the CINIC-10 dataset. `CINIC-10 <http://dx.doi.org/10.7488/ds/2448>`_ is an
         augmented extension of CIFAR-10. It contains the images from CIFAR-10
@@ -372,33 +357,29 @@ class Datasets:
             DataContainer: The CINIC-10 dataset.
         """
 
-        train_data = support.CINIC10(
-            root=path,
-            split="train",
-            download=True
-        )
+        train_data = support.CINIC10(root=path, split="train", download=True)
 
-        test_data = support.CINIC10(
-            root=path,
-            split="test",
-            download=True
-        )
+        test_data = support.CINIC10(root=path, split="test", download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
-        return DataContainer(train_data.data,
-                             train_data.targets,
-                             test_data.data,
-                             test_data.targets,
-                             10,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data,
+            train_data.targets,
+            test_data.data,
+            test_data.targets,
+            10,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def CIFAR100(cls,
-                 path: str = "../data",
-                 transforms: Optional[callable] = None,
-                 onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def CIFAR100(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """
         Load the CIFAR-100 dataset. The dataset is split into training and testing sets according to
         the default split of the :class:`torchvision.datasets.CIFAR100` class.
@@ -416,40 +397,36 @@ class Datasets:
         Returns:
             DataContainer: The CIFAR-100 dataset.
         """
-        train_data = datasets.CIFAR100(
-            root=path,
-            train=True,
-            download=True
-        )
+        train_data = datasets.CIFAR100(root=path, train=True, download=True)
 
-        test_data = datasets.CIFAR100(
-            root=path,
-            train=False,
-            download=True
-        )
+        test_data = datasets.CIFAR100(root=path, train=False, download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
         if transforms is None:
-            train_data.data = train_data.data / 255.
-            test_data.data = test_data.data / 255.
+            train_data.data = train_data.data / 255.0
+            test_data.data = test_data.data / 255.0
 
             train_data.data = torch.movedim(train_data.data, 3, 1)
             test_data.data = torch.movedim(test_data.data, 3, 1)
 
-        return DataContainer(train_data.data,
-                             train_data.targets,
-                             test_data.data,
-                             test_data.targets,
-                             100,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data,
+            train_data.targets,
+            test_data.data,
+            test_data.targets,
+            100,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def FASHION_MNIST(cls,
-                      path: str = "../data",
-                      transforms: Optional[callable] = None,
-                      onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def FASHION_MNIST(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """
         Load the Fashion MNIST dataset. The dataset is split into training and testing sets
         according to the default split of the :class:`torchvision.datasets.FashionMNIST` class.
@@ -466,33 +443,29 @@ class Datasets:
         Returns:
             DataContainer: The CIFAR-100 dataset.
         """
-        train_data = datasets.FashionMNIST(
-            root=path,
-            train=True,
-            download=True
-        )
+        train_data = datasets.FashionMNIST(root=path, train=True, download=True)
 
-        test_data = datasets.FashionMNIST(
-            root=path,
-            train=False,
-            download=True
-        )
+        test_data = datasets.FashionMNIST(root=path, train=False, download=True)
 
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
-        return DataContainer(train_data.data,
-                             train_data.targets,
-                             test_data.data,
-                             test_data.targets,
-                             10,
-                             onthefly_transforms)
+        return DataContainer(
+            train_data.data,
+            train_data.targets,
+            test_data.data,
+            test_data.targets,
+            10,
+            onthefly_transforms,
+        )
 
     @classmethod
-    def TINY_IMAGENET(cls,
-                      path: str = "../data",
-                      transforms: Optional[callable] = None,
-                      onthefly_transforms: Optional[callable] = None) -> DataContainer:
+    def TINY_IMAGENET(
+        cls,
+        path: str = "../data",
+        transforms: Optional[callable] = None,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DataContainer:
         """
         Load the Tiny-ImageNet dataset.
         This version of the dataset is the one offered by the
@@ -511,13 +484,9 @@ class Datasets:
         Returns:
             DataContainer: The Tiny-ImageNet dataset.
         """
-        tiny_imagenet_train = load_dataset('Maysee/tiny-imagenet',
-                                           split='train',
-                                           cache_dir=path)
+        tiny_imagenet_train = load_dataset("Maysee/tiny-imagenet", split="train", cache_dir=path)
 
-        tiny_imagenet_test = load_dataset('Maysee/tiny-imagenet',
-                                          split='valid',
-                                          cache_dir=path)
+        tiny_imagenet_test = load_dataset("Maysee/tiny-imagenet", split="valid", cache_dir=path)
 
         X_train, y_train = [], []
         X_test, y_test = [], []
@@ -525,8 +494,8 @@ class Datasets:
         fix_bw_trans = Lambda(lambda x: x.repeat(1, 3, 1, 1))
 
         for image in track(tiny_imagenet_train, "Loading Tiny ImageNet train data..."):
-            y = image['label']
-            image = image['image']
+            y = image["label"]
+            image = image["image"]
             if transforms is not None:
                 x = transforms(image)
             if not isinstance(image, torch.Tensor):
@@ -539,8 +508,8 @@ class Datasets:
             y_train.append(y)
 
         for image in track(tiny_imagenet_test, "Loading Tiny ImageNet test data..."):
-            y = image['label']
-            image = image['image']
+            y = image["label"]
+            image = image["image"]
             if transforms is not None:
                 image = transforms(image)
             if not isinstance(image, torch.Tensor):
@@ -564,19 +533,16 @@ class Datasets:
         y_train = torch.LongTensor(y_train)[idxperm]
         y_test = torch.LongTensor(y_test)
 
-        return DataContainer(train_data,
-                             y_train,
-                             test_data,
-                             y_test,
-                             200,
-                             onthefly_transforms)
+        return DataContainer(train_data, y_train, test_data, y_test, 200, onthefly_transforms)
 
     @classmethod
-    def FEMNIST(cls,
-                path: str = "./data",
-                batch_size: int = 10,
-                filter: str = "all",
-                onthefly_transforms: Optional[callable] = None) -> DummyDataContainer:
+    def FEMNIST(
+        cls,
+        path: str = "./data",
+        batch_size: int = 10,
+        filter: str = "all",
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DummyDataContainer:
         """
         Load the Federated EMNIST (FEMNIST) dataset.
         This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
@@ -627,6 +593,7 @@ class Datasets:
             DummyDataContainer: The ``DummyDataContainer`` object containing the training and
                 testing data loaders for the clients. The server data loader is ``None``.
         """
+
         def _filter_femnist(user_data: dict, filter: str) -> tuple[dict, int]:
             # classes: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
             # labels : 01234567890123456789012345678901234567890123456789012345678901
@@ -649,8 +616,8 @@ class Datasets:
             return user_data, n_classes
 
         femnist_path = os.path.join(path, "FEMNIST")
-        train_dir = os.path.join(femnist_path, 'train')
-        test_dir = os.path.join(femnist_path, 'test')
+        train_dir = os.path.join(femnist_path, "train")
+        test_dir = os.path.join(femnist_path, "test")
 
         assert os.path.exists(femnist_path), f"FEMNIST data ({femnist_path}) not found."
         assert os.path.exists(train_dir), f"FEMNIST train data ({train_dir}') not found."
@@ -686,7 +653,7 @@ class Datasets:
                     batch_size=batch_size,
                     shuffle=True,
                     transforms=onthefly_transforms,
-                    percentage=1.0
+                    percentage=1.0,
                 )
             )
 
@@ -704,7 +671,7 @@ class Datasets:
                     batch_size=64,
                     shuffle=True,
                     transforms=onthefly_transforms,
-                    percentage=1.0
+                    percentage=1.0,
                 )
             )
 
@@ -714,10 +681,12 @@ class Datasets:
         return DummyDataContainer(client_tr_assignments, client_te_assignments, None, 62)
 
     @classmethod
-    def SHAKESPEARE(cls,
-                    path: str = "./data",
-                    batch_size: int = 10,
-                    onthefly_transforms: Optional[callable] = None) -> DummyDataContainer:
+    def SHAKESPEARE(
+        cls,
+        path: str = "./data",
+        batch_size: int = 10,
+        onthefly_transforms: Optional[callable] = None,
+    ) -> DummyDataContainer:
         """Load the Federated Shakespeare dataset.
         This dataset is the one offered by the `Leaf project <https://leaf.cmu.edu/>`_.
         Shakespeare is a text dataset containing dialogues from Shakespeare's plays.
@@ -758,8 +727,8 @@ class Datasets:
                 testing data loaders for the clients. The server data loader is ``None``.
         """
         shake_path = os.path.join(path, "shakespeare")
-        train_dir = os.path.join(shake_path, 'train')
-        test_dir = os.path.join(shake_path, 'test')
+        train_dir = os.path.join(shake_path, "train")
+        test_dir = os.path.join(shake_path, "test")
 
         assert os.path.exists(shake_path), f"shakespeare data ({shake_path}) not found."
         assert os.path.exists(train_dir), f"shakespeare train data ({train_dir}') not found."
@@ -787,7 +756,7 @@ class Datasets:
         client_tr_assignments = []
         for k in track(sorted(dict_train), "Creating training data loader..."):
             udata = dict_train[k]
-            inputs, targets = udata['x'], udata['y']
+            inputs, targets = udata["x"], udata["y"]
             for idx in range(len(inputs)):
                 inputs[idx] = [chr_map[char] for char in inputs[idx]]
             for idx in range(len(targets)):
@@ -803,14 +772,14 @@ class Datasets:
                     batch_size=batch_size,
                     shuffle=True,
                     transforms=onthefly_transforms,
-                    percentage=1.0
+                    percentage=1.0,
                 )
             )
 
         client_te_assignments = []
         for k in track(sorted(dict_train), "Creating test data loader..."):
             udata = dict_test[k]
-            inputs, targets = udata['x'], udata['y']
+            inputs, targets = udata["x"], udata["y"]
             for idx in range(len(inputs)):
                 inputs[idx] = [chr_map[char] for char in inputs[idx]]
             for idx in range(len(targets)):
@@ -826,7 +795,7 @@ class Datasets:
                     batch_size=batch_size,
                     shuffle=True,
                     transforms=onthefly_transforms,
-                    percentage=1.0
+                    percentage=1.0,
                 )
             )
 
@@ -836,12 +805,14 @@ class Datasets:
         return DummyDataContainer(client_tr_assignments, client_te_assignments, None, 100)
 
     @classmethod
-    def FCUBE(cls,
-              path: str = "./data",
-              batch_size: int = 10,
-              n_points: int = 1000,
-              test_size: int = 0.1,
-              dimensions: int = 3) -> tuple:
+    def FCUBE(
+        cls,
+        path: str = "./data",
+        batch_size: int = 10,
+        n_points: int = 1000,
+        test_size: int = 0.1,
+        dimensions: int = 3,
+    ) -> tuple:
         """This class creates the dataset FCUBE as described in the paper
         https://arxiv.org/pdf/2102.02079. This implementation generalizes for $n$ dimensions.
         The number of clients depends on the number of dimensions, i.e., the dataset will be divided
@@ -874,7 +845,7 @@ class Datasets:
             y = torch.LongTensor([0 if x[0] <= 0 else 1 for x in X])
             torch.save({"X": X, "y": y}, file_path)
 
-        n_clients = 2**(dimensions-1)
+        n_clients = 2 ** (dimensions - 1)
         test_percent = int(n_points * test_size)
         server_te = FastDataLoader(
             X[-test_percent:],
@@ -882,7 +853,7 @@ class Datasets:
             num_labels=2,
             batch_size=batch_size,
             shuffle=False,
-            percentage=1.0
+            percentage=1.0,
         )
 
         def to_bin(v):
@@ -903,8 +874,9 @@ class Datasets:
             clients_per_bin[pos_id] += 1
             clients_per_bin[neg_id] += 1
 
-        point_per_bin = [int(np.ceil(len(bin_to_idx[i]) / clients_per_bin[i]))
-                         for i in range(len(bin_to_idx))]
+        point_per_bin = [
+            int(np.ceil(len(bin_to_idx[i]) / clients_per_bin[i])) for i in range(len(bin_to_idx))
+        ]
         cnt_bin = [0] * len(bin_to_idx)
 
         client_tr_assignments = []
@@ -915,33 +887,37 @@ class Datasets:
 
             step = point_per_bin[pos_id]
             j = cnt_bin[pos_id]
-            idx_pos = bin_to_idx[pos_id][step * j: step * (j+1)]
+            idx_pos = bin_to_idx[pos_id][step * j : step * (j + 1)]
 
             step = point_per_bin[neg_id]
             j = cnt_bin[neg_id]
-            idx_neg = bin_to_idx[neg_id][step * j: step * (j+1)]
+            idx_neg = bin_to_idx[neg_id][step * j : step * (j + 1)]
 
             Xc = torch.cat([X[idx_pos], X[idx_neg]])
             yc = torch.cat([y[idx_pos], y[idx_neg]])
 
             cut_id = int(len(yc) * test_size)
-            client_tr_assignments.append(FastDataLoader(
-                Xc[:-cut_id],
-                yc[:-cut_id],
-                num_labels=2,
-                batch_size=batch_size,
-                shuffle=True,
-                percentage=1.0
-            ))
+            client_tr_assignments.append(
+                FastDataLoader(
+                    Xc[:-cut_id],
+                    yc[:-cut_id],
+                    num_labels=2,
+                    batch_size=batch_size,
+                    shuffle=True,
+                    percentage=1.0,
+                )
+            )
 
-            client_te_assignments.append(FastDataLoader(
-                Xc[-cut_id:],
-                yc[-cut_id:],
-                num_labels=2,
-                batch_size=batch_size,
-                shuffle=False,
-                percentage=1.0
-            ))
+            client_te_assignments.append(
+                FastDataLoader(
+                    Xc[-cut_id:],
+                    yc[-cut_id:],
+                    num_labels=2,
+                    batch_size=batch_size,
+                    shuffle=False,
+                    percentage=1.0,
+                )
+            )
 
         return DummyDataContainer(client_tr_assignments, client_te_assignments, server_te, 2)
 
@@ -958,5 +934,5 @@ Datasets._DATASET_MAP = {
     "shakespeare": Datasets.SHAKESPEARE,
     "fashion_mnist": Datasets.FASHION_MNIST,
     "cinic10": Datasets.CINIC10,
-    "fcube": Datasets.FCUBE
+    "fcube": Datasets.FCUBE,
 }

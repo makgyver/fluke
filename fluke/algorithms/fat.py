@@ -6,6 +6,7 @@ References:
        URL: https://arxiv.org/abs/2012.01791
 
 """
+
 import sys
 
 import numpy as np
@@ -22,50 +23,55 @@ from ..data import FastDataLoader  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "FATClient",
-    "FAT"
-]
+__all__ = ["FATClient", "FAT"]
 
 
 class FATClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,  # not used
-                 local_epochs: int,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 eps: float = 0.1,
-                 alpha: float = 2.0 / 255,
-                 adv_iters: int = 10,
-                 k_prop: float = 1.0,
-                 **kwargs):
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,  # not used
+        local_epochs: int,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        eps: float = 0.1,
+        alpha: float = 2.0 / 255,
+        adv_iters: int = 10,
+        k_prop: float = 1.0,
+        **kwargs,
+    ):
         assert 0.0 <= k_prop <= 1.0, "k_prop must be in [0, 1]"
         self.sample_per_class = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):
             self.sample_per_class[c] = uniq_count[i]
 
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         loss_fn=loss_fn,
-                         optimizer_cfg=optimizer_cfg,
-                         local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs,
-                         clipping=clipping,
-                         **kwargs)
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            loss_fn=loss_fn,
+            optimizer_cfg=optimizer_cfg,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.hyper_params.update(eps=eps, alpha=alpha, adv_iters=adv_iters, k_prop=k_prop)
 
-    def generate_adversarial(self,
-                             model: Module,
-                             inputs: torch.Tensor,
-                             targets: torch.Tensor,
-                             eps: float = 0.1,
-                             alpha: float = 2.0 / 255,
-                             iters: int = 10) -> torch.Tensor:
+    def generate_adversarial(
+        self,
+        model: Module,
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
+        eps: float = 0.1,
+        alpha: float = 2.0 / 255,
+        iters: int = 10,
+    ) -> torch.Tensor:
         """
         Generates adversarial examples using Projected Gradient Descent (PGD).
 
@@ -92,8 +98,9 @@ class FATClient(Client):
         return adv_inputs.requires_grad_(False)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
 
         self.model.train()
         self.model.to(self.device)
@@ -118,7 +125,7 @@ class FATClient(Client):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss

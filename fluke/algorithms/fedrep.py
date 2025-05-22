@@ -5,6 +5,7 @@ References:
        Exploiting shared representations for personalized federated learning. In ICML (2021).
        URL: https://arxiv.org/abs/2102.07078
 """
+
 import sys
 from dataclasses import dataclass
 from typing import Collection
@@ -24,11 +25,7 @@ from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache, get_model  # NOQA
 from ..utils.model import ModOpt, safe_load_state_dict, unwrap  # NOQA
 
-__all__ = [
-    "FedRepClient",
-    "FedRepServer",
-    "FedRep"
-]
+__all__ = ["FedRepClient", "FedRepServer", "FedRep"]
 
 # https://arxiv.org/abs/2102.07078
 
@@ -42,22 +39,31 @@ class _ModOpt2(ModOpt):
 
 class FedRepClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 model: EncoderHeadNet,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 tau: int = 3,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set,
-                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
-                         clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        model: EncoderHeadNet,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        tau: int = 3,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         if isinstance(model, str):
             model = get_model(model)
         self._modopt = _ModOpt2(model=EncoderGlobalHeadLocalNet(model))
@@ -92,8 +98,9 @@ class FedRepClient(Client):
         self._modopt.pers_scheduler = scheduler
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
         self.model.train()
         self.model.to(self.device)
 
@@ -104,8 +111,9 @@ class FedRepClient(Client):
             parameter.requires_grad = False
 
         if self.pers_optimizer is None:
-            self.pers_optimizer, self.pers_scheduler = \
-                self._optimizer_cfg(unwrap(self.model).get_local())
+            self.pers_optimizer, self.pers_scheduler = self._optimizer_cfg(
+                unwrap(self.model).get_local()
+            )
 
         running_loss = 0.0
         for _ in range(epochs):
@@ -139,14 +147,16 @@ class FedRepClient(Client):
                 self.optimizer.step()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss
 
     def send_model(self) -> None:
-        self.channel.send(Message(self.model.get_global(), "model", self.index, inmemory=True),
-                          "server")
+        self.channel.send(
+            Message(self.model.get_global(), "model", self.index, inmemory=True),
+            "server",
+        )
 
     def receive_model(self) -> None:
         server_model = self.channel.receive(self.index, "server", msg_type="model").payload
@@ -157,11 +167,13 @@ class FedRepClient(Client):
 
 class FedRepServer(Server):
 
-    def __init__(self,
-                 model: torch.nn.Module,
-                 test_set: FastDataLoader,  # test_set is not used
-                 clients: Collection[Client],
-                 weighted: bool = False):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        test_set: FastDataLoader,  # test_set is not used
+        clients: Collection[Client],
+        weighted: bool = False,
+    ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 

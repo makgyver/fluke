@@ -5,6 +5,7 @@ References:
        Zhang. Personalized Cross-Silo Federated Learning on Non-IID Data. In AAAI (2021).
        URL: https://arxiv.org/abs/2007.03797
 """
+
 import sys
 from copy import deepcopy
 from typing import Collection
@@ -26,21 +27,32 @@ from . import PersonalizedFL  # NOQA
 
 
 class FedAMPClient(PFLClient):
-    def __init__(self,
-                 index: int,
-                 model: Module,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 lam: float = 0.2,
-                 **kwargs):
-        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        model: Module,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        lam: float = 0.2,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            model=model,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.hyper_params.update(lam=lam)
 
     def _alpha(self):
@@ -49,7 +61,7 @@ class FedAMPClient(PFLClient):
     def _proximal_loss(self, local_model: Module, u_model: Module) -> float:
         proximal_term = 0.0
         for w, w_t in zip(local_model.parameters(), u_model.parameters()):
-            proximal_term += torch.norm(w - w_t)**2
+            proximal_term += torch.norm(w - w_t) ** 2
         return (self.hyper_params.lam / (2 * self._alpha())) * proximal_term
 
     def receive_model(self) -> None:
@@ -60,8 +72,9 @@ class FedAMPClient(PFLClient):
             pass
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
         self.model.to(self.device)
         self.personalized_model.to(self.device)
         self.model.train()
@@ -75,15 +88,16 @@ class FedAMPClient(PFLClient):
                 X, y = X.to(self.device), y.to(self.device)
                 self.optimizer.zero_grad()
                 y_hat = self.model(X)
-                loss = self.hyper_params.loss_fn(
-                    y_hat, y) + self._proximal_loss(self.model, self.personalized_model)
+                loss = self.hyper_params.loss_fn(y_hat, y) + self._proximal_loss(
+                    self.model, self.personalized_model
+                )
                 loss.backward()
                 self._clip_grads(self.model)
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         self.personalized_model.cpu()
         clear_cuda_cache()
@@ -98,18 +112,17 @@ class FedAMPClient(PFLClient):
 
 class FedAMPServer(Server):
 
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,  # not used
-                 clients: Collection[PFLClient],
-                 sigma: float = 0.1,
-                 alpha: float = 0.1,
-                 **kwargs):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,  # not used
+        clients: Collection[PFLClient],
+        sigma: float = 0.1,
+        alpha: float = 0.1,
+        **kwargs,
+    ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=False)
-        self.hyper_params.update(
-            sigma=sigma,
-            alpha=alpha
-        )
+        self.hyper_params.update(sigma=sigma, alpha=alpha)
 
     def __e(self, x: float) -> float:
         return torch.exp(-x / self.hyper_params.sigma) / self.hyper_params.sigma
@@ -130,10 +143,8 @@ class FedAMPServer(Server):
             coef = torch.zeros(len(eligible))
             for j, cj_model in enumerate(client_models):
                 if i != j:
-                    weights_i = torch.cat([p.data.view(-1)
-                                           for p in ci_model.parameters()], dim=0)
-                    weights_j = torch.cat([p.data.view(-1)
-                                           for p in cj_model.parameters()], dim=0)
+                    weights_i = torch.cat([p.data.view(-1) for p in ci_model.parameters()], dim=0)
+                    weights_j = torch.cat([p.data.view(-1) for p in cj_model.parameters()], dim=0)
                     sub = (weights_i - weights_j).view(-1)
                     sub = torch.dot(sub, sub)
                     coef[j] = self.hyper_params.alpha * self.__e(sub)

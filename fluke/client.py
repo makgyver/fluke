@@ -1,6 +1,7 @@
 """
 The module :mod:`fluke.client` provides the base classes for the clients in :mod:`fluke`.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,10 +24,7 @@ from .evaluation import Evaluator  # NOQA
 from .utils import cache_obj, clear_cuda_cache, retrieve_obj  # NOQA
 from .utils.model import ModOpt, safe_load_state_dict  # NOQA
 
-__all__ = [
-    "Client",
-    "PFLClient"
-]
+__all__ = ["Client", "PFLClient"]
 
 
 class Client(ObserverSubject):
@@ -110,17 +108,19 @@ class Client(ObserverSubject):
                     self.hyper_params.update(my_param=my_param) # This is important
     """
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 persistency: bool = True,
-                 **kwargs):
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        persistency: bool = True,
+        **kwargs,
+    ):
         super().__init__()
         self.train_set: FastDataLoader = train_set
         self.test_set: FastDataLoader = test_set
@@ -129,7 +129,7 @@ class Client(ObserverSubject):
             loss_fn=loss_fn,
             local_epochs=local_epochs,
             fine_tuning_epochs=fine_tuning_epochs,
-            clipping=clipping
+            clipping=clipping,
         )
 
         self._index: int = index
@@ -301,11 +301,13 @@ class Client(ObserverSubject):
         if fluke_env.get_eval_cfg().pre_fit:
             metrics = self.evaluate(fluke_env.get_evaluator(), self.test_set)
             if metrics:
-                self.notify(event="client_evaluation",
-                            round=current_round,
-                            client_id=self.index,
-                            phase="pre-fit",
-                            evals=metrics)
+                self.notify(
+                    event="client_evaluation",
+                    round=current_round,
+                    client_id=self.index,
+                    phase="pre-fit",
+                    evals=metrics,
+                )
 
         self.notify("start_fit", round=current_round, client_id=self.index, model=self.model)
 
@@ -317,20 +319,24 @@ class Client(ObserverSubject):
             self._check_persistency()
             raise KeyboardInterrupt()
 
-        self.notify("end_fit",
-                    round=current_round,
-                    client_id=self.index,
-                    model=self.model,
-                    loss=loss)
+        self.notify(
+            "end_fit",
+            round=current_round,
+            client_id=self.index,
+            model=self.model,
+            loss=loss,
+        )
 
         if fluke_env.get_eval_cfg().post_fit:
             metrics = self.evaluate(fluke_env.get_evaluator(), self.test_set)
             if metrics:
-                self.notify(event="client_evaluation",
-                            round=current_round,
-                            client_id=self.index,
-                            phase="post-fit",
-                            evals=metrics)
+                self.notify(
+                    event="client_evaluation",
+                    round=current_round,
+                    client_id=self.index,
+                    phase="post-fit",
+                    evals=metrics,
+                )
 
         if fluke_env.is_parallel_client():
             self._dataparallel_to_model()
@@ -361,8 +367,9 @@ class Client(ObserverSubject):
         Returns:
             float: The average loss of the model during the training.
         """
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
 
         self.model.train()
         self.model.to(self.device)
@@ -383,14 +390,12 @@ class Client(ObserverSubject):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss
 
-    def evaluate(self,
-                 evaluator: Evaluator,
-                 test_set: FastDataLoader) -> dict[str, float]:
+    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         """Evaluate the local model on the client's :attr:`test_set`. If the test set is not set or
         the client has not received the global model from the server, the method returns an empty
         dictionary.
@@ -405,8 +410,9 @@ class Client(ObserverSubject):
         """
         model = self.model  # ensure to call the retrieve_obj only once
         if test_set is not None and model is not None:
-            evaluation = evaluator.evaluate(self._last_round, model, test_set,
-                                            device=self.device, loss_fn=None)
+            evaluation = evaluator.evaluate(
+                self._last_round, model, test_set, device=self.device, loss_fn=None
+            )
             return evaluation
         return {}
 
@@ -432,11 +438,13 @@ class Client(ObserverSubject):
         if FlukeENV().get_eval_cfg().pre_fit:
             metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
             if metrics:
-                self.notify("client_evaluation",
-                            round=-1,
-                            client_id=self.index,
-                            phase="pre-fit",
-                            evals=metrics)
+                self.notify(
+                    "client_evaluation",
+                    round=-1,
+                    client_id=self.index,
+                    phase="pre-fit",
+                    evals=metrics,
+                )
 
         self._save_to_cache()
 
@@ -446,12 +454,15 @@ class Client(ObserverSubject):
         Returns:
             dict: The client state.
         """
-        modopt = retrieve_obj("_modopt", self, pop=False) \
-            if isinstance(self._modopt, FlukeCache.ObjectRef) else self._modopt
+        modopt = (
+            retrieve_obj("_modopt", self, pop=False)
+            if isinstance(self._modopt, FlukeCache.ObjectRef)
+            else self._modopt
+        )
         return {
             "modopt": modopt.state_dict(),
             "index": self.index,
-            "last_round": self._last_round
+            "last_round": self._last_round,
         }
 
     def save(self, path: str) -> None:
@@ -491,10 +502,15 @@ class Client(ObserverSubject):
         hpstr = f",\n{indentstr}" + hpstr if hpstr else ""
         optcfg_str = ""
         if self._optimizer_cfg is not None:
-            optcfg_str = f"{indentstr}optim=" + \
-                f"{self._optimizer_cfg.__str__(indent=7+indent+len(clsname))},\n"
-        return f"{clsname}(\n" + optcfg_str + \
-            f"{indentstr}batch_size = {self.train_set.batch_size}{hpstr})"
+            optcfg_str = (
+                f"{indentstr}optim="
+                + f"{self._optimizer_cfg.__str__(indent=7 + indent + len(clsname))},\n"
+            )
+        return (
+            f"{clsname}(\n"
+            + optcfg_str
+            + f"{indentstr}batch_size = {self.train_set.batch_size}{hpstr})"
+        )
 
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)
@@ -529,8 +545,9 @@ class Client(ObserverSubject):
         if not FlukeENV().is_inmemory():
             # Cache the model, optimizer, and scheduler
             for attr_name, attr_value in vars(self).items():
-                if not isinstance(attr_value, FlukeCache.ObjectRef) and \
-                        isinstance(attr_value, ModOpt):
+                if not isinstance(attr_value, FlukeCache.ObjectRef) and isinstance(
+                    attr_value, ModOpt
+                ):
                     setattr(self, attr_name, cache_obj(attr_value, attr_name, self))
 
             # Cache additional attributes
@@ -551,20 +568,30 @@ class PFLClient(Client):
         model (i.e., :attr:`fluke.client.Client.model`).
     """
 
-    def __init__(self,
-                 index: int,
-                 model: Module,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        model: Module,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self._personalized_modopt: ModOpt = ModOpt(model=model)
         self._save_to_cache()
 
@@ -630,8 +657,9 @@ class PFLClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.personalized_model = torch.nn.DataParallel(self.personalized_model,
-                                                        device_ids=FlukeENV().get_device_ids())
+        self.personalized_model = torch.nn.DataParallel(
+            self.personalized_model, device_ids=FlukeENV().get_device_ids()
+        )
 
     def _dataparallel_to_model(self):
         super()._dataparallel_to_model()
@@ -651,18 +679,22 @@ class PFLClient(Client):
             the results.
         """
         if test_set is not None and self.personalized_model is not None:
-            return evaluator.evaluate(self._last_round,
-                                      self.personalized_model,
-                                      test_set,
-                                      device=self.device,
-                                      loss_fn=None)
+            return evaluator.evaluate(
+                self._last_round,
+                self.personalized_model,
+                test_set,
+                device=self.device,
+                loss_fn=None,
+            )
         return {}
 
     def state_dict(self) -> dict[str, Any]:
         state = super().state_dict()
-        pmodopt = retrieve_obj("_personalized_modopt", self, pop=False) \
-            if isinstance(self._personalized_modopt, FlukeCache.ObjectRef) \
+        pmodopt = (
+            retrieve_obj("_personalized_modopt", self, pop=False)
+            if isinstance(self._personalized_modopt, FlukeCache.ObjectRef)
             else self._personalized_modopt
+        )
         state["personalized_modopt"] = pmodopt.state_dict()
         return state
 

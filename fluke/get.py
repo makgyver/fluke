@@ -1,4 +1,5 @@
 """`fluke-get` command line interface."""
+
 import os
 
 import requests
@@ -19,8 +20,11 @@ def list() -> None:
     response = requests.get(url, timeout=5)
     response.raise_for_status()
 
-    configs = [file["name"].removesuffix('.yaml')
-               for file in response.json() if file["name"].endswith(".yaml")]
+    configs = [
+        file["name"].removesuffix(".yaml")
+        for file in response.json()
+        if file["name"].endswith(".yaml")
+    ]
 
     rich_print("[yellow bold]Available config files:[/]")
     for config in configs:
@@ -55,8 +59,9 @@ def config(name: str, outdir: str = typer.Option("config", help="Output director
 
     if os.path.exists(f"{outdir}/{name}.yaml"):
         rich_print(
-            "[red][Error]:[/] [yellow]refusing to overwrite existing config" +
-            f"file {outdir}/{name}.yaml. Please rename it or delete it.[/]")
+            "[red][Error]:[/] [yellow]refusing to overwrite existing config"
+            + f"file {outdir}/{name}.yaml. Please rename it or delete it.[/]"
+        )
         return
 
     rich_print(f"Saving config file to {outdir}/{name}.yaml ...")

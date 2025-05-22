@@ -1,4 +1,5 @@
 """This submodule provides utilities for pytorch model manipulation."""
+
 import sys
 from collections import OrderedDict
 from copy import deepcopy
@@ -41,7 +42,7 @@ __all__ = [
     "set_lambda_model",
     "safe_load_state_dict",
     "state_dict_zero_like",
-    "unwrap"
+    "unwrap",
 ]
 
 # ("num_batches_tracked", "running_mean", "running_var")
@@ -57,10 +58,10 @@ class ModOpt:
         optimizer (Optimizer): The optimizer.
         scheduler (lr_scheduler._LRScheduler): The scheduler.
     """
+
     model: Module = field(default=None, metadata={"help": "The model"})
     optimizer: Optimizer = field(default=None, metadata={"help": "The optimizer"})
-    scheduler: lr_scheduler.LRScheduler = field(
-        default=None, metadata={"help": "The scheduler"})
+    scheduler: lr_scheduler.LRScheduler = field(default=None, metadata={"help": "The scheduler"})
     additional: dict[str, Any] = field(default=None, metadata={"help": "Additional fields"})
 
     def state_dict(self) -> dict:
@@ -71,9 +72,9 @@ class ModOpt:
         """
         return {
             "model": self.model.state_dict() if self.model is not None else None,
-            "optimizer": self.optimizer.state_dict() if self.optimizer is not None else None,
-            "scheduler": self.scheduler.state_dict() if self.scheduler is not None else None,
-            "additional": self.additional
+            "optimizer": (self.optimizer.state_dict() if self.optimizer is not None else None),
+            "scheduler": (self.scheduler.state_dict() if self.scheduler is not None else None),
+            "additional": self.additional,
         }
 
     def load_state_dict(self, state_dict: dict) -> None:
@@ -104,6 +105,7 @@ class MMMixin:
         should happen between the parameters in ``C`` and a new set of parameters defined in ``A``.
         This type of multiple inheritance must have as first parent the class :class:`MMMixin` and
         as second parent a class that extends :class:`torch.nn.Module`.
+
         For example:
 
         .. code-block:: python
@@ -221,13 +223,15 @@ class LinesConv2d(MMMixin, nn.Conv2d):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         w, b = self.get_weight()
-        x = F.conv2d(input=x,
-                     weight=w,
-                     bias=b,
-                     stride=self.stride,
-                     padding=self.padding,
-                     dilation=self.dilation,
-                     groups=self.groups)
+        x = F.conv2d(
+            input=x,
+            weight=w,
+            bias=b,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
+        )
         return x
 
 
@@ -257,33 +261,48 @@ class LinesLSTM(MMMixin, nn.LSTM):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for layer in range(self.num_layers):
-            setattr(self, f'weight_hh_l{layer}_local', nn.Parameter(
-                torch.zeros_like(getattr(self, f'weight_hh_l{layer}'))))
-            setattr(self, f'weight_ih_l{layer}_local', nn.Parameter(
-                torch.zeros_like(getattr(self, f'weight_ih_l{layer}'))))
+            setattr(
+                self,
+                f"weight_hh_l{layer}_local",
+                nn.Parameter(torch.zeros_like(getattr(self, f"weight_hh_l{layer}"))),
+            )
+            setattr(
+                self,
+                f"weight_ih_l{layer}_local",
+                nn.Parameter(torch.zeros_like(getattr(self, f"weight_ih_l{layer}"))),
+            )
             if self.bias:
-                setattr(self, f'bias_hh_l{layer}_local', nn.Parameter(
-                    torch.zeros_like(getattr(self, f'bias_hh_l{layer}'))))
-                setattr(self, f'bias_ih_l{layer}_local', nn.Parameter(
-                    torch.zeros_like(getattr(self, f'bias_ih_l{layer}'))))
+                setattr(
+                    self,
+                    f"bias_hh_l{layer}_local",
+                    nn.Parameter(torch.zeros_like(getattr(self, f"bias_hh_l{layer}"))),
+                )
+                setattr(
+                    self,
+                    f"bias_ih_l{layer}_local",
+                    nn.Parameter(torch.zeros_like(getattr(self, f"bias_ih_l{layer}"))),
+                )
 
     def get_weight(self) -> list[torch.Tensor]:
         weight_list = []
         for layer in range(self.num_layers):
-            weight_list.append((1 - self.lam) * getattr(self,
-                               f'weight_ih_l{layer}') +
-                               self.lam * getattr(self, f'weight_ih_l{layer}_local'))
-            weight_list.append((1 - self.lam) * getattr(self,
-                               f'weight_hh_l{layer}') +
-                               self.lam * getattr(self, f'weight_hh_l{layer}_local'))
+            weight_list.append(
+                (1 - self.lam) * getattr(self, f"weight_ih_l{layer}")
+                + self.lam * getattr(self, f"weight_ih_l{layer}_local")
+            )
+            weight_list.append(
+                (1 - self.lam) * getattr(self, f"weight_hh_l{layer}")
+                + self.lam * getattr(self, f"weight_hh_l{layer}_local")
+            )
         return weight_list
 
-    def forward(self, x: torch.Tensor, **kwargs) -> tuple[torch.Tensor,
-                                                          tuple[torch.Tensor, torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor, **kwargs
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         w = self.get_weight()
         h = (
             torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device),
-            torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device)
+            torch.zeros(self.num_layers, x.shape[0], self.hidden_size).to(x.device),
         )
         with torch.no_grad():
             # if torch._use_cudnn_rnn_flatten_weight():
@@ -301,8 +320,17 @@ class LinesLSTM(MMMixin, nn.LSTM):
             # else:
             self._flat_weights = w
             self.flatten_parameters()
-        result = torch._VF.lstm(x, h, w, self.bias, self.num_layers, 0.0,
-                                self.training, self.bidirectional, self.batch_first)
+        result = torch._VF.lstm(
+            x,
+            h,
+            w,
+            self.bias,
+            self.num_layers,
+            0.0,
+            self.training,
+            self.bidirectional,
+            self.batch_first,
+        )
         return result[0], result[1:]
 
 
@@ -380,7 +408,7 @@ class LinesBN2d(MMMixin, nn.BatchNorm2d):
             bn_training = (self.running_mean is None) and (self.running_var is None)
         return F.batch_norm(
             x,
-            self.running_mean if not self.training or self.track_running_stats else None,
+            (self.running_mean if not self.training or self.track_running_stats else None),
             self.running_var if not self.training or self.track_running_stats else None,
             w,
             b,
@@ -463,6 +491,7 @@ class AllLayerOutputModel(nn.Module):
             # if name not in self.activations_in:
             self.activations_in[name] = input[0].detach()
             self.activations_out[name] = output.detach()
+
         return hook
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -479,53 +508,71 @@ def _recursive_mix_networks(merged_net: Module, global_model: Module, local_mode
         if isinstance(x, torch.nn.Linear):
             layer = LinesLinear(x.in_features, x.out_features, bias=x.bias is not None)
         elif isinstance(x, torch.nn.Conv2d):
-            layer = LinesConv2d(x.in_channels,
-                                x.out_channels,
-                                x.kernel_size,
-                                x.stride,
-                                x.padding,
-                                x.dilation,
-                                x.groups,
-                                x.bias is not None)
+            layer = LinesConv2d(
+                x.in_channels,
+                x.out_channels,
+                x.kernel_size,
+                x.stride,
+                x.padding,
+                x.dilation,
+                x.groups,
+                x.bias is not None,
+            )
         elif isinstance(x, torch.nn.BatchNorm2d):
             layer = LinesBN2d(x.num_features)
         elif isinstance(x, torch.nn.Embedding):
             layer = LinesEmbedding(x.num_embeddings, x.embedding_dim)
         elif isinstance(x, torch.nn.LSTM):
-            layer = LinesLSTM(x.input_size,
-                              x.hidden_size,
-                              x.num_layers,
-                              x.bias,
-                              x.batch_first,
-                              x.dropout,
-                              x.bidirectional)
+            layer = LinesLSTM(
+                x.input_size,
+                x.hidden_size,
+                x.num_layers,
+                x.bias,
+                x.batch_first,
+                x.dropout,
+                x.bidirectional,
+            )
         elif isinstance(x, (torch.nn.BatchNorm1d, torch.nn.BatchNorm3d)):
             raise NotImplementedError("BatchNorm1d and BatchNorm3d are not supported")
         elif next(x.parameters(), None) is None:
             layers[n] = x
             continue
         else:
-            layers[n] = _recursive_mix_networks(x,
-                                                getattr(global_model, n),
-                                                getattr(local_model, n))
+            layers[n] = _recursive_mix_networks(
+                x, getattr(global_model, n), getattr(local_model, n)
+            )
             continue
 
         for namep, _ in x.named_parameters():
-            setattr(layer, namep, getattr(global_model, n).get_parameter(
-                namep) if n else getattr(global_model, namep))
-            setattr(layer, namep + "_local", getattr(local_model, n).get_parameter(namep)
-                    if n else getattr(local_model, namep))
+            setattr(
+                layer,
+                namep,
+                (
+                    getattr(global_model, n).get_parameter(namep)
+                    if n
+                    else getattr(global_model, namep)
+                ),
+            )
+            setattr(
+                layer,
+                namep + "_local",
+                (
+                    getattr(local_model, n).get_parameter(namep)
+                    if n
+                    else getattr(local_model, namep)
+                ),
+            )
         layers[n] = layer
 
     return layers
 
 
 def _recursive_set_layer(module: Module, layers: dict) -> None:
-    for n, l in layers.items():
-        if isinstance(l, dict):
-            _recursive_set_layer(getattr(module, n), l)
+    for n, layer in layers.items():
+        if isinstance(layer, dict):
+            _recursive_set_layer(getattr(module, n), layer)
         else:
-            setattr(module, n, l)
+            setattr(module, n, layer)
 
 
 def mix_networks(global_model: Module, local_model: Module, lamda: float) -> MMMixin:
@@ -567,7 +614,7 @@ def _set_lambda(module: MMMixin, lam: float, layerwise: bool = False) -> None:
     Args:
         module (torch.nn.Module): module
         lam (float): constant used for interpolation (0 means a retrieval of a global model, 1
-          means a retrieval of a local model)
+            means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
     if (
@@ -579,7 +626,7 @@ def _set_lambda(module: MMMixin, lam: float, layerwise: bool = False) -> None:
     ):
         if layerwise:
             lam = np.random.uniform(0.0, 1.0)
-        setattr(module, 'lam', lam)
+        setattr(module, "lam", lam)
 
 
 def set_lambda_model(model: Module, lam: float, layerwise: bool = False) -> None:
@@ -595,7 +642,7 @@ def set_lambda_model(model: Module, lam: float, layerwise: bool = False) -> None
           means a retrieval of a local model)
         layerwise (bool): set different lambda layerwise or not
     """
-    setattr(model.__class__, 'get_lambda', lambda self: lam)
+    setattr(model.__class__, "get_lambda", lambda self: lam)
     model.apply(partial(_set_lambda, lam=lam, layerwise=layerwise))
 
 
@@ -608,8 +655,13 @@ def get_local_model_dict(model: Module) -> OrderedDict:
     Returns:
         OrderedDict: the local model state dictionary.
     """
-    return OrderedDict({k.replace("_local", ""): deepcopy(v)
-                        for k, v in model.state_dict().items() if "_local" in k})
+    return OrderedDict(
+        {
+            k.replace("_local", ""): deepcopy(v)
+            for k, v in model.state_dict().items()
+            if "_local" in k
+        }
+    )
 
 
 def get_global_model_dict(model: Module) -> OrderedDict:
@@ -670,8 +722,9 @@ def merge_models(model_1: Module, model_2: Module, lam: float) -> Module:
     """
     merged_model = deepcopy(model_1)
     for name, param in merged_model.named_parameters():
-        param.data = (1 - lam) * model_1.get_parameter(name).data + \
-            lam * model_2.get_parameter(name).data
+        param.data = (1 - lam) * model_1.get_parameter(name).data + lam * model_2.get_parameter(
+            name
+        ).data
     return merged_model
 
 
@@ -731,12 +784,12 @@ def batch_norm_to_group_norm(layer: Module) -> Module:
                     num_channels = sub_layer.num_features
                     if num_channels in GROUP_NORM_LOOKUP:
                         layer._modules[name] = torch.nn.GroupNorm(
-                            GROUP_NORM_LOOKUP[num_channels], num_channels)
+                            GROUP_NORM_LOOKUP[num_channels], num_channels
+                        )
                     else:
-                        raise ValueError(
-                            f"GroupNorm not implemented for {num_channels} channels")
+                        raise ValueError(f"GroupNorm not implemented for {num_channels} channels")
             except AttributeError:
-                name = name.split('.')[0]
+                name = name.split(".")[0]
                 sub_layer = getattr(layer, name)
                 sub_layer = batch_norm_to_group_norm(sub_layer)
                 layer.__setattr__(name=name, value=sub_layer)
@@ -773,7 +826,7 @@ def flatten_parameters(model: torch.nn.Module) -> torch.Tensor:
     params = torch.zeros(n)
     i = 0
     for p in model.parameters():
-        params_slice = params[i:i + p.numel()]
+        params_slice = params[i : i + p.numel()]
         params_slice.copy_(p.flatten())
         p.data = params_slice.view(p.shape)
         i += p.numel()
@@ -804,7 +857,8 @@ def get_activation_size(model: nn.Module, input_tensor: torch.Tensor = None) -> 
         return last_layer.out_features
     elif input_tensor is None:
         raise ValueError(
-            "'input_tensor' must be not None if the last layer of the network is not nn.Linear.")
+            "'input_tensor' must be not None if the last layer of the network is not nn.Linear."
+        )
     return model(input_tensor).numel()
 
 
@@ -820,11 +874,13 @@ def get_trainable_keys(model: nn.Module) -> list[str]:
     return [k for k, p in model.named_parameters() if p.requires_grad]
 
 
-def aggregate_models(target_model: nn.Module,
-                     models: Iterable[nn.Module],
-                     weights: Collection[float],
-                     eta: float,
-                     inplace: bool = True) -> nn.Module:
+def aggregate_models(
+    target_model: nn.Module,
+    models: Iterable[nn.Module],
+    weights: Collection[float],
+    eta: float,
+    inplace: bool = True,
+) -> nn.Module:
     r"""Aggregate the models using a weighted average.
     The method aggregates the models using a weighted average of the parameters and updates the
     target model with the aggregated parameters. The aggregation is done using the formula:
@@ -858,8 +914,11 @@ def aggregate_models(target_model: nn.Module,
 
     # Initialize accumulators for parameters
     avg_params = {key: torch.zeros_like(param.data) for key, param in model_params.items()}
-    avg_buffers = {key: torch.zeros_like(buffer.data)
-                   for key, buffer in model_buffers.items() if "num_batches_tracked" not in key}
+    avg_buffers = {
+        key: torch.zeros_like(buffer.data)
+        for key, buffer in model_buffers.items()
+        if "num_batches_tracked" not in key
+    }
 
     max_num_batches_tracked = 0  # Track the max num_batches_tracked
 
@@ -889,11 +948,13 @@ def aggregate_models(target_model: nn.Module,
     return target_model
 
 
-def check_model_fit_mem(model: torch.nn.Module,
-                        input_size: tuple[int, ...],
-                        num_clients: int,
-                        device: str = 'cuda',
-                        mps_default: bool = True) -> bool:
+def check_model_fit_mem(
+    model: torch.nn.Module,
+    input_size: tuple[int, ...],
+    num_clients: int,
+    device: str = "cuda",
+    mps_default: bool = True,
+) -> bool:
     """Check if the models fit in the memory of the device.
     The method estimates the memory usage of the models, when all clients and the server own a
     single neural network, on the device and checks if the models fit in the memory of the device.
@@ -915,8 +976,9 @@ def check_model_fit_mem(model: torch.nn.Module,
     """
 
     # Ensure the device is available
-    assert device in ["cuda", "mps"] or device.startswith("cuda:"), \
-        "Invalid argument 'device'. Must be 'cuda', 'mps' or 'cuda:<device_id>'."
+    assert device in ["cuda", "mps"] or device.startswith(
+        "cuda:"
+    ), "Invalid argument 'device'. Must be 'cuda', 'mps' or 'cuda:<device_id>'."
 
     if device == "mps":
         if not torch.backends.mps.is_available():
@@ -930,10 +992,9 @@ def check_model_fit_mem(model: torch.nn.Module,
         return _check_model_fit_mem_cuda(model, input_size, num_clients, device)
 
 
-def _check_model_fit_mem_cuda(model: torch.nn.Module,
-                              input_size: tuple[int, ...],
-                              num_clients: int,
-                              device: str) -> bool:
+def _check_model_fit_mem_cuda(
+    model: torch.nn.Module, input_size: tuple[int, ...], num_clients: int, device: str
+) -> bool:
 
     # Get the current CUDA device
     cuda_device = torch.device(device)
