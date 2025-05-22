@@ -4,6 +4,7 @@ References:
     .. [APFL20] Yuyang Deng, Mohammad Mahdi Kamani, and Mehrdad Mahdavi. Adaptive Personalized
        Federated Learning. In arXiv (2020). URL: https://arxiv.org/abs/2003.13461
 """
+
 import sys
 from typing import Collection
 
@@ -21,35 +22,43 @@ from ..server import Server  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import merge_models  # NOQA
 
-__all__ = [
-    "APFLClient",
-    "APFLServer",
-    "APFL"
-]
+__all__ = ["APFLClient", "APFLServer", "APFL"]
 
 
 class APFLClient(PFLClient):
 
-    def __init__(self,
-                 index: int,
-                 model: torch.nn.Module,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 lam: float = 0.25,
-                 **kwargs):
-        super().__init__(index=index, model=model, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        model: torch.nn.Module,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        lam: float = 0.25,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            model=model,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.hyper_params.update(lam=lam)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
 
         self.model.train()
         self.personalized_model.train()
@@ -88,26 +97,29 @@ class APFLClient(PFLClient):
             self.scheduler.step()
             self.pers_scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         self.personalized_model.cpu()
         clear_cuda_cache()
 
         self.personalized_model = merge_models(
-            self.model, self.personalized_model, self.hyper_params.lam)
+            self.model, self.personalized_model, self.hyper_params.lam
+        )
 
         return running_loss
 
 
 class APFLServer(Server):
 
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = False,
-                 tau: int = 3,
-                 **kwargs):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        weighted: bool = False,
+        tau: int = 3,
+        **kwargs,
+    ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(tau=tau)
 

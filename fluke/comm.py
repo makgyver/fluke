@@ -1,4 +1,5 @@
 """This module contains the classes for the communication between the clients and the server."""
+
 from __future__ import annotations
 
 import sys
@@ -13,17 +14,12 @@ import torch
 
 sys.path.append(".")
 
-from . import (FlukeCache, FlukeENV, ObserverSubject,  # NOQA
-               custom_formatwarning)
+from . import FlukeCache, FlukeENV, ObserverSubject, custom_formatwarning  # NOQA
 from .utils import cache_obj, retrieve_obj  # NOQA
 
 warnings.formatwarning = custom_formatwarning
 
-__all__ = [
-    'Message',
-    'Channel',
-    'ChannelObserver'
-]
+__all__ = ["Message", "Channel", "ChannelObserver"]
 
 
 class Message:
@@ -62,11 +58,13 @@ class Message:
         :class:`Channel`
     """
 
-    def __init__(self,
-                 payload: Any,
-                 msg_type: str = "model",
-                 sender: Optional[Any] = None,
-                 inmemory: Optional[bool] = None):
+    def __init__(
+        self,
+        payload: Any,
+        msg_type: str = "model",
+        sender: Optional[Any] = None,
+        inmemory: Optional[bool] = None,
+    ):
         self.__id: str = str(uuid.uuid4().hex)
         self.__msg_type: str = msg_type
         self.__payload: Any = payload
@@ -141,8 +139,10 @@ class Message:
         elif isinstance(obj, FlukeCache.ObjectRef):
             return 0
         else:
-            warnings.warn(f"Unknown type {type(obj)} of object {obj} in payload." +
-                          "Returning object size = 0.")
+            warnings.warn(
+                f"Unknown type {type(obj)} of object {obj} in payload."
+                + "Returning object size = 0."
+            )
             return 0
 
     def clone(self, inmemory: Optional[bool] = None) -> Message:
@@ -189,8 +189,11 @@ class Message:
         return self.__size
 
     def __eq__(self, other: Message) -> bool:
-        return self.__payload == other.__payload and self.msg_type == other.msg_type and \
-            self.sender == other.sender
+        return (
+            self.__payload == other.__payload
+            and self.msg_type == other.msg_type
+            and self.sender == other.sender
+        )
 
     def __str__(self, indent: int = 0) -> str:
         strname = f"Message[{self.id}]"

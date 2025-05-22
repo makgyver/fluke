@@ -5,6 +5,7 @@ References:
        FedExP: Speeding Up Federated Averaging via Extrapolation. In ICLR (2023).
        URL: https://arxiv.org/abs/2301.09604
 """
+
 import sys
 from typing import Collection
 
@@ -19,10 +20,7 @@ from ..client import Client  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import flatten_parameters  # NOQA
 
-__all__ = [
-    "FedExPServer",
-    "FedExP"
-]
+__all__ = ["FedExPServer", "FedExP"]
 
 
 class FedExPServer(Server):
@@ -39,10 +37,11 @@ class FedExPServer(Server):
 
     def _compute_eta(self, W: torch.Tensor, Wi: list[torch.Tensor], eps: float = 1e-4) -> float:
         Delta_bar = torch.mean(W - torch.stack(Wi), dim=0)
-        sum_norm_Delta_i = torch.sum(torch.norm(W - torch.stack(Wi))**2, dim=0)
-        norm_Delta_bar = torch.norm(Delta_bar)**2
-        eta = torch.max(sum_norm_Delta_i / (2 * len(Wi) * (norm_Delta_bar + eps)),
-                        torch.FloatTensor([1.0]))
+        sum_norm_Delta_i = torch.sum(torch.norm(W - torch.stack(Wi)) ** 2, dim=0)
+        norm_Delta_bar = torch.norm(Delta_bar) ** 2
+        eta = torch.max(
+            sum_norm_Delta_i / (2 * len(Wi) * (norm_Delta_bar + eps)), torch.FloatTensor([1.0])
+        )
         return eta
 
 

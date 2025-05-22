@@ -8,6 +8,7 @@ References:
        Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach.
        In NeurIPS (2020). URL: https://arxiv.org/abs/2002.07948
 """
+
 import sys
 from collections import OrderedDict
 from copy import deepcopy
@@ -24,11 +25,7 @@ from ..client import Client  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 
-__all__ = [
-    "PerFedAVGOptimizer",
-    "PerFedAVGClient",
-    "PerFedAVG"
-]
+__all__ = ["PerFedAVGOptimizer", "PerFedAVGClient", "PerFedAVG"]
 
 
 class PerFedAVGOptimizer(Optimizer):
@@ -36,49 +33,59 @@ class PerFedAVGOptimizer(Optimizer):
         defaults = dict(lr=lr)
         super(PerFedAVGOptimizer, self).__init__(params, defaults)
 
-    def step(self, closure: Union[None, callable] = None,
-             beta: float = 0.0,
-             grads: Union[tuple[torch.Tensor, ...], None] = None) -> Union[float, None]:
+    def step(
+        self,
+        closure: Union[None, callable] = None,
+        beta: float = 0.0,
+        grads: Union[tuple[torch.Tensor, ...], None] = None,
+    ) -> Union[float, None]:
         loss = None
         if closure is not None:
             loss = closure
 
         for group in self.param_groups:
             if grads is None:
-                for p in group['params']:
+                for p in group["params"]:
                     if p.grad is None:
                         continue
                     d_p = p.grad.data
-                    p.data.sub_(d_p, alpha=beta if (beta != 0) else group['lr'])
+                    p.data.sub_(d_p, alpha=beta if (beta != 0) else group["lr"])
             else:
-                for p, g1, g2 in zip(group['params'], grads[0], grads[1]):
+                for p, g1, g2 in zip(group["params"], grads[0], grads[1]):
                     if p.grad is None:
                         continue
-                    p.data.sub_(beta * g1 - beta * group['lr'] * g2)
+                    p.data.sub_(beta * g1 - beta * group["lr"] * g2)
         return loss
 
 
 class PerFedAVGClient(Client):
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 mode: str,
-                 beta: float,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        mode: str,
+        beta: float,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
 
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
-        self.hyper_params.update(
-            mode=mode,
-            beta=beta
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
         )
+        self.hyper_params.update(mode=mode, beta=beta)
         self.train_iterator = iter(self.train_set)
 
     def _get_next_batch(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -90,10 +97,12 @@ class PerFedAVGClient(Client):
 
         return X, y
 
-    def _compute_grad(self,
-                      model: torch.nn.Module,
-                      data_batch: tuple[torch.Tensor, torch.Tensor],
-                      v: Union[tuple[torch.Tensor, ...], None] = None) -> list[torch.Tensor]:
+    def _compute_grad(
+        self,
+        model: torch.nn.Module,
+        data_batch: tuple[torch.Tensor, torch.Tensor],
+        v: Union[tuple[torch.Tensor, ...], None] = None,
+    ) -> list[torch.Tensor]:
         X, y = data_batch
         X, y = X.to(self.device), y.to(self.device)
         if v is not None:
@@ -130,8 +139,9 @@ class PerFedAVGClient(Client):
             return grads
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
         self.model.train()
         self.model.to(self.device)
         if self.optimizer is None:
@@ -168,9 +178,11 @@ class PerFedAVGClient(Client):
                 temp_model = deepcopy(self.model).to(self.device)
                 grads_1st = self._compute_grad(temp_model, batch_2)
                 grads_2nd = self._compute_grad(self.model, batch_3, v=grads_1st)
-                self.optimizer.step(self.model.parameters(),
-                                    beta=self.hyper_params.beta,
-                                    grads=(grads_1st, grads_2nd))
+                self.optimizer.step(
+                    self.model.parameters(),
+                    beta=self.hyper_params.beta,
+                    grads=(grads_1st, grads_2nd),
+                )
 
             else:
                 raise ValueError(f"Invalid mode: {self.hyper_params.mode}")

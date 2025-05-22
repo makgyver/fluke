@@ -5,6 +5,7 @@ References:
        Jakub Konečný, Sanjiv Kumar, H. Brendan McMahan. Adaptive Federated Optimization.
        In ICLR (2021). URL: https://openreview.net/pdf?id=LkFG3lB13U5
 """
+
 import sys
 from collections import OrderedDict
 from copy import deepcopy
@@ -22,36 +23,32 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import get_trainable_keys  # NOQA
 
-__all__ = [
-    "FedOptServer",
-    "FedOpt"
-]
+__all__ = ["FedOptServer", "FedOpt"]
 
 
 class FedOptServer(Server):
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 mode: str = "adam",
-                 lr: float = 0.001,
-                 beta1: float = 0.9,
-                 beta2: float = 0.999,
-                 tau: float = 0.0001,
-                 weighted: bool = True):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        mode: str = "adam",
+        lr: float = 0.001,
+        beta1: float = 0.9,
+        beta2: float = 0.999,
+        tau: float = 0.0001,
+        weighted: bool = True,
+    ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
-        assert mode in {"adam", "yogi", "adagrad"}, \
-            "'mode' must be one of {'adam', 'yogi', 'adagrad'}"
+        assert mode in {
+            "adam",
+            "yogi",
+            "adagrad",
+        }, "'mode' must be one of {'adam', 'yogi', 'adagrad'}"
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
 
-        self.hyper_params.update(
-            mode=mode,
-            lr=lr,
-            beta1=beta1,
-            beta2=beta2,
-            tau=tau
-        )
+        self.hyper_params.update(mode=mode, lr=lr, beta1=beta1, beta2=beta2, tau=tau)
         self._init_moments()
 
     def _init_moments(self) -> None:
@@ -79,8 +76,10 @@ class FedOptServer(Server):
         if self.hyper_params.mode == "adam":
             self.v_t = {k: b2 * self.v_t[k] + (1 - b2) * d_t[k] ** 2 for k in trainable_keys}
         elif self.hyper_params.mode == "yogi":
-            self.v_t = {k: self.v_t[k] - (1 - b2) * (d_t[k] ** 2) *
-                        torch.sign(self.v_t[k] - d_t[k] ** 2) for k in trainable_keys}
+            self.v_t = {
+                k: self.v_t[k] - (1 - b2) * (d_t[k] ** 2) * torch.sign(self.v_t[k] - d_t[k] ** 2)
+                for k in trainable_keys
+            }
         elif self.hyper_params.mode == "adagrad":
             self.v_t = {k: self.v_t[k] + d_t[k] ** 2 for k in trainable_keys}
         else:

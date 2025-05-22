@@ -5,6 +5,7 @@ References:
        Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data. In NeurIPS
        (2021). URL: https://arxiv.org/abs/2106.05001
 """
+
 import sys
 from typing import Collection
 
@@ -21,11 +22,7 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "CCVRClient",
-    "CCVRServer",
-    "CCVR"
-]
+__all__ = ["CCVRClient", "CCVRServer", "CCVR"]
 
 
 class CCVRClient(Client):
@@ -75,21 +72,19 @@ class CCVRClient(Client):
 
 class CCVRServer(Server):
 
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = False,
-                 lr: float = 0.1,
-                 batch_size: int = 64,
-                 sample_per_class: int = 100,
-                 **kwargs):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        weighted: bool = False,
+        lr: float = 0.1,
+        batch_size: int = 64,
+        sample_per_class: int = 100,
+        **kwargs,
+    ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
-        self.hyper_params.update(
-            lr=lr,
-            batch_size=batch_size,
-            sample_per_class=sample_per_class
-        )
+        self.hyper_params.update(lr=lr, batch_size=batch_size, sample_per_class=sample_per_class)
 
     def _compute_mean_cov(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         means, covs, ns = [], [], []
@@ -107,8 +102,10 @@ class CCVRServer(Server):
         # loop over classes
         for c, (mu, n) in enumerate(zip(zip(*means), zip(*ns))):
             if ex_x_class[c] > 0:
-                classes_mean[c] = torch.sum(torch.stack(
-                    mu) * torch.tensor(n).reshape(-1, 1), dim=0) / ex_x_class[c]
+                classes_mean[c] = (
+                    torch.sum(torch.stack(mu) * torch.tensor(n).reshape(-1, 1), dim=0)
+                    / ex_x_class[c]
+                )
 
         classes_cov = [None for _ in range(num_classes)]
         for c in range(num_classes):
@@ -117,10 +114,9 @@ class CCVRServer(Server):
                     if classes_cov[c] is None:
                         classes_cov[c] = torch.zeros_like(covs[k][c])
 
-                    classes_cov[c] += ((ns[k][c] - 1) / (ex_x_class[c] - 1)
-                                       ) * covs[k][c] + (ns[k][c] / (ex_x_class[c] - 1)) * (
-                        torch.outer(means[k][c], means[k][c])
-                    )
+                    classes_cov[c] += ((ns[k][c] - 1) / (ex_x_class[c] - 1)) * covs[k][c] + (
+                        ns[k][c] / (ex_x_class[c] - 1)
+                    ) * (torch.outer(means[k][c], means[k][c]))
 
                 classes_cov[c] -= (ex_x_class[c] / (ex_x_class[c] - 1)) * (
                     torch.outer(classes_mean[c], classes_mean[c])
@@ -128,10 +124,9 @@ class CCVRServer(Server):
 
         return classes_mean, classes_cov
 
-    def _generate_virtual_repr(self,
-                               classes_mean: Collection[torch.Tensor],
-                               classes_cov: Collection[torch.Tensor]) -> tuple[torch.Tensor,
-                                                                               torch.Tensor]:
+    def _generate_virtual_repr(
+        self, classes_mean: Collection[torch.Tensor], classes_cov: Collection[torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
             if mean is not None and cov is not None:
@@ -141,12 +136,7 @@ class CCVRServer(Server):
                     self.hyper_params.sample_per_class,
                 )
                 data.append(torch.tensor(samples, dtype=torch.float))
-                targets.append(
-                    torch.ones(
-                        self.hyper_params.sample_per_class,
-                        dtype=torch.long
-                    ) * c
-                )
+                targets.append(torch.ones(self.hyper_params.sample_per_class, dtype=torch.long) * c)
 
         data = torch.cat(data)
         targets = torch.cat(targets)
@@ -159,11 +149,13 @@ class CCVRServer(Server):
         # FIXME: loss, optimizer and scheduler are fixed for now
         optimizer = torch.optim.SGD(self.model.head.parameters(), lr=self.hyper_params.lr)
         loss_fn = torch.nn.CrossEntropyLoss()
-        train_set = FastDataLoader(Z_train,
-                                   y_train,
-                                   num_labels=len(set(y_train.cpu().numpy())),
-                                   batch_size=self.hyper_params.batch_size,
-                                   shuffle=True)
+        train_set = FastDataLoader(
+            Z_train,
+            y_train,
+            num_labels=len(set(y_train.cpu().numpy())),
+            batch_size=self.hyper_params.batch_size,
+            shuffle=True,
+        )
 
         for Z, y in train_set:
             Z, y = Z.to(self.device), y.to(self.device)

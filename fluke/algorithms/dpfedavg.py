@@ -10,6 +10,7 @@ References:
        Differentially Private Federated Learning: A Client Level Perspective
        In ArXiv (2017). URL: https://arxiv.org/abs/1712.07557
 """
+
 import sys
 from typing import Collection
 
@@ -26,11 +27,7 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "DPFedAVG",
-    "DPFedAVGClient",
-    "DPFedAVGServer"
-]
+__all__ = ["DPFedAVG", "DPFedAVGClient", "DPFedAVGServer"]
 
 
 class _OpacusModelAdapter(Module):
@@ -52,21 +49,31 @@ class _OpacusModelAdapter(Module):
 
 
 class DPFedAVGClient(Client):
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 noise_mul: float = 1.1,
-                 max_grad_norm: float = 1.0,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        noise_mul: float = 1.1,
+        max_grad_norm: float = 1.0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.hyper_params.update(noise_mul=noise_mul, max_grad_norm=max_grad_norm)
 
     def _init_private_engine(self) -> None:
@@ -77,11 +84,13 @@ class DPFedAVGClient(Client):
         self.model, self.optimizer, self.train_set = self.privacy_engine.make_private(
             module=self.model._module,
             optimizer=self.optimizer,
-            data_loader=self.train_set.as_dataloader() if isinstance(
-                self.train_set, FastDataLoader) else self.train_set,
+            data_loader=(
+                self.train_set.as_dataloader()
+                if isinstance(self.train_set, FastDataLoader)
+                else self.train_set
+            ),
             noise_multiplier=self.hyper_params.noise_mul,
             max_grad_norm=self.hyper_params.max_grad_norm,
-
         )
 
     def receive_model(self) -> None:
@@ -95,15 +104,23 @@ class DPFedAVGClient(Client):
 
 class DPFedAVGServer(Server):
 
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = False,
-                 lr: float = 1.0,
-                 **kwargs):
-        super().__init__(model=_OpacusModelAdapter(model),
-                         test_set=test_set, clients=clients, weighted=weighted, lr=lr, **kwargs)
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        weighted: bool = False,
+        lr: float = 1.0,
+        **kwargs,
+    ):
+        super().__init__(
+            model=_OpacusModelAdapter(model),
+            test_set=test_set,
+            clients=clients,
+            weighted=weighted,
+            lr=lr,
+            **kwargs,
+        )
 
 
 class DPFedAVG(CentralizedFL):

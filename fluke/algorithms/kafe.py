@@ -6,6 +6,7 @@ References:
        URL: https://link.springer.com/content/pdf/10.1007/978-3-031-70359-1_4.pdf
 
 """
+
 import sys
 from typing import Collection
 
@@ -22,20 +23,19 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "KafeServer",
-    "Kafe"
-]
+__all__ = ["KafeServer", "Kafe"]
 
 
 class KafeServer(Server):
 
-    def __init__(self,
-                 model: torch.nn.Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = False,
-                 bandwidth: float = 1.0):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        test_set: FastDataLoader,
+        clients: Collection[Client],
+        weighted: bool = False,
+        bandwidth: float = 1.0,
+    ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(bandwidth=bandwidth)
 
@@ -52,8 +52,11 @@ class KafeServer(Server):
 
         # Initialize accumulators for parameters
         avg_params = {key: torch.zeros_like(param.data) for key, param in model_params.items()}
-        avg_buffers = {key: torch.zeros_like(buffer.data)
-                       for key, buffer in model_buffers.items() if "num_batches_tracked" not in key}
+        avg_buffers = {
+            key: torch.zeros_like(buffer.data)
+            for key, buffer in model_buffers.items()
+            if "num_batches_tracked" not in key
+        }
 
         max_num_batches_tracked = 0  # Track the max num_batches_tracked
         w_last_layer = []
@@ -96,22 +99,24 @@ class KafeServer(Server):
         b_last_layer = np.array(b_last_layer).reshape(len(b_last_layer), -1)
 
         # using KDE get the kernel density of last layers
-        kde_w = KernelDensity(kernel='gaussian',
-                              bandwidth=self.hyper_params.bandwidth).fit(w_last_layer,
-                                                                         sample_weight=weights)
-        kde_b = KernelDensity(kernel='gaussian',
-                              bandwidth=self.hyper_params.bandwidth).fit(b_last_layer,
-                                                                         sample_weight=weights)
+        kde_w = KernelDensity(kernel="gaussian", bandwidth=self.hyper_params.bandwidth).fit(
+            w_last_layer, sample_weight=weights
+        )
+        kde_b = KernelDensity(kernel="gaussian", bandwidth=self.hyper_params.bandwidth).fit(
+            b_last_layer, sample_weight=weights
+        )
 
         # sample m samples and average, then obtain a new last layer for the global model
         w_last_layer_new = np.mean(kde_w.sample(len(w_last_layer)), axis=0)
         b_last_layer_new = np.mean(kde_b.sample(len(b_last_layer)), axis=0)
 
         model_sd = self.model.state_dict()
-        model_sd[last_layer_weight_name].data = torch.tensor(w_last_layer_new.reshape(
-            model_sd[last_layer_weight_name].shape))
-        model_sd[last_layer_bias_name].data = torch.tensor(b_last_layer_new.reshape(
-            model_sd[last_layer_bias_name].shape))
+        model_sd[last_layer_weight_name].data = torch.tensor(
+            w_last_layer_new.reshape(model_sd[last_layer_weight_name].shape)
+        )
+        model_sd[last_layer_bias_name].data = torch.tensor(
+            b_last_layer_new.reshape(model_sd[last_layer_bias_name].shape)
+        )
 
 
 class Kafe(CentralizedFL):

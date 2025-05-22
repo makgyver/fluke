@@ -5,6 +5,7 @@ References:
        Tackling the Objective Inconsistency Problem in Heterogeneous Federated Optimization.
        In NeurIPS 2020. URL: https://arxiv.org/abs/2007.07481
 """
+
 import sys
 from typing import Collection
 
@@ -22,28 +23,34 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from ..utils.model import aggregate_models  # NOQA
 
-__all__ = [
-    "FedNovaClient",
-    "FedNovaServer",
-    "FedNova"
-]
+__all__ = ["FedNovaClient", "FedNovaServer", "FedNova"]
 
 
 class FedNovaClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.tau = 0
 
     def _get_momentum(self) -> float:
@@ -70,8 +77,7 @@ class FedNovaServer(Server):
     def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         a_i = [
-            self.channel.receive("server", client.index, "local_a").payload
-            for client in eligible
+            self.channel.receive("server", client.index, "local_a").payload for client in eligible
         ]
         coeff = sum([a_i[i] * weights[i] for i in range(len(eligible))])
         weights = torch.true_divide(torch.tensor(weights) * coeff, torch.tensor(a_i))

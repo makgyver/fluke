@@ -6,6 +6,7 @@ References:
        In AAAI (2023). URL: https://arxiv.org/pdf/2212.01197v4
 
 """
+
 import sys
 from copy import deepcopy
 
@@ -23,35 +24,44 @@ from ..nets import EncoderHeadNet  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "FedALAClient",
-    "FedALA"
-]
+__all__ = ["FedALAClient", "FedALA"]
 
 
 class FedALAClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: nn.Module,
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 ala_sample_size: float = 0.8,
-                 eta: float = 1.0,
-                 conergence_threshold: float = 0.001,
-                 loss_window_size: int = 10,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
-        self.hyper_params.update(ala_sample_size=ala_sample_size,
-                                 eta=eta,
-                                 conergence_threshold=conergence_threshold,
-                                 loss_window_size=loss_window_size)
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: nn.Module,
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        ala_sample_size: float = 0.8,
+        eta: float = 1.0,
+        conergence_threshold: float = 0.001,
+        loss_window_size: int = 10,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
+        self.hyper_params.update(
+            ala_sample_size=ala_sample_size,
+            eta=eta,
+            conergence_threshold=conergence_threshold,
+            loss_window_size=loss_window_size,
+        )
         self.weights = None
         self.start_phase = True
 
@@ -59,11 +69,13 @@ class FedALAClient(Client):
         # keep the server encoder weights
         safe_load_state_dict(self.model.encoder, server_model.encoder.state_dict())
 
-        random_sample_loader = FastDataLoader(*self.train_set.tensors,
-                                              num_labels=self.train_set.num_labels,
-                                              batch_size=self.train_set.batch_size,
-                                              shuffle=True,
-                                              percentage=self.hyper_params.ala_sample_size)
+        random_sample_loader = FastDataLoader(
+            *self.train_set.tensors,
+            num_labels=self.train_set.num_labels,
+            batch_size=self.train_set.batch_size,
+            shuffle=True,
+            percentage=self.hyper_params.ala_sample_size,
+        )
 
         temp_model = deepcopy(self.model)
 
@@ -78,14 +90,17 @@ class FedALAClient(Client):
         optimizer = torch.optim.SGD(temp_model.head.parameters(), lr=0)
 
         if self.weights is None:
-            self.weights = [torch.ones_like(p.data).to(self.device)
-                            for p in self.model.head.parameters()]
+            self.weights = [
+                torch.ones_like(p.data).to(self.device) for p in self.model.head.parameters()
+            ]
 
         # initialize the temp model
-        for param_t, param, param_g, weight in zip(temp_model.head.parameters(),
-                                                   self.model.head.parameters(),
-                                                   server_model.head.parameters(),
-                                                   self.weights):
+        for param_t, param, param_g, weight in zip(
+            temp_model.head.parameters(),
+            self.model.head.parameters(),
+            server_model.head.parameters(),
+            self.weights,
+        ):
             param_t.data = param + (param_g - param) * weight
 
         converged = False
@@ -103,18 +118,23 @@ class FedALAClient(Client):
                 losses.append(loss.item())
 
                 # update weight in this batch
-                for param_t, param, param_g, weight in zip(temp_model.head.parameters(),
-                                                           self.model.head.parameters(),
-                                                           server_model.head.parameters(),
-                                                           self.weights):
+                for param_t, param, param_g, weight in zip(
+                    temp_model.head.parameters(),
+                    self.model.head.parameters(),
+                    server_model.head.parameters(),
+                    self.weights,
+                ):
                     weight.data = torch.clamp(
-                        weight - self.hyper_params.eta * (param_t.grad * (param_g - param)), 0, 1)
+                        weight - self.hyper_params.eta * (param_t.grad * (param_g - param)), 0, 1
+                    )
 
                 # update temp local model in this batch
-                for param_t, param, param_g, weight in zip(temp_model.head.parameters(),
-                                                           self.model.head.parameters(),
-                                                           server_model.head.parameters(),
-                                                           self.weights):
+                for param_t, param, param_g, weight in zip(
+                    temp_model.head.parameters(),
+                    self.model.head.parameters(),
+                    server_model.head.parameters(),
+                    self.weights,
+                ):
                     param_t.data = param + (param_g - param) * weight
 
             # only train one epoch in the subsequent iterations
@@ -123,7 +143,7 @@ class FedALAClient(Client):
 
             # train the weight until convergence
             if len(losses) > self.hyper_params.loss_window_size:
-                loss_std = np.std(losses[-self.hyper_params.loss_window_size:])
+                loss_std = np.std(losses[-self.hyper_params.loss_window_size :])
                 if loss_std < self.hyper_params.conergence_threshold:
                     converged = True
 

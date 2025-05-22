@@ -1,5 +1,6 @@
 """This module contains the definition of the evaluation classes used to perform the evaluation
 of the model client-side and server-side."""
+
 import sys
 from abc import ABC, abstractmethod
 from typing import Any, Collection, Optional, Union
@@ -14,10 +15,7 @@ sys.path.append("..")
 
 from .data import FastDataLoader  # NOQA
 
-__all__ = [
-    "Evaluator",
-    "ClassificationEval"
-]
+__all__ = ["Evaluator", "ClassificationEval"]
 
 
 class Evaluator(ABC):
@@ -26,7 +24,7 @@ class Evaluator(ABC):
 
     Args:
         eval_every (int): The evaluation frequency expressed as the number of rounds between
-          two evaluations. Defaults to 1, i.e., evaluate the model at each round.
+            two evaluations. Defaults to 1, i.e., evaluate the model at each round.
 
     Attributes:
         eval_every (int): The evaluation frequency.
@@ -36,13 +34,15 @@ class Evaluator(ABC):
         self.eval_every: int = eval_every
 
     @abstractmethod
-    def evaluate(self,
-                 round: int,
-                 model: Module,
-                 eval_data_loader: FastDataLoader,
-                 loss_fn: Optional[torch.nn.Module],
-                 additional_metrics: Optional[dict[str, Metric]] = None,
-                 **kwargs) -> dict[str, Any]:
+    def evaluate(
+        self,
+        round: int,
+        model: Module,
+        eval_data_loader: FastDataLoader,
+        loss_fn: Optional[torch.nn.Module],
+        additional_metrics: Optional[dict[str, Metric]] = None,
+        **kwargs,
+    ) -> dict[str, Any]:
         """Evaluate the model.
 
         Args:
@@ -59,13 +59,15 @@ class Evaluator(ABC):
         """
         raise NotImplementedError
 
-    def __call__(self,
-                 round: int,
-                 model: Module,
-                 eval_data_loader: FastDataLoader,
-                 loss_fn: Optional[torch.nn.Module],
-                 additional_metrics: Optional[dict[str, Metric]] = None,
-                 **kwargs) -> dict:
+    def __call__(
+        self,
+        round: int,
+        model: Module,
+        eval_data_loader: FastDataLoader,
+        loss_fn: Optional[torch.nn.Module],
+        additional_metrics: Optional[dict[str, Metric]] = None,
+        **kwargs,
+    ) -> dict:
         """Evaluate the model.
 
         Note:
@@ -81,11 +83,13 @@ class Evaluator(ABC):
         Returns:
             dict[str, Any]: A dictionary containing the computed metrics.
         """
-        return self.evaluate(round=round,
-                             model=model,
-                             eval_data_loader=eval_data_loader,
-                             loss_fn=loss_fn,
-                             **kwargs)
+        return self.evaluate(
+            round=round,
+            model=model,
+            eval_data_loader=eval_data_loader,
+            loss_fn=loss_fn,
+            **kwargs,
+        )
 
 
 class ClassificationEval(Evaluator):
@@ -115,20 +119,43 @@ class ClassificationEval(Evaluator):
         # if kwargs is empty
         if not metrics:
             self.metrics = {
-                "accuracy":         Accuracy(task="multiclass", num_classes=self.n_classes,
-                                             top_k=1),
-                "macro_precision":  Precision(task="multiclass", num_classes=self.n_classes,
-                                              top_k=1, average="macro"),
-                "macro_recall":     Recall(task="multiclass", num_classes=self.n_classes,
-                                           top_k=1, average="macro"),
-                "macro_f1":         F1Score(task="multiclass", num_classes=self.n_classes,
-                                            top_k=1, average="macro"),
-                "micro_precision":  Precision(task="multiclass", num_classes=self.n_classes,
-                                              top_k=1, average="micro"),
-                "micro_recall":     Recall(task="multiclass", num_classes=self.n_classes,
-                                           top_k=1, average="micro"),
-                "micro_f1":         F1Score(task="multiclass", num_classes=self.n_classes,
-                                            top_k=1, average="micro")
+                "accuracy": Accuracy(task="multiclass", num_classes=self.n_classes, top_k=1),
+                "macro_precision": Precision(
+                    task="multiclass",
+                    num_classes=self.n_classes,
+                    top_k=1,
+                    average="macro",
+                ),
+                "macro_recall": Recall(
+                    task="multiclass",
+                    num_classes=self.n_classes,
+                    top_k=1,
+                    average="macro",
+                ),
+                "macro_f1": F1Score(
+                    task="multiclass",
+                    num_classes=self.n_classes,
+                    top_k=1,
+                    average="macro",
+                ),
+                "micro_precision": Precision(
+                    task="multiclass",
+                    num_classes=self.n_classes,
+                    top_k=1,
+                    average="micro",
+                ),
+                "micro_recall": Recall(
+                    task="multiclass",
+                    num_classes=self.n_classes,
+                    top_k=1,
+                    average="micro",
+                ),
+                "micro_f1": F1Score(
+                    task="multiclass",
+                    num_classes=self.n_classes,
+                    top_k=1,
+                    average="micro",
+                ),
             }
         else:
             self.metrics = metrics
@@ -145,14 +172,15 @@ class ClassificationEval(Evaluator):
         self.metrics[name] = metric
 
     @torch.no_grad()
-    def evaluate(self,
-                 round: int,
-                 model: torch.nn.Module,
-                 eval_data_loader: Union[FastDataLoader,
-                                         Collection[FastDataLoader]],
-                 loss_fn: Optional[torch.nn.Module] = None,
-                 additional_metrics: Optional[dict[str, Metric]] = None,
-                 device: torch.device = torch.device("cpu")) -> dict:
+    def evaluate(
+        self,
+        round: int,
+        model: torch.nn.Module,
+        eval_data_loader: Union[FastDataLoader, Collection[FastDataLoader]],
+        loss_fn: Optional[torch.nn.Module] = None,
+        additional_metrics: Optional[dict[str, Metric]] = None,
+        device: torch.device = torch.device("cpu"),
+    ) -> dict:
         """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
         ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
         computed both in a micro and macro fashion.
@@ -239,8 +267,9 @@ class ClassificationEval(Evaluator):
         clear_cuda_cache()
 
         result = {m: np.round(sum(v) / len(v), 5).item() for m, v in matrics_values.items()}
-        result.update({m: np.round(sum(v) / len(v), 5).item()
-                      for m, v in add_metric_values.items()})
+        result.update(
+            {m: np.round(sum(v) / len(v), 5).item() for m, v in add_metric_values.items()}
+        )
 
         if loss_fn is not None:
             result["loss"] = np.round(sum(losses) / len(losses), 5).item()
@@ -248,8 +277,10 @@ class ClassificationEval(Evaluator):
         return result
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(eval_every={self.eval_every}" + \
-            f", n_classes={self.n_classes})[{', '.join(self.metrics.keys())}]"
+        return (
+            f"{self.__class__.__name__}(eval_every={self.eval_every}"
+            + f", n_classes={self.n_classes})[{', '.join(self.metrics.keys())}]"
+        )
 
     def __repr__(self) -> str:
         return str(self)

@@ -1,4 +1,5 @@
 """This submodule provides logging utilities."""
+
 import json
 import logging
 import os
@@ -27,14 +28,7 @@ from ..comm import ChannelObserver, Message  # NOQA
 from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
-__all__ = [
-    "Log",
-    "DebugLog",
-    "TensorboardLog",
-    "WandBLog",
-    "ClearMLLog",
-    "get_logger"
-]
+__all__ = ["Log", "DebugLog", "TensorboardLog", "WandBLog", "ClearMLLog", "get_logger"]
 
 
 class Log(ServerObserver, ChannelObserver, ClientObserver):
@@ -125,41 +119,47 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         if round == 1 and self.comm_costs[0] > 0:
             rich_print(
-                Panel(Pretty({"comm_costs": self.comm_costs[0]}),
-                      title=f"Round: {round-1}",
-                      width=100))
+                Panel(
+                    Pretty({"comm_costs": self.comm_costs[0]}),
+                    title=f"Round: {round - 1}",
+                    width=100,
+                )
+            )
 
     def end_round(self, round: int) -> None:
         stats = {}
         # Pre-fit summary
         if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = DataFrame(self.prefit_eval[round].values()).mean(
-                numeric_only=True).to_dict()
+            client_mean = (
+                DataFrame(self.prefit_eval[round].values()).mean(numeric_only=True).to_dict()
+            )
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.prefit_eval_summary[round] = client_mean
-            stats['pre-fit'] = client_mean
+            stats["pre-fit"] = client_mean
 
         # Post-fit summary
         if self.postfit_eval and round in self.postfit_eval and self.postfit_eval[round]:
-            client_mean = DataFrame(self.postfit_eval[round].values()).mean(
-                numeric_only=True).to_dict()
+            client_mean = (
+                DataFrame(self.postfit_eval[round].values()).mean(numeric_only=True).to_dict()
+            )
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.postfit_eval_summary[round] = client_mean
-            stats['post-fit'] = client_mean
+            stats["post-fit"] = client_mean
 
         # Locals summary
         if self.locals_eval and round in self.locals_eval and self.locals_eval[round]:
-            client_mean = DataFrame(list(self.locals_eval[round].values())).mean(
-                numeric_only=True).to_dict()
+            client_mean = (
+                DataFrame(list(self.locals_eval[round].values())).mean(numeric_only=True).to_dict()
+            )
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.locals_eval_summary[round] = client_mean
-            stats['locals'] = self.locals_eval_summary[round]
+            stats["locals"] = self.locals_eval_summary[round]
 
         # Global summary
         if self.global_eval and round in self.global_eval and self.global_eval[round]:
-            stats['global'] = self.global_eval[round]
+            stats["global"] = self.global_eval[round]
 
-        stats['comm_cost'] = self.comm_costs[round]
+        stats["comm_cost"] = self.comm_costs[round]
         proc = Process(os.getpid())
         self.mem_costs[round] = proc.memory_full_info().uss
 
@@ -167,30 +167,37 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             stats.update(self.custom_fields[round])
 
         rich_print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}", width=100))
-        rich_print(f"  Memory usage: {bytes2human(self.mem_costs[round])}" +
-                   f"[{proc.memory_percent():.2f} %]")
+        rich_print(
+            f"  Memory usage: {bytes2human(self.mem_costs[round])}"
+            + f"[{proc.memory_percent():.2f} %]"
+        )
 
-    def client_evaluation(self,
-                          round: int,
-                          client_id: int,
-                          phase: Literal['pre-fit', 'post-fit'],
-                          evals: dict[str, float],
-                          **kwargs) -> None:
+    def client_evaluation(
+        self,
+        round: int,
+        client_id: int,
+        phase: Literal["pre-fit", "post-fit"],
+        evals: dict[str, float],
+        **kwargs,
+    ) -> None:
 
         if round == -1:
             round = self.current_round + 1
-        dict_ref = self.prefit_eval if phase == 'pre-fit' else self.postfit_eval
+        dict_ref = self.prefit_eval if phase == "pre-fit" else self.postfit_eval
         dict_ref[round] = {client_id: evals}
-        self.postfit_eval_summary[round] = DataFrame(list(dict_ref[round].values())).mean(
-            numeric_only=True).to_dict()
+        self.postfit_eval_summary[round] = (
+            DataFrame(list(dict_ref[round].values())).mean(numeric_only=True).to_dict()
+        )
 
-    def server_evaluation(self,
-                          round: int,
-                          eval_type: Literal['global', 'locals'],
-                          evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs) -> None:
+    def server_evaluation(
+        self,
+        round: int,
+        eval_type: Literal["global", "locals"],
+        evals: Union[dict[str, float], dict[int, dict[str, float]]],
+        **kwargs,
+    ) -> None:
 
-        if eval_type == 'global' and evals:
+        if eval_type == "global" and evals:
             self.global_eval[round] = evals
         elif eval_type == "locals" and evals:
             self.locals_eval[round] = evals
@@ -209,31 +216,41 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Pre-fit summary
         if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = DataFrame(self.prefit_eval[round].values()).mean(
-                numeric_only=True).to_dict()
+            client_mean = (
+                DataFrame(self.prefit_eval[round].values()).mean(numeric_only=True).to_dict()
+            )
             client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
             self.prefit_eval_summary[round] = client_mean
-            stats['pre-fit'] = client_mean
+            stats["pre-fit"] = client_mean
 
         # Locals summary
         if self.locals_eval:
-            stats['locals'] = self.locals_eval_summary[max(self.locals_eval.keys())]
+            stats["locals"] = self.locals_eval_summary[max(self.locals_eval.keys())]
 
         # Post-fit summary
         if self.postfit_eval:
-            stats['post-fit'] = self.postfit_eval_summary[max(self.postfit_eval.keys())]
+            stats["post-fit"] = self.postfit_eval_summary[max(self.postfit_eval.keys())]
 
         # Global summary
         if self.global_eval:
-            stats['global'] = self.global_eval[max(self.global_eval.keys())]
+            stats["global"] = self.global_eval[max(self.global_eval.keys())]
 
         if stats:
-            rich_print(Panel(Pretty(stats, expand_all=True),
-                       title="Overall Performance",
-                       width=100))
+            rich_print(
+                Panel(
+                    Pretty(stats, expand_all=True),
+                    title="Overall Performance",
+                    width=100,
+                )
+            )
 
-        rich_print(Panel(Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
-                         title="Total communication cost", width=100))
+        rich_print(
+            Panel(
+                Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
+                title="Total communication cost",
+                width=100,
+            )
+        )
 
     def interrupted(self) -> None:
         rich_print("\n[bold italic yellow]The experiment has been interrupted by the user.")
@@ -257,9 +274,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             "perf_prefit": self.prefit_eval_summary,
             "perf_postfit": self.postfit_eval_summary,
             "mem_costs": self.mem_costs,
-            "custom_fields": self.custom_fields
+            "custom_fields": self.custom_fields,
         }
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(json_to_save, f, indent=4)
 
     def close(self) -> None:
@@ -283,9 +300,7 @@ class DebugLog(Log):
             level=logging.DEBUG,
             format="%(message)s",
             datefmt="[%X]",
-            handlers=[RichHandler(rich_tracebacks=True,
-                                  show_path=True,
-                                  markup=True)]
+            handlers=[RichHandler(rich_tracebacks=True, show_path=True, markup=True)],
         )
 
         self.logger = logging.getLogger("rich")
@@ -314,11 +329,13 @@ class DebugLog(Log):
         self.logger.debug(f"Selected {len(clients_idx)} clients for round {round}: {clients_idx}")
         super().selected_clients(round, clients)
 
-    def server_evaluation(self,
-                          round: int,
-                          eval_type: Literal["global", "locals"],
-                          evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs) -> None:
+    def server_evaluation(
+        self,
+        round: int,
+        eval_type: Literal["global", "locals"],
+        evals: Union[dict[str, float], dict[int, dict[str, float]]],
+        **kwargs,
+    ) -> None:
         if eval_type == "global":
             self.logger.debug(f"Global evaluation for round {round}")
         elif eval_type == "locals":
@@ -337,29 +354,22 @@ class DebugLog(Log):
         self.logger.debug(f"Early stopping fired for round {round}")
         return super().early_stop(round)
 
-    def start_fit(self,
-                  round: int,
-                  client_id: int,
-                  model: Module,
-                  **kwargs) -> None:
+    def start_fit(self, round: int, client_id: int, model: Module, **kwargs) -> None:
         self.logger.debug(f"Starting fit for client {client_id}")
         return super().start_fit(round, client_id, model, **kwargs)
 
-    def end_fit(self,
-                round: int,
-                client_id: int,
-                model: Module,
-                loss: float,
-                **kwargs) -> None:
+    def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs) -> None:
         self.logger.debug(f"Fit for Client[{client_id}] ended with loss {loss}")
         return super().end_fit(round, client_id, model, loss, **kwargs)
 
-    def client_evaluation(self,
-                          round: int,
-                          client_id: int,
-                          phase: Literal['pre-fit', 'post-fit'],
-                          evals: dict[str, float],
-                          **kwargs) -> None:
+    def client_evaluation(
+        self,
+        round: int,
+        client_id: int,
+        phase: Literal["pre-fit", "post-fit"],
+        evals: dict[str, float],
+        **kwargs,
+    ) -> None:
         self.logger.debug(f"Client[{client_id}] {phase} evaluation for round {round}")
         return super().client_evaluation(round, client_id, phase, evals, **kwargs)
 
@@ -398,7 +408,7 @@ class TensorboardLog(Log):
         super().__init__(**config)
         ts_config = DDict(**config).exclude("name")
         if "log_dir" not in ts_config:
-            exp_name = config['name']
+            exp_name = config["name"]
             if exp_name.startswith("fluke.algorithms."):
                 exp_name = ".".join(str(exp_name).split(".")[3:])
             ts_config.log_dir = f"./runs/{exp_name}" + "_" + time.strftime("%Y%m%dh%H%M%S")
@@ -539,7 +549,7 @@ class ClearMLLog(TensorboardLog):
     """
 
     def __init__(self, **config):
-        super().__init__(name=config['name'])
+        super().__init__(name=config["name"])
         self.config: DDict = DDict(**config)
         self.task: clearml.task.Task = None
 
@@ -547,6 +557,7 @@ class ClearMLLog(TensorboardLog):
         super().init(**kwargs)
         # imported here to avoid issues with requests
         from clearml import Task
+
         self.task = Task.init(task_name=self.config.name, **self.config.exclude("name"))
         self.task.connect(kwargs)
 
