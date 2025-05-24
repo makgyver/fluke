@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import warnings
+from collections import defaultdict
 from typing import Optional, Sequence
 
 import numpy as np
@@ -16,8 +17,10 @@ sys.path.append(".")
 sys.path.append("..")
 
 
-from .. import DDict  # NOQA
+from .. import DDict, custom_formatwarning  # NOQA
 from ..utils import safe_train_test_split  # NOQA
+
+warnings.formatwarning = custom_formatwarning
 
 __all__ = [
     "datasets",
@@ -39,7 +42,7 @@ class DataContainer:
         y_test (torch.Tensor): The test labels.
         num_classes (int): The number of classes.
         transforms (Optional[callable], optional): The transformation to be applied to the data
-          when loaded. Defaults to None.
+            when loaded. Defaults to None.
     """
 
     def __init__(
@@ -655,8 +658,14 @@ class DataSplitter:
             min_ex_class (int, optional): The minimum number of training examples per class.
                 Defaults to 2.
             balanced (bool, optional): Whether to ensure a balanced distribution of the examples.
-                This feature is not guaranteed to work. The method will do ten trials to balance
-                the dataset, if not successful, it will raise a warning. Defaults to False.
+                Defaults to False.
+
+        Warnings:
+            When ``balanced`` is set to ``True`` and also ``min_ex_class > 0``, the method will
+            try to ensure both conditions. However, this is not guaranteed to be possible.
+            In this case, the method will issue a warning if any client has less than
+            ``min_ex_class`` examples of any class. This is a limitation of the method and should be
+            taken into consideration when using it.
 
         Returns:
             tuple[list[np.ndarray], list[np.ndarray] | None]: The examples' ids assignment.
@@ -670,103 +679,96 @@ class DataSplitter:
         ), "# of test instances must be >= than min_ex_class * n"
 
         labels = list(torch.unique(torch.LongTensor(y_train)).numpy())
-        pk = {c: dirichlet([beta] * n) for c in labels}
-        for c in labels:
-            shuffle(pk[c])
+        num_classes = np.max(labels) + 1
 
-        cid_perm = permutation(n)
-        idx_batch = [[[] for _ in range(n)], [[] for _ in range(n)]]
+        # Sample Dirichlet proportion
+        proportions = dirichlet([beta] * n, size=num_classes)
+
+        assignments = [[], [] if y_test is not None else None]
         for iy, y in enumerate([y_train, y_test]):
             if y is None:
                 continue
 
-            samples_avg = y.shape[0] / n
+            N = len(y)
+            samples_per_client = N // n
 
-            shuffle(labels)
-            for c in labels:
-                # get the ids of the examples of class c
-                ids = np.where(y == c)[0]
-                shuffle(ids)
+            # Get indices per class
+            class_indices = [np.where(y == c)[0].tolist() for c in range(num_classes)]
+            for c in range(num_classes):
+                np.random.shuffle(class_indices[c])
 
-                if iy == 0:  # this is applied only to the training set
-                    # Assign the minimum number of examples per class
-                    idx_batch[iy] = [
-                        idx_j + ids[i * min_ex_class : (i + 1) * min_ex_class].tolist()
-                        for i, idx_j in enumerate(idx_batch[iy])
-                    ]
-                    ids = ids[n * min_ex_class :]
+            # Initialize client allocations
+            client_indices = defaultdict(list)
 
-                # compute the proportions
-                proportions = np.array(
-                    [p * (len(idx_j) < samples_avg) for p, idx_j in zip(pk[c], idx_batch[iy])]
-                )
-                proportions = proportions / proportions.sum()
+            # 1. Pre-allocate the minimum number per class to each client (if possible)
+            used = set()
+            if iy == 0:
+                for client_id in range(n):
+                    for class_id in range(num_classes):
+                        available = class_indices[class_id]
+                        if len(available) < min_ex_class:
+                            raise ValueError(
+                                f"Class {class_id} has only {len(available)} samples, "
+                                + "cannot satisfy minimum."
+                            )
+                        selected = available[:min_ex_class]
+                        client_indices[client_id].extend(selected)
+                        class_indices[class_id] = available[min_ex_class:]
+                        used.update(selected)
 
-                # assign the examples to the clients
-                proportions = (np.cumsum(proportions) * len(ids)).astype(int)[:-1]
-                idx_batch[iy] = [
-                    idx_j + idx.tolist()
-                    for idx_j, idx in zip(idx_batch[iy], np.split(ids, proportions))
-                ]
+            # 2. Remaining indices to distribute
+            remaining = list(set(range(N)) - used)
+            remaining_labels = y[remaining]
+            class_remain = [np.where(remaining_labels == c)[0].tolist() for c in range(num_classes)]
 
-        trials = 0
-        if balanced:
-            for iy, y in enumerate([y_train, y_test]):
-                if y is None:
-                    continue
-                samples_avg = np.ceil(y.shape[0] / n)
+            # 4. Distribute remaining data using proportions
+            for class_id in range(num_classes):
+                class_remaining_indices = [remaining[i] for i in class_remain[class_id]]
+                np.random.shuffle(class_remaining_indices)
+                counts = np.random.multinomial(len(class_remaining_indices), proportions[class_id])
+                idx = 0
+                for client_id in range(n):
+                    count = counts[client_id]
+                    client_indices[client_id].extend(class_remaining_indices[idx : idx + count])
+                    idx += count
 
-                to_reduce = [
-                    i
-                    for i in range(len(idx_batch[iy]))
-                    if len(idx_batch[iy][i]) - int(samples_avg) > 0
-                ]
+            all_used = []
+            final_client_indices = client_indices
 
-                to_fill = [i for i in range(n) if i not in to_reduce]
+            # 5. Balance: trim or pad to samples_per_client
+            if balanced:
+                final_client_indices = {}
 
-                while to_reduce and trials < 10:
-                    i = to_reduce.pop(0)
-                    samples = idx_batch[iy][i]
-                    surplus_ratio = 1.0 - samples_avg / len(samples)
-                    try:
-                        s_keep, s_spare, _, _ = train_test_split(
-                            samples, y[samples], test_size=surplus_ratio, stratify=y[samples]
-                        )
-                    except ValueError:
-                        s_keep, s_spare, _, _ = train_test_split(
-                            samples, y[samples], test_size=surplus_ratio
-                        )
-                    idx_batch[iy][i] = s_keep
+                for client_id in range(n):
+                    indices = client_indices[client_id]
+                    if len(indices) > samples_per_client:
+                        indices = np.random.choice(
+                            indices, samples_per_client, replace=False
+                        ).tolist()
+                    elif len(indices) < samples_per_client:
+                        needed = samples_per_client - len(indices)
+                        unused = list(set(range(N)) - set(all_used))
+                        extra = np.random.choice(unused, needed, replace=False).tolist()
+                        indices += extra
+                    final_client_indices[client_id] = indices
+                    all_used.extend(indices)
 
-                    step = int(np.ceil(len(s_spare) / len(to_fill)))
-                    shuffle(s_spare)
-                    new_reduce = []
-                    no_fill = []
-                    for jj, j in enumerate(to_fill):
-                        idx_batch[iy][j] += s_spare[step * jj : step * (jj + 1)]
-                        if len(idx_batch[iy][j]) - int(samples_avg) > 0:
-                            new_reduce.append(j)
-                            no_fill.append(j)
-                        elif len(idx_batch[iy][j]) - int(samples_avg) == 0:
-                            no_fill.append(j)
+            # 6. Final check: each client must have min per class
+            if iy == 0 and balanced:
+                for client_id, indices in final_client_indices.items():
+                    client_labels = y[indices]
+                    for c in range(num_classes):
+                        if (client_labels == c).sum() < min_ex_class:
+                            warnings.warn(
+                                f"Client {client_id} has less than {min_ex_class} samples "
+                                + f"for class {c}"
+                            )
+            assignments[iy] = final_client_indices
 
-                    to_reduce += new_reduce
-                    for j in no_fill:
-                        to_fill.remove(j)
-
-                    if len(idx_batch[iy][i]) < samples_avg:
-                        to_fill.append(i)
-
-                    trials += 1
-
-        if trials >= 10:
-            warnings.warn(
-                "Reached maximum number of trials (10) while trying to"
-                + "balanced the dataset distribution"
-            )
-        # change idx_batch according to cid_perm
-        idx_batch = [[np.array(idx_batch[i][cid_perm[j]]) for j in range(n)] for i in range(2)]
-        return idx_batch[0], idx_batch[1] if y_test is not None else None
+        assignments[0] = [np.array(assignments[0][i]) for i in range(n)]
+        if y_test is not None:
+            assignments[1] = [np.array(assignments[1][i]) for i in range(n)]
+        return tuple(assignments)
 
     @staticmethod
     def label_pathological_skew(
