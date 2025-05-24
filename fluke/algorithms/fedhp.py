@@ -249,7 +249,7 @@ class FedHPServer(Server):
 
         return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
-    def _hyperspherical_embedding(self):
+    def _hyperspherical_embedding(self) -> None:
         """
         Function to learn the prototypes according to the ``SeparationLoss`` minimization.
         """

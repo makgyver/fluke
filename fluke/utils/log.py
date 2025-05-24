@@ -184,10 +184,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         if round == -1:
             round = self.current_round + 1
         dict_ref = self.prefit_eval if phase == "pre-fit" else self.postfit_eval
-        dict_ref[round] = {client_id: evals}
-        self.postfit_eval_summary[round] = (
-            DataFrame(list(dict_ref[round].values())).mean(numeric_only=True).to_dict()
-        )
+        if round not in dict_ref:
+            dict_ref[round] = {}
+        dict_ref[round][client_id] = evals
 
     def server_evaluation(
         self,
@@ -347,7 +346,7 @@ class DebugLog(Log):
         return super().finished(round)
 
     def interrupted(self) -> None:
-        self.logger.debug("Experiment interrupted by user")
+        self.logger.debug("Experiment interrupted by the user")
         return super().interrupted()
 
     def early_stop(self, round: int) -> None:
@@ -371,6 +370,7 @@ class DebugLog(Log):
         **kwargs,
     ) -> None:
         self.logger.debug(f"Client[{client_id}] {phase} evaluation for round {round}")
+        self.logger.debug(evals)
         return super().client_evaluation(round, client_id, phase, evals, **kwargs)
 
     def message_received(self, by: Any, message: Message) -> None:
