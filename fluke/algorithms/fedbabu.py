@@ -7,7 +7,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Sequence
 
 from rich.progress import Progress
 from torch.nn import Module
@@ -127,7 +127,7 @@ class FedBABUServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,  # not used
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
     ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

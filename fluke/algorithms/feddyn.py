@@ -8,7 +8,7 @@ References:
 
 import sys
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import numpy as np
 import torch
@@ -182,7 +182,7 @@ class FedDynServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = True,
         alpha: float = 0.01,
     ):
@@ -191,7 +191,7 @@ class FedDynServer(Server):
         self.device = FlukeENV().get_device()
         self.cld_mdl = deepcopy(self.model).to(self.device)
 
-    def broadcast_model(self, eligible: Collection[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
         self.channel.broadcast(
             Message((self.model, self.cld_mdl), "model", "server"), [c.index for c in eligible]
         )
@@ -219,7 +219,7 @@ class FedDynServer(Server):
         return super().fit(n_rounds, eligible_perc)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         agg_model_sd = aggregate_models(
             self.model, client_models, weights, eta=self.hyper_params.lr, inplace=False

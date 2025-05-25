@@ -8,7 +8,7 @@ References:
 
 import sys
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -116,7 +116,7 @@ class FedAMPServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,  # not used
-        clients: Collection[PFLClient],
+        clients: Sequence[PFLClient],
         sigma: float = 0.1,
         alpha: float = 0.1,
         **kwargs,
@@ -134,7 +134,7 @@ class FedAMPServer(Server):
         return empty_model
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[PFLClient], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[PFLClient], client_models: Collection[Module]) -> None:
 
         client_models = list(client_models)
         for i, (client, ci_model) in enumerate(zip(eligible, client_models)):
@@ -156,7 +156,7 @@ class FedAMPServer(Server):
 
             self.channel.send(Message(ui_model, "model", "server", inmemory=True), client.index)
 
-    def broadcast_model(self, eligible: Collection[PFLClient]) -> None:
+    def broadcast_model(self, eligible: Sequence[PFLClient]) -> None:
         # Models have already been sent to clients in aggregate
         pass
 

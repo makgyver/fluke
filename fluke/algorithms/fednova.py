@@ -7,7 +7,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -74,7 +74,7 @@ class FedNovaClient(Client):
 class FedNovaServer(Server):
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         a_i = [
             self.channel.receive("server", client.index, "local_a").payload for client in eligible

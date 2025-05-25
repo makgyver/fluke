@@ -1,13 +1,13 @@
 # `Server` class
 
-This class is the core of the federated learning simulation in `fluke`. When you start to extend it, 
+This class is the core of the federated learning simulation in `fluke`. When you start to extend it,
 make sure to have a clear understanding of what are the data exchanged between the server and the clients and
-how the learning process is orchestrated. This is crucial to avoid introducing bugs and to keep the code clean. 
+how the learning process is orchestrated. This is crucial to avoid introducing bugs and to keep the code clean.
 
 
 ## Overview
 
-The [Server](#fluke.server.Server) class is the one responsible for coordinating the federated learning process. 
+The [Server](#fluke.server.Server) class is the one responsible for coordinating the federated learning process.
 The learning process starts when the [fit](#fluke.server.Server.fit) method is called on the [Server](#fluke.server.Server). Inside the [fit](#fluke.server.Server.fit) method, the server will iterate over the number of rounds specified in the argument `n_rounds`.
 Each significant server's operation trigger a notification of the observers that have been registered to the server.
 Finally, at the end of the [fit](#fluke.server.Server.fit), the server will finalize the federated learning process.
@@ -24,7 +24,7 @@ However, there is an important notion that you should be aware of: **all the ser
 The standard behaviour of the [Server](#fluke.server.Server) class (as provided in the class [Server](#fluke.server.Server)) follows the sequence of operations of the **Federate Averaging algorithm**. The main methods
 of the [Server](#fluke.server.Server) class involved in a single federated round are:
 
-- [get_eligible_clients](#fluke.server.Server.get_eligible_clients): this method is called at the beginning of each round to select the clients that will participate in the round. The selection is based on the `eligible_perc` argument of the [fit](#fluke.server.Server.fit) method. 
+- [get_eligible_clients](#fluke.server.Server.get_eligible_clients): this method is called at the beginning of each round to select the clients that will participate in the round. The selection is based on the `eligible_perc` argument of the [fit](#fluke.server.Server.fit) method.
 - [broadcast_model](#fluke.server.Server.broadcast_model): this method is called at the beginning of each round to send the global model to the clients that will participate in that round.
 - [aggregate](#fluke.server.Server.aggregate): this method is called towards the end of each round to aggregate the models of the clients that participated in the round.
 - [evaluate](#fluke.server.Server.evaluate): this method is called at the end of each round to evaluate the global model on a held out test set (if any). The evaluation can also be performed client-side.
@@ -35,7 +35,7 @@ The following figure shows the sequence of operations of the [Server](#fluke.ser
 ```{eval-rst}
 
 .. admonition:: Disclaimer
-    
+
     For brevity, many details have been omitted or simplified. However, the figure below shows the key methods and calls involved in a round.
     For a complete description of the :class:`fluke.server.Server` class, please refer to the :ref:`Server's API documentation <fluke.server>`.
 
@@ -44,7 +44,7 @@ The following figure shows the sequence of operations of the [Server](#fluke.ser
 
 ```{figure} ../_static/imgs/server_fit_sequence.png
 
-Sequence of operations of the [Server](#fluke.server.Server) class during the [fit](#fluke.server.Server.fit) method. 
+Sequence of operations of the [Server](#fluke.server.Server) class during the [fit](#fluke.server.Server.fit) method.
 This image has been created with [TikZ](https://texample.net/tikz/) [[source]](https://github.com/makgyver/fluke/blob/main/docs/_static/tex/server_sequence.tex).
 ```
 
@@ -54,7 +54,7 @@ The only direct call between the server and the client is the [local_update](#fl
 
 ## Finalization
 
-At the end of the [fit](#fluke.server.Server.fit) method, the [Server](#fluke.server.Server) class will finalize the federated learning process by calling the [finalize](#fluke.server.Server.finalize) method. Ideally, this method should be used to perform any final operation, for example, to get the final evaluation of the global (and/or local) model(s), or to save the model(s). It can also be used to trigger fine-tuning operations client-side as it happens in personalized federated learning. 
+At the end of the [fit](#fluke.server.Server.fit) method, the [Server](#fluke.server.Server) class will finalize the federated learning process by calling the [finalize](#fluke.server.Server.finalize) method. Ideally, this method should be used to perform any final operation, for example, to get the final evaluation of the global (and/or local) model(s), or to save the model(s). It can also be used to trigger fine-tuning operations client-side as it happens in personalized federated learning.
 
 
 ## Observer pattern
@@ -69,7 +69,7 @@ The default notifications are:
 - [finished](#fluke.utils.ServerObserver.finished): triggered at the end of the [finalize](#fluke.server.Server.finalize) method.
 
 :::{hint}
-    
+
 Refer to the API documentation of the [ServerObserver](fluke.utils.ServerObserver) inerface and the [ObserverSubject](fluke.ObserverSubject) intarface for more details.
 
 :::
@@ -116,14 +116,14 @@ The example follows the implementation of the [FedExP](#fluke.algorithms.fedexp.
         :emphasize-lines: 3,4,5,6,7
 
         @torch.no_grad()
-        def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+        def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
             W = flatten_parameters(self.model)
             client_models = list(client_models)
             Wi = [flatten_parameters(client_model) for client_model in client_models]
             eta = self._compute_eta(W, Wi)
             self.hyper_params.update(lr=eta)
             super().aggregate(eligible, client_models)
-        
+
         def _compute_eta(self, W: torch.Tensor, Wi: list[torch.Tensor], eps: float = 1e-4) -> float:
             ...
 
@@ -133,7 +133,7 @@ The example follows the implementation of the [FedExP](#fluke.algorithms.fedexp.
         :linenos:
 
         @torch.no_grad()
-        def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+        def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
             weights = self._get_client_weights(eligible)
             aggregate_models(self.model, client_models, weights, self.hyper_params.lr, inplace=True)
 
@@ -164,7 +164,7 @@ Similar considerations can be made for the other cases when the there is no need
 .. attention::
 
     When overriding methods that require to notify the observers, make sure to call the corresponding
-    notification method of the :class:`fluke.ObserverSubject` interface. For example, if you override the :meth:`fluke.server.Server.finalize` method you should call the ``notify`` method for 
+    notification method of the :class:`fluke.ObserverSubject` interface. For example, if you override the :meth:`fluke.server.Server.finalize` method you should call the ``notify`` method for
     the event "finalize" at the end of the method. For example, see the implementation of :ref:`FedBABU <fluke.algorithms.fedbabu>`.
 ```
 
@@ -181,7 +181,7 @@ When overriding the [fit](#fluke.server.Server.fit) method, you should follow th
   In `rich`, progress bars and status indicators use a *live* display that is an instance of the `Live` class. You can reuse the `Live` instance of `fluke` from the [FlukeENV](#fluke.FlukeENV) using the [get_live_renderer](#fluke.FlukeENV.get_live_renderer) method. In this live display, you can show the progress of the client-side and
   server-side learning already available in the [FlukeENV](#fluke.FlukeENV) using `get_progress_bar("clients")` and `get_progress_bar("server")`. Then to update the
   progress bars and to get more information on how to use the `rich` library, please refer to the [official documentation](https://rich.readthedocs.io/en/latest/).
-  
+
   The following is an excert of the [fit](#fluke.server.Server.fit) method, showing how to initialize the progress bars:
 
   ```{eval-rst}
@@ -203,13 +203,13 @@ When overriding the [fit](#fluke.server.Server.fit) method, you should follow th
   Messages must be encapsulated in a [Message](#fluke.comm.Message) object.
   Using the channel enables `fluke`, through the logger (see [Log](#fluke.utils.log.Log)), to keep track of the exchanged messages and so it will automatically compute the communication cost. The following is the implementation of the [broadcast_model](#fluke.server.Server.broadcast_model) method that uses the
   [Channel](#fluke.comm.Channel) to send the global model to the clients:
-    
+
   ```{eval-rst}
-  
+
   .. code-block:: python
       :linenos:
-  
-      def broadcast_model(self, eligible: Collection[Client]) -> None:
+
+      def broadcast_model(self, eligible: Sequence[Client]) -> None:
           self.channel.broadcast(Message(self.model, "model", self), [c.index for c in eligible])
   ```
 

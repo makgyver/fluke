@@ -6,7 +6,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -115,7 +115,7 @@ class APFLServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         tau: int = 3,
         **kwargs,
@@ -124,11 +124,11 @@ class APFLServer(Server):
         self.hyper_params.update(tau=tau)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         """Aggregate the models of the eligible clients every `hyper_params.tau` rounds.
 
         Args:
-            eligible (Collection[Client]): The clients that are eligible to participate in the
+            eligible (Sequence[Client]): The clients that are eligible to participate in the
                 aggregation.
             client_models (Collection[Module]): The models of the clients to aggregate.
         """

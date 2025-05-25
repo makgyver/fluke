@@ -8,7 +8,7 @@ import sys
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Collection, Union
+from typing import Any, Callable, Collection, Union, Sequence
 
 import torch
 
@@ -144,7 +144,7 @@ class CentralizedFL(ServerObserver):
                 model_name = server.model.__class__.__name__
             else:
                 model_name = clients[0].model.__class__.__name__
-            hyper_params = DDict(
+            self.hyper_params = DDict(
                 client=clients[0].hyper_params, server=server.hyper_params, model=model_name
             )
 
@@ -243,7 +243,7 @@ class CentralizedFL(ServerObserver):
         clients_tr_data: list[FastDataLoader],
         clients_te_data: list[FastDataLoader],
         config: DDict,
-    ) -> Collection[Client]:
+    ) -> Sequence[Client]:
         """Creates the clients.
 
         Args:
@@ -261,7 +261,7 @@ class CentralizedFL(ServerObserver):
             :class:`fluke.client.Client`
 
         Returns:
-            Collection[Client]: List of initialized clients.
+            Sequence[Client]: List of initialized clients.
         """
 
         self._fix_opt_cfg(config.optimizer)
@@ -456,7 +456,7 @@ class PersonalizedFL(CentralizedFL):
         clients_tr_data: list[FastDataLoader],
         clients_te_data: list[FastDataLoader],
         config: DDict,
-    ) -> Collection[Client]:
+    ) -> Sequence[Client]:
 
         if isinstance(config.model, str):
             model = get_model(mname=config.model, **config.net_args if "net_args" in config else {})

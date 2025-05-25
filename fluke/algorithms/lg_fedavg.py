@@ -8,7 +8,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Sequence
 
 # from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
@@ -77,7 +77,7 @@ class LGFedAVGServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,  # not used
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
     ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

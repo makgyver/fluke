@@ -94,7 +94,7 @@ class ClientObserver:
     ):
         """This method is called when the client evaluates the local model.
         The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
-        training process. The 'pre-fit' evlauation is usually the evaluation of the global model on
+        training process. The 'pre-fit' evaluation is usually the evaluation of the global model on
         the local test set, and the 'post-fit' evaluation is the evaluation of the just updated
         local model on the local test set.
 

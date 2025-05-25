@@ -8,7 +8,7 @@ References:
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -175,7 +175,7 @@ class FedProtoServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = True,
         n_protos: int = 10,
     ):
@@ -183,14 +183,14 @@ class FedProtoServer(Server):
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def broadcast_model(self, eligible: Collection[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
         # This function broadcasts the prototypes to the clients
         self.channel.broadcast(
             Message(self.prototypes, "model", "server"), [c.index for c in eligible]
         )
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
         clients_protos = client_models
 

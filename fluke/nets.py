@@ -66,13 +66,13 @@ __all__ = [
 
 class EncoderHeadNet(nn.Module):
     r"""Encoder (aka backbone) + Head Network [Base Class]
-    This type of networks are defined as two subnetworks, where one is meant to be the
+    These types of networks are defined as two subnetworks, where one is meant to be the
     encoder/backbone network that learns a latent representation of the input, and the head network
     that is the classifier part of the model. The forward method should work as usual (i.e.,
     :math:`g(f(\mathbf{x}))` where :math:`\mathbf{x}` is the input, :math:`f` is the encoder and
     :math:`g` is the head), but the ``forward_encoder`` and ``forward_head`` methods should be used
     to get the output of the encoder and head subnetworks, respectively.
-    If this is not possible, they fallback to the forward method (default behavior).
+    If this is not possible, they fall back to the forward method (default behavior).
 
     Args:
         encoder (nn.Module): Encoder subnetwork.
@@ -134,7 +134,7 @@ class GlobalLocalNet(nn.Module):
     meant to be shared (global) and one is meant to be personalized (local). The :meth:`forward`
     method should work as expected, but the :meth:`forward_local`` and :meth:`forward_global`
     methods should be used to get the output of the local and global subnetworks, respectively.
-    If this is not possible, they fallback to the forward method (default behavior).
+    If this is not possible, they fall back to the forward method (default behavior).
     """
 
     @abstractmethod
@@ -777,7 +777,7 @@ class VGG9_E(nn.Module):
 
     @classmethod
     def _conv_layer(
-        self,
+        cls,
         in_channels: int,
         out_channels: int,
         kernel_size: int,
@@ -882,7 +882,7 @@ class VGG9_D(nn.Module):
     """
 
     @classmethod
-    def _linear_layer(
+    def create_linear_layer(
         cls, in_features: int, out_features: int, bias: bool = False, seed: int = 0
     ) -> nn.Linear:
         fc = nn.Linear(in_features, out_features, bias=bias)
@@ -893,9 +893,9 @@ class VGG9_D(nn.Module):
     def __init__(self, input_size: int = 512, output_size: int = 62, seed: int = 98765):
         super(VGG9_D, self).__init__()
         self.downstream = nn.Sequential(
-            VGG9_D._linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
+            VGG9_D.create_linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
             nn.ReLU(True),
-            VGG9_D._linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed),
+            VGG9_D.create_linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -998,7 +998,7 @@ class ResNet18(nn.Module):
     """ResNet-18 network as defined in the torchvision library.
 
     Note:
-        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        This class is a wrapper around the ResNet-18 model from torchvision, and it does not
         implement the :class:`EncoderHeadNet` interface.
 
     Args:
@@ -1018,7 +1018,7 @@ class ResNet18GN(ResNet18):
     instead of Batch Normalization.
 
     Note:
-        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        This class is a wrapper around the ResNet-18 model from torchvision, and it does not
         implement the :class:`EncoderHeadNet` interface.
 
     Args:
@@ -1035,7 +1035,7 @@ class ResNet34(nn.Module):
     """ResNet-34 network as defined in the torchvision library.
 
     Note:
-        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        This class is a wrapper around the ResNet-18 model from torchvision, and it does not
         implement the :class:`EncoderHeadNet` interface.
 
     Args:
@@ -1055,7 +1055,7 @@ class ResNet50(nn.Module):
     """ResNet-50 network as defined in the torchvision library.
 
     Note:
-        This class is a wrapper around the ResNet-18 model from torchvision and it does not
+        This class is a wrapper around the ResNet-18 model from torchvision, and it does not
         implement the :class:`EncoderHeadNet` interface.
 
     Args:
@@ -1192,7 +1192,7 @@ class Shakespeare_LSTM_D(nn.Module):
     def __init__(self):
         super(Shakespeare_LSTM_D, self).__init__()
         self._output_size = len(string.printable)
-        self.classifier = VGG9_D._linear_layer(
+        self.classifier = VGG9_D.create_linear_layer(
             256, self._output_size, bias=False, seed=FlukeENV().get_seed()
         )
 

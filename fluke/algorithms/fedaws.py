@@ -7,7 +7,7 @@ References:
 """
 
 import sys
-from typing import Collection, Literal
+from typing import Collection, Literal, Sequence
 
 import torch
 from torch import nn
@@ -66,7 +66,7 @@ class FedAwSServer(Server):
         self,
         model: torch.nn.Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         aws_lr: float = 0.1,
         aws_steps: int = 100,
@@ -105,7 +105,7 @@ class FedAwSServer(Server):
             {self.hyper_params.last_layer_name: spread_model.weights.data}, strict=False
         )
 
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[nn.Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[nn.Module]) -> None:
         super().aggregate(eligible, client_models)
         self._compute_spreadout()
 

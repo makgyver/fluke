@@ -28,15 +28,15 @@ def custom_formatwarning(msg: str, category: type, filename: str, lineno: int, *
     # return f"[{category.__name__}] {filename}:{lineno} - {msg}\n"
 
     # ANSI color codes
-    # RED = '\033[91m'
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    RESET = "\033[0m"
+    # red = '\033[91m'
+    yellow = "\033[93m"
+    blue = "\033[94m"
+    reset = "\033[0m"
 
     return (
-        f"{YELLOW}[{category.__name__}]{RESET} "
-        f"{BLUE}{filename}:{lineno}{RESET}\n"
-        f"{YELLOW}{msg}{RESET}\n"
+        f"{yellow}[{category.__name__}]{reset} "
+        f"{blue}{filename}:{lineno}{reset}\n"
+        f"{yellow}{msg}{reset}\n"
     )
 
 

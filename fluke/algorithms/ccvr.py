@@ -7,7 +7,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Collection, Sequence
 
 import numpy as np
 import torch
@@ -76,7 +76,7 @@ class CCVRServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         lr: float = 0.1,
         batch_size: int = 64,

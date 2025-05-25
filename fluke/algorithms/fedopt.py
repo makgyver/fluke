@@ -9,7 +9,7 @@ References:
 import sys
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -31,7 +31,7 @@ class FedOptServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         mode: str = "adam",
         lr: float = 0.001,
         beta1: float = 0.9,
@@ -61,7 +61,7 @@ class FedOptServer(Server):
                 self.v_t[key] = torch.zeros_like(self.model.state_dict()[key])
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         prev_model = deepcopy(self.model)
         super().aggregate(eligible, client_models)
         aggregated = self.model.state_dict()

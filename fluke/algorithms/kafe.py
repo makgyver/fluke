@@ -8,7 +8,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Collection, Sequence
 
 import numpy as np
 import torch
@@ -32,14 +32,14 @@ class KafeServer(Server):
         self,
         model: torch.nn.Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         bandwidth: float = 1.0,
     ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.hyper_params.update(bandwidth=bandwidth)
 
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
 
         # get last layer of m clients' weights

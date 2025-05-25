@@ -7,7 +7,7 @@ References:
 
 import sys
 from copy import deepcopy
-from typing import Collection, Optional
+from typing import Collection, Optional, Sequence
 
 import torch
 from torch.nn import Module
@@ -141,7 +141,7 @@ class PFedMeServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         beta: float = 0.5,
         **kwargs,
@@ -150,7 +150,7 @@ class PFedMeServer(Server):
         self.hyper_params.update(beta=beta)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
         agg_model_sd = aggregate_models(
             self.model, client_models, weights, self.hyper_params.lr, inplace=False

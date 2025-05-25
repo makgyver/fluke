@@ -12,7 +12,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Sequence
 
 import torch
 from opacus import PrivacyEngine
@@ -97,7 +97,7 @@ class DPFedAVGClient(Client):
         if self.model is None:
             super().receive_model()
             self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
-            self._init_private_engine()
+            return self._init_private_engine()
         else:
             return super().receive_model()
 
@@ -108,7 +108,7 @@ class DPFedAVGServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         lr: float = 1.0,
         **kwargs,

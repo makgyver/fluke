@@ -4,7 +4,7 @@ The module :mod:`fluke.server` provides the base classes for the servers in :mod
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection, Generator, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Generator, Sequence
 
 import numpy as np
 import torch
@@ -54,16 +54,16 @@ class Server(ObserverSubject):
 
     Attributes:
         hyper_params(DDict):
-          The hyper-parameters of the server. The default hyper-parameters are:
+          The hyperparameters of the server. The default hyperparameters are:
 
           - weighted: A boolean indicating if the clients should be weighted by the number of
             samples when aggregating the models.
 
-          When a new server class inherits from this class, it must add all its hyper-parameters
+          When a new server class inherits from this class, it must add all its hyperparameters
           to this dictionary.
         device(torch.device): The device where the server runs.
         model(torch.nn.Module): The federated model to be trained.
-        clients(Collection[Client]): The clients that will participate in the federated learning
+        clients(Sequence[Client]): The clients that will participate in the federated learning
           process.
         n_clients(int): The number of clients that will participate in the federated learning
         rounds(int): The number of rounds that have been executed.
@@ -73,17 +73,17 @@ class Server(ObserverSubject):
     Args:
         model(torch.nn.Module): The federated model to be trained.
         test_set(FastDataLoader): The test data to evaluate the model.
-        clients(Collection[Client]): The clients that will participate in the federated learning
-          process.
+        clients(Sequence[Client]): The clients that will participate in the federated learning
+            process.
         weighted(bool): A boolean indicating if the clients should be weighted by the
-          number of samples when aggregating the models. Defaults to False.
+            number of samples when aggregating the models. Defaults to False.
     """
 
     def __init__(
         self,
         model: torch.nn.Module,
-        test_set: FastDataLoader,
-        clients: Collection[Client],
+        test_set: FastDataLoader | None,
+        clients: Sequence[Client],
         weighted: bool = False,
         lr: float = 1.0,
         **kwargs,
@@ -92,7 +92,7 @@ class Server(ObserverSubject):
         self.hyper_params = DDict(weighted=weighted, lr=lr)
         self.device: torch.device = FlukeENV().get_device()
         self.model: torch.nn.Module = model
-        self.clients: Collection[Client] = clients
+        self.clients: Sequence[Client] = clients
         self.n_clients: int = len(clients)
         self.rounds: int = 0
         self.test_set: FastDataLoader = test_set
@@ -131,11 +131,11 @@ class Server(ObserverSubject):
         """
         return self.model is not None
 
-    def broadcast_model(self, eligible: Collection[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
         """Broadcast the global model to the clients.
 
         Args:
-            eligible (Collection[Client]): The clients that will receive the global model.
+            eligible (Sequence[Client]): The clients that will receive the global model.
         """
         self.channel.broadcast(
             Message(self.model, "model", "server", inmemory=None), [c.index for c in eligible]
@@ -153,7 +153,7 @@ class Server(ObserverSubject):
         Args:
             n_rounds (int, optional): The number of rounds to run. Defaults to 10.
             eligible_perc (float, optional): The percentage of clients that will be selected for
-              each round. Defaults to 0.1.
+                each round. Defaults to 0.1.
             finalize (bool, optional): If True, the server will finalize the federated learning
                 process. Defaults to True.
             **kwargs: Additional keyword arguments.
@@ -200,7 +200,7 @@ class Server(ObserverSubject):
             self.finalize()
         self.notify(event="finished", round=self.rounds + 1)
 
-    def _compute_evaluation(self, round: int, eligible: Collection[Client]) -> None:
+    def _compute_evaluation(self, round: int, eligible: Sequence[Client]) -> None:
         evaluator = FlukeENV().get_evaluator()
 
         if FlukeENV().get_eval_cfg().locals:
@@ -241,7 +241,7 @@ class Server(ObserverSubject):
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
             client.finalize()
 
-    def get_eligible_clients(self, eligible_perc: float) -> Collection[Client]:
+    def get_eligible_clients(self, eligible_perc: float) -> Sequence[Client]:
         """Get the clients that will participate in the current round.
         Clients are selected randomly based on the percentage of eligible clients.
 
@@ -249,7 +249,7 @@ class Server(ObserverSubject):
             eligible_perc (float): The percentage of clients that will be selected.
 
         Returns:
-            Collection[Client]: The clients that will participate in the current round.
+            Sequence[Client]: The clients that will participate in the current round.
         """
         if eligible_perc == 1:
             if not self._participants:
@@ -260,7 +260,7 @@ class Server(ObserverSubject):
         return selected
 
     def receive_client_models(
-        self, eligible: Collection[Client], state_dict: bool = True
+        self, eligible: Sequence[Client], state_dict: bool = True
     ) -> Generator[torch.nn.Module, None, None]:
         """Retrieve the models of the clients.
         This method assumes that the clients have already sent their models to the server.
@@ -274,9 +274,9 @@ class Server(ObserverSubject):
             converted to a list, tuple, or any other iterable.
 
         Args:
-            eligible (Collection[Client]): The clients that will participate in the aggregation.
+            eligible (Sequence[Client]): The clients that will participate in the aggregation.
             state_dict (bool, optional): If True, the method returns the state_dict of the models.
-              Otherwise, it returns the models. Defaults to True.
+                Otherwise, it returns the models. Defaults to True.
 
         Returns:
             Generator[torch.nn.Module]: The models of the clients.
@@ -287,7 +287,7 @@ class Server(ObserverSubject):
                 client_model = client_model.state_dict()
             yield client_model
 
-    def _get_client_weights(self, eligible: Collection[Client]) -> list[float]:
+    def _get_client_weights(self, eligible: Sequence[Client]) -> list[float]:
         """Get the weights of the clients for the aggregation.
         The weights are calculated based on the number of samples of each client.
         If the hyperparameter ``weighted`` is True, the clients are weighted by their number of
@@ -302,7 +302,7 @@ class Server(ObserverSubject):
             performance.
 
         Args:
-            eligible (Collection[Client]): The clients that will participate in the aggregation.
+            eligible (Sequence[Client]): The clients that will participate in the aggregation.
 
         Returns:
             list[float]: The weights of the clients.
@@ -316,7 +316,7 @@ class Server(ObserverSubject):
 
     @torch.no_grad()
     def aggregate(
-        self, eligible: Collection[Client], client_models: Iterable[torch.nn.Module]
+        self, eligible: Sequence[Client], client_models: Iterable[torch.nn.Module]
     ) -> None:
         r"""Aggregate the models of the clients.
         The aggregation is done by averaging the models of the clients. If the hyperparameter
@@ -339,7 +339,7 @@ class Server(ObserverSubject):
             :func:`fluke.utils.model.aggregate_models`
 
         Args:
-            eligible (Collection[Client]): The clients that will participate in the aggregation.
+            eligible (Sequence[Client]): The clients that will participate in the aggregation.
             client_models (Iterable[torch.nn.Module]): The models of the clients.
 
         References:

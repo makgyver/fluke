@@ -8,7 +8,7 @@ References:
 
 import sys
 from collections import defaultdict
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import CrossEntropyLoss, Module, Parameter
@@ -181,7 +181,7 @@ class FedNHServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = True,
         n_protos: int = 10,
         rho: float = 0.1,
@@ -196,7 +196,7 @@ class FedNHServer(Server):
         self.hyper_params.update(n_protos=n_protos, rho=rho)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
 
         # This could be the learning rate for the server (not used in the official implementation)
         # server_lr = self.hyper_params.lr * self.hyper_params.lr_decay ** self.round

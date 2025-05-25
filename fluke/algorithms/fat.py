@@ -48,7 +48,7 @@ class FATClient(Client):
         self.sample_per_class = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):
-            self.sample_per_class[c] = uniq_count[i]
+            self.sample_per_class[c] = int(uniq_count[i])
 
         super().__init__(
             index=index,

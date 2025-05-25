@@ -8,7 +8,7 @@ References:
 
 import sys
 from dataclasses import dataclass
-from typing import Collection
+from typing import Sequence
 
 import torch
 
@@ -171,7 +171,7 @@ class FedRepServer(Server):
         self,
         model: torch.nn.Module,
         test_set: FastDataLoader,  # test_set is not used
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
     ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

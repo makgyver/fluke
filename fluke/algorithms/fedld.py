@@ -8,7 +8,7 @@ References:
 """
 
 import sys
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import CrossEntropyLoss, Module
@@ -186,7 +186,7 @@ class FedLDServer(Server):
         self,
         model: torch.nn.Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
         lr: float = 1.0,
         k_proportion: float = 0.8,
@@ -202,7 +202,7 @@ class FedLDServer(Server):
         }
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         client_models = list(client_models)
         local_clients_grads = [_get_client_grads(c_model, self.model) for c_model in client_models]
         grad_new, self.grad_history = pcgrad_svd(

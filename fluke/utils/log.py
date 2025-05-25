@@ -306,9 +306,9 @@ class DebugLog(Log):
 
         # Example logs
         # logger.debug("This is a [bold blue]debug[/] message.")
-        # logger.info("This is an [green]info[/] message.")
+        # logger.info("This is a [green]info[/] message.")
         # logger.warning("This is a [yellow]warning[/] message.")
-        # logger.error("This is an [red]error[/] message.")
+        # logger.error("This is a [red]error[/] message.")
         # logger.critical("This is a [bold red]critical[/] message.")
 
     def init(self, **kwargs) -> None:
@@ -551,7 +551,7 @@ class ClearMLLog(TensorboardLog):
     def __init__(self, **config):
         super().__init__(name=config["name"])
         self.config: DDict = DDict(**config)
-        self.task: clearml.task.Task = None
+        self.task: clearml.task.Task | None = None
 
     def init(self, **kwargs) -> None:
         super().init(**kwargs)

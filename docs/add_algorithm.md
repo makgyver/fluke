@@ -2,7 +2,7 @@
 
 ## Introduction
 
-In this section, we will show how to add a new algorithm to be used in ``fluke``. 
+In this section, we will show how to add a new algorithm to be used in ``fluke``.
 
 ```{eval-rst}
 
@@ -14,7 +14,7 @@ In this section, we will show how to add a new algorithm to be used in ``fluke``
 ```
 
 When a new federated learning algorithm is defined, its functioning can be described by detailing
-the behavior of the server and the clients. This is exactly what you need to do to add a new algorithm 
+the behavior of the server and the clients. This is exactly what you need to do to add a new algorithm
 to be used in ``fluke``. You must define:
 
 - The `Server` class that inherits from the [fluke.server.Server](#fluke.server.Server) class;
@@ -64,11 +64,11 @@ The configuration file of the algorithm must be structured as follows (please ma
     .. code-block:: yaml
       :linenos:
       :emphasize-lines: 1,2,3,11,12,13,20,21,22
-      
+
       # THIS IS KEY
       # The name of the algorithm must be the fully qualified name to the algorithm's class
       name: my_algorithm.MyAlgorithm
-      # Please refer to the algorithm's implementation to know which are its HPs 
+      # Please refer to the algorithm's implementation to know which are its HPs
       hyperparameters:
          # HPs of the clients
          client:
@@ -106,7 +106,7 @@ The configuration file of the algorithm must be structured as follows (please ma
       class MyServer(Server):
 
          # we override the aggregate method to implement our aggregation strategy
-         def aggregate(self, eligible: Collection[Client]) -> None:
+         def aggregate(self, eligible: Sequence[Client]) -> None:
             # eligible is a list of clients that participated in the last round
             # here we randomly select only two of them
 

@@ -8,7 +8,7 @@ References:
 
 import sys
 from copy import deepcopy
-from typing import Collection
+from typing import Sequence
 
 import torch
 
@@ -72,7 +72,7 @@ class FedPerServer(Server):
         self,
         model: torch.nn.Module,
         test_set: FastDataLoader,  # not used
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = False,
     ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)

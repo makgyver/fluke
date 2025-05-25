@@ -9,7 +9,7 @@ References:
 
 import copy
 import sys
-from typing import Collection, Generator, Literal
+from typing import Collection, Generator, Literal, Sequence
 
 import torch
 import torch.optim as optim
@@ -205,7 +205,7 @@ class FedHPServer(Server):
         self,
         model: nn.Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = True,
         n_protos: int = 10,
         embedding_size: int = 100,
@@ -282,7 +282,7 @@ class FedHPServer(Server):
         )
 
     def receive_client_models(
-        self, eligible: Collection[Client], state_dict: bool = False
+        self, eligible: Sequence[Client], state_dict: bool = False
     ) -> Generator[nn.Module, None, None]:
         for client in eligible:
             yield self.channel.receive("server", client.index, "prototypes").payload

@@ -9,7 +9,7 @@ References:
 import sys
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -139,7 +139,7 @@ class SCAFFOLDServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = True,
         global_step: float = 1.0,
         **kwargs,
@@ -151,13 +151,13 @@ class SCAFFOLDServer(Server):
         self.control = state_dict_zero_like(self.model.state_dict())
         self.hyper_params.update(global_step=global_step)
 
-    def broadcast_model(self, eligible: Collection[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
         self.channel.broadcast(Message(self.model, "model", "server"), [c.index for c in eligible])
         self.channel.broadcast(
             Message(self.control, "control", "server"), [c.index for c in eligible]
         )
 
-    def _get_client_weights(self, eligible: Collection[Client]) -> list[float]:
+    def _get_client_weights(self, eligible: Sequence[Client]) -> list[float]:
         weights = super()._get_client_weights(eligible)
         if self.hyper_params.global_step != 1:
             for c in range(len(eligible)):
@@ -165,7 +165,7 @@ class SCAFFOLDServer(Server):
         return weights
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         self.model.to(self.device)
 
         total_delta = state_dict_zero_like(self.model.state_dict())

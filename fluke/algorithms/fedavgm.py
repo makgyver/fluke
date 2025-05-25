@@ -8,7 +8,7 @@ References:
 
 import sys
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -31,7 +31,7 @@ class FedAVGMServer(Server):
     Args:
         model (Module): The model to be trained.
         test_set (FastDataLoader): The test data.
-        clients (Collection[Client]): The clients participating in the federated learning process.
+        clients (Sequence[Client]): The clients participating in the federated learning process.
         eval_every (int, optional): Evaluate the model every `eval_every` rounds. Defaults to 1.
         weighted (bool, optional): Use weighted averaging. Defaults to True.
         momentum (float, optional): The momentum hyper-parameter. Defaults to 0.9.
@@ -41,7 +41,7 @@ class FedAVGMServer(Server):
         self,
         model: Module,
         test_set: FastDataLoader,
-        clients: Collection[Client],
+        clients: Sequence[Client],
         weighted: bool = True,
         momentum: float = 0.9,
         **kwargs,
@@ -51,7 +51,7 @@ class FedAVGMServer(Server):
         self.momentum_vector = None
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         prev_model_sd = deepcopy(self.model.state_dict())
         super().aggregate(eligible, client_models)
         agg_model_sd = self.model.state_dict()
