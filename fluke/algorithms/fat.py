@@ -79,6 +79,7 @@ class FATClient(Client):
             model (nn.Module): The neural network model.
             inputs (Tensor): Input samples.
             targets (Tensor): True labels for the inputs.
+            eps (float): Maximum perturbation allowed.
             alpha (float): Step size for each iteration.
             iters (int): Number of attack iterations.
 

@@ -126,7 +126,7 @@ class MMMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lam: float | None = None
+        self.lam: float = 0.0
 
     def set_lambda(self, lam) -> None:
         """Set the interpolation constant.
@@ -796,12 +796,12 @@ def batch_norm_to_group_norm(layer: Module) -> Module:
     return layer
 
 
-def state_dict_zero_like(state_dict: OrderedDict) -> OrderedDict:
+def state_dict_zero_like(state_dict: dict) -> OrderedDict:
     """Create a state dictionary with the same keys as the input state dictionary but with zeros
     tensors.
 
     Args:
-        state_dict (OrderedDict): The state dictionary.
+        state_dict (dict): The state dictionary.
 
     Returns:
         OrderedDict: The state dictionary with zeros tensors.

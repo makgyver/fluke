@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
+from torch.optim.lr_scheduler import LRScheduler
 
 sys.path.append(".")
 sys.path.append("..")
@@ -110,7 +110,7 @@ class FedRODClient(Client):
         self._inner_modopt: ModOpt = ModOpt()
 
     @property
-    def inner_model(self) -> ModOpt:
+    def inner_model(self) -> torch.nn.Module:
         return self._inner_modopt.model
 
     @inner_model.setter
@@ -199,6 +199,7 @@ class FedRODClient(Client):
                 RODModel(self.model, self.inner_model),
                 test_set,
                 device=self.device,
+                loss_fn=None
             )
         return {}
 

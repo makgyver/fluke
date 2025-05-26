@@ -126,7 +126,7 @@ class CCVRServer(Server):
 
     def _generate_virtual_repr(
         self, classes_mean: Collection[torch.Tensor], classes_cov: Collection[torch.Tensor]
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
             if mean is not None and cov is not None:

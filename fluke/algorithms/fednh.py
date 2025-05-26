@@ -51,7 +51,7 @@ class ProtoNet(Module):
         self.prototypes.data = torch.nn.init.orthogonal_(torch.rand(n_protos, proto_size))
         self.temperature = Parameter(torch.tensor(1.0))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         embeddings = self.encoder(x)
         embeddings_norm = torch.norm(embeddings, p=2, dim=1, keepdim=True).clamp(min=1e-12)
         embeddings = torch.div(embeddings, embeddings_norm)

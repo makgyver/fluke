@@ -55,8 +55,8 @@ class FedNovaClient(Client):
 
     def _get_momentum(self) -> float:
         if self.optimizer is None:
-            if "momentum" in self._optimizer_cfg.optimizer_kwargs:
-                return self._optimizer_cfg.optimizer_kwargs["momentum"]
+            if "momentum" in self._optimizer_cfg.optimizer_cfg:
+                return self._optimizer_cfg.optimizer_cfg["momentum"]
             else:
                 return 0
         else:

@@ -37,7 +37,7 @@ class ProtoNet(nn.Module):
         self._encoder = encoder
         self.prototypes = nn.Parameter(torch.rand((n_protos, proto_size)), requires_grad=True)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         embeddings = self._encoder(x)
         dists = -torch.norm(embeddings[:, None, :] - self.prototypes[None, :, :], dim=-1)
         return embeddings, dists

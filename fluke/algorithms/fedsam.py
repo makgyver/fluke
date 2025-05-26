@@ -32,7 +32,7 @@ class SAMOptimizer(torch.optim.Optimizer):
     def __init__(
         self,
         params: Union[Collection[torch.Tensor], Collection[dict[str, Any]]],
-        base_optimizer: Optimizer = torch.optim.SGD,
+        base_optimizer: type[Optimizer] = type[torch.optim.SGD],
         rho: float = 0.05,
         adaptive: bool = False,
         **kwargs,

@@ -54,9 +54,9 @@ class SCAFFOLDClient(Client):
             clipping=clipping,
             **kwargs,
         )
-        self.control: OrderedDict = None
-        self.delta_control: OrderedDict = None
-        self.server_control: OrderedDict = None
+        self.control: OrderedDict | None = None
+        self.delta_control: OrderedDict | None = None
+        self.server_control: OrderedDict | None = None
         self._attr_to_cache.extend(["control", "delta_control", "server_control"])
 
     def receive_model(self) -> None:

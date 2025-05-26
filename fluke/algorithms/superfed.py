@@ -101,7 +101,7 @@ class SuPerFedClient(PFLClient):
                     if self.hyper_params.mode == "mm":
                         set_lambda_model(self.personalized_model, np.random.uniform(0.0, 1.0))
                     elif self.hyper_params.mode == "lm":
-                        set_lambda_model(self.personalized_model, None, layerwise=True)
+                        set_lambda_model(self.personalized_model, 0.0, layerwise=True)
 
                 self.pers_optimizer.zero_grad()
                 y_hat = self.personalized_model(X)

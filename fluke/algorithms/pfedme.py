@@ -78,7 +78,7 @@ class PFedMeClient(Client):
             **kwargs,
         )
         self.hyper_params.update(k=k)
-        self.internal_model: Module = None
+        self.internal_model: Module | None = None
         self._attr_to_cache.append("internal_model")
 
     def receive_model(self) -> None:
@@ -112,6 +112,7 @@ class PFedMeClient(Client):
 
         lamda = self.optimizer.defaults["lamda"]
         running_loss = 0.0
+        loss = 0.0
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)

@@ -30,7 +30,7 @@ from . import CentralizedFL  # NOQA
 __all__ = ["FedDynClient", "FedDynServer", "FedDyn"]
 
 
-def get_all_params_of(model: torch.Tensor, copy: bool = True) -> torch.Tensor:
+def get_all_params_of(model: Module, copy: bool = True) -> torch.Tensor:
     result = None
     for param in model.parameters():
         if not param.requires_grad:
@@ -196,7 +196,9 @@ class FedDynServer(Server):
             Message((self.model, self.cld_mdl), "model", "server"), [c.index for c in eligible]
         )
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
+    def fit(
+            self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
+    ) -> None:
 
         # Weight computation
         for client in self.clients:

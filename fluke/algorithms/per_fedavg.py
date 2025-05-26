@@ -102,7 +102,7 @@ class PerFedAVGClient(Client):
         model: torch.nn.Module,
         data_batch: tuple[torch.Tensor, torch.Tensor],
         v: Union[tuple[torch.Tensor, ...], None] = None,
-    ) -> list[torch.Tensor]:
+    ) -> tuple[torch.Tensor, ...]:
         X, y = data_batch
         X, y = X.to(self.device), y.to(self.device)
         if v is not None:
@@ -131,7 +131,7 @@ class PerFedAVGClient(Client):
             with torch.no_grad():
                 for g1, g2 in zip(grads_1, grads_2):
                     grads.append((g1 - g2) / (2 * delta))
-            return grads
+            return tuple(grads)
         else:
             logit = model(X)
             loss = self.hyper_params.loss_fn(logit, y)
