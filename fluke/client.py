@@ -111,8 +111,8 @@ class Client(ObserverSubject):
     def __init__(
         self,
         index: int,
-        train_set: FastDataLoader,
-        test_set: FastDataLoader,
+        train_set: FastDataLoader | DataLoader,
+        test_set: FastDataLoader | DataLoader,
         optimizer_cfg: OptimizerConfigurator,
         loss_fn: Module,
         local_epochs: int = 3,
@@ -122,8 +122,8 @@ class Client(ObserverSubject):
         **kwargs,
     ):
         super().__init__()
-        self.train_set: FastDataLoader = train_set
-        self.test_set: FastDataLoader = test_set
+        self.train_set: FastDataLoader | DataLoader = train_set
+        self.test_set: FastDataLoader | DataLoader = test_set
         self.device: device = FlukeENV().get_device()
         self.hyper_params: DDict = DDict(
             loss_fn=loss_fn,
@@ -231,7 +231,7 @@ class Client(ObserverSubject):
         if isinstance(self.train_set, FastDataLoader):
             return self.train_set.size
         elif isinstance(self.train_set, DataLoader):
-            return self.train_set.dataset.size
+            return len(self.train_set.dataset)
         else:
             raise TypeError("The train_set must be a FastDataLoader or a DataLoader")
 
