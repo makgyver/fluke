@@ -52,7 +52,7 @@ class Client(ObserverSubject):
         train_set (FastDataLoader): The local training set.
         test_set (FastDataLoader): The local test set.
         device (torch.device): The device where the client trains the model. By default, it is the
-          device defined in :class:`fluke.FlukeENV`.
+            device defined in :class:`fluke.FlukeENV`.
 
     Args:
         index (int): The client identifier. This might be useful to identify the client in the
