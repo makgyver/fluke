@@ -16,6 +16,7 @@ from torch.nn import Module
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
@@ -166,6 +167,15 @@ class FedProtoClient(Client):
     def finalize(self) -> None:
         self._load_from_cache()
         self.fit(self.hyper_params.fine_tuning_epochs)
+        metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
+        if metrics:
+            self.notify(
+                event="client_evaluation",
+                round=-1,
+                client_id=self.index,
+                phase="post-fit",
+                evals=metrics,
+            )
         self._save_to_cache()
 
 
