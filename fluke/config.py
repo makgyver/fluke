@@ -27,7 +27,11 @@ __all__ = ["Configuration", "ConfigurationError", "OptimizerConfigurator"]
 class ConfigurationError(Exception):
     """Exception raised when the configuration is not valid."""
 
-    pass
+    def __init__(self, message: str = "Invalid configuration.", errors_dict: Optional[dict] = None):
+        super().__init__(message)
+        rich_print(f"[red]ConfigurationError:[/red] {message}")
+        if errors_dict is not None:
+            rich_print(errors_dict)
 
 
 class Configuration(DDict):
@@ -375,9 +379,7 @@ class Configuration(DDict):
             errors.update(save=save_errors)
 
         if not valid_result:
-            rich_print("[red]Invalid configuration:[/red]")
-            rich_print(errors)
-            raise ConfigurationError()
+            raise ConfigurationError(errors_dict=errors)
 
         clean_cfg = validator.document
         clean_cfg["save"] = save_valid_result

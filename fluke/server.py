@@ -64,11 +64,11 @@ class Server(ObserverSubject):
         device(torch.device): The device where the server runs.
         model(torch.nn.Module): The federated model to be trained.
         clients(Sequence[Client]): The clients that will participate in the federated learning
-          process.
+            process.
         n_clients(int): The number of clients that will participate in the federated learning
         rounds(int): The number of rounds that have been executed.
         test_set(FastDataLoader): The test data to evaluate the model. If None, the model
-          will not be evaluated server-side.
+            will not be evaluated server-side.
 
     Args:
         model(torch.nn.Module): The federated model to be trained.
