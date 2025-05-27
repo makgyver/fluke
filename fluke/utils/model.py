@@ -39,6 +39,7 @@ __all__ = [
     "get_trainable_keys",
     "merge_models",
     "mix_networks",
+    "optimizer_to",
     "set_lambda_model",
     "safe_load_state_dict",
     "state_dict_zero_like",
@@ -749,6 +750,27 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict) -> None:
         else:
             new_state_dict[key] = model1_state_dict[key]
     model1.load_state_dict(new_state_dict)
+
+
+def optimizer_to(optim: torch.optim.Optimizer, device: str) -> None:
+    """Move the optimizer state to the specified device.
+
+    Args:
+        optim (torch.optim.Optimizer): The optimizer to move.
+        device (str): The device to move the optimizer state to.
+    """
+    for param in optim.state.values():
+        # Not sure there are any global tensors in the state dict
+        if isinstance(param, torch.Tensor):
+            param.data = param.data.to(device)
+            if param._grad is not None:
+                param._grad.data = param._grad.data.to(device)
+        elif isinstance(param, dict):
+            for subparam in param.values():
+                if isinstance(subparam, torch.Tensor):
+                    subparam.data = subparam.data.to(device)
+                    if subparam._grad is not None:
+                        subparam._grad.data = subparam._grad.data.to(device)
 
 
 def batch_norm_to_group_norm(layer: Module) -> Module:

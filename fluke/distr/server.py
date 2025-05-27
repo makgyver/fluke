@@ -10,11 +10,11 @@ sys.path.append(".")
 sys.path.append("..")
 
 from .. import FlukeENV  # NOQA
-from .client import ParallelClient  # NOQA
 from ..config import ConfigurationError  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..server import EarlyStopping, Server  # NOQA
+from .client import ParallelClient  # NOQA
 
 __all__ = ["ParallelServer"]
 
@@ -71,7 +71,7 @@ class ParallelServer(Server):
         for client in eligible:
             trainer_queue.put(client)
 
-        self.available_gpus = (f"cuda:{i}" for i in FlukeENV().get_device_ids())
+        self.available_gpus = [f"cuda:{i}" for i in FlukeENV().get_device_ids()]
         result_queue = self.manager.Queue()
         current_model = deepcopy(self.model.state_dict())
         current_round = self.rounds + 1

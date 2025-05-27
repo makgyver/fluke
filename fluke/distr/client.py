@@ -10,13 +10,18 @@ sys.path.append("..")
 from ..client import Client  # NOQA
 from ..evaluation import Evaluator  # NOQA
 from ..utils.model import ModOpt  # NOQA
-from ..utils.model import safe_load_state_dict  # NOQA
+from ..utils.model import optimizer_to, safe_load_state_dict  # NOQA
+from .utils import ModelBuilder  # NOQA
 
 __all__ = ["ParallelClient"]
 
 
 class ParallelClient(Client):
     """A client that can be used in a parallel setting."""
+
+    def __init__(self, builder: ModelBuilder, *args: Any, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._builder = builder
 
     def __getstate__(self) -> dict[str, Any]:
         """Get the state of the client as a dictionary. This method is used to serialize the client
@@ -31,6 +36,7 @@ class ParallelClient(Client):
         state["train_set"] = self.train_set
         state["test_set"] = self.test_set
         state["hyper_params"] = self.hyper_params
+        state["builder"] = self._builder
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
@@ -40,17 +46,14 @@ class ParallelClient(Client):
         Args:
             state (dict): The state of the client.
         """
-        from fluke.nets import MNIST_CNN
-
         self._modopt = ModOpt()
+        self._builder = state["builder"]
         if self.model is None:
-            self.model = MNIST_CNN()
+            self.model = self._builder.build()
         self._optimizer_cfg = state["optimizer_cfg"]
         if state["modopt"]["model"] is not None:
             self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
             self._modopt.load_state_dict(state["modopt"])
-        # else:
-        #     self.model = None
 
         self._index = state["index"]
         self._last_round = state["last_round"]
@@ -71,7 +74,6 @@ class ParallelClient(Client):
         self.device = device
 
         self._last_round = current_round
-        # self._load_from_cache()
         safe_load_state_dict(self.model, current_model_sd)
 
         eval_results = {}
@@ -81,13 +83,13 @@ class ParallelClient(Client):
                 eval_results["pre-fit"] = metrics
 
         loss = self.fit()
+        optimizer_to(self.optimizer, "cpu")
 
         if evaluator is not None and postfit:
             metrics = self.evaluate(evaluator, self.test_set)
             if metrics:
                 eval_results["post-fit"] = metrics
 
-        # self._save_to_cache()
         return self._modopt, loss, self.index, eval_results
 
     def send_model(self):
