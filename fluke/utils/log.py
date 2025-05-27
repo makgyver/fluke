@@ -180,7 +180,6 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         evals: dict[str, float],
         **kwargs,
     ) -> None:
-
         if round == -1:
             round = self.current_round + 1
         dict_ref = self.prefit_eval if phase == "pre-fit" else self.postfit_eval
@@ -214,25 +213,53 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         stats = {}
 
         # Pre-fit summary
-        if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = (
-                DataFrame(self.prefit_eval[round].values()).mean(numeric_only=True).to_dict()
-            )
-            client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
-            self.prefit_eval_summary[round] = client_mean
-            stats["pre-fit"] = client_mean
+        if self.prefit_eval:
+
+            if round in self.prefit_eval and self.prefit_eval[round]:
+                last_round = round
+            else:
+                last_round = max(self.prefit_eval.keys())
+            if last_round not in self.prefit_eval_summary:
+                client_mean = (
+                    DataFrame(self.prefit_eval[last_round].values())
+                    .mean(numeric_only=True)
+                    .to_dict()
+                )
+                client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+                self.prefit_eval_summary[last_round] = client_mean
+
+            stats["pre-fit"] = self.prefit_eval_summary[last_round]
+            stats["pre-fit"]["round"] = last_round
 
         # Locals summary
         if self.locals_eval:
-            stats["locals"] = self.locals_eval_summary[max(self.locals_eval.keys())]
+            last_round = max(self.locals_eval.keys())
+            stats["locals"] = self.locals_eval_summary[last_round]
+            stats["locals"]["round"] = last_round
 
         # Post-fit summary
         if self.postfit_eval:
-            stats["post-fit"] = self.postfit_eval_summary[max(self.postfit_eval.keys())]
+            if round in self.postfit_eval and self.postfit_eval[round]:
+                last_round = round
+            else:
+                last_round = max(self.postfit_eval.keys())
+
+            if last_round not in self.postfit_eval_summary:
+                client_mean = (
+                    DataFrame(self.postfit_eval[last_round].values())
+                    .mean(numeric_only=True)
+                    .to_dict()
+                )
+                client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+                self.postfit_eval_summary[last_round] = client_mean
+            stats["post-fit"] = self.postfit_eval_summary[last_round]
+            stats["post-fit"]["round"] = last_round
 
         # Global summary
         if self.global_eval:
-            stats["global"] = self.global_eval[max(self.global_eval.keys())]
+            last_round = max(self.global_eval.keys())
+            stats["global"] = self.global_eval[last_round]
+            stats["global"]["round"] = last_round
 
         if stats:
             rich_print(
