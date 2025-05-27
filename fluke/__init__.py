@@ -49,6 +49,7 @@ __all__ = [
     "comm",
     "config",
     "data",
+    "distr",
     "evaluation",
     "get",
     "nets",
@@ -62,7 +63,7 @@ __all__ = [
     "Singleton",
 ]
 
-__version__ = "0.7.8"
+__version__ = "0.7.9"
 __author__ = "Mirko Polato"
 __email__ = "mirko.polato@unito.it"
 __license__ = "LGPLv2.1"
@@ -339,7 +340,6 @@ class FlukeENV(metaclass=Singleton):
     _save_path: str = None
     _save_every: int = 0
     _global_only: bool = False
-    _temp_path: str = None
 
     # evaluation settings
     _evaluator: Evaluator = None
