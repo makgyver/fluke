@@ -31,6 +31,13 @@ from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 __all__ = ["Log", "DebugLog", "TensorboardLog", "WandBLog", "ClearMLLog", "get_logger"]
 
 
+# Helper function to compute the mean of evaluations across clients
+def _compute_mean(evals: dict[str, float], round: int) -> dict[str, float]:
+    df_data = DataFrame(evals[round].values())
+    client_mean = df_data.mean(numeric_only=True).to_dict()
+    return {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+
+
 class Log(ServerObserver, ChannelObserver, ClientObserver):
     """Basic logger.
     This class is used to log the performance of the global model and the communication costs during
@@ -130,28 +137,19 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         stats = {}
         # Pre-fit summary
         if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = (
-                DataFrame(self.prefit_eval[round].values()).mean(numeric_only=True).to_dict()
-            )
-            client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+            client_mean = _compute_mean(self.prefit_eval, round)
             self.prefit_eval_summary[round] = client_mean
             stats["pre-fit"] = client_mean
 
         # Post-fit summary
         if self.postfit_eval and round in self.postfit_eval and self.postfit_eval[round]:
-            client_mean = (
-                DataFrame(self.postfit_eval[round].values()).mean(numeric_only=True).to_dict()
-            )
-            client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+            client_mean = _compute_mean(self.postfit_eval, round)
             self.postfit_eval_summary[round] = client_mean
             stats["post-fit"] = client_mean
 
         # Locals summary
         if self.locals_eval and round in self.locals_eval and self.locals_eval[round]:
-            client_mean = (
-                DataFrame(list(self.locals_eval[round].values())).mean(numeric_only=True).to_dict()
-            )
-            client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+            client_mean = _compute_mean(self.locals_eval, round)
             self.locals_eval_summary[round] = client_mean
             stats["locals"] = self.locals_eval_summary[round]
 
@@ -214,18 +212,12 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Pre-fit summary
         if self.prefit_eval:
-
             if round in self.prefit_eval and self.prefit_eval[round]:
                 last_round = round
             else:
                 last_round = max(self.prefit_eval.keys())
             if last_round not in self.prefit_eval_summary:
-                client_mean = (
-                    DataFrame(self.prefit_eval[last_round].values())
-                    .mean(numeric_only=True)
-                    .to_dict()
-                )
-                client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+                client_mean = _compute_mean(self.prefit_eval, round)
                 self.prefit_eval_summary[last_round] = client_mean
 
             stats["pre-fit"] = self.prefit_eval_summary[last_round]
@@ -233,7 +225,14 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
         # Locals summary
         if self.locals_eval:
-            last_round = max(self.locals_eval.keys())
+            if round in self.locals_eval and self.locals_eval[round]:
+                last_round = round
+            else:
+                last_round = max(self.locals_eval.keys())
+            if last_round not in self.locals_eval_summary:
+                client_mean = _compute_mean(self.locals_eval, round)
+                self.locals_eval_summary[last_round] = client_mean
+
             stats["locals"] = self.locals_eval_summary[last_round]
             stats["locals"]["round"] = last_round
 
@@ -245,13 +244,9 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
                 last_round = max(self.postfit_eval.keys())
 
             if last_round not in self.postfit_eval_summary:
-                client_mean = (
-                    DataFrame(self.postfit_eval[last_round].values())
-                    .mean(numeric_only=True)
-                    .to_dict()
-                )
-                client_mean = {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
+                client_mean = _compute_mean(self.postfit_eval, round)
                 self.postfit_eval_summary[last_round] = client_mean
+
             stats["post-fit"] = self.postfit_eval_summary[last_round]
             stats["post-fit"]["round"] = last_round
 
@@ -467,14 +462,17 @@ class TensorboardLog(Log):
         self._writer.add_scalar("comm_costs", self.comm_costs[round], round)
         self._writer.flush()
 
-        if self.prefit_eval_summary and round in self.prefit_eval_summary:
-            self._report("pre-fit", self.prefit_eval_summary[round], round)
+        if self.prefit_eval_summary:
+            last_round = max(self.prefit_eval_summary.keys())
+            self._report("pre-fit", self.prefit_eval_summary[last_round], last_round)
 
-        if self.postfit_eval_summary and round in self.postfit_eval_summary:
-            self._report("post-fit", self.postfit_eval_summary[round], round)
+        if self.postfit_eval_summary:
+            last_round = max(self.postfit_eval_summary.keys())
+            self._report("post-fit", self.postfit_eval_summary[last_round], last_round)
 
-        if self.locals_eval_summary and round in self.locals_eval_summary:
-            self._report("locals", self.locals_eval_summary[round], round)
+        if self.locals_eval_summary:
+            last_round = max(self.locals_eval_summary.keys())
+            self._report("locals", self.locals_eval_summary[last_round], last_round)
 
         self._writer.flush()
 
@@ -534,10 +532,10 @@ class WandBLog(Log):
         self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
 
         if self.prefit_eval_summary and round in self.prefit_eval_summary:
-            self.run.log({"prefit": self.prefit_eval_summary[round]}, step=round)
+            self.run.log({"pre-fit": self.prefit_eval_summary[round]}, step=round)
 
         if self.postfit_eval_summary and round in self.postfit_eval_summary:
-            self.run.log({"postfit": self.postfit_eval_summary[round]}, step=round)
+            self.run.log({"post-fit": self.postfit_eval_summary[round]}, step=round)
 
         if self.locals_eval_summary and round in self.locals_eval_summary:
             self.run.log({"locals": self.locals_eval_summary[round]}, step=round)
@@ -545,11 +543,26 @@ class WandBLog(Log):
     def finished(self, round: int) -> None:
         super().finished(round)
 
-        if self.prefit_eval_summary and round in self.prefit_eval_summary:
-            self.run.log({"prefit": self.prefit_eval_summary[round]}, step=round)
+        server_last_round = max(self.global_eval.keys())
+        self.run.log({"global": self.global_eval[server_last_round]}, step=server_last_round)
 
-        if self.locals_eval_summary and round in self.locals_eval_summary:
-            self.run.log({"locals": self.locals_eval_summary[round]}, step=round)
+        if self.prefit_eval_summary:
+            last_round = max(self.prefit_eval_summary.keys())
+            # avoid warning
+            if server_last_round <= last_round:
+                self.run.log({"pre-fit": self.prefit_eval_summary[last_round]}, step=last_round)
+
+        if self.postfit_eval_summary:
+            last_round = max(self.postfit_eval_summary.keys())
+            # avoid warning
+            if server_last_round <= last_round:
+                self.run.log({"post-fit": self.postfit_eval_summary[last_round]}, step=last_round)
+
+        if self.locals_eval_summary:
+            last_round = max(self.locals_eval_summary.keys())
+            # avoid warning
+            if server_last_round <= last_round:
+                self.run.log({"locals": self.locals_eval_summary[last_round]}, step=last_round)
 
     def close(self) -> None:
         self.run.finish()

@@ -236,7 +236,7 @@ class Server(ObserverSubject):
         """
         if self.rounds == 0:
             return
-        self._compute_evaluation(self.rounds, self.clients)
+        self._compute_evaluation(self.rounds - 1, self.clients)
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
