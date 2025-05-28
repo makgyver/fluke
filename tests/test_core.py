@@ -108,15 +108,7 @@ def test_observer():
 
 
 def test_ddict():
-    dd = DDict(**{
-        "a": 1,
-        "b": 2,
-        "c": {
-            "d": 3,
-            "e": 4,
-            "f": ["g", "h", "i"]
-        }
-    })
+    dd = DDict(**{"a": 1, "b": 2, "c": {"d": 3, "e": 4, "f": ["g", "h", "i"]}})
 
     assert dd.a == 1
     assert dd.b == 2
@@ -137,7 +129,7 @@ def test_ddict():
     dd2 = DDict({"a": 1, "b": 2}, c=3)
     assert dd.match(dd2)
     assert dd2.match(dd, full=True)
-    
+
     assert dd.diff(dd2) == {}
     print(dd)
     del dd2["c"]
@@ -145,10 +137,13 @@ def test_ddict():
     assert dd.match(dd2, full=False)
     d = DDict(a=1, b=2, c=3, e=DDict(a=1, b=2, c=3))
     e = DDict(a=1, b=3, c=4, e=DDict(a=1, b=1))
-    assert d.diff(e) == {'b': 3, 'c': 4, 'e': {'b': 1}}
-    assert e.diff(d) == {'b': 2, 'c': 3, 'e': {'b': 2, 'c': 3}}
+    assert d.diff(e) == {"b": 3, "c": 4, "e": {"b": 1}}
+    assert e.diff(d) == {"b": 2, "c": 3, "e": {"b": 2, "c": 3}}
     assert not d.match(e)
 
+    f = DDict(b=2, c=3, e=DDict(c=9 // 3, a=1, b=2))
+    f["a"] = 1
+    assert d.hash() == f.hash()
 
 
 if __name__ == "__main__":

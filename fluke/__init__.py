@@ -5,6 +5,8 @@ classes used by the other modules.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import random
 import re
 import shutil
@@ -241,6 +243,18 @@ class DDict(dict):
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
+
+    def hash(self) -> str:
+        """Returns a SHA-256 hash of the dictionary contents.
+
+        This is useful to check if the dictionary has changed or not, for example, when
+        comparing configurations or parameters.
+
+        Returns:
+            str: The SHA-256 hash of the dictionary contents.
+        """
+        dict_str = json.dumps(self, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(dict_str.encode("utf-8")).hexdigest()
 
 
 class ObserverSubject:
