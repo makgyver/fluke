@@ -364,7 +364,7 @@ class DebugLog(Log):
         super().server_evaluation(round, eval_type, evals, **kwargs)
 
     def finished(self, round: int) -> None:
-        self.logger.debug(f"Round {round} completed")
+        self.logger.debug(f"Federation ended successfully after round {round - 1}")
         return super().finished(round)
 
     def interrupted(self) -> None:
@@ -391,7 +391,10 @@ class DebugLog(Log):
         evals: dict[str, float],
         **kwargs,
     ) -> None:
-        self.logger.debug(f"Client[{client_id}] {phase} evaluation for round {round}")
+        if round >= 0:
+            self.logger.debug(f"Client[{client_id}] {phase} evaluation for round {round}")
+        else:
+            self.logger.debug(f"Client[{client_id}] {phase} evaluation after final round")
         self.logger.debug(evals)
         return super().client_evaluation(round, client_id, phase, evals, **kwargs)
 
