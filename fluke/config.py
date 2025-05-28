@@ -119,7 +119,8 @@ class Configuration(DDict):
             list[Configuration]: A list of configurations.
         """
         cfgs = Configuration(config_exp_path, config_alg_path, force_validation=False)
-        return Configuration.__sweep(cfgs)
+        all_configs = Configuration.__sweep(cfgs)
+        return [Configuration.from_dict(cfg) for cfg in all_configs]
 
     @staticmethod
     def __sweep(cfgs: DDict | dict) -> list[Configuration]:
@@ -248,8 +249,8 @@ class Configuration(DDict):
                         {"type": "list"},
                     ],
                 },
-                "seed": {"type": "integer", "required": False, "default": 42},
-                "inmemory": {"type": "boolean", "required": False, "default": True},
+                "seed": {"type": "integer", "required": True, "default": 42},
+                "inmemory": {"type": "boolean", "required": True, "default": True},
             },
         },
         "eval": {

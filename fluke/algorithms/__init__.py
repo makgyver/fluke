@@ -248,9 +248,9 @@ class CentralizedFL(ServerObserver):
 
         Args:
             clients_tr_data (list[FastDataLoader]): List of training data loaders, one for
-               each client.
+                each client.
             clients_te_data (list[FastDataLoader]): List of test data loaders, one for
-               each client. The test data loaders can be ``None``.
+                each client. The test data loaders can be ``None``.
             config (DDict): Configuration of the clients.
 
         Important:

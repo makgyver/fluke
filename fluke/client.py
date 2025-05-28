@@ -515,11 +515,6 @@ class Client(ObserverSubject):
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)
 
-    def notify(self, event: str, **kwargs) -> None:
-        for obs in self._observers:
-            if hasattr(obs, event):
-                getattr(obs, event)(**kwargs)
-
     def _load_from_cache(self) -> None:
         """Load the model, optimizer, and scheduler from the cache.
         The method retrieves the model, optimizer, and scheduler from the cache and sets them as
