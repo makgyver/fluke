@@ -138,24 +138,24 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         # Pre-fit summary
         if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
             client_mean = _compute_mean(self.prefit_eval, round)
-            self.prefit_eval_summary[round] = client_mean
+            self.prefit_eval_summary[round] = client_mean.copy()
             stats["pre-fit"] = client_mean
 
         # Post-fit summary
         if self.postfit_eval and round in self.postfit_eval and self.postfit_eval[round]:
             client_mean = _compute_mean(self.postfit_eval, round)
-            self.postfit_eval_summary[round] = client_mean
+            self.postfit_eval_summary[round] = client_mean.copy()
             stats["post-fit"] = client_mean
 
         # Locals summary
         if self.locals_eval and round in self.locals_eval and self.locals_eval[round]:
             client_mean = _compute_mean(self.locals_eval, round)
-            self.locals_eval_summary[round] = client_mean
+            self.locals_eval_summary[round] = client_mean.copy()
             stats["locals"] = self.locals_eval_summary[round]
 
         # Global summary
         if self.global_eval and round in self.global_eval and self.global_eval[round]:
-            stats["global"] = self.global_eval[round]
+            stats["global"] = self.global_eval[round].copy()
 
         stats["comm_cost"] = self.comm_costs[round]
         proc = Process(os.getpid())
@@ -217,10 +217,10 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             else:
                 last_round = max(self.prefit_eval.keys())
             if last_round not in self.prefit_eval_summary:
-                client_mean = _compute_mean(self.prefit_eval, round)
+                client_mean = _compute_mean(self.prefit_eval, last_round)
                 self.prefit_eval_summary[last_round] = client_mean
 
-            stats["pre-fit"] = self.prefit_eval_summary[last_round]
+            stats["pre-fit"] = self.prefit_eval_summary[last_round].copy()
             stats["pre-fit"]["round"] = last_round
 
         # Locals summary
@@ -230,10 +230,10 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             else:
                 last_round = max(self.locals_eval.keys())
             if last_round not in self.locals_eval_summary:
-                client_mean = _compute_mean(self.locals_eval, round)
+                client_mean = _compute_mean(self.locals_eval, last_round)
                 self.locals_eval_summary[last_round] = client_mean
 
-            stats["locals"] = self.locals_eval_summary[last_round]
+            stats["locals"] = self.locals_eval_summary[last_round].copy()
             stats["locals"]["round"] = last_round
 
         # Post-fit summary
@@ -244,16 +244,16 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
                 last_round = max(self.postfit_eval.keys())
 
             if last_round not in self.postfit_eval_summary:
-                client_mean = _compute_mean(self.postfit_eval, round)
+                client_mean = _compute_mean(self.postfit_eval, last_round)
                 self.postfit_eval_summary[last_round] = client_mean
 
-            stats["post-fit"] = self.postfit_eval_summary[last_round]
+            stats["post-fit"] = self.postfit_eval_summary[last_round].copy()
             stats["post-fit"]["round"] = last_round
 
         # Global summary
         if self.global_eval:
             last_round = max(self.global_eval.keys())
-            stats["global"] = self.global_eval[last_round]
+            stats["global"] = self.global_eval[last_round].copy()
             stats["global"]["round"] = last_round
 
         if stats:

@@ -10,20 +10,45 @@ from torch.nn import CrossEntropyLoss, Linear
 from torch.optim import SGD
 from torch.optim.lr_scheduler import StepLR
 
-from fluke.utils import (ClientObserver, ServerObserver, bytes2human,
-                         cache_obj, clear_cuda_cache, flatten_dict,
-                         get_class_from_qualified_name, get_class_from_str,
-                         get_full_classname, get_loss, get_model,
-                         get_optimizer, get_scheduler, import_module_from_str,
-                         memory_usage, plot_distribution, retrieve_obj)
-from fluke.utils.model import (AllLayerOutputModel, MMMixin, aggregate_models,
-                               batch_norm_to_group_norm, check_model_fit_mem,
-                               diff_model, flatten_parameters,
-                               get_activation_size, get_global_model_dict,
-                               get_local_model_dict, get_output_shape,
-                               get_trainable_keys, merge_models, mix_networks,
-                               safe_load_state_dict, set_lambda_model,
-                               state_dict_zero_like, unwrap)
+from fluke.utils import (
+    ClientObserver,
+    ServerObserver,
+    bytes2human,
+    cache_obj,
+    clear_cuda_cache,
+    flatten_dict,
+    get_class_from_qualified_name,
+    get_class_from_str,
+    get_full_classname,
+    get_loss,
+    get_model,
+    get_optimizer,
+    get_scheduler,
+    import_module_from_str,
+    memory_usage,
+    plot_distribution,
+    retrieve_obj,
+)
+from fluke.utils.model import (
+    AllLayerOutputModel,
+    MMMixin,
+    aggregate_models,
+    batch_norm_to_group_norm,
+    check_model_fit_mem,
+    diff_model,
+    flatten_parameters,
+    get_activation_size,
+    get_global_model_dict,
+    get_local_model_dict,
+    get_output_shape,
+    get_trainable_keys,
+    merge_models,
+    mix_networks,
+    safe_load_state_dict,
+    set_lambda_model,
+    state_dict_zero_like,
+    unwrap,
+)
 
 sys.path.append(".")
 sys.path.append("..")
@@ -33,8 +58,7 @@ from fluke import DDict, FlukeENV  # NOQA
 from fluke.algorithms import CentralizedFL  # NOQA
 from fluke.client import Client  # NOQA
 from fluke.comm import Message  # NOQA
-from fluke.config import (Configuration, ConfigurationError,  # NOQA
-                          OptimizerConfigurator)
+from fluke.config import Configuration, ConfigurationError, OptimizerConfigurator  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
 from fluke.nets import MNIST_2NN, VGG9, FedBN_CNN, Shakespeare_LSTM  # NOQA
@@ -45,44 +69,24 @@ from fluke.utils.model import STATE_DICT_KEYS_TO_IGNORE  # NOQA
 
 def test_optimcfg():
     opt_cfg = OptimizerConfigurator(
-        optimizer_cfg=dict(name=SGD,
-                           lr=0.1,
-                           momentum=0.9),
-        scheduler_cfg=dict(
-            step_size=1,
-            gamma=.1
-        ),
+        optimizer_cfg=dict(name=SGD, lr=0.1, momentum=0.9),
+        scheduler_cfg=dict(step_size=1, gamma=0.1),
     )
 
     assert opt_cfg.optimizer == SGD
-    assert opt_cfg.scheduler_cfg == {
-        "step_size": 1,
-        "gamma": 0.1
-    }
+    assert opt_cfg.scheduler_cfg == {"step_size": 1, "gamma": 0.1}
 
-    assert opt_cfg.optimizer_cfg == {
-        "lr": 0.1,
-        "momentum": 0.9
-    }
+    assert opt_cfg.optimizer_cfg == {"lr": 0.1, "momentum": 0.9}
 
     opt_cfg = OptimizerConfigurator(
-        optimizer_cfg=DDict(name="SGD",
-                            lr=0.1,
-                            momentum=0.9),
-        scheduler_cfg=DDict(
-            name=StepLR,
-            step_size=1,
-            gamma=.1
-        ),
+        optimizer_cfg=DDict(name="SGD", lr=0.1, momentum=0.9),
+        scheduler_cfg=DDict(name=StepLR, step_size=1, gamma=0.1),
     )
 
     assert opt_cfg.optimizer == SGD
     assert opt_cfg.scheduler == StepLR
 
-    assert opt_cfg.optimizer_cfg == {
-        "lr": 0.1,
-        "momentum": 0.9
-    }
+    assert opt_cfg.optimizer_cfg == {"lr": 0.1, "momentum": 0.9}
 
     opt, sch = opt_cfg(Linear(10, 10))
 
@@ -92,47 +96,30 @@ def test_optimcfg():
     assert opt.defaults["momentum"] == 0.9
     assert sch.step_size == 1
     assert sch.gamma == 0.1
-    assert str(opt_cfg).replace(" ", "").replace("\n", "").replace(
-        "\t", "") == "OptCfg(SGD,lr=0.1,momentum=0.9,StepLR(step_size=1,gamma=0.1))"
+    assert (
+        str(opt_cfg).replace(" ", "").replace("\n", "").replace("\t", "")
+        == "OptCfg(SGD,lr=0.1,momentum=0.9,StepLR(step_size=1,gamma=0.1))"
+    )
     assert str(opt_cfg) == opt_cfg.__repr__()
 
     with pytest.raises(ValueError):
-        opt_cfg = OptimizerConfigurator(
-            optimizer_cfg=dict(name=1,
-                               lr=0.1,
-                               momentum=0.9))
+        opt_cfg = OptimizerConfigurator(optimizer_cfg=dict(name=1, lr=0.1, momentum=0.9))
     with pytest.raises(ValueError):
         opt_cfg = OptimizerConfigurator(
-            optimizer_cfg=DDict(name=SGD,
-                                lr=0.1,
-                                momentum=0.9),
-            scheduler_cfg=[DDict(
-                step_size=1,
-                gamma=.1
-            )]
+            optimizer_cfg=DDict(name=SGD, lr=0.1, momentum=0.9),
+            scheduler_cfg=[DDict(step_size=1, gamma=0.1)],
         )
 
     with pytest.raises(ValueError):
         opt_cfg = OptimizerConfigurator(
-            optimizer_cfg=[DDict(name=SGD,
-                                 lr=0.1,
-                                 momentum=0.9)],
-            scheduler_cfg=DDict(
-                step_size=1,
-                gamma=.1
-            )
+            optimizer_cfg=[DDict(name=SGD, lr=0.1, momentum=0.9)],
+            scheduler_cfg=DDict(step_size=1, gamma=0.1),
         )
 
     with pytest.raises(ValueError):
         opt_cfg = OptimizerConfigurator(
-            optimizer_cfg=DDict(name=SGD,
-                                lr=0.1,
-                                momentum=0.9),
-            scheduler_cfg=[DDict(
-                name="Pippo",
-                step_size=1,
-                gamma=.1
-            )]
+            optimizer_cfg=DDict(name=SGD, lr=0.1, momentum=0.9),
+            scheduler_cfg=[DDict(name="Pippo", step_size=1, gamma=0.1)],
         )
 
 
@@ -179,15 +166,11 @@ def test_functions():
     assert isinstance(logger, Log)
 
     model3 = torch.nn.Sequential(
-        torch.nn.Conv2d(3, 6, 3, 1, 1),
-        torch.nn.BatchNorm2d(6),
-        torch.nn.ReLU()
+        torch.nn.Conv2d(3, 6, 3, 1, 1), torch.nn.BatchNorm2d(6), torch.nn.ReLU()
     )
 
     model4 = torch.nn.Sequential(
-        torch.nn.Conv2d(3, 6, 3, 1, 1),
-        torch.nn.BatchNorm2d(6),
-        torch.nn.ReLU()
+        torch.nn.Conv2d(3, 6, 3, 1, 1), torch.nn.BatchNorm2d(6), torch.nn.ReLU()
     )
 
     batch = torch.randn(1, 3, 28, 28)
@@ -248,59 +231,36 @@ def test_functions():
 
 def test_configuration():
 
-    cfg = dict({
-        'protocol': {
-            'n_clients': 100,
-            'n_rounds': 50,
-            'eligible_perc': 0.1
-        },
-        'data': {
-            'dataset': {
-                'name': 'mnist'
+    cfg = dict(
+        {
+            "protocol": {"n_clients": 100, "n_rounds": 50, "eligible_perc": 0.1},
+            "data": {
+                "dataset": {"name": "mnist"},
+                "distribution": {"name": "iid"},
+                "client_split": 0.1,
+                "sampling_perc": 1,
             },
-            'distribution': {
-                'name': "iid"
-            },
-            'client_split': 0.1,
-            'sampling_perc': 1
-        },
-        'save': {
-            'path': 'temp',
-            'save_every': 1,
-            'global_only': True
-        },
-        'exp': {
-            'inmmemory': True,
-            'seed': 42,
-            'device': 'cpu'
-        },
-        'logger': {
-            'name': 'local'
+            "save": {"path": "temp", "save_every": 1, "global_only": True},
+            "exp": {"inmmemory": True, "seed": 42, "device": "cpu"},
+            "logger": {"name": "local"},
         }
-    })
-    cfg_alg = dict({
-        'name': 'fluke.algorithms.fedavg.FedAVG',
-        'hyperparameters': {
-            'server': {
-                'weighted': True
-            },
-            'client': {
-                'batch_size': 10,
-                'local_epochs': 5,
-                'loss': 'CrossEntropyLoss',
-                'optimizer': {
-                    'lr': 0.01,
-                    'momentum': 0.9,
-                    'weight_decay': 0.0001
+    )
+    cfg_alg = dict(
+        {
+            "name": "fluke.algorithms.fedavg.FedAVG",
+            "hyperparameters": {
+                "server": {"weighted": True},
+                "client": {
+                    "batch_size": 10,
+                    "local_epochs": 5,
+                    "loss": "CrossEntropyLoss",
+                    "optimizer": {"lr": 0.01, "momentum": 0.9, "weight_decay": 0.0001},
+                    "scheduler": {"step_size": 1, "gamma": 1},
                 },
-                'scheduler': {
-                    'step_size': 1,
-                    'gamma': 1
-                }
+                "model": "MNIST_2NN",
             },
-            'model': 'MNIST_2NN'
         }
-    })
+    )
 
     temp_cfg = tempfile.NamedTemporaryFile(mode="w")
     temp_cfg_alg = tempfile.NamedTemporaryFile(mode="w")
@@ -334,8 +294,12 @@ def test_configuration():
     assert conf.__repr__() == str(conf)
 
     cfg = dict({"protocol": {}, "data": {}, "exp": {}, "logger": {}})
-    cfg_alg = dict({"name": "fluke.algorithms.fedavg.FedAVG", "hyperparameters": {
-        "server": {}, "client": {}, "model": "MNIST_2NN"}})
+    cfg_alg = dict(
+        {
+            "name": "fluke.algorithms.fedavg.FedAVG",
+            "hyperparameters": {"server": {}, "client": {}, "model": "MNIST_2NN"},
+        }
+    )
 
     temp_cfg = tempfile.NamedTemporaryFile(mode="w")
     temp_cfg_alg = tempfile.NamedTemporaryFile(mode="w")
@@ -370,7 +334,7 @@ def test_log():
         log.selected_clients(1, [1, 2, 3])
         log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
-        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.client_evaluation(1, 1, "pre-fit", {"accuracy": 0.6})
         log.end_round(1)
         log.finished(1)
         log.early_stop(1)
@@ -381,12 +345,16 @@ def test_log():
 
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
-        print(data)
         assert data["mem_costs"]["1"] > 0
         del data["mem_costs"]
-        assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
-            '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
-            'perf_postfit': {'1': {'accuracy': 0.6}}, 'custom_fields': {}}
+        assert data == {
+            "perf_global": {"1": {"accuracy": 1}},
+            "comm_costs": {"0": 0, "1": 4},
+            "perf_locals": {},
+            "perf_prefit": {"1": {"accuracy": 0.6}},
+            "perf_postfit": {},
+            "custom_fields": {},
+        }
 
     assert log.global_eval == {1: {"accuracy": 1}}
     assert log.locals_eval == {}
@@ -394,7 +362,7 @@ def test_log():
     assert log.postfit_eval == {}
     assert log.locals_eval_summary == {}
     assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
-    assert log.postfit_eval_summary == {1: {'accuracy': 0.6}}
+    assert log.postfit_eval_summary == {}
     assert log.comm_costs == {0: 0, 1: 4}
     assert log.current_round == 1
 
@@ -405,6 +373,7 @@ def test_log():
     log = get_logger("tests.test_utils.MyLog", value=17)
     assert log.value == 17
     assert isinstance(log, MyLog)
+
 
 def test_tensorboard_log():
     log = TensorboardLog(log_dir="tests/tmp/runs")
@@ -418,7 +387,7 @@ def test_tensorboard_log():
         log.selected_clients(1, [1, 2, 3])
         log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
-        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.client_evaluation(1, 1, "pre-fit", {"accuracy": 0.6})
         log.end_round(1)
         log.add_scalar("test", 1, 1)
         log.add_scalars("test", {"test1": 1, "test2": 2}, 1)
@@ -433,8 +402,9 @@ def test_tensorboard_log():
     assert log.custom_fields[1]["test/test1"] == 1
     assert log.custom_fields[1]["test/test2"] == 2
     assert log.custom_fields[1]["test"] == 1
-    
+
     shutil.rmtree("tests/tmp/runs")
+
 
 # def test_wandb_log():
 #     log2 = WandBLog()
@@ -462,6 +432,7 @@ def test_tensorboard_log():
 #     assert log2.client_history[1] == {"accuracy": 0.6}
 #     assert log2.comm_costs[1] == 4
 
+
 def test_debuglog():
 
     log = DebugLog()
@@ -471,12 +442,16 @@ def test_debuglog():
         log.comm_costs[0] = 1  # for testing
         log.start_round(1, None)
         log.comm_costs[0] = 0  # for testing
-        log.selected_clients(1, [Client(1, None, None, None, None), Client(2, None, None, None, None)])
+        log.selected_clients(
+            1, [Client(1, None, None, None, None), Client(2, None, None, None, None)]
+        )
         log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
-        log.client_evaluation(1, 1, 'pre-fit', {"accuracy": 0.6})
+        log.client_evaluation(1, 1, "pre-fit", {"accuracy": 0.6})
+        log.client_evaluation(1, 2, "pre-fit", {"accuracy": 0.7})
+        log.client_evaluation(1, 1, "post-fit", {"accuracy": 0.5})
         log.end_round(1)
-        log.finished(1)
+        log.finished(2)
         log.message_broadcasted("testB", Message("test", "test", None))
         log.message_sent("testC", Message("test", "test", None))
         log.interrupted()
@@ -490,20 +465,24 @@ def test_debuglog():
 
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
-        print(data)
         assert data["mem_costs"]["1"] > 0
         del data["mem_costs"]
-        assert data == {'perf_global': {'1': {'accuracy': 1}}, 'comm_costs': {
-            '0': 0, '1': 4}, 'perf_locals': {}, 'perf_prefit': {'1': {'accuracy': 0.6}},
-            'perf_postfit': {'1': {'accuracy': 0.6}}, 'custom_fields': {}}
+        assert data == {
+            "perf_global": {"1": {"accuracy": 1}},
+            "comm_costs": {"0": 0, "1": 4},
+            "perf_locals": {},
+            "perf_prefit": {"1": {"accuracy": 0.65}},
+            "perf_postfit": {"1": {"accuracy": 0.5}},
+            "custom_fields": {},
+        }
 
     assert log.global_eval == {1: {"accuracy": 1}}
     assert log.locals_eval == {}
-    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}}}
-    assert log.postfit_eval == {}
+    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}, 2: {"accuracy": 0.7}}}
+    assert log.postfit_eval == {1: {1: {"accuracy": 0.5}}}
     assert log.locals_eval_summary == {}
-    assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
-    assert log.postfit_eval_summary == {1: {'accuracy': 0.6}}
+    assert log.prefit_eval_summary == {1: {"accuracy": 0.65}}
+    assert log.postfit_eval_summary == {1: {"accuracy": 0.5}}
     assert log.comm_costs == {0: 0, 1: 4}
     assert log.current_round == 1
 
@@ -514,6 +493,7 @@ def test_debuglog():
     log = get_logger("tests.test_utils.MyLog", value=17)
     assert log.value == 17
     assert isinstance(log, MyLog)
+
 
 def test_models():
     model1 = Linear(2, 1)
@@ -546,7 +526,7 @@ def test_models():
         for n2, p2 in model_gn.named_parameters():
             if n1 == n2 and isinstance(p1, torch.nn.BatchNorm2d):
                 assert isinstance(p2, torch.nn.GroupNorm)
-    
+
     class TestModel(torch.nn.Module):
         def __init__(self):
             super(TestModel, self).__init__()
@@ -630,10 +610,15 @@ def test_mixing():
             # Implement the sequential module for feature extraction
             self.features = torch.nn.Sequential(
                 torch.nn.Conv2d(in_channels=1, out_channels=10, kernel_size=3, stride=1, padding=1),
-                torch.nn.MaxPool2d(2, 2), torch.nn.ReLU(inplace=True), torch.nn.BatchNorm2d(10),
-                torch.nn.Conv2d(in_channels=10, out_channels=20,
-                                kernel_size=3, stride=1, padding=1),
-                torch.nn.MaxPool2d(2, 2), torch.nn.ReLU(inplace=True), torch.nn.BatchNorm2d(20)
+                torch.nn.MaxPool2d(2, 2),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.BatchNorm2d(10),
+                torch.nn.Conv2d(
+                    in_channels=10, out_channels=20, kernel_size=3, stride=1, padding=1
+                ),
+                torch.nn.MaxPool2d(2, 2),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.BatchNorm2d(20),
             )
 
             # Implement the fully connected layer for classification
@@ -701,17 +686,14 @@ def test_plot_dist_ball(mock_show):
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     loss=CrossEntropyLoss,
-                     optimizer=DDict(
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
+        client=DDict(
+            batch_size=32,
+            local_epochs=1,
+            loss=CrossEntropyLoss,
+            optimizer=DDict(lr=0.1, momentum=0.9),
+            scheduler=DDict(step_size=1, gamma=0.1),
+        ),
+        server=DDict(weighted=True),
     )
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
@@ -725,17 +707,14 @@ def test_plot_dist_bar(mock_show):
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     loss=CrossEntropyLoss,
-                     optimizer=DDict(
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
+        client=DDict(
+            batch_size=32,
+            local_epochs=1,
+            loss=CrossEntropyLoss,
+            optimizer=DDict(lr=0.1, momentum=0.9),
+            scheduler=DDict(step_size=1, gamma=0.1),
+        ),
+        server=DDict(weighted=True),
     )
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
@@ -749,17 +728,14 @@ def test_plot_dist_mat(mock_show):
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     loss=CrossEntropyLoss,
-                     optimizer=DDict(
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
+        client=DDict(
+            batch_size=32,
+            local_epochs=1,
+            loss=CrossEntropyLoss,
+            optimizer=DDict(lr=0.1, momentum=0.9),
+            scheduler=DDict(step_size=1, gamma=0.1),
+        ),
+        server=DDict(weighted=True),
     )
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
@@ -795,6 +771,7 @@ def test_get_activation_size():
     assert 10 == get_activation_size(net, x)
     assert 6272 == get_activation_size(net.encoder, x)
 
+
 def test_agg():
     loss = CrossEntropyLoss()
     net1 = FedBN_CNN()
@@ -812,7 +789,7 @@ def test_agg():
     optimizer2.step()
     net = FedBN_CNN()
     _ = aggregate_models(net, [net1, net2], [0.5, 0.5], eta=1.0)
-    
+
 
 def test_alllayeroutput():
     net = MNIST_2NN()

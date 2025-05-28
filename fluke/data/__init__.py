@@ -755,14 +755,20 @@ class DataSplitter:
 
             # 6. Final check: each client must have min per class
             if iy == 0 and balanced:
+                warns = ""
                 for client_id, indices in final_client_indices.items():
                     client_labels = y[indices]
                     for c in range(num_classes):
                         if (client_labels == c).sum() < min_ex_class:
-                            warnings.warn(
-                                f"Client {client_id} has less than {min_ex_class} samples "
-                                + f"for class {c}"
+                            warns += (
+                                f"- Client {client_id} has less than {min_ex_class} samples "
+                                + f"for class {c}.\n"
                             )
+                if warns:
+                    warnings.warn(
+                        "Some clients do not have the minimum number of examples per class:\n"
+                        + warns
+                    )
             assignments[iy] = final_client_indices
 
         assignments[0] = [np.array(assignments[0][i]) for i in range(n)]
