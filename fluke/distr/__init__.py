@@ -67,8 +67,8 @@ class ParallelAlgorithm(CentralizedFL):
         ]
         return clients
 
-    def get_server_class(self):
+    def get_server_class(self) -> type[ParallelServer]:
         return ParallelServer
 
-    def get_client_class(self):
+    def get_client_class(self) -> type[ParallelClient]:
         return ParallelClient

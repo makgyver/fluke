@@ -14,7 +14,7 @@
 
 .. currentmodule:: fluke.evaluation
 
-.. autosummary:: 
+.. autosummary::
    :nosignatures:
 
    Evaluator
@@ -51,5 +51,21 @@
 .. autoclass:: ClassificationEval
    :show-inheritance:
    :members: evaluate, add_metric
+
+```
+
+<h3>
+
+{bdg-secondary}`interface` ``fluke.evaluation.PerformanceTracker``
+
+</h3>
+
+```{eval-rst}
+
+.. currentmodule:: fluke.evaluation
+
+.. autoclass:: PerformanceTracker
+   :show-inheritance:
+   :members:
 
 ```

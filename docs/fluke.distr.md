@@ -23,3 +23,16 @@
    utils
 
 ```
+
+
+```{eval-rst}
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   fluke.distr.client
+   fluke.distr.server
+   fluke.distr.utils
+
+```

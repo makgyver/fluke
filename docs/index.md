@@ -32,13 +32,13 @@ is simulated**.
 experiments. It is built on the following principles:
 
 - **Easy to use**: **``fluke``** is designed to be easy to use. It is easy to install, to run, and to
-configure. Running a federated learning experiment is as simple as running a single command. 
+configure. Running a federated learning experiment is as simple as running a single command.
 - **Easy to extend**: **``fluke``** is designed to be easy to extend minimazing the overhead of adding
 new algorithms. Adding a new method is as simple as adding the definition of the client and the server.
 - **Up-to-date**: **``fluke``** implements state-of-the-art federated learning algorithms and datasets
 and is regularly updated to include the latest affirmed techniques.
 - **Simulated**: in **``fluke``** the federation is simulated. This means that the communication between
-the clients and the server is happens in a simulated channel and the data is not actually sent over 
+the clients and the server is happens in a simulated channel and the data is not actually sent over
 the network. The simulated environment frees the user from aspects not related to the algorithm itself.
 
 ## Explore **``fluke``**
@@ -67,6 +67,7 @@ Check out the tutorials to get acquainted with **``fluke``**.
 
     install
     first_run
+    parallel_run
     examples/run
     configuration
     add_algorithm
@@ -83,6 +84,7 @@ Check out the tutorials to get acquainted with **``fluke``**.
     fluke.comm
     fluke.config
     fluke.data
+    fluke.distr
     fluke.evaluation
     fluke.nets
     fluke.server
