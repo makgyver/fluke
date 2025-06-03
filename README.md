@@ -19,6 +19,19 @@
 pip install fluke-fl
 ```
 
+### Clone the repository
+
+You can also install ``fluke`` by cloning the repository and installing it in editable mode. This is useful if you want to contribute to the development of ``fluke`` or if you want to use the latest version of the code.
+
+```bash
+git clone https://github.com/makgyver/fluke.git
+cd fluke
+pip install -e .
+```
+
+> [!WARNING]
+> Due to a recent repository tree refactoring, if you cloned the repository before June 2025, you need to reclone it to get the latest version of the code.
+
 ### 🐳 Docker
 
 You can use this library directly inside a Docker container — no installation needed on your local machine.
@@ -93,13 +106,13 @@ For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 ```bibtex
 @misc{polato2024fluke,
-      title={fluke: Federated Learning Utility frameworK for Experimentation and research}, 
+      title={fluke: Federated Learning Utility frameworK for Experimentation and research},
       author={Mirko Polato},
       year={2024},
       eprint={2412.15728},
       archivePrefix={arXiv},
       primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2412.15728}, 
+      url={https://arxiv.org/abs/2412.15728},
 }
 ```
 

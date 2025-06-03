@@ -11,7 +11,7 @@ exp:
   seed: 42
   inmemory: true
 logger:
-  name: local
+  name: Log
 eval:
   locals: false
   pre_fit: false

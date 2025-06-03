@@ -16,7 +16,7 @@ from fluke.comm import Channel  # NOQA
 from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
-from fluke.server import Server  # NOQA
+from fluke.server import Server, EarlyStopping  # NOQA
 from fluke.utils import ServerObserver  # NOQA
 
 
@@ -28,8 +28,7 @@ def test_server():
             assert round == 1
             assert global_model is not None
 
-        def end_round(self,
-                      round):
+        def end_round(self, round):
             assert round == 1
 
         def selected_clients(self, round, clients):
@@ -54,28 +53,32 @@ def test_server():
     FlukeENV().set_inmemory(True)
     FlukeENV().set_eval_cfg(locals=True)
     Xtr = [torch.rand((100, 10)), torch.rand((100, 10))]
-    ytr = [torch.tensor([target_function(x) for x in Xtr[0]]),
-           torch.tensor([target_function(x) for x in Xtr[1]])]
+    ytr = [
+        torch.tensor([target_function(x) for x in Xtr[0]]),
+        torch.tensor([target_function(x) for x in Xtr[1]]),
+    ]
     Xte = torch.rand((100, 10))
     yte = torch.tensor([target_function(x) for x in Xte])
 
-    ftdl_client = [FastDataLoader(Xtr[i], ytr[i], num_labels=2, batch_size=10, shuffle=True)
-                   for i in range(2)]
+    ftdl_client = [
+        FastDataLoader(Xtr[i], ytr[i], num_labels=2, batch_size=10, shuffle=True) for i in range(2)
+    ]
     ftdl_server = FastDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=False)
 
     cfg = OptimizerConfigurator(optimizer_cfg=DDict(name=torch.optim.SGD, lr=0.1, momentum=0.9))
-    clients = [Client(index=i,
-                      train_set=ftdl_client[i],
-                      test_set=ftdl_client[i] if i == 0 else None,
-                      optimizer_cfg=cfg,
-                      loss_fn=torch.nn.CrossEntropyLoss(),
-                      local_epochs=3)
-               for i in range(2)]
+    clients = [
+        Client(
+            index=i,
+            train_set=ftdl_client[i],
+            test_set=ftdl_client[i] if i == 0 else None,
+            optimizer_cfg=cfg,
+            loss_fn=torch.nn.CrossEntropyLoss(),
+            local_epochs=3,
+        )
+        for i in range(2)
+    ]
 
-    server = Server(clients=clients,
-                    model=Model(),
-                    test_set=ftdl_server,
-                    weighted=True)
+    server = Server(clients=clients, model=Model(), test_set=ftdl_server, weighted=True)
 
     assert server.clients == clients
     assert isinstance(server.model, Model)
@@ -98,10 +101,12 @@ def test_server():
     server.fit(1, 1)
     ev1 = server.evaluate(evaluator, server.test_set)
 
-    # assert ev0["loss"] >= ev1["loss"]
+    assert ev0["accuracy"] <= ev1["accuracy"]  # hopefully
     assert server.rounds == 1
-    assert str(server).replace(" ", "").replace("\n", "").replace(
-        "\t", "") == "Server(weighted=True,lr=1.0)"
+    assert (
+        str(server).replace(" ", "").replace("\n", "").replace("\t", "")
+        == "Server(weighted=True,lr=1.0)"
+    )
 
     server.detach(obs)
     server.hyper_params.weighted = False
@@ -132,14 +137,21 @@ def test_server():
     assert str(server) == repr(server)
 
     server.save("tmp/server")
-    new_server = Server(clients=clients,
-                        model=Model(),
-                        test_set=ftdl_server,
-                        weighted=False)
+    new_server = Server(clients=clients, model=Model(), test_set=ftdl_server, weighted=False)
     new_server.load("tmp/server")
     assert str(new_server) == str(server)
     assert new_server.rounds == server.rounds
     assert new_server._participants == server._participants
+
+    class MyServer(Server):
+
+        def aggregate(self, eligible, client_models):
+            raise EarlyStopping("Test early stopping")
+
+    my_server = MyServer(clients=clients, model=Model(), test_set=ftdl_server, weighted=False)
+    for c in clients:
+        c.set_channel(my_server.channel)
+    my_server.fit(1, 1)
 
 
 if __name__ == "__main__":

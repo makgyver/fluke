@@ -755,6 +755,11 @@ def safe_load_state_dict(model1: Module, model2_state_dict: dict) -> None:
 def optimizer_to(optim: torch.optim.Optimizer, device: str) -> None:
     """Move the optimizer state to the specified device.
 
+    Warning:
+        This function requires that the model parameters are already on the specified device and
+        it is not needed when the device are the standard CPU or GPU. It is useful when
+        the optimizer is used in a distributed setting.
+
     Args:
         optim (torch.optim.Optimizer): The optimizer to move.
         device (str): The device to move the optimizer state to.

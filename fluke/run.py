@@ -173,7 +173,7 @@ def sweep(
                 continue
 
 
-def _run_federation(cfg: Configuration, resume: str = None) -> None:
+def _run_federation(cfg: Configuration, resume: str | None = None) -> None:
     import yaml
     from rich.panel import Panel
     from rich.pretty import Pretty

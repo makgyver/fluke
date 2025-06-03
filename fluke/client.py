@@ -430,13 +430,30 @@ class Client(ObserverSubject):
         # and the client was doing the local update
         if self._modopt is None:
             return
+
+        evaluator = FlukeENV().get_evaluator()
+
+        # Compute the post-fit evaluation metrics
+        if (
+            self.model is not None  # has a model
+            and FlukeENV().get_eval_cfg().post_fit  # and the post-fit evaluation is enabled
+            and self.hyper_params.fine_tuning_epochs == 0  # and no fine-tuning needed
+        ):
+            metrics = self.evaluate(evaluator, self.test_set)
+            if metrics:
+                self.notify(
+                    "client_evaluation",
+                    round=-1,
+                    client_id=self.index,
+                    phase="post-fit",
+                    evals=metrics,
+                )
+
         self.receive_model()
 
-        if self.hyper_params.fine_tuning_epochs > 0:
-            self.fit(self.hyper_params.fine_tuning_epochs)
-
+        # Compute the pre-fit evaluation metrics
         if FlukeENV().get_eval_cfg().pre_fit:
-            metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
+            metrics = self.evaluate(evaluator, self.test_set)
             if metrics:
                 self.notify(
                     "client_evaluation",
@@ -445,6 +462,21 @@ class Client(ObserverSubject):
                     phase="pre-fit",
                     evals=metrics,
                 )
+
+        if self.hyper_params.fine_tuning_epochs > 0:
+            self.fit(self.hyper_params.fine_tuning_epochs)
+
+            # Compute the post-fit evaluation after fine-tuning
+            if FlukeENV().get_eval_cfg().post_fit:
+                metrics = self.evaluate(evaluator, self.test_set)
+                if metrics:
+                    self.notify(
+                        "client_evaluation",
+                        round=-1,
+                        client_id=self.index,
+                        phase="post-fit",
+                        evals=metrics,
+                    )
 
         self._save_to_cache()
 

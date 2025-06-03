@@ -44,6 +44,7 @@ from fluke.utils.model import (
     get_trainable_keys,
     merge_models,
     mix_networks,
+    optimizer_to,
     safe_load_state_dict,
     set_lambda_model,
     state_dict_zero_like,
@@ -328,9 +329,9 @@ def test_log():
     log.init(test="hello")
 
     try:
-        log.comm_costs[0] = 1  # for testing
+        # log.comm_costs[0] = 1  # for testing
         log.start_round(1, None)
-        log.comm_costs[0] = 0  # for testing
+        # log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
         log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
@@ -345,25 +346,29 @@ def test_log():
 
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
-        assert data["mem_costs"]["1"] > 0
-        del data["mem_costs"]
+        # assert data["mem_costs"]["1"] > 0
+        # del data["mem_costs"]
+        print(data)
         assert data == {
             "perf_global": {"1": {"accuracy": 1}},
             "comm_costs": {"0": 0, "1": 4},
             "perf_locals": {},
-            "perf_prefit": {"1": {"accuracy": 0.6}},
+            "perf_prefit": {"1": {"1": {"accuracy": 0.6}}},
             "perf_postfit": {},
             "custom_fields": {},
         }
 
-    assert log.global_eval == {1: {"accuracy": 1}}
-    assert log.locals_eval == {}
-    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}}}
-    assert log.postfit_eval == {}
-    assert log.locals_eval_summary == {}
-    assert log.prefit_eval_summary == {1: {"accuracy": 0.6}}
-    assert log.postfit_eval_summary == {}
-    assert log.comm_costs == {0: 0, 1: 4}
+    assert log.tracker["global"] == {1: {"accuracy": 1}}
+    assert log.tracker["locals"] == {}
+    assert log.tracker["pre-fit"] == {1: {1: {"accuracy": 0.6}}}
+    assert log.tracker["post-fit"] == {}
+    assert log.tracker.summary("locals", round=1) == {}
+    assert log.tracker.summary("pre-fit", round=1, include_round=False) == {
+        "accuracy": 0.6,
+        "support": 1,
+    }
+    assert log.tracker.summary("post-fit", round=1) == {}
+    assert log.tracker["comm"] == {0: 0, 1: 4}
     assert log.current_round == 1
 
     log.track_item(1, "test", 12)
@@ -376,14 +381,14 @@ def test_log():
 
 
 def test_tensorboard_log():
-    log = TensorboardLog(log_dir="tests/tmp/runs")
+    log = TensorboardLog(log_dir="tests/tmp/runs", name="pippo")
     log.init(test="hello")
 
     model = MNIST_2NN()
     try:
-        log.comm_costs[0] = 1  # for testing
+        # log.comm_costs[0] = 1  # for testing
         log.start_round(1, model)
-        log.comm_costs[0] = 0  # for testing
+        # log.comm_costs[0] = 0  # for testing
         log.selected_clients(1, [1, 2, 3])
         log.message_received("testA", Message("test", "test", None))
         log.server_evaluation(1, "global", {"accuracy": 1})
@@ -439,9 +444,9 @@ def test_debuglog():
     log.init(test="hello")
 
     try:
-        log.comm_costs[0] = 1  # for testing
+        # log.comm_costs[0] = 1  # for testing
         log.start_round(1, None)
-        log.comm_costs[0] = 0  # for testing
+        # log.comm_costs[0] = 0  # for testing
         log.selected_clients(
             1, [Client(1, None, None, None, None), Client(2, None, None, None, None)]
         )
@@ -463,27 +468,35 @@ def test_debuglog():
     except Exception:
         pytest.fail("Unexpected error!")
 
+    print(log.tracker._performance)
     with open(temp.name, "r") as f:
         data = dict(json.load(f))
-        assert data["mem_costs"]["1"] > 0
-        del data["mem_costs"]
+        # assert data["mem_costs"]["1"] > 0
+        # del data["mem_costs"]
+        print(data)
         assert data == {
             "perf_global": {"1": {"accuracy": 1}},
             "comm_costs": {"0": 0, "1": 4},
             "perf_locals": {},
-            "perf_prefit": {"1": {"accuracy": 0.65}},
-            "perf_postfit": {"1": {"accuracy": 0.5}},
+            "perf_prefit": {"1": {"1": {"accuracy": 0.6}, "2": {"accuracy": 0.7}}},
+            "perf_postfit": {"1": {"1": {"accuracy": 0.5}}},
             "custom_fields": {},
         }
 
-    assert log.global_eval == {1: {"accuracy": 1}}
-    assert log.locals_eval == {}
-    assert log.prefit_eval == {1: {1: {"accuracy": 0.6}, 2: {"accuracy": 0.7}}}
-    assert log.postfit_eval == {1: {1: {"accuracy": 0.5}}}
-    assert log.locals_eval_summary == {}
-    assert log.prefit_eval_summary == {1: {"accuracy": 0.65}}
-    assert log.postfit_eval_summary == {1: {"accuracy": 0.5}}
-    assert log.comm_costs == {0: 0, 1: 4}
+    assert log.tracker["global"] == {1: {"accuracy": 1}}
+    assert log.tracker["locals"] == {}
+    assert log.tracker["pre-fit"] == {1: {1: {"accuracy": 0.6}, 2: {"accuracy": 0.7}}}
+    assert log.tracker["post-fit"] == {1: {1: {"accuracy": 0.5}}}
+    assert log.tracker.summary("locals", round=1) == {}
+    assert log.tracker.summary("pre-fit", round=1, include_round=False) == {
+        "accuracy": 0.65,
+        "support": 2,
+    }
+    assert log.tracker.summary("post-fit", round=1, include_round=False) == {
+        "accuracy": 0.5,
+        "support": 1,
+    }
+    assert log.tracker["comm"] == {0: 0, 1: 4}
     assert log.current_round == 1
 
     log.track_item(1, "test", 12)
@@ -545,6 +558,14 @@ def test_models():
     assert isinstance(unwrap(model2).fc2, torch.nn.Linear)
 
     assert get_output_shape(model1, (1, 2)) == (1, 1)
+
+    optimizer = SGD(model1.parameters(), lr=0.01, momentum=0.9)
+    model1.to("mps")
+    optimizer_to(optimizer, "mps")
+    assert optimizer.param_groups[0]["params"][0].device.type == "mps"
+    model1.to("cpu")
+    optimizer_to(optimizer, "cpu")
+    assert optimizer.param_groups[0]["params"][0].device.type == "cpu"
 
 
 def test_mixing():

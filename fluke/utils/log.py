@@ -1,15 +1,13 @@
 """This submodule provides logging utilities."""
 
-import json
 import logging
 import os
 import sys
-import time
 from typing import Any, Collection, Literal, Union
 
+import json
 import clearml
-import numpy as np
-from pandas import DataFrame
+import wandb
 from psutil import Process
 from rich import print as rich_print
 from rich.logging import RichHandler
@@ -18,24 +16,16 @@ from rich.pretty import Pretty
 from torch.nn import Module
 from torch.utils.tensorboard import SummaryWriter
 
-import wandb
-
 sys.path.append(".")
 sys.path.append("..")
 
 from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
+from ..evaluation import PerformanceTracker  # NOQA
 from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
 from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
 
 __all__ = ["Log", "DebugLog", "TensorboardLog", "WandBLog", "ClearMLLog", "get_logger"]
-
-
-# Helper function to compute the mean of evaluations across clients
-def _compute_mean(evals: dict[str, float], round: int) -> dict[str, float]:
-    df_data = DataFrame(evals[round].values())
-    client_mean = df_data.mean(numeric_only=True).to_dict()
-    return {k: float(np.round(float(v), 5)) for k, v in client_mean.items()}
 
 
 class Log(ServerObserver, ChannelObserver, ClientObserver):
@@ -44,27 +34,12 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
     the federated learning process. The logging happens in the console.
 
     Attributes:
-        global_eval (dict): The global evaluation metrics.
-        locals_eval (dict): The clients local model evaluation metrics on the server's test set.
-        prefit_eval (dict): The clients' pre-fit evaluation metrics.
-        postfit_eval (dict): The clients' post-fit evaluation metrics.
-        locals_eval_summary (dict): The mean of the clients local model evaluation metrics.
-        prefit_eval_summary (dict): The mean of the clients pre-fit evaluation metrics.
-        postfit_eval_summary (dict): The mean of the clients post-fit evaluation metrics.
-        comm_costs (dict): The communication costs.
+        tracker (PerformanceTracker): The performance tracker.
         current_round (int): The current round.
     """
 
     def __init__(self, **kwargs):
-        self.global_eval: dict = {}  # round -> evals
-        self.locals_eval: dict = {}  # round -> {client_id -> evals}
-        self.prefit_eval: dict = {}  # round -> {client_id -> evals}
-        self.postfit_eval: dict = {}  # round -> {client_id -> evals}
-        self.locals_eval_summary: dict = {}  # round -> evals (mean across clients)
-        self.prefit_eval_summary: dict = {}  # round -> evals (mean across clients)
-        self.postfit_eval_summary: dict = {}  # round -> evals (mean across clients)
-        self.comm_costs: dict = {0: 0}  # round -> comm_cost
-        self.mem_costs: dict = {}
+        self.tracker = PerformanceTracker()
         self.current_round: int = 0
         self.custom_fields: dict = {}
 
@@ -121,52 +96,44 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             rich_print(Panel(Pretty(kwargs, expand_all=True), title="Configuration", width=100))
 
     def start_round(self, round: int, global_model: Module) -> None:
-        self.comm_costs[round] = 0
+        self.tracker.add(perf_type="comm", metrics=0, round=round)
         self.current_round = round
 
-        if round == 1 and self.comm_costs[0] > 0:
+        if round == 1 and self.tracker.get("comm", round=0) > 0:
             rich_print(
                 Panel(
-                    Pretty({"comm_costs": self.comm_costs[0]}),
+                    Pretty({"comm_costs": self.tracker.get("comm", round=0)}),
                     title=f"Round: {round - 1}",
                     width=100,
                 )
             )
 
     def end_round(self, round: int) -> None:
-        stats = {}
-        # Pre-fit summary
-        if self.prefit_eval and round in self.prefit_eval and self.prefit_eval[round]:
-            client_mean = _compute_mean(self.prefit_eval, round)
-            self.prefit_eval_summary[round] = client_mean.copy()
-            stats["pre-fit"] = client_mean
+        stats = {
+            "pre-fit": self.tracker.summary("pre-fit", round=round, include_round=False),
+            "locals": self.tracker.summary("locals", round=round, include_round=False),
+            "post-fit": self.tracker.summary("post-fit", round=round, include_round=False),
+            "global": self.tracker.summary("global", round=round),
+            "comm_cost": self.tracker.summary("comm", round=round),
+        }
 
-        # Post-fit summary
-        if self.postfit_eval and round in self.postfit_eval and self.postfit_eval[round]:
-            client_mean = _compute_mean(self.postfit_eval, round)
-            self.postfit_eval_summary[round] = client_mean.copy()
-            stats["post-fit"] = client_mean
-
-        # Locals summary
-        if self.locals_eval and round in self.locals_eval and self.locals_eval[round]:
-            client_mean = _compute_mean(self.locals_eval, round)
-            self.locals_eval_summary[round] = client_mean.copy()
-            stats["locals"] = self.locals_eval_summary[round]
-
-        # Global summary
-        if self.global_eval and round in self.global_eval and self.global_eval[round]:
-            stats["global"] = self.global_eval[round].copy()
-
-        stats["comm_cost"] = self.comm_costs[round]
         proc = Process(os.getpid())
-        self.mem_costs[round] = proc.memory_full_info().uss
+
+        self.tracker.add(
+            perf_type="mem",
+            metrics=proc.memory_full_info().uss,
+            round=round,
+        )
 
         if self.custom_fields and round in self.custom_fields:
             stats.update(self.custom_fields[round])
 
+        to_skip = [k for k, v in stats.items() if v is None or (isinstance(v, dict) and not v)]
+        stats = DDict(stats).exclude(*to_skip)
+
         rich_print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}", width=100))
         rich_print(
-            f"  Memory usage: {bytes2human(self.mem_costs[round])}"
+            f"  Memory usage: {bytes2human(self.tracker.get('mem', round=round))} "
             + f"[{proc.memory_percent():.2f} %]"
         )
 
@@ -180,10 +147,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
     ) -> None:
         if round == -1:
             round = self.current_round + 1
-        dict_ref = self.prefit_eval if phase == "pre-fit" else self.postfit_eval
-        if round not in dict_ref:
-            dict_ref[round] = {}
-        dict_ref[round][client_id] = evals
+        self.tracker.add(perf_type=phase, metrics=evals, round=round, client_id=client_id)
 
     def server_evaluation(
         self,
@@ -193,10 +157,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         **kwargs,
     ) -> None:
 
-        if eval_type == "global" and evals:
-            self.global_eval[round] = evals
-        elif eval_type == "locals" and evals:
-            self.locals_eval[round] = evals
+        self.tracker.add(perf_type=eval_type, metrics=evals, round=round)
 
     def message_received(self, by: Any, message: Message) -> None:
         """Update the communication costs.
@@ -205,70 +166,24 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             by (Any): The sender of the message.
             message (Message): The message received.
         """
-        self.comm_costs[self.current_round] += message.size
+        self.tracker.add(perf_type="comm", metrics=message.size, round=self.current_round)
 
     def finished(self, round: int) -> None:
-        stats = {}
+        stats = {
+            "pre-fit": self.tracker.summary("pre-fit", round=round),
+            "locals": self.tracker.summary("locals", round=round),
+            "post-fit": self.tracker.summary("post-fit", round=round),
+            "global": self.tracker.summary("global", round=round),
+            "comm_costs": self.tracker.summary("comm", round),
+        }
 
-        # Pre-fit summary
-        if self.prefit_eval:
-            if round in self.prefit_eval and self.prefit_eval[round]:
-                last_round = round
-            else:
-                last_round = max(self.prefit_eval.keys())
-            if last_round not in self.prefit_eval_summary:
-                client_mean = _compute_mean(self.prefit_eval, last_round)
-                self.prefit_eval_summary[last_round] = client_mean
-
-            stats["pre-fit"] = self.prefit_eval_summary[last_round].copy()
-            stats["pre-fit"]["round"] = last_round
-
-        # Locals summary
-        if self.locals_eval:
-            if round in self.locals_eval and self.locals_eval[round]:
-                last_round = round
-            else:
-                last_round = max(self.locals_eval.keys())
-            if last_round not in self.locals_eval_summary:
-                client_mean = _compute_mean(self.locals_eval, last_round)
-                self.locals_eval_summary[last_round] = client_mean
-
-            stats["locals"] = self.locals_eval_summary[last_round].copy()
-            stats["locals"]["round"] = last_round
-
-        # Post-fit summary
-        if self.postfit_eval:
-            if round in self.postfit_eval and self.postfit_eval[round]:
-                last_round = round
-            else:
-                last_round = max(self.postfit_eval.keys())
-
-            if last_round not in self.postfit_eval_summary:
-                client_mean = _compute_mean(self.postfit_eval, last_round)
-                self.postfit_eval_summary[last_round] = client_mean
-
-            stats["post-fit"] = self.postfit_eval_summary[last_round].copy()
-            stats["post-fit"]["round"] = last_round
-
-        # Global summary
-        if self.global_eval:
-            last_round = max(self.global_eval.keys())
-            stats["global"] = self.global_eval[last_round].copy()
-            stats["global"]["round"] = last_round
-
-        if stats:
-            rich_print(
-                Panel(
-                    Pretty(stats, expand_all=True),
-                    title="Overall Performance",
-                    width=100,
-                )
-            )
+        to_skip = [k for k, v in stats.items() if v is None or (isinstance(v, dict) and not v)]
+        stats = DDict(stats).exclude(*to_skip)
 
         rich_print(
             Panel(
-                Pretty({"comm_costs": sum(self.comm_costs.values())}, expand_all=True),
-                title="Total communication cost",
+                Pretty(stats, expand_all=True),
+                title="Overall Performance",
                 width=100,
             )
         )
@@ -289,12 +204,11 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             path (str): The path to the JSON file.
         """
         json_to_save = {
-            "perf_global": self.global_eval,
-            "comm_costs": self.comm_costs,
-            "perf_locals": self.locals_eval_summary,
-            "perf_prefit": self.prefit_eval_summary,
-            "perf_postfit": self.postfit_eval_summary,
-            "mem_costs": self.mem_costs,
+            "perf_global": self.tracker["global"],
+            "comm_costs": self.tracker["comm"],
+            "perf_locals": self.tracker["locals"],
+            "perf_prefit": self.tracker["pre-fit"],
+            "perf_postfit": self.tracker["post-fit"],
             "custom_fields": self.custom_fields,
         }
         with open(path, "w") as f:
@@ -320,8 +234,9 @@ class DebugLog(Log):
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(message)s",
-            datefmt="[%X]",
-            handlers=[RichHandler(rich_tracebacks=True, show_path=True, markup=True)],
+            # datefmt="[%X]",
+            datefmt="[%Y-%m-%d %H:%M:%S]",
+            handlers=[RichHandler(rich_tracebacks=False, show_path=False, markup=True)],
         )
 
         self.logger = logging.getLogger("rich")
@@ -401,13 +316,13 @@ class DebugLog(Log):
     def message_received(self, by: Any, message: Message) -> None:
         sender = str(message.sender).split("(")[0]
         receiver = str(by).split("(")[0]
-        self.logger.debug(f"Message {message.id} from {sender} to {receiver} received")
+        self.logger.debug(f"Message {message.id} ({sender} -> {receiver}) received")
         return super().message_received(by, message)
 
     def message_sent(self, to: Any, message: Message) -> None:
         sender = str(message.sender).split("(")[0]
         receiver = str(to).split("(")[0]
-        self.logger.debug(f"Message {message.id} from {sender} to {receiver} sent")
+        self.logger.debug(f"Message {message.id} ({sender} -> {receiver}) sent")
         return super().message_sent(to, message)
 
     def message_broadcasted(self, to: list[Any], message: Message) -> None:
@@ -431,13 +346,15 @@ class TensorboardLog(Log):
 
     def __init__(self, **config):
         super().__init__(**config)
-        ts_config = DDict(**config).exclude("name")
-        if "log_dir" not in ts_config:
-            exp_name = config["name"]
-            if exp_name.startswith("fluke.algorithms."):
-                exp_name = ".".join(str(exp_name).split(".")[3:])
-            ts_config.log_dir = f"./runs/{exp_name}" + "_" + time.strftime("%Y%m%dh%H%M%S")
-        self._writer = SummaryWriter(**ts_config)
+        self._config: dict = DDict(**config)
+        if "log_dir" not in self._config:
+            self._config["log_dir"] = "./logs"
+        self._writer: SummaryWriter | None = None
+
+    def init(self, **kwargs) -> None:
+        exp_name = self._config.name
+        self._config["log_dir"] = os.path.join(self._config["log_dir"], f"{exp_name}")
+        self._writer = SummaryWriter(**self._config.exclude("name"))
 
     def add_scalar(self, key: Any, value: float, round: int) -> None:
         super().add_scalar(key, value, round)
@@ -449,8 +366,8 @@ class TensorboardLog(Log):
 
     def start_round(self, round: int, global_model: Module) -> None:
         super().start_round(round, global_model)
-        if round == 1 and self.comm_costs[0] > 0:
-            self._writer.add_scalar("comm_costs", self.comm_costs[0], round)
+        if round == 1 and self.tracker.get("comm", round) > 0:
+            self._writer.add_scalar("comm_costs", self.tracker.get("comm", round), round)
         self._writer.flush()
 
     def _report(self, prefix: str, evals: dict[str, float], round: int) -> None:
@@ -460,32 +377,35 @@ class TensorboardLog(Log):
 
     def end_round(self, round: int) -> None:
         super().end_round(round)
-        if round in self.global_eval:
-            self._report("global", self.global_eval[round], round)
-        self._writer.add_scalar("comm_costs", self.comm_costs[round], round)
+        global_perf = self.tracker.get("global", round)
+        if global_perf is not None:
+            self._report("global", global_perf, round)
+        self._writer.add_scalar("comm_costs", self.tracker.get("comm", round), round)
         self._writer.flush()
 
-        if self.prefit_eval_summary:
-            last_round = max(self.prefit_eval_summary.keys())
-            self._report("pre-fit", self.prefit_eval_summary[last_round], last_round)
+        prefit_perf = self.tracker.summary("pre-fit", round=round, include_round=True)
+        if prefit_perf:
+            self._report("pre-fit", prefit_perf, prefit_perf["round"])
 
-        if self.postfit_eval_summary:
-            last_round = max(self.postfit_eval_summary.keys())
-            self._report("post-fit", self.postfit_eval_summary[last_round], last_round)
+        postfit_perf = self.tracker.summary("post-fit", round=round, include_round=True)
+        if postfit_perf:
+            self._report("post-fit", postfit_perf, postfit_perf["round"])
 
-        if self.locals_eval_summary:
-            last_round = max(self.locals_eval_summary.keys())
-            self._report("locals", self.locals_eval_summary[last_round], last_round)
+        locals_perf = self.tracker.summary("locals", round=round, include_round=True)
+        if locals_perf:
+            self._report("locals", locals_perf, locals_perf["round"])
 
         self._writer.flush()
 
     def finished(self, round: int) -> None:
         super().finished(round)
-        if self.prefit_eval_summary and round in self.prefit_eval_summary:
-            self._report("pre-fit", self.prefit_eval_summary[round], round)
+        prefit_perf = self.tracker.summary("pre-fit", round=round, include_round=True)
+        if prefit_perf and round == prefit_perf["round"]:
+            self._report("pre-fit", prefit_perf, round)
 
-        if self.locals_eval_summary and round in self.locals_eval_summary:
-            self._report("locals", self.locals_eval_summary[round], round)
+        locals_perf = self.tracker.summary("locals", round=round, include_round=True)
+        if locals_perf and round == locals_perf["round"]:
+            self._report("locals", locals_perf, round)
 
     def close(self) -> None:
         self._writer.flush()
@@ -525,47 +445,56 @@ class WandBLog(Log):
 
     def start_round(self, round: int, global_model: Module) -> None:
         super().start_round(round, global_model)
-        if round == 1 and self.comm_costs[0] > 0:
-            self.run.log({"comm_costs": self.comm_costs[0]})
+        if round == 1 and self.tracker.get("comm", round) > 0:
+            self.run.log({"comm_costs": self.tracker.get("comm", round)})
 
     def end_round(self, round: int) -> None:
         super().end_round(round)
-        if round in self.global_eval:
-            self.run.log({"global": self.global_eval[round]}, step=round)
-        self.run.log({"comm_cost": self.comm_costs[round]}, step=round)
+        global_perf = self.tracker.get("global", round)
+        if global_perf is not None:
+            self.run.log({"global": global_perf}, step=round)
+        self.run.log({"comm_cost": self.tracker.get("comm", round)}, step=round)
 
-        if self.prefit_eval_summary and round in self.prefit_eval_summary:
-            self.run.log({"pre-fit": self.prefit_eval_summary[round]}, step=round)
+        prefit_perf = self.tracker.summary("pre-fit", round=round, include_round=True)
+        if prefit_perf:
+            self.run.log({"pre-fit": prefit_perf}, step=prefit_perf["round"])
 
-        if self.postfit_eval_summary and round in self.postfit_eval_summary:
-            self.run.log({"post-fit": self.postfit_eval_summary[round]}, step=round)
+        postfit_perf = self.tracker.summary("post-fit", round=round, include_round=True)
+        if postfit_perf:
+            self.run.log({"post-fit": postfit_perf}, step=postfit_perf["round"])
 
-        if self.locals_eval_summary and round in self.locals_eval_summary:
-            self.run.log({"locals": self.locals_eval_summary[round]}, step=round)
+        locals_perf = self.tracker.summary("locals", round=round, include_round=True)
+        if locals_perf:
+            self.run.log({"locals": locals_perf}, step=locals_perf["round"])
 
     def finished(self, round: int) -> None:
         super().finished(round)
 
-        server_last_round = max(self.global_eval.keys())
-        self.run.log({"global": self.global_eval[server_last_round]}, step=server_last_round)
+        server_last_round = max(self.tracker["global"])
+        self.run.log(
+            {"global": self.tracker.get("global", server_last_round)}, step=server_last_round
+        )
 
-        if self.prefit_eval_summary:
-            last_round = max(self.prefit_eval_summary.keys())
+        postfit_eval_summary = self.tracker.summary("post-fit", round=round, include_round=True)
+        if postfit_eval_summary:
+            last_round = postfit_eval_summary["round"]
             # avoid warning
             if server_last_round <= last_round:
-                self.run.log({"pre-fit": self.prefit_eval_summary[last_round]}, step=last_round)
+                self.run.log({"post-fit": postfit_eval_summary}, step=last_round)
 
-        if self.postfit_eval_summary:
-            last_round = max(self.postfit_eval_summary.keys())
+        prefit_eval_summary = self.tracker.summary("pre-fit", round=round, include_round=True)
+        if prefit_eval_summary:
+            last_round = prefit_eval_summary["round"]
             # avoid warning
             if server_last_round <= last_round:
-                self.run.log({"post-fit": self.postfit_eval_summary[last_round]}, step=last_round)
+                self.run.log({"pre-fit": prefit_eval_summary}, step=last_round)
 
-        if self.locals_eval_summary:
-            last_round = max(self.locals_eval_summary.keys())
+        locals_eval_summary = self.tracker.summary("locals", round=round, include_round=True)
+        if locals_eval_summary:
+            last_round = locals_eval_summary["round"]
             # avoid warning
             if server_last_round <= last_round:
-                self.run.log({"locals": self.locals_eval_summary[last_round]}, step=last_round)
+                self.run.log({"locals": locals_eval_summary}, step=last_round)
 
     def close(self) -> None:
         self.run.finish()
