@@ -11,24 +11,29 @@ more than one GPU in the `device` configuration,  e.g.:
 
 ```yaml
 
-device: [cuda:0, cuda:1]
+# This is the algorithm configuration file
+
+...
+exp:
+    device: [cuda:0, cuda:1]
+...
 
 ```
 
 This will automatically enable parallel training on the specified GPUs.
 
-This functionality relies on the `torch.nn.DataParallel` module, which is a PyTorch feature that allows
+This functionality relies on the [torch.nn.DataParallel](https://docs.pytorch.org/docs/stable/generated/torch.nn.DataParallel.html) module, which is a PyTorch feature that allows
 you to parallelize the training of a single model across multiple GPUs.
 
 ## Parallel training for multiple clients - one per GPU (v0.7.9+)
 
 In `fluke` v0.7.9 and later, you can also run multiple clients in parallel, each on a separate GPU.
 In this case, additionally to the `device` configuration as shown above, your algorithm object
-must inherit from the `fluke.distr.ParallelAlgorithm` class, and similarly, your client
-and server objects must inherit from `fluke.distr.client.ParallelClient` and
-`fluke.distr.server.ParallelServer`, respectively.
+must inherit from the [ParallelAlgorithm](#fluke.distr.ParallelAlgorithm) class, and similarly, your client
+and server objects must inherit from [ParallelClient](#fluke.distr.client.ParallelClient) and
+[ParallelServer](#fluke.distr.server.ParallelServer), respectively.
 
-`fluke.distr.ParallelAlgorithm` is a ready-to-use base class that provides the necessary
+[ParallelAlgorithm](#fluke.distr.ParallelAlgorithm)  is a ready-to-use base class that provides the necessary
 functionality for parallel FedAVG training.
 
 To use it, you simply need to set the class as algorithm name in the configuration file:
@@ -37,7 +42,10 @@ To use it, you simply need to set the class as algorithm name in the configurati
 
 # This is the algorithm configuration file
 
-...
+client:
+    ...
+server:
+    ...
 name: fluke.distr.ParallelAlgorithm
 
 ```

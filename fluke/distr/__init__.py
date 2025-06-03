@@ -19,6 +19,11 @@ from .utils import ModelBuilder  # NOQA
 
 
 class ParallelAlgorithm(CentralizedFL):
+    """
+    ParallelAlgorithm is a class for parallel federated learning algorithms that use multiple
+    GPUs. It inherits from CentralizedFL and initializes clients and server for parallel execution.
+    Clients training runs on different GPUs, and the server aggregates their updates.
+    """
 
     def __init__(
         self,

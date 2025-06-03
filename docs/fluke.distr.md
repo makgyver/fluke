@@ -25,6 +25,37 @@
 ```
 
 
+<h3>
+
+Classes included in ``fluke.distr``
+
+</h3>
+
+```{eval-rst}
+
+.. currentmodule:: fluke.distr
+
+.. autosummary::
+   :nosignatures:
+
+   ParallelAlgorithm
+
+```
+
+<h3>
+
+{bdg-primary}`class` ``fluke.distr.ParallelAlgorithm``
+
+</h3>
+
+```{eval-rst}
+
+.. autoclass:: fluke.distr.ParallelAlgorithm
+   :members:
+
+```
+
+
 ```{eval-rst}
 
 .. toctree::
