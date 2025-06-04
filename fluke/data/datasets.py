@@ -65,7 +65,7 @@ class Datasets:
 
         Args:
             name (str): The name of the dataset to load or the fully qualified name of a custom
-              dataset function.
+                dataset function.
             **kwargs: Additional arguments to pass to construct the dataset.
 
         Returns:
@@ -108,11 +108,11 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
             channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
-              shape of the example becomes (1, 28, 28). Defaults to ``False``.
+                shape of the example becomes (1, 28, 28). Defaults to ``False``.
 
         Returns:
             DataContainer: The MNIST dataset.
@@ -153,9 +153,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The MNIST-M dataset.
@@ -205,9 +205,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
             channel_dim (bool, optional): Whether to add a channel dimension to the data, i.e., the
                 shape of the example becomes (1, 28, 28). Defaults to ``False``.
 
@@ -251,9 +251,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The SVHN dataset.
@@ -301,9 +301,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CIFAR-10 dataset.
@@ -349,9 +349,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CINIC-10 dataset.
@@ -390,9 +390,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CIFAR-100 dataset.
@@ -436,9 +436,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The CIFAR-100 dataset.
@@ -477,9 +477,9 @@ class Datasets:
         Args:
             path (str, optional): The path where the dataset is stored. Defaults to ``../data``.
             transforms (callable, optional): The transformations to apply to the data. Defaults to
-              ``None``.
+                ``None``.
             onthefly_transforms (callable, optional): The transformations to apply on-the-fly to the
-              data through the data loader. Defaults to ``None``.
+                data through the data loader. Defaults to ``None``.
 
         Returns:
             DataContainer: The Tiny-ImageNet dataset.
@@ -827,7 +827,7 @@ class Datasets:
             batch_size (int, optional): The batch size. Defaults to 10.
             n_points (int, optional): The total number of points to generate. Defaults to 1000.
             test_size (int, optional): The percentage of points to include in the test sets for both
-              the clients and the server. Defaults to 0.1.
+                the clients and the server. Defaults to 0.1.
             dimensions (int, optional): The number of dimensions of the points. Defaults to 3.
 
         Returns:
