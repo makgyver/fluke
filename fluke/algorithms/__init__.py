@@ -464,8 +464,7 @@ class PersonalizedFL(CentralizedFL):
             model = config.model
         else:
             raise ValueError(
-                "Invalid model configuration. \
-                             It should be a string or a torch.nn.Module"
+                "Invalid model configuration. It should be a string or a torch.nn.Module"
             )
 
         self._fix_opt_cfg(config.optimizer)

@@ -54,13 +54,13 @@ class Server(ObserverSubject):
 
     Attributes:
         hyper_params(DDict):
-          The hyperparameters of the server. The default hyperparameters are:
+            The hyperparameters of the server. The default hyperparameters are:
 
-          - weighted: A boolean indicating if the clients should be weighted by the number of
-            samples when aggregating the models.
+            - weighted: A boolean indicating if the clients should be weighted by the number of
+                samples when aggregating the models.
 
-          When a new server class inherits from this class, it must add all its hyperparameters
-          to this dictionary.
+            When a new server class inherits from this class, it must add all its hyperparameters
+            to this dictionary.
         device(torch.device): The device where the server runs.
         model(torch.nn.Module): The federated model to be trained.
         clients(Sequence[Client]): The clients that will participate in the federated learning
