@@ -110,11 +110,11 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
 
     def end_round(self, round: int) -> None:
         stats = {
-            "pre-fit": self.tracker.summary("pre-fit", round=round, include_round=False),
-            "locals": self.tracker.summary("locals", round=round, include_round=False),
-            "post-fit": self.tracker.summary("post-fit", round=round, include_round=False),
-            "global": self.tracker.summary("global", round=round),
-            "comm_cost": self.tracker.summary("comm", round=round),
+            "pre-fit": self.tracker.summary("pre-fit", round=round, force_round=False),
+            "locals": self.tracker.summary("locals", round=round, force_round=False),
+            "post-fit": self.tracker.summary("post-fit", round=round, force_round=False),
+            "global": self.tracker.summary("global", round=round, force_round=False),
+            "comm_cost": self.tracker.get("comm", round=round),
         }
 
         proc = Process(os.getpid())
@@ -129,7 +129,7 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
             stats.update(self.custom_fields[round])
 
         to_skip = [k for k, v in stats.items() if v is None or (isinstance(v, dict) and not v)]
-        stats = DDict(stats).exclude(*to_skip)
+        stats = {k: v for k, v in stats.items() if k not in to_skip}
 
         rich_print(Panel(Pretty(stats, expand_all=True), title=f"Round: {round}", width=100))
         rich_print(

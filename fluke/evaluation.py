@@ -393,6 +393,7 @@ class PerformanceTracker:
         perf_type: Literal["global", "locals", "pre-fit", "post-fit", "comm", "mem"],
         round: int,
         include_round: bool = True,
+        force_round: bool = True,
     ) -> Union[dict, float]:
         """Get the summary of the performance metrics for a specific type.
 
@@ -405,6 +406,11 @@ class PerformanceTracker:
             perf_type (Literal["global", "locals", "pre-fit", "post-fit", "comm", "mem"]):
                 The type of performance metrics to retrieve.
             round (int): The round for which to compute the summary of the metrics.
+            include_round (bool, optional): Whether to include the round number in the returned
+                metrics. Defaults to `True`.
+            force_round (bool, optional): If `True`, the method will return the metrics for the
+                specified round if it exists, otherwise it will return the metrics for the
+                latest round. Defaults to `False`.
 
         Raises:
             ValueError: If the `perf_type` is unknown or if there are no metrics for the specified
@@ -419,9 +425,12 @@ class PerformanceTracker:
         if not self._performance[perf_type]:
             return {} if perf_type not in ["comm", "mem"] else 0.0
 
-        the_round = max(self._performance[perf_type].keys())
-        # if 0 <= round < the_round:
-        #     the_round = round
+        if force_round:
+            the_round = max(self._performance[perf_type].keys())
+        elif round not in self._performance[perf_type]:
+            return {}
+        else:
+            the_round = round
 
         if perf_type == "mem":
             return self._performance[perf_type][the_round]
