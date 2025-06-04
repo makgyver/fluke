@@ -202,7 +202,7 @@ class FedProtoServer(Server):
     @torch.no_grad()
     def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_protos = client_models
+        clients_protos = list(client_models)
 
         # Group by label
         label_protos = {

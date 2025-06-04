@@ -893,9 +893,13 @@ class VGG9_D(nn.Module):
     def __init__(self, input_size: int = 512, output_size: int = 62, seed: int = 98765):
         super(VGG9_D, self).__init__()
         self.downstream = nn.Sequential(
-            VGG9_D.create_linear_layer(in_features=input_size, out_features=256, bias=False, seed=seed),
+            VGG9_D.create_linear_layer(
+                in_features=input_size, out_features=256, bias=False, seed=seed
+            ),
             nn.ReLU(True),
-            VGG9_D.create_linear_layer(in_features=256, out_features=output_size, bias=False, seed=seed),
+            VGG9_D.create_linear_layer(
+                in_features=256, out_features=output_size, bias=False, seed=seed
+            ),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
