@@ -5,6 +5,7 @@ References:
        Learning for Image Classification. In ICLR (2022).
        URL: https://openreview.net/pdf?id=I1hQbx10Kxn
 """
+
 import sys
 from copy import deepcopy
 from typing import Literal
@@ -13,7 +14,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
+from torch.optim.lr_scheduler import LRScheduler
 
 sys.path.append(".")
 sys.path.append("..")
@@ -28,12 +29,7 @@ from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import ModOpt, unwrap  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "RODModel",
-    "BalancedSoftmaxLoss",
-    "FedRODClient",
-    "FedROD"
-]
+__all__ = ["RODModel", "BalancedSoftmaxLoss", "FedRODClient", "FedROD"]
 
 
 class RODModel(torch.nn.Module):
@@ -73,9 +69,7 @@ class BalancedSoftmaxLoss(torch.nn.Module):
         self.sample_per_class = sample_per_class
         self.reduction = reduction
 
-    def forward(self,
-                y: torch.LongTensor,
-                logits: torch.FloatTensor) -> torch.Tensor:
+    def forward(self, y: torch.LongTensor, logits: torch.FloatTensor) -> torch.Tensor:
         spc = self.sample_per_class.type_as(logits)
         spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
         logits = logits + spc.log()
@@ -85,19 +79,29 @@ class BalancedSoftmaxLoss(torch.nn.Module):
 
 class FedRODClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
 
         self.sample_per_class: torch.Tensor = torch.zeros(self.train_set.num_labels)
         uniq_val, uniq_count = np.unique(self.train_set.tensors[1], return_counts=True)
@@ -106,7 +110,7 @@ class FedRODClient(Client):
         self._inner_modopt: ModOpt = ModOpt()
 
     @property
-    def inner_model(self) -> ModOpt:
+    def inner_model(self) -> torch.nn.Module:
         return self._inner_modopt.model
 
     @inner_model.setter
@@ -131,8 +135,9 @@ class FedRODClient(Client):
 
     def _model_to_dataparallel(self):
         super()._model_to_dataparallel()
-        self.inner_model = torch.nn.DataParallel(self.inner_model,
-                                                 device_ids=FlukeENV().get_device_ids())
+        self.inner_model = torch.nn.DataParallel(
+            self.inner_model, device_ids=FlukeENV().get_device_ids()
+        )
 
     def _dataparallel_to_model(self):
         super()._dataparallel_to_model()
@@ -144,8 +149,9 @@ class FedRODClient(Client):
             self.inner_model = deepcopy(self.model.head)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        )
         self.model.train()
         self.inner_model.train()
         self.model.to(self.device)
@@ -180,7 +186,7 @@ class FedRODClient(Client):
             self.scheduler.step()
             self.scheduler_head.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         self.inner_model.cpu()
         clear_cuda_cache()
@@ -188,10 +194,13 @@ class FedRODClient(Client):
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None and self.model is not None and self.inner_model is not None:
-            return evaluator.evaluate(self._last_round,
-                                      RODModel(self.model, self.inner_model),
-                                      test_set,
-                                      device=self.device)
+            return evaluator.evaluate(
+                self._last_round,
+                RODModel(self.model, self.inner_model),
+                test_set,
+                device=self.device,
+                loss_fn=None
+            )
         return {}
 
 

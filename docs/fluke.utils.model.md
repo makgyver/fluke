@@ -20,9 +20,9 @@ Classes included in ``fluke.utils.model``
 
 .. currentmodule:: fluke.utils.model
 
-.. autosummary:: 
+.. autosummary::
    :nosignatures:
-   
+
    MMMixin
    LinesLinear
    LinesConv2d
@@ -43,7 +43,7 @@ Functions included in ``fluke.utils.model``
 
 .. currentmodule:: fluke.utils.model
 
-.. autosummary:: 
+.. autosummary::
    :nosignatures:
 
    aggregate_models
@@ -58,11 +58,12 @@ Functions included in ``fluke.utils.model``
    get_trainable_keys
    merge_models
    mix_networks
+   optimizer_to
    set_lambda_model
    safe_load_state_dict
    state_dict_zero_like
    unwrap
-   
+
 ```
 
 
@@ -209,6 +210,8 @@ Functions included in ``fluke.utils.model``
 .. autofunction:: fluke.utils.model.merge_models
 
 .. autofunction:: fluke.utils.model.mix_networks
+
+.. autofunction:: fluke.utils.model.optimizer_to
 
 .. autofunction:: fluke.utils.model.set_lambda_model
 

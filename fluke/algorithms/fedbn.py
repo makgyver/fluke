@@ -5,6 +5,7 @@ References:
        Federated Learning on Non-IID Features via Local Batch Normalization. In ICLR (2021).
        URL: https://openreview.net/pdf?id=6YEQUn0QICG
 """
+
 import sys
 
 import torch
@@ -17,10 +18,7 @@ from ..client import Client  # NOQA
 
 # Same idea in https://link.springer.com/chapter/10.1007/978-3-030-60548-3_13
 
-__all__ = [
-    "FedBNClient",
-    "FedBN"
-]
+__all__ = ["FedBNClient", "FedBN"]
 
 
 class FedBNClient(Client):
@@ -55,7 +53,8 @@ class FedBNClient(Client):
                 for key in global_model.state_dict().keys():
                     if key in self._to_keep:
                         self.model.state_dict()[key].data.copy_(
-                            global_model.state_dict()[key].clone())
+                            global_model.state_dict()[key].clone()
+                        )
 
 
 class FedBN(CentralizedFL):

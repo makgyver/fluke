@@ -7,18 +7,19 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 `fluke` is organized in the following modules:
 
 - [`fluke`](fluke.md): contains the core classes and utilities;
+- [`fluke.algorithms`](fluke.algorithms.md): contains classes for federated learning algorithms;
+- [`fluke.client`](fluke.client.md): contains classes for client-side functionalities;
+- [`fluke.comm`](fluke.comm.md): contains classes for communication;
+- [`fluke.config`](fluke.config.md): contains classes for configuration;
 - [`fluke.data`](fluke.data.md): contains classes for data handling;
 - [`fluke.data.datasets`](fluke.data.datasets.md): contains classes for datasets loading;
-- [`fluke.client`](fluke.client.md): contains classes for client-side functionalities;
-- [`fluke.config`](fluke.config.md): contains classes for configuration;
-- [`fluke.server`](fluke.server.md): contains classes for server-side functionalities;
-- [`fluke.comm`](fluke.comm.md): contains classes for communication;
+- [`fluke.distr`](fluke.distr.md): contains classes for distributed functionalities;
+- [`fluke.evaluation`](fluke.evaluation.md): contains classes for evaluation;
 - [`fluke.nets`](fluke.nets.md): contains classes for neural networks;
+- [`fluke.server`](fluke.server.md): contains classes for server-side functionalities;
 - [`fluke.utils`](fluke.utils.md): contains utility classes and functions;
 - [`fluke.utils.log`](fluke.utils.log.md): contains classes for logging;
-- [`fluke.utils.model`](fluke.utils.model.md): contains classes for model manipulation;
-- [`fluke.evaluation`](fluke.evaluation.md): contains classes for evaluation;
-- [`fluke.algorithms`](fluke.algorithms.md): contains classes for federated learning algorithms.
+- [`fluke.utils.model`](fluke.utils.model.md): contains classes for model manipulation.
 
 
 ## [`fluke`](fluke.md)
@@ -51,7 +52,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    DataContainer
    DummyDataContainer
    FastDataLoader
@@ -69,8 +70,70 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    Datasets
+
+```
+
+## [`fluke.distr`](fluke.distr.md)
+
+**Classes**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.distr
+
+.. autosummary::
+   :nosignatures:
+
+   ParallelAlgorithm
+
+```
+
+
+## [`fluke.distr.client`](fluke.distr.client.md)
+
+**Classes**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.distr.client
+
+.. autosummary::
+   :nosignatures:
+
+   ParallelClient
+
+```
+
+
+## [`fluke.distr.server`](fluke.distr.server.md)
+
+**Classes**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.distr.server
+
+.. autosummary::
+   :nosignatures:
+
+   ParallelServer
+
+```
+
+## [`fluke.distr.utils`](fluke.distr.utils.md)
+
+**Classes**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.distr.utils
+
+.. autosummary::
+   :nosignatures:
+
+   ModelBuilder
 
 ```
 
@@ -84,7 +147,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    Client
    PFLClient
 ```
@@ -98,7 +161,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    Server
 ```
 
@@ -111,7 +174,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    Message
    Channel
    ChannelObserver
@@ -127,7 +190,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    EncoderHeadNet
    GlobalLocalNet
    HeadGlobalEncoderLocalNet
@@ -182,7 +245,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    get_full_classname
    get_loss
    get_model
-   get_optimizer  
+   get_optimizer
    get_scheduler
    flatten_dict
    import_module_from_str
@@ -202,7 +265,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    Log
    TensorboardLog
    WandBLog
@@ -218,7 +281,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    get_logger
 ```
 
@@ -232,7 +295,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    AllLayerOutputModel
    ModOpt
    MMMixin
@@ -251,7 +314,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    aggregate_models
    batch_norm_to_group_norm
    check_model_fit_mem
@@ -278,9 +341,10 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    Evaluator
    ClassificationEval
+   PerformanceTracker
 
 ```
 
@@ -293,7 +357,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
 
 .. autosummary::
    :nosignatures:
-   
+
    CentralizedFL
    PersonalizedFL
 
@@ -337,6 +401,7 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    fedsam
    fedsgd
    gear
+   kafe
    lg_fedavg
    moon
    per_fedavg

@@ -6,6 +6,7 @@ References:
        In AISTATS (2017). URL: https://arxiv.org/abs/1602.05629
 
 """
+
 import sys
 
 sys.path.append(".")
@@ -13,9 +14,7 @@ sys.path.append("..")
 
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "FedAVG"
-]
+__all__ = ["FedAVG"]
 
 
 class FedAVG(CentralizedFL):

@@ -2,8 +2,11 @@
 The :mod:`fluke` module is the entry module of the :mod:`fluke` framework. Here are defined generic
 classes used by the other modules.
 """
+
 from __future__ import annotations
 
+import hashlib
+import json
 import random
 import re
 import shutil
@@ -27,46 +30,47 @@ def custom_formatwarning(msg: str, category: type, filename: str, lineno: int, *
     # return f"[{category.__name__}] {filename}:{lineno} - {msg}\n"
 
     # ANSI color codes
-    # RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    RESET = '\033[0m'
+    # red = '\033[91m'
+    yellow = "\033[93m"
+    blue = "\033[94m"
+    reset = "\033[0m"
 
     return (
-            f"{YELLOW}[{category.__name__}]{RESET} "
-            f"{BLUE}{filename}:{lineno}{RESET}\n"
-            f"{YELLOW}{msg}{RESET}\n"
-        )
+        f"{yellow}[{category.__name__}]{reset} "
+        f"{blue}{filename}:{lineno}{reset}\n"
+        f"{yellow}{msg}{reset}\n"
+    )
 
 
 warnings.formatwarning = custom_formatwarning
 
 
 __all__ = [
-    'algorithms',
-    'client',
-    'comm',
-    'config',
-    'data',
-    'evaluation',
-    'get',
-    'nets',
-    'run',
-    'server',
-    'utils',
-    'DDict',
-    'FlukeCache',
-    'FlukeENV',
-    'ObserverSubject',
-    'Singleton'
+    "algorithms",
+    "client",
+    "comm",
+    "config",
+    "data",
+    "distr",
+    "evaluation",
+    "get",
+    "nets",
+    "run",
+    "server",
+    "utils",
+    "DDict",
+    "FlukeCache",
+    "FlukeENV",
+    "ObserverSubject",
+    "Singleton",
 ]
 
-__version__ = '0.7.8'
-__author__ = 'Mirko Polato'
-__email__ = 'mirko.polato@unito.it'
-__license__ = 'LGPLv2.1'
-__copyright__ = 'Copyright (c) 2025, Mirko Polato'
-__status__ = 'Development'
+__version__ = "0.7.9"
+__author__ = "Mirko Polato"
+__email__ = "mirko.polato@unito.it"
+__license__ = "LGPLv2.1"
+__copyright__ = "Copyright (c) 2025, Mirko Polato"
+__status__ = "Development"
 
 
 class Singleton(type):
@@ -85,6 +89,7 @@ class Singleton(type):
             print(a is b)  # True
 
     """
+
     _instances = {}
 
     def __call__(cls, *args, **kwargs) -> Any:
@@ -115,6 +120,7 @@ class DDict(dict):
             print(d.c.e)  # 4
 
     """
+
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
 
@@ -192,8 +198,15 @@ class DDict(dict):
         """
         if full:
             return self == other
-        return all(k in self and (self[k] == other[k] if not isinstance(self[k], DDict)
-                                  else self[k].match(other[k], False)) for k in other.keys())
+        return all(
+            k in self
+            and (
+                self[k] == other[k]
+                if not isinstance(self[k], DDict)
+                else self[k].match(other[k], False)
+            )
+            for k in other.keys()
+        )
 
     def diff(self, other: DDict) -> DDict:
         """Get the difference between two :class:`DDict`.
@@ -230,6 +243,18 @@ class DDict(dict):
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
+
+    def hash(self) -> str:
+        """Returns a SHA-256 hash of the dictionary contents.
+
+        This is useful to check if the dictionary has changed or not, for example, when
+        comparing configurations or parameters.
+
+        Returns:
+            str: The SHA-256 hash of the dictionary contents.
+        """
+        dict_str = json.dumps(self, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(dict_str.encode("utf-8")).hexdigest()
 
 
 class ObserverSubject:
@@ -319,7 +344,7 @@ class FlukeENV(metaclass=Singleton):
     """
 
     # general settings
-    _device: torch.device = torch.device('cpu')
+    _device: torch.device = torch.device("cpu")
     _device_ids: list[int] = []
     _seed: int = 0
     _inmemory: bool = True
@@ -329,7 +354,6 @@ class FlukeENV(metaclass=Singleton):
     _save_path: str = None
     _save_every: int = 0
     _global_only: bool = False
-    _temp_path: str = None
 
     # evaluation settings
     _evaluator: Evaluator = None
@@ -337,7 +361,7 @@ class FlukeENV(metaclass=Singleton):
         "pre_fit": False,
         "post_fit": False,
         "locals": False,
-        "server": True
+        "server": True,
     }
 
     # progress bars
@@ -354,9 +378,13 @@ class FlukeENV(metaclass=Singleton):
         self._rich_progress_FL: Progress = Progress(transient=True)
         self._rich_progress_clients: Progress = Progress(transient=True)
         self._rich_progress_server: Progress = Progress(transient=True)
-        self._rich_live_renderer: Live = Live(Group(self._rich_progress_FL,
-                                                    self._rich_progress_clients,
-                                                    self._rich_progress_server))
+        self._rich_live_renderer: Live = Live(
+            Group(
+                self._rich_progress_FL,
+                self._rich_progress_clients,
+                self._rich_progress_server,
+            )
+        )
 
     def configure(self, cfg: DDict) -> None:
         """Configure the global settings.
@@ -437,11 +465,11 @@ class FlukeENV(metaclass=Singleton):
             torch.device: The device.
         """
         if torch.cuda.is_available():
-            self._device = torch.device('cuda')
+            self._device = torch.device("cuda")
         elif torch.backends.mps.is_available():
-            self._device = torch.device('mps')
+            self._device = torch.device("mps")
         else:
-            self._device = torch.device('cpu')
+            self._device = torch.device("cpu")
         return self._device
 
     def set_device(self, device: str | list) -> torch.device:
@@ -454,8 +482,11 @@ class FlukeENV(metaclass=Singleton):
         Returns:
             torch.device: The selected device as torch.device.
         """
-        assert device in ['cpu', 'auto', 'mps', 'cuda'] or isinstance(device, list) \
-               or re.match(r'^cuda:\d+$', device), f"Invalid device {device}."
+        assert (
+            device in ["cpu", "auto", "mps", "cuda"]
+            or isinstance(device, list)
+            or re.match(r"^cuda:\d+$", device)
+        ), f"Invalid device {device}."
 
         if device == "auto":
             return FlukeENV().auto_device()
@@ -465,18 +496,20 @@ class FlukeENV(metaclass=Singleton):
             for d in device:
                 if isinstance(d, int):
                     self._device_ids.append(d)
-                elif re.match(r'^cuda:\d+$', d):
-                    self._device_ids.append(int(d.split(':')[1]))
+                elif re.match(r"^cuda:\d+$", d):
+                    self._device_ids.append(int(d.split(":")[1]))
                 else:
                     raise ValueError(f"Invalid device/device_id {d}.")
 
             self._device = torch.device(device[0])
             if len(self._device_ids) > 1:
-                warn_msg = "[EXPERIMENTAL Feature] Multi-GPU training is experimental" \
-                     " and may not work as expected. Please report any issues to the developers."
+                warn_msg = (
+                    "[EXPERIMENTAL Feature] Multi-GPU training is experimental"
+                    " and may not work as expected. Please report any issues to the developers."
+                )
                 warnings.warn(warn_msg)
 
-        elif device.startswith('cuda') and ":" in device:
+        elif device.startswith("cuda") and ":" in device:
             self._device_ids = []
             idx = int(device.split(":")[1])
             self._device = torch.device("cuda", idx)
@@ -532,14 +565,14 @@ class FlukeENV(metaclass=Singleton):
         Raises:
             ValueError: If the progress bar type is invalid.
         """
-        if progress_type == 'FL':
+        if progress_type == "FL":
             return self._rich_progress_FL
-        elif progress_type == 'clients':
+        elif progress_type == "clients":
             return self._rich_progress_clients
-        elif progress_type == 'server':
+        elif progress_type == "server":
             return self._rich_progress_server
         else:
-            raise ValueError(f'Invalid type of progress bar type {progress_type}.')
+            raise ValueError(f"Invalid type of progress bar type {progress_type}.")
 
     def get_live_renderer(self) -> Live:
         """Get the live renderer. The live renderer is used to render the progress bars.
@@ -557,10 +590,12 @@ class FlukeENV(metaclass=Singleton):
         """
         return self._save_path, self._save_every, self._global_only
 
-    def set_save_options(self,
-                         path: str | None = None,
-                         save_every: int | None = None,
-                         global_only: bool | None = None) -> None:
+    def set_save_options(
+        self,
+        path: str | None = None,
+        save_every: int | None = None,
+        global_only: bool | None = None,
+    ) -> None:
         """Set the save options.
 
         Args:
@@ -656,7 +691,7 @@ class FlukeENV(metaclass=Singleton):
         self._rich_live_renderer.stop()
 
     def __getstate__(self) -> dict:
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_rich')}
+        return {k: v for k, v in self.__dict__.items() if not k.startswith("_rich")}
 
     def __setstate__(self, state: dict) -> None:
         self.__dict__.update(state)
@@ -743,8 +778,8 @@ class FlukeCache:
             return self
 
     def __init__(self, path: str, **kwargs):
-        if 'size_limit' not in kwargs:
-            kwargs['size_limit'] = 2**34
+        if "size_limit" not in kwargs:
+            kwargs["size_limit"] = 2**34
         self._cache: Cache = Cache(f"tmp/{path}", **kwargs)
         self._key2ref: dict[str, FlukeCache.ObjectRef] = {}
 

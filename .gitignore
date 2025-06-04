@@ -20,3 +20,5 @@ chk_*
 .vscode/launch.json
 .idea/
 logs/
+*.lock
+*coverage*

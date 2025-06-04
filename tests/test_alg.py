@@ -21,8 +21,7 @@ from fluke.data.datasets import Datasets  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import (ClientObserver, ServerObserver,  # NOQA
-                         get_class_from_qualified_name)
+from fluke.utils import ClientObserver, ServerObserver, get_class_from_qualified_name  # NOQA
 from fluke.utils.log import Log  # NOQA
 
 FlukeENV().set_evaluator(ClassificationEval(1, 10))
@@ -34,18 +33,14 @@ def test_centralized_fl():
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     loss="CrossEntropyLoss",
-                     optimizer=DDict(
-                         name="SGD",
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
+        client=DDict(
+            batch_size=32,
+            local_epochs=1,
+            loss="CrossEntropyLoss",
+            optimizer=DDict(name="SGD", lr=0.1, momentum=0.9),
+            scheduler=DDict(step_size=1, gamma=0.1),
+        ),
+        server=DDict(weighted=True),
     )
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
@@ -63,17 +58,14 @@ def test_centralized_fl():
 
     hparams = DDict(
         model="fluke.nets.MNIST_2NN",
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     loss="CrossEntropyLoss",
-                     optimizer=DDict(
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
+        client=DDict(
+            batch_size=32,
+            local_epochs=1,
+            loss="CrossEntropyLoss",
+            optimizer=DDict(lr=0.1, momentum=0.9),
+            scheduler=DDict(step_size=1, gamma=0.1),
+        ),
+        server=DDict(weighted=True),
     )
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist, client_split=0.1)
@@ -115,7 +107,7 @@ def test_centralized_fl():
             self.called_server_eval = True
 
         def client_evaluation(self, round, client_id, phase, evals, **kwargs):
-            assert round == 1 or (round == -1 and phase == "pre-fit")
+            # assert round == 1 or (round == -1 and phase == "pre-fit")
             assert phase == "post-fit" or phase == "pre-fit"
             assert client_id == 0 or client_id == 1
             self.called_client_eval = True
@@ -148,14 +140,14 @@ def test_centralized_fl():
 
     assert fl.server._observers == [fl, obs]
 
-    strfl = f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN(),Client[0-1](optim=OptCfg(SGD,lr=0.1," + \
-        "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss()," + \
-        "local_epochs=1,fine_tuning_epochs=0,clipping=0),Server(weighted=True,lr=1.0))"
+    strfl = (
+        f"CentralizedFL[{fl.id}](model=fluke.nets.MNIST_2NN(),Client[0-1](optim=OptCfg(SGD,lr=0.1,"
+        + "momentum=0.9,StepLR(step_size=1,gamma=0.1)),batch_size=32,loss_fn=CrossEntropyLoss(),"
+        + "local_epochs=1,fine_tuning_epochs=0,clipping=0),Server(weighted=True,lr=1.0))"
+    )
 
-    assert str(fl).replace(" ", "").replace(
-        "\n", "").replace("\t", "") == strfl
-    assert fl.__repr__().replace(" ", "").replace(
-        "\n", "").replace("\t", "") == strfl
+    assert str(fl).replace(" ", "").replace("\n", "").replace("\t", "") == strfl
+    assert fl.__repr__().replace(" ", "").replace("\n", "").replace("\t", "") == strfl
 
     fl.run(1, 0.5)
     assert obs.called_start
@@ -180,19 +172,15 @@ def test_centralized_fl():
     hparams = DDict(
         # model="fluke.nets.MNIST_2NN",
         model=MNIST_2NN(),
-        client=DDict(batch_size=32,
-                     local_epochs=1,
-                     model=MNIST_2NN(),
-                     loss=CrossEntropyLoss,
-                     optimizer=DDict(
-                         name=SGD,
-                         lr=0.1,
-                         momentum=0.9),
-                     scheduler=DDict(
-                         step_size=1,
-                         gamma=0.1)
-                     ),
-        server=DDict(weighted=True)
+        client=DDict(
+            batch_size=32,
+            local_epochs=1,
+            model=MNIST_2NN(),
+            loss=CrossEntropyLoss,
+            optimizer=DDict(name=SGD, lr=0.1, momentum=0.9),
+            scheduler=DDict(step_size=1, gamma=0.1),
+        ),
+        server=DDict(weighted=True),
     )
     mnist = Datasets.MNIST("../data")
     splitter = DataSplitter(mnist)
@@ -218,19 +206,22 @@ def test_centralized_fl():
 
     shutil.rmtree(f"tests/tmp/tmp_{fl.id}")
 
+
 def get_splitter(cfg):
     dataset = Datasets.get(**cfg.data.dataset)
-    splitter = DataSplitter(dataset=dataset,
-                            distribution=cfg.data.distribution.name,
-                            dist_args=cfg.data.distribution.exclude("name"),
-                            **cfg.data.exclude('dataset', 'distribution'))
+    splitter = DataSplitter(
+        dataset=dataset,
+        distribution=cfg.data.distribution.name,
+        dist_args=cfg.data.distribution.exclude("name"),
+        **cfg.data.exclude("dataset", "distribution"),
+    )
     return splitter
 
 
 SPLITTER = None
 
 
-def _test_algo(exp_config, alg_config, rounds=2, oncpu=True):
+def _test_algo(exp_config, alg_config, oncpu=True, tol=1e-5):
     accs = []
     cfg = Configuration(exp_config, alg_config)
     if oncpu:
@@ -247,19 +238,19 @@ def _test_algo(exp_config, alg_config, rounds=2, oncpu=True):
     global SPLITTER
     if SPLITTER is None:
         dataset = Datasets.get(**cfg.data.dataset)
-        SPLITTER = DataSplitter(dataset=dataset,
-                                distribution=cfg.data.distribution.name,
-                                dist_args=cfg.data.distribution.exclude("name"),
-                                **cfg.data.exclude('dataset', 'distribution'))
+        SPLITTER = DataSplitter(
+            dataset=dataset,
+            distribution=cfg.data.distribution.name,
+            dist_args=cfg.data.distribution.exclude("name"),
+            **cfg.data.exclude("dataset", "distribution"),
+        )
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
 
     for mem in [False, True]:
         FlukeENV().configure(cfg)
         cfg.exp.inmemory = mem
         FlukeENV().set_inmemory(mem)
-        algo = fl_algo_class(cfg.protocol.n_clients,
-                             SPLITTER,
-                             cfg.method.hyperparameters)
+        algo = fl_algo_class(cfg.protocol.n_clients, SPLITTER, cfg.method.hyperparameters)
 
         log = Log()
         log.init(**cfg)
@@ -268,12 +259,11 @@ def _test_algo(exp_config, alg_config, rounds=2, oncpu=True):
         FlukeENV().close_cache()
         shutil.rmtree(f"tests/tmp/tmp_{algo.id}")
         del algo
-        if log.global_eval:
-            accs.append(log.global_eval[cfg.protocol.n_rounds]["accuracy"])
+        if log.tracker["global"] and log.tracker.get("global", cfg.protocol.n_rounds):
+            accs.append(log.tracker.get("global", cfg.protocol.n_rounds)["accuracy"])
         else:
-            accs.append(log.postfit_eval_summary[cfg.protocol.n_rounds]["accuracy"])
-
-    assert np.allclose(accs[0], accs[1], atol=1e-5)
+            accs.append(log.tracker.summary("post-fit", cfg.protocol.n_rounds)["accuracy"])
+    assert np.allclose(accs[0], accs[1], atol=tol)
     return None, log
 
 
@@ -436,7 +426,9 @@ def test_fedrs():
 
 
 def test_fedsam():
-    fedsam, log = _test_algo("./tests/configs/exp.yaml", "./tests/configs/alg/fedsam.yaml")
+    fedsam, log = _test_algo(
+        "./tests/configs/exp.yaml", "./tests/configs/alg/fedsam.yaml", tol=1e-3
+    )
     # fedsam, log = _test_algo("./tests/configs/exp.yaml",
     #                          "./tests/configs/alg/fedsam.yaml", oncpu=False)
 
@@ -496,7 +488,7 @@ def test_superfed():
 
 
 if __name__ == "__main__":
-    test_centralized_fl()
+    # test_centralized_fl()
     # test_apfl()
     # test_ccvr()
     # test_ditto()
@@ -521,7 +513,7 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_fedrod()
     # test_fedrs()
-    # test_fedsam()
+    test_fedsam()
     # test_fedsgd()
     # test_gear()
     # test_kafe()

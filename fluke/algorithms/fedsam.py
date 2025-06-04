@@ -5,6 +5,7 @@ References:
        Learning by Seeking Flat Minima. In ECCV (2022).
        URL: https://arxiv.org/abs/2203.11834
 """
+
 import sys
 from typing import Any, Collection, Union
 
@@ -23,21 +24,19 @@ from . import CentralizedFL  # NOQA
 # This implementation is based on
 # https://github.com/bytedance/FedDecorr/blob/master/approach/fedsam.py
 
-__all__ = [
-    "SAMOptimizer",
-    "FedSAMClient",
-    "FedSAM"
-]
+__all__ = ["SAMOptimizer", "FedSAMClient", "FedSAM"]
 
 
 class SAMOptimizer(torch.optim.Optimizer):
 
-    def __init__(self,
-                 params: Union[Collection[torch.Tensor], Collection[dict[str, Any]]],
-                 base_optimizer: Optimizer = torch.optim.SGD,
-                 rho: float = 0.05,
-                 adaptive: bool = False,
-                 **kwargs):
+    def __init__(
+        self,
+        params: Union[Collection[torch.Tensor], Collection[dict[str, Any]]],
+        base_optimizer: Optimizer = torch.optim.SGD,
+        rho: float = 0.05,
+        adaptive: bool = False,
+        **kwargs,
+    ):
         assert rho >= 0.0, f"Invalid rho, should be non-negative: {rho}"
 
         defaults = dict(rho=rho, adaptive=adaptive, **kwargs)
@@ -78,7 +77,9 @@ class SAMOptimizer(torch.optim.Optimizer):
 
     @torch.no_grad()
     def step(self, closure: Union[None, callable] = None) -> float:
-        assert closure is not None, "Sharpness Aware Minimization requires closure, \
+        assert (
+            closure is not None
+        ), "Sharpness Aware Minimization requires closure, \
             but it was not provided"
         closure = torch.enable_grad()(closure)  # the closure should do a full forward-backward pass
 
@@ -93,13 +94,17 @@ class SAMOptimizer(torch.optim.Optimizer):
         # put everything on the same device, in case of model parallelism
         shared_device = self.param_groups[0]["params"][0].device
         norm = torch.norm(
-            torch.stack([
-                        ((torch.abs(p) if group["adaptive"] else 1.0)
-                         * p.grad).norm(p=2).to(shared_device)
-                        for group in self.param_groups for p in group["params"]
-                        if p.grad is not None
-                        ]),
-            p=2
+            torch.stack(
+                [
+                    ((torch.abs(p) if group["adaptive"] else 1.0) * p.grad)
+                    .norm(p=2)
+                    .to(shared_device)
+                    for group in self.param_groups
+                    for p in group["params"]
+                    if p.grad is not None
+                ]
+            ),
+            p=2,
         )
         return norm
 
@@ -119,20 +124,30 @@ class SAMOptimizer(torch.optim.Optimizer):
 
 class FedSAMClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,  # ignored
-                 local_epochs: int,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 rho: float = 0.05,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,  # ignored
+        local_epochs: int,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        rho: float = 0.05,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.hyper_params.update(rho=rho)
 
     def _get_closure(self, X: torch.Tensor, y: torch.Tensor) -> callable:
@@ -142,16 +157,19 @@ class FedSAMClient(Client):
             loss.backward()
             self._clip_grads(self.model)
             return loss
+
         return closure
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
         self.model.to(self.device)
         self.model.train()
         if self.optimizer is None:
-            self.optimizer, self.scheduler = self._optimizer_cfg(self.model,
-                                                                 rho=self.hyper_params.rho)
+            self.optimizer, self.scheduler = self._optimizer_cfg(
+                self.model, rho=self.hyper_params.rho
+            )
         running_loss = 0.0
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
@@ -160,7 +178,7 @@ class FedSAMClient(Client):
 
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss

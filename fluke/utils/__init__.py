@@ -1,4 +1,5 @@
 """This module contains utility functions and classes used in ``fluke``."""
+
 from __future__ import annotations
 
 import importlib
@@ -30,26 +31,26 @@ from .. import FlukeCache, FlukeENV, custom_formatwarning  # NOQA
 warnings.formatwarning = custom_formatwarning
 
 __all__ = [
-    'log',
-    'model',
-    'ClientObserver',
-    'ServerObserver',
-    'bytes2human',
-    'cache_obj',
-    'clear_cuda_cache',
-    'get_class_from_str',
-    'get_class_from_qualified_name',
-    'get_full_classname',
-    'get_loss',
-    'get_model',
-    'get_optimizer',
-    'get_scheduler',
-    'flatten_dict',
-    'import_module_from_str',
-    'memory_usage',
-    'plot_distribution',
-    'retrieve_obj',
-    'safe_train_test_split'
+    "log",
+    "model",
+    "ClientObserver",
+    "ServerObserver",
+    "bytes2human",
+    "cache_obj",
+    "clear_cuda_cache",
+    "get_class_from_str",
+    "get_class_from_qualified_name",
+    "get_full_classname",
+    "get_loss",
+    "get_model",
+    "get_optimizer",
+    "get_scheduler",
+    "flatten_dict",
+    "import_module_from_str",
+    "memory_usage",
+    "plot_distribution",
+    "retrieve_obj",
+    "safe_train_test_split",
 ]
 
 
@@ -71,12 +72,7 @@ class ClientObserver:
         """
         pass
 
-    def end_fit(self,
-                round: int,
-                client_id: int,
-                model: Module,
-                loss: float,
-                **kwargs):
+    def end_fit(self, round: int, client_id: int, model: Module, loss: float, **kwargs):
         """This method is called when the client ends the local training process.
 
         Args:
@@ -88,15 +84,17 @@ class ClientObserver:
         """
         pass
 
-    def client_evaluation(self,
-                          round: int,
-                          client_id: int,
-                          phase: Literal["pre-fit", "post-fit"],
-                          evals: dict[str, float],
-                          **kwargs):
+    def client_evaluation(
+        self,
+        round: int,
+        client_id: int,
+        phase: Literal["pre-fit", "post-fit"],
+        evals: dict[str, float],
+        **kwargs,
+    ):
         """This method is called when the client evaluates the local model.
         The evaluation can be done before ('pre-fit') and/or after ('post-fit') the local
-        training process. The 'pre-fit' evlauation is usually the evaluation of the global model on
+        training process. The 'pre-fit' evaluation is usually the evaluation of the global model on
         the local test set, and the 'post-fit' evaluation is the evaluation of the just updated
         local model on the local test set.
 
@@ -110,12 +108,7 @@ class ClientObserver:
         """
         pass
 
-    def track_item(self,
-                   round: int,
-                   client_id: int,
-                   item: str,
-                   value: float,
-                   **kwargs) -> None:
+    def track_item(self, round: int, client_id: int, item: str, value: float, **kwargs) -> None:
         """This method is called when the client aims to log an item.
 
         Args:
@@ -161,11 +154,13 @@ class ServerObserver:
         """
         pass
 
-    def server_evaluation(self,
-                          round: int,
-                          eval_type: Literal["global", "locals"],
-                          evals: Union[dict[str, float], dict[int, dict[str, float]]],
-                          **kwargs) -> None:
+    def server_evaluation(
+        self,
+        round: int,
+        eval_type: Literal["global", "locals"],
+        evals: Union[dict[str, float], dict[int, dict[str, float]]],
+        **kwargs,
+    ) -> None:
         """This method is called when the server evaluates the global or the local models on its
         test set.
 
@@ -202,10 +197,7 @@ class ServerObserver:
         """
         pass
 
-    def track_item(self,
-                   round: int,
-                   item: str,
-                   value: float) -> None:
+    def track_item(self, round: int, item: str, value: float) -> None:
         """This method is called when the server aims log an item.
 
         Args:
@@ -216,13 +208,9 @@ class ServerObserver:
         pass
 
 
-def safe_train_test_split(X: torch.Tensor,
-                          y: torch.Tensor,
-                          test_size: float,
-                          client_id: int | None = None) -> tuple[torch.Tensor,
-                                                                 Optional[torch.Tensor],
-                                                                 torch.Tensor,
-                                                                 Optional[torch.Tensor]]:
+def safe_train_test_split(
+    X: torch.Tensor, y: torch.Tensor, test_size: float, client_id: int | None = None
+) -> tuple[torch.Tensor, Optional[torch.Tensor], torch.Tensor, Optional[torch.Tensor]]:
     try:
         if test_size == 0.0:
             return X, None, y, None
@@ -230,9 +218,7 @@ def safe_train_test_split(X: torch.Tensor,
             return train_test_split(X, y, test_size=test_size, stratify=y)
     except ValueError:
         client_str = f"[Client {client_id}]" if client_id is not None else ""
-        warnings.warn(
-            f"Stratified split failed for {client_str}. Falling back to random split."
-        )
+        warnings.warn(f"Stratified split failed for {client_str}. Falling back to random split.")
         return train_test_split(X, y, test_size=test_size)
 
 
@@ -245,7 +231,7 @@ def import_module_from_str(name: str) -> Any:
     Returns:
         Any: The module.
     """
-    components = name.split('.')
+    components = name.split(".")
     mod = importlib.import_module(".".join(components[:-1]))
     mod = getattr(mod, components[-1])
     return mod
@@ -395,9 +381,7 @@ def clear_cuda_cache(ipc: bool = False):
         torch.cuda.ipc_collect()
 
 
-def plot_distribution(clients: list[Client],
-                      train: bool = True,
-                      plot_type: str = "ball") -> None:
+def plot_distribution(clients: list[Client], train: bool = True, plot_type: str = "ball") -> None:
     """Plot the distribution of classes for each client.
     This function is used to plot the distribution of classes for each client. The plot can be a
     scatter plot, a heatmap, or a bar plot. The scatter plot (``plot_type='ball'``) shows filled
@@ -418,7 +402,11 @@ def plot_distribution(clients: list[Client],
         plot_type (str, optional): The type of plot. It can be ``'ball'``, ``'mat'``, or ``'bar'``.
             Defaults to ``'ball'``.
     """
-    assert plot_type in ["bar", "ball", "mat"], "Invalid plot type. Must be 'bar', 'ball' or 'mat'."
+    assert plot_type in [
+        "bar",
+        "ball",
+        "mat",
+    ], "Invalid plot type. Must be 'bar', 'ball' or 'mat'."
     if len(clients) > 30 and plot_type != "bar":
         warnings.warn("Too many clients to plot. Switching to 'bar' plot.")
         plot_type = "bar"
@@ -428,8 +416,10 @@ def plot_distribution(clients: list[Client],
         client[c.index] = c.train_set.tensors[1] if train else c.test_set.tensors[1]
 
     # Count the occurrences of each class for each client
-    class_counts = {client_idx: torch.bincount(client_data).tolist()
-                    for client_idx, client_data in enumerate(client.values())}
+    class_counts = {
+        client_idx: torch.bincount(client_data).tolist()
+        for client_idx, client_data in enumerate(client.values())
+    }
 
     # Maximum number of classes
     num_classes = max(len(counts) for counts in class_counts.values())
@@ -446,25 +436,44 @@ def plot_distribution(clients: list[Client],
                 size = count * 1  # Adjust the scaling factor as needed
                 ax.scatter(client_idx, class_idx, s=size, alpha=0.6)
                 ax.set_yticks(range(num_classes))
-                ax.text(client_idx, class_idx, str(count), va='center',
-                        ha='center', color='black', fontsize=9)
-    plt.title('Number of Examples per Class for Each Client', fontsize=12)
+                ax.text(
+                    client_idx,
+                    class_idx,
+                    str(count),
+                    va="center",
+                    ha="center",
+                    color="black",
+                    fontsize=9,
+                )
+    plt.title("Number of Examples per Class for Each Client", fontsize=12)
     ax.grid(False)
     if plot_type == "mat":
         ax.set_yticks(range(num_classes))
-        sns.heatmap(class_matrix, ax=ax, cmap="viridis", annot=class_matrix, fmt='g',
-                    cbar=False, annot_kws={"fontsize": 6})
+        sns.heatmap(
+            class_matrix,
+            ax=ax,
+            cmap="viridis",
+            annot=class_matrix,
+            fmt="g",
+            cbar=False,
+            annot_kws={"fontsize": 6},
+        )
     elif plot_type == "bar":
-        df = pd.DataFrame(class_matrix.T, index=[f'{i}' for i in range(len(client))],
-                          columns=[f'{i}' for i in range(num_classes)])
+        df = pd.DataFrame(
+            class_matrix.T,
+            index=[f"{i}" for i in range(len(client))],
+            columns=[f"{i}" for i in range(num_classes)],
+        )
         step = int(max(1, np.ceil(len(clients) / 50)))
-        df.plot(ax=ax,
-                kind='bar',
-                stacked=True,
-                xticks=[x for x in range(0, len(clients), step)],
-                color=sns.color_palette('viridis', num_classes)).legend(loc='upper right')
-    plt.xlabel('clients')
-    plt.ylabel('classes')
+        df.plot(
+            ax=ax,
+            kind="bar",
+            stacked=True,
+            xticks=[x for x in range(0, len(clients), step)],
+            color=sns.color_palette("viridis", num_classes),
+        ).legend(loc="upper right")
+    plt.xlabel("clients")
+    plt.ylabel("classes")
     plt.show()
 
 
@@ -492,14 +501,14 @@ def bytes2human(n: int) -> str:
             '1.0G'
 
     """
-    symbols = ('K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
+    symbols = ("K", "M", "G", "T", "P", "E", "Z", "Y")
     prefix = {}
     for i, s in enumerate(symbols):
         prefix[s] = 1 << (i + 1) * 10
     for s in reversed(symbols):
         if abs(n) >= prefix[s]:
             value = float(n) / prefix[s]
-            return '%.1f %sB' % (value, s)
+            return "%.1f %sB" % (value, s)
     return "%s B" % n
 
 
@@ -521,9 +530,7 @@ def memory_usage() -> tuple[int, int, int]:
     return proc.memory_info().rss, proc.memory_info().vms, current_reserved
 
 
-def retrieve_obj(key: str,
-                 party: Client | Server | None = None,
-                 pop: bool = True) -> Any:
+def retrieve_obj(key: str, party: Client | Server | None = None, pop: bool = True) -> Any:
     """Load an object from the cache (disk).
     If the object is not found in the cache, it returns ``None``.
 
@@ -549,9 +556,9 @@ def retrieve_obj(key: str,
     return obj
 
 
-def cache_obj(obj: Any,
-              key: str,
-              party: Server | Client | None = None) -> FlukeCache.ObjectRef | None:
+def cache_obj(
+    obj: Any, key: str, party: Server | Client | None = None
+) -> FlukeCache.ObjectRef | None:
     """Move the object from the RAM to the disk cache to free up memory.
     If the object is ``None``, it returns ``None`` without caching it.
 
@@ -577,7 +584,7 @@ def cache_obj(obj: Any,
     return cache.push(f"{prefix}{key}", obj)
 
 
-def _flatten_dict(d: dict, parent_key: str = '', sep: str = '.') -> dict:
+def _flatten_dict(d: dict, parent_key: str = "", sep: str = ".") -> dict:
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
@@ -588,7 +595,7 @@ def _flatten_dict(d: dict, parent_key: str = '', sep: str = '.') -> dict:
     return dict(items)
 
 
-def flatten_dict(nested_dict: dict, sep: str = '.') -> dict:
+def flatten_dict(nested_dict: dict, sep: str = ".") -> dict:
     """Flatten a nested dictionary.
     The flatten dictionary is a dictionary where the keys are the concatenation of the keys of the
     nested dictionary separated by a separator.

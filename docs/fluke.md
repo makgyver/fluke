@@ -7,7 +7,7 @@
 .. automodule:: fluke
    :no-members:
 
-```   
+```
 
 <h3>Submodules</h3>
 
@@ -23,6 +23,7 @@
    client
    comm
    config
+   distr
    evaluation
    nets
    server
@@ -48,7 +49,7 @@ Classes included in ``fluke``
    FlukeENV
    ObserverSubject
    Singleton
-   
+
 ```
 
 ## Classes

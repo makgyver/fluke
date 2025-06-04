@@ -5,8 +5,9 @@ References:
        Federated Learning with Only Positive Labels.
        In ICML (2020). URL: https://proceedings.mlr.press/v119/yu20f/yu20f.pdf
 """
+
 import sys
-from typing import Collection, Literal
+from typing import Collection, Literal, Sequence
 
 import torch
 from torch import nn
@@ -20,12 +21,7 @@ from ..data import FastDataLoader  # NOQA
 from ..server import Server  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "SpreadModel",
-    "SpreadLoss",
-    "FedAwSServer",
-    "FedAwS"
-]
+__all__ = ["SpreadModel", "SpreadLoss", "FedAwSServer", "FedAwS"]
 
 
 class SpreadModel(nn.Module):
@@ -54,7 +50,7 @@ class SpreadLoss(nn.Module):
         cos_dis = cos_dis * (1.0 - d_mat)
 
         indx = ((self.margin - cos_dis) > 0.0).float()
-        loss = (((self.margin - cos_dis) * indx) ** 2)
+        loss = ((self.margin - cos_dis) * indx) ** 2
 
         if self.reduction == "mean":
             return loss.mean()
@@ -66,33 +62,36 @@ class SpreadLoss(nn.Module):
 
 class FedAwSServer(Server):
 
-    def __init__(self,
-                 model: torch.nn.Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = False,
-                 aws_lr: float = 0.1,
-                 aws_steps: int = 100,
-                 margin: float = 0.5,
-                 last_layer_name: str = "classifier",
-                 **kwargs):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        test_set: FastDataLoader,
+        clients: Sequence[Client],
+        weighted: bool = False,
+        aws_lr: float = 0.1,
+        aws_steps: int = 100,
+        margin: float = 0.5,
+        last_layer_name: str = "classifier",
+        **kwargs,
+    ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
-        assert (last_layer_name + ".weight") in model.state_dict().keys(), \
-            f"Invalid last_layer_name: {last_layer_name}. Make sure that the last layer \
-                is named as {last_layer_name}"
-        self.hyper_params.update(aws_lr=aws_lr,
-                                 margin=margin,
-                                 aws_steps=aws_steps,
-                                 last_layer_name=last_layer_name + ".weight")
+        assert (last_layer_name + ".weight") in model.state_dict().keys(), (
+            f"Invalid last_layer_name: {last_layer_name}."
+            + f"Make sure that the last layer is named as {last_layer_name}"
+        )
+        self.hyper_params.update(
+            aws_lr=aws_lr,
+            margin=margin,
+            aws_steps=aws_steps,
+            last_layer_name=last_layer_name + ".weight",
+        )
 
     def _compute_spreadout(self) -> None:
         ws = self.model.state_dict()[self.hyper_params.last_layer_name].data
         spread_model = SpreadModel(ws)
 
         optimizer = torch.optim.SGD(
-            spread_model.parameters(),
-            lr=self.hyper_params.aws_lr,
-            momentum=0.9
+            spread_model.parameters(), lr=self.hyper_params.aws_lr, momentum=0.9
         )
         criterion = SpreadLoss(margin=self.hyper_params.margin)
 
@@ -103,11 +102,10 @@ class FedAwSServer(Server):
             optimizer.step()
 
         self.model.load_state_dict(
-            {self.hyper_params.last_layer_name: spread_model.weights.data},
-            strict=False
+            {self.hyper_params.last_layer_name: spread_model.weights.data}, strict=False
         )
 
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[nn.Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[nn.Module]) -> None:
         super().aggregate(eligible, client_models)
         self._compute_spreadout()
 

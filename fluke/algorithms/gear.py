@@ -6,6 +6,7 @@ References:
        URL: https://federated-learning.org/fl-aaai-2022/Papers/FL-AAAI-22_paper_34.pdf
 
 """
+
 import sys
 from typing import Literal
 
@@ -24,20 +25,18 @@ from ..data import FastDataLoader  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "GEARClient",
-    "GEAR",
-    "MarginBasedCrossEntropyLoss"
-]
+__all__ = ["GEARClient", "GEAR", "MarginBasedCrossEntropyLoss"]
 
 
 class MarginBasedCrossEntropyLoss(nn.Module):
     """Margin-based cross-entropy loss."""
 
-    def __init__(self,
-                 class_counts: torch.Tensor,
-                 delta: float,
-                 reduction: Literal["mean", "sum"] = "mean"):
+    def __init__(
+        self,
+        class_counts: torch.Tensor,
+        delta: float,
+        reduction: Literal["mean", "sum"] = "mean",
+    ):
         super(MarginBasedCrossEntropyLoss, self).__init__()
         self.class_counts = class_counts.float()
         self.delta = delta
@@ -57,8 +56,10 @@ class MarginBasedCrossEntropyLoss(nn.Module):
 
     def __str__(self, indent: int = 0) -> str:
         indent_str = " " * indent
-        return f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta}," + \
-            f"reduction={self.reduction})"
+        return (
+            f"{indent_str}MarginBasedCrossEntropyLoss(delta={self.delta},"
+            + f"reduction={self.reduction})"
+        )
 
     def __repr__(self, indent: int = 0) -> str:
         return self.__str__(indent=indent)
@@ -66,38 +67,49 @@ class MarginBasedCrossEntropyLoss(nn.Module):
 
 class GEARClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,  # not used
-                 local_epochs: int,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 eps: float = 0.1,
-                 delta: float = 0.01,
-                 alpha: float = 2.0 / 255,
-                 adv_iters: int = 10,
-                 **kwargs):
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,  # not used
+        local_epochs: int,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        eps: float = 0.1,
+        delta: float = 0.01,
+        alpha: float = 2.0 / 255,
+        adv_iters: int = 10,
+        **kwargs,
+    ):
         self.sample_per_class = torch.zeros(train_set.num_labels)
         uniq_val, uniq_count = np.unique(train_set.tensors[1], return_counts=True)
         for i, c in enumerate(uniq_val.tolist()):
             self.sample_per_class[c] = uniq_count[i]
 
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         loss_fn=MarginBasedCrossEntropyLoss(self.sample_per_class, delta),
-                         optimizer_cfg=optimizer_cfg, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            loss_fn=MarginBasedCrossEntropyLoss(self.sample_per_class, delta),
+            optimizer_cfg=optimizer_cfg,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
         self.hyper_params.update(eps=eps, delta=delta, alpha=alpha, adv_iters=adv_iters)
 
-    def generate_adversarial(self,
-                             model: Module,
-                             inputs: torch.Tensor,
-                             targets: torch.Tensor,
-                             eps: float = 0.1,
-                             alpha: float = 2.0 / 255,
-                             iters: int = 10) -> torch.Tensor:
+    def generate_adversarial(
+        self,
+        model: Module,
+        inputs: torch.Tensor,
+        targets: torch.Tensor,
+        eps: float = 0.1,
+        alpha: float = 2.0 / 255,
+        iters: int = 10,
+    ) -> torch.Tensor:
         """
         Generates adversarial examples using Projected Gradient Descent (PGD).
 
@@ -124,8 +136,9 @@ class GEARClient(Client):
         return adv_inputs.requires_grad_(False)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
 
         self.model.train()
         self.model.to(self.device)
@@ -147,7 +160,7 @@ class GEARClient(Client):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss

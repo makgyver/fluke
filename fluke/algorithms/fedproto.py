@@ -4,10 +4,11 @@ References:
        Zhang. FedProto: Federated Prototype Learning across Heterogeneous Clients. In AAAI (2022).
        URL: https://arxiv.org/abs/2105.00243
 """
+
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import torch
 from torch.nn import Module
@@ -15,6 +16,7 @@ from torch.nn import Module
 sys.path.append(".")
 sys.path.append("..")
 
+from .. import FlukeENV  # NOQA
 from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
@@ -26,19 +28,16 @@ from ..utils import clear_cuda_cache, get_model  # NOQA
 from ..utils.model import unwrap  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "FedProtoModel",
-    "FedProtoClient",
-    "FedProtoServer",
-    "FedProto"
-]
+__all__ = ["FedProtoModel", "FedProtoClient", "FedProtoServer", "FedProto"]
 
 
 class FedProtoModel(Module):
-    def __init__(self,
-                 model: EncoderHeadNet,
-                 prototypes: dict[int, torch.Tensor],
-                 device: torch.device):
+    def __init__(
+        self,
+        model: EncoderHeadNet,
+        prototypes: dict[int, torch.Tensor],
+        device: torch.device,
+    ):
         super().__init__()
         self.model: EncoderHeadNet = model
         self.prototypes: dict[int, torch.Tensor] = prototypes
@@ -49,14 +48,14 @@ class FedProtoModel(Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         mse_loss = torch.nn.MSELoss()
         Z = unwrap(self.model).encoder(x)
-        output = float('inf') * torch.ones(x.shape[0], self.num_classes).to(self.device)
+        output = float("inf") * torch.ones(x.shape[0], self.num_classes).to(self.device)
         for i, r in enumerate(Z):
             for j, proto in self.prototypes.items():
                 # CHECKME: is the following lines necessary?
                 if proto is not None and type(proto) is not type([]):
                     output[i, j] = mse_loss(r, proto)
                 else:
-                    output[i, j] = float('inf')
+                    output[i, j] = float("inf")
 
         # Return the negative of the distance so
         # to compute the argmax to get the closest prototype
@@ -65,28 +64,35 @@ class FedProtoModel(Module):
 
 class FedProtoClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 model: Module,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 n_protos: int,
-                 lam: float,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 0,
-                 **kwargs):
+    def __init__(
+        self,
+        index: int,
+        model: Module,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        n_protos: int,
+        lam: float,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 0,
+        **kwargs,
+    ):
         fine_tuning_epochs = fine_tuning_epochs if fine_tuning_epochs else local_epochs
-        super().__init__(index=index, model=model, train_set=train_set,
-                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs,
-                         clipping=clipping, **kwargs)
-        self.hyper_params.update(
-            n_protos=n_protos,
-            lam=lam
+        super().__init__(
+            index=index,
+            model=model,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
         )
+        self.hyper_params.update(n_protos=n_protos, lam=lam)
         if isinstance(model, str):
             model = get_model(model)
         self.model = model
@@ -105,8 +111,9 @@ class FedProtoClient(Client):
             self.prototypes[label] = torch.sum(torch.vstack(prts), dim=0) / len(prts)
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs else self.hyper_params.local_epochs
+        )
 
         self.model.train()
         self.model.to(self.device)
@@ -145,7 +152,7 @@ class FedProtoClient(Client):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         self._update_protos(protos)
@@ -160,34 +167,48 @@ class FedProtoClient(Client):
     def finalize(self) -> None:
         self._load_from_cache()
         self.fit(self.hyper_params.fine_tuning_epochs)
+        metrics = self.evaluate(FlukeENV().get_evaluator(), self.test_set)
+        if metrics:
+            self.notify(
+                event="client_evaluation",
+                round=-1,
+                client_id=self.index,
+                phase="post-fit",
+                evals=metrics,
+            )
         self._save_to_cache()
 
 
 class FedProtoServer(Server):
 
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = True,
-                 n_protos: int = 10):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,
+        clients: Sequence[Client],
+        weighted: bool = True,
+        n_protos: int = 10,
+    ):
         super().__init__(model=None, test_set=None, clients=clients, weighted=weighted)
         self.hyper_params.update(n_protos=n_protos)
         self.prototypes = [None for _ in range(self.hyper_params.n_protos)]
 
-    def broadcast_model(self, eligible: Collection[Client]) -> None:
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
         # This function broadcasts the prototypes to the clients
-        self.channel.broadcast(Message(self.prototypes, "model", "server"),
-                               [c.index for c in eligible])
+        self.channel.broadcast(
+            Message(self.prototypes, "model", "server"), [c.index for c in eligible]
+        )
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         # Recieve models from clients, i.e., the prototypes
-        clients_protos = client_models
+        clients_protos = list(client_models)
 
         # Group by label
-        label_protos = {i: [protos[i] for protos in clients_protos if protos[i] is not None]
-                        for i in range(self.hyper_params.n_protos)}
+        label_protos = {
+            i: [protos[i] for protos in clients_protos if protos[i] is not None]
+            for i in range(self.hyper_params.n_protos)
+        }
 
         # Aggregate prototypes
         for label, protos in label_protos.items():

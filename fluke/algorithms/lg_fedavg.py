@@ -6,8 +6,9 @@ References:
        Federated Learning with Local and Global Representations. In arXiv (2020).
        URL: https://arxiv.org/abs/2001.01523
 """
+
 import sys
-from typing import Collection
+from typing import Sequence
 
 # from torch.nn import CrossEntropyLoss
 from torch.nn.modules import Module
@@ -25,11 +26,7 @@ from ..server import Server  # NOQA
 from ..utils import get_model  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
-__all__ = [
-    "LGFedAVGClient",
-    "LGFedAVGServer",
-    "LGFedAVG"
-]
+__all__ = ["LGFedAVGClient", "LGFedAVGServer", "LGFedAVG"]
 
 # The implementation is almost identical to FedPerClient
 # The difference lies in the part of the network that is local and the part that is global.
@@ -38,25 +35,36 @@ __all__ = [
 
 class LGFedAVGClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 model: EncoderHeadNet,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: Module,  # In the paper it is fixed to CrossEntropyLoss
-                 local_epochs: int = 3,
-                 fine_tuning_epochs: int = 0,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set,
-                         test_set=test_set, optimizer_cfg=optimizer_cfg, loss_fn=loss_fn,
-                         local_epochs=local_epochs, fine_tuning_epochs=fine_tuning_epochs, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        model: EncoderHeadNet,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,  # In the paper it is fixed to CrossEntropyLoss
+        local_epochs: int = 3,
+        fine_tuning_epochs: int = 0,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            **kwargs,
+        )
         self.model = HeadGlobalEncoderLocalNet(model)
         self._save_to_cache()
 
     def send_model(self) -> None:
-        self.channel.send(Message(self.model.get_global(), "model", self.index, inmemory=True),
-                          "server")
+        self.channel.send(
+            Message(self.model.get_global(), "model", self.index, inmemory=True),
+            "server",
+        )
 
     def receive_model(self) -> None:
         msg = self.channel.receive(self.index, "server", msg_type="model")
@@ -65,11 +73,13 @@ class LGFedAVGClient(Client):
 
 class LGFedAVGServer(Server):
 
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,  # not used
-                 clients: Collection[Client],
-                 weighted: bool = False):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,  # not used
+        clients: Sequence[Client],
+        weighted: bool = False,
+    ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
 

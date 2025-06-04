@@ -5,9 +5,10 @@ References:
        and Venkatesh Saligrama. Federated Learning with Dynamic Regularization.
        In ICLR (2021). URL: https://openreview.net/pdf?id=B7v4QMR6Z9w
 """
+
 import sys
 from copy import deepcopy
-from typing import Collection
+from typing import Collection, Sequence
 
 import numpy as np
 import torch
@@ -26,14 +27,10 @@ from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import aggregate_models, safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
 
-__all__ = [
-    "FedDynClient",
-    "FedDynServer",
-    "FedDyn"
-]
+__all__ = ["FedDynClient", "FedDynServer", "FedDyn"]
 
 
-def get_all_params_of(model: torch.Tensor, copy: bool = True) -> torch.Tensor:
+def get_all_params_of(model: Module, copy: bool = True) -> torch.Tensor:
     result = None
     for param in model.parameters():
         if not param.requires_grad:
@@ -42,8 +39,11 @@ def get_all_params_of(model: torch.Tensor, copy: bool = True) -> torch.Tensor:
         if result is None:
             result = param.clone().detach().reshape(-1) if copy else param.reshape(-1)
         else:
-            result = torch.cat((result, param.clone().detach().reshape(-1)),
-                               0) if copy else torch.cat((result, param.reshape(-1)), 0)
+            result = (
+                torch.cat((result, param.clone().detach().reshape(-1)), 0)
+                if copy
+                else torch.cat((result, param.reshape(-1)), 0)
+            )
     return result
 
 
@@ -56,7 +56,8 @@ def load_all_params(device: torch.device, model: torch.nn.Module, params: torch.
         weights = param.data
         length = len(weights.reshape(-1))
         dict_param[name].data.copy_(
-            params[idx:idx+length].clone().detach().reshape(weights.shape).to(device))
+            params[idx : idx + length].clone().detach().reshape(weights.shape).to(device)
+        )
         idx += length
 
     model.load_state_dict(dict_param, strict=False)
@@ -64,25 +65,38 @@ def load_all_params(device: torch.device, model: torch.nn.Module, params: torch.
 
 class FedDynClient(Client):
 
-    def __init__(self,
-                 index: int,
-                 train_set: FastDataLoader,
-                 test_set: FastDataLoader,
-                 optimizer_cfg: OptimizerConfigurator,
-                 loss_fn: torch.nn.Module,
-                 local_epochs: int,
-                 alpha: float,
-                 fine_tuning_epochs: int = 0,
-                 clipping: float = 5,
-                 **kwargs):
-        super().__init__(index=index, train_set=train_set, test_set=test_set,
-                         optimizer_cfg=optimizer_cfg, loss_fn=loss_fn, local_epochs=local_epochs,
-                         fine_tuning_epochs=fine_tuning_epochs, clipping=clipping, **kwargs)
+    def __init__(
+        self,
+        index: int,
+        train_set: FastDataLoader,
+        test_set: FastDataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: torch.nn.Module,
+        local_epochs: int,
+        alpha: float,
+        fine_tuning_epochs: int = 0,
+        clipping: float = 5,
+        **kwargs,
+    ):
+        super().__init__(
+            index=index,
+            train_set=train_set,
+            test_set=test_set,
+            optimizer_cfg=optimizer_cfg,
+            loss_fn=loss_fn,
+            local_epochs=local_epochs,
+            fine_tuning_epochs=fine_tuning_epochs,
+            clipping=clipping,
+            **kwargs,
+        )
 
         self.hyper_params.update(alpha=alpha)
         self.weight = None
-        self.weight_decay = self._optimizer_cfg.optimizer_cfg[
-            "weight_decay"] if "weight_decay" in self._optimizer_cfg.optimizer_cfg else 0
+        self.weight_decay = (
+            self._optimizer_cfg.optimizer_cfg["weight_decay"]
+            if "weight_decay" in self._optimizer_cfg.optimizer_cfg
+            else 0
+        )
         self.prev_grads = None
         self._attr_to_cache.extend(["prev_grads", "weight"])
 
@@ -98,18 +112,19 @@ class FedDynClient(Client):
         self.weight = self.channel.receive(self.index, "server", msg_type="weight").payload
 
     def _send_weight(self) -> None:
-        self.channel.send(Message(self.train_set.tensors[0].shape[0],
-                                  "weight",
-                                  self.index,
-                                  inmemory=True), "server")
+        self.channel.send(
+            Message(self.train_set.tensors[0].shape[0], "weight", self.index, inmemory=True),
+            "server",
+        )
 
     def send_model(self) -> None:
         self.channel.send(Message(self.model, "model", self.index, inmemory=True), "server")
         self.channel.send(Message(self.prev_grads, "grads", self.index, inmemory=True), "server")
 
     def fit(self, override_local_epochs: int = 0) -> float:
-        epochs: int = (override_local_epochs if override_local_epochs > 0
-                       else self.hyper_params.local_epochs)
+        epochs: int = (
+            override_local_epochs if override_local_epochs > 0 else self.hyper_params.local_epochs
+        )
 
         self.model.train()
         self.model.to(self.device)
@@ -122,10 +137,12 @@ class FedDynClient(Client):
 
         if not self.optimizer:
             w_dec = alpha_coef_adpt + self.weight_decay
-            self.optimizer, self.scheduler = self._optimizer_cfg(self.model,
-                                                                 # this override the weight_decay
-                                                                 # in the optimizer_cfg
-                                                                 weight_decay=w_dec)
+            self.optimizer, self.scheduler = self._optimizer_cfg(
+                self.model,
+                # this override the weight_decay
+                # in the optimizer_cfg
+                weight_decay=w_dec,
+            )
         running_loss = 0.0
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
@@ -138,8 +155,9 @@ class FedDynClient(Client):
                 curr_params = get_all_params_of(self.model, False).to(self.device)
                 # penalty = -torch.sum(curr_params * self.prev_grads)
                 # penalty += 0.5 * alpha_coef_adpt * torch.sum((curr_params - server_params) ** 2)
-                penalty = alpha_coef_adpt * \
-                    torch.sum(curr_params * (-server_params + self.prev_grads))
+                penalty = alpha_coef_adpt * torch.sum(
+                    curr_params * (-server_params + self.prev_grads)
+                )
                 loss = loss + penalty
 
                 loss.backward()
@@ -153,36 +171,45 @@ class FedDynClient(Client):
         curr_params = get_all_params_of(self.model).to(self.device)
         self.prev_grads += alpha_coef_adpt * (server_params - curr_params)
 
-        running_loss /= (epochs * len(self.train_set))
+        running_loss /= epochs * len(self.train_set)
         self.model.cpu()
         clear_cuda_cache()
         return running_loss
 
 
 class FedDynServer(Server):
-    def __init__(self,
-                 model: Module,
-                 test_set: FastDataLoader,
-                 clients: Collection[Client],
-                 weighted: bool = True,
-                 alpha: float = 0.01):
+    def __init__(
+        self,
+        model: Module,
+        test_set: FastDataLoader,
+        clients: Sequence[Client],
+        weighted: bool = True,
+        alpha: float = 0.01,
+    ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         self.alpha = alpha
         self.device = FlukeENV().get_device()
         self.cld_mdl = deepcopy(self.model).to(self.device)
 
-    def broadcast_model(self, eligible: Collection[Client]) -> None:
-        self.channel.broadcast(Message((self.model, self.cld_mdl), "model", "server"),
-                               [c.index for c in eligible])
+    def broadcast_model(self, eligible: Sequence[Client]) -> None:
+        self.channel.broadcast(
+            Message((self.model, self.cld_mdl), "model", "server"), [c.index for c in eligible]
+        )
 
-    def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
+    def fit(
+            self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
+    ) -> None:
 
         # Weight computation
         for client in self.clients:
             client._send_weight()
 
-        weights = np.array([self.channel.receive(
-            "server", client.index, msg_type="weight").payload for client in self.clients])
+        weights = np.array(
+            [
+                self.channel.receive("server", client.index, msg_type="weight").payload
+                for client in self.clients
+            ]
+        )
         weights = weights / np.sum(weights) * self.n_clients
 
         for i, client in enumerate(self.clients):
@@ -194,13 +221,11 @@ class FedDynServer(Server):
         return super().fit(n_rounds, eligible_perc)
 
     @torch.no_grad()
-    def aggregate(self, eligible: Collection[Client], client_models: Collection[Module]) -> None:
+    def aggregate(self, eligible: Sequence[Client], client_models: Collection[Module]) -> None:
         weights = self._get_client_weights(eligible)
-        agg_model_sd = aggregate_models(self.model,
-                                        client_models,
-                                        weights,
-                                        eta=self.hyper_params.lr,
-                                        inplace=False).state_dict()
+        agg_model_sd = aggregate_models(
+            self.model, client_models, weights, eta=self.hyper_params.lr, inplace=False
+        ).state_dict()
 
         avg_grad = None
         grad_count = 0
@@ -217,9 +242,11 @@ class FedDynServer(Server):
             avg_grad /= grad_count
 
         self.model.load_state_dict(agg_model_sd)
-        load_all_params(self.device,
-                        self.cld_mdl,
-                        get_all_params_of(self.model).to(self.device) + avg_grad.to(self.device))
+        load_all_params(
+            self.device,
+            self.cld_mdl,
+            get_all_params_of(self.model).to(self.device) + avg_grad.to(self.device),
+        )
 
 
 class FedDyn(CentralizedFL):
