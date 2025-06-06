@@ -162,7 +162,7 @@ class FedHPClient(Client):
                 self.optimizer.zero_grad()
                 self.proto_opt.zero_grad()
                 _, dists = self.model.forward(X)
-                loss = self.hyper_params.loss_fn(dists, y)
+                loss = (1 - self.hyper_params.lam) * self.hyper_params.loss_fn(dists, y)
                 loss_proto = torch.mean(
                     1 - nn.CosineSimilarity(dim=1)(unwrap(self.model).prototypes, self.anchors)
                 )
@@ -232,8 +232,9 @@ class FedHPServer(Server):
             self.prototypes = copy.deepcopy(self.anchors)
             client = {c.index: c.train_set.tensors[1] for c in self.clients}
             # Count the occurrences of each class for each client.
-            # This is "illegal" in fluke :)
-            n_classes = self.clients[0].train_set.num_labels
+            # This is "illegal" in fluke :) -  however it does not invalidate the overall
+            # communication cost
+            n_classes = self.hyper_params.n_protos
             class_counts = {
                 client_idx: torch.bincount(client_data, minlength=n_classes).tolist()
                 for client_idx, client_data in enumerate(client.values())
