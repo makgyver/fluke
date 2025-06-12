@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import warnings
 from collections import defaultdict
+from copy import deepcopy
 from typing import Optional, Sequence
 
 import numpy as np
@@ -176,6 +177,23 @@ class FastDataLoader:
             **kwargs,
         )
 
+    def clone(self) -> FastDataLoader:
+        """Clone the FastDataLoader.
+
+        Returns:
+            FastDataLoader: a new instance of FastDataLoader with the same parameters.
+        """
+        return FastDataLoader(
+            *[deepcopy(t) for t in self.tensors],
+            num_labels=self.num_labels,
+            batch_size=self.batch_size,
+            shuffle=self.shuffle,
+            transforms=self.transforms,
+            percentage=self.percentage,
+            skip_singleton=self.skip_singleton,
+            single_batch=self.single_batch,
+        )
+
     def __getitem__(self, index: int) -> tuple:
         """Get the entry at the given index for each tensor.
 
@@ -274,6 +292,17 @@ class FastDataLoader:
 
     def __len__(self) -> int:
         return self.n_batches
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __str__(self) -> str:
+        return (
+            f"FastDataLoader(num_labels={self.num_labels}, "
+            f"batch_size={self.batch_size}, shuffle={self.shuffle}, "
+            f"percentage={self.percentage}, skip_singleton={self.skip_singleton}, "
+            f"single_batch={self.single_batch})"
+        )
 
 
 class DataSplitter:

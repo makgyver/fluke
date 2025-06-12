@@ -2,24 +2,24 @@
 of the model client-side and server-side."""
 
 import sys
-from abc import ABC, abstractmethod
-from typing import Any, Collection, Optional, Union, Literal
+from typing import Collection, Literal, Optional, Union
 
-from pandas import DataFrame
 import numpy as np
 import torch
+from pandas import DataFrame
 from torch.nn import Module
-from torchmetrics import Accuracy, F1Score, Metric, Precision, Recall
+from torchmetrics import Metric
 
 sys.path.append(".")
 sys.path.append("..")
 
-from .data import FastDataLoader  # NOQA
+from ..data import FastDataLoader  # NOQA
+from ..utils import num_accepted_args  # NOQA
 
-__all__ = ["Evaluator", "ClassificationEval", "PerformanceTracker"]
+__all__ = ["classification", "fairness", "Evaluator", "CompoundEvaluator", "PerformanceTracker"]
 
 
-class Evaluator(ABC):
+class Evaluator:
     """This class is the base class for all evaluators in :mod:`fluke`.
     An evaluator object should be used to perform the evaluation of a (federated) model.
 
@@ -31,19 +31,30 @@ class Evaluator(ABC):
         eval_every (int): The evaluation frequency.
     """
 
-    def __init__(self, eval_every: int = 1):
+    def __init__(self, eval_every: int = 1, **kwargs):
         self.eval_every: int = eval_every
 
-    @abstractmethod
+    def add_metric(self, name: str, metric: Metric) -> None:
+        """Add a metric to the evaluator.
+
+        Args:
+            name (str): The name of the metric.
+            metric (Metric): The metric to add.
+        """
+        if name in self.metrics:
+            raise ValueError(f"Metric {name} already exists.")
+        self.metrics[name] = metric
+
+    @torch.no_grad()
     def evaluate(
         self,
         round: int,
-        model: Module,
-        eval_data_loader: FastDataLoader,
-        loss_fn: Optional[torch.nn.Module],
+        model: torch.nn.Module,
+        eval_data_loader: Union[FastDataLoader, Collection[FastDataLoader]],
+        loss_fn: Optional[torch.nn.Module] = None,
         additional_metrics: Optional[dict[str, Metric]] = None,
-        **kwargs,
-    ) -> dict[str, Any]:
+        device: torch.device = torch.device("cpu"),
+    ) -> dict:
         """Evaluate the model.
 
         Args:
@@ -58,7 +69,97 @@ class Evaluator(ABC):
         Returns:
             dict[str, Any]: A dictionary containing the computed metrics.
         """
-        raise NotImplementedError
+        from ..utils import clear_cuda_cache  # NOQA
+
+        if (round != 1) and (round % self.eval_every != 0):
+            return {}
+
+        if (model is None) or (eval_data_loader is None):
+            return {}
+
+        model_device = torch.device("cpu")
+        if next(model.parameters(), None) is not None:
+            model_device = next(model.parameters()).device
+        model.eval()
+        model.to(device)
+        losses = []
+        matrics_values = {k: [] for k in self.metrics.keys()}
+
+        if additional_metrics is None:
+            additional_metrics = {}
+
+        add_metric_values = {k: [] for k in additional_metrics.keys()}
+
+        loss_n_args = (num_accepted_args(loss_fn) - 2) if loss_fn is not None else 2
+        metrics_n_args = {k: (num_accepted_args(v.update) - 2) for k, v in self.metrics.items()}
+        add_metrics_n_args = (
+            {k: (num_accepted_args(v.update) - 2) for k, v in additional_metrics.items()}
+            if additional_metrics
+            else {}
+        )
+
+        for metric in self.metrics.values():
+            metric.reset()
+
+        for metric in additional_metrics.values():
+            metric.reset()
+
+        loss = 0
+        for X, y, *z in eval_data_loader:
+            X, y = X.to(device), y.to(device)
+            if len(z) > 0:
+                z = [item.to(device) for item in z]
+
+            with torch.no_grad():
+                y_hat = model(X)
+                if loss_fn is not None:
+                    loss += loss_fn(y_hat, y, *(z[:loss_n_args] if z else [])).item()
+
+            for name, metric in self.metrics.items():
+                metric.update(
+                    y_hat.cpu(),
+                    y.cpu(),
+                    *([item.cpu() for item in z[: metrics_n_args[name]]] if z else []),
+                )
+
+            if additional_metrics:
+                for name, metric in additional_metrics.items():
+                    metric.update(
+                        y_hat.cpu(),
+                        y.cpu(),
+                        *([item.cpu() for item in z[: add_metrics_n_args[name]]] if z else []),
+                    )
+
+        for k, v in self.metrics.items():
+            matrics_values[k].append(v.compute().item())
+
+        if additional_metrics:
+            for k, v in additional_metrics.items():
+                add_metric_values[k].append(v.compute().item())
+
+        losses.append(loss / len(eval_data_loader))
+
+        model.to(model_device)
+        clear_cuda_cache()
+
+        result = {m: np.round(sum(v) / len(v), 5).item() for m, v in matrics_values.items()}
+        result.update(
+            {m: np.round(sum(v) / len(v), 5).item() for m, v in add_metric_values.items()}
+        )
+
+        if loss_fn is not None:
+            result["loss"] = np.round(sum(losses) / len(losses), 5).item()
+
+        return result
+
+    def __str__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(eval_every={self.eval_every}"
+            + f", n_classes={self.n_classes})[{', '.join(self.metrics.keys())}]"
+        )
+
+    def __repr__(self) -> str:
+        return str(self)
 
     def __call__(
         self,
@@ -89,90 +190,31 @@ class Evaluator(ABC):
             model=model,
             eval_data_loader=eval_data_loader,
             loss_fn=loss_fn,
+            additional_metrics=additional_metrics,
             **kwargs,
         )
 
 
-class ClassificationEval(Evaluator):
-    """Evaluate a PyTorch model for classification.
-    The metrics computed are ``accuracy``, ``precision``, ``recall``, ``f1`` and the loss according
-    to the provided loss function ``loss_fn`` when calling the method ``evaluation``.
-    Metrics are computed both in a micro and macro fashion.
+class CompoundEvaluator(Evaluator):
+    """This class is a compound evaluator that combines multiple evaluators.
 
     Args:
-        eval_every (int): The evaluation frequency.
-        n_classes (int): The number of classes.
-        **metrics (dict[str, Metric]): The metrics to use for evaluation. If not provided, the
-            default metrics are used: ``accuracy``, ``macro_precision``, ``macro_recall``,
-            ``macro_f1``, ``micro_precision``, ``micro_recall`` and ``micro_f1``.
+        eval_every (int): The evaluation frequency expressed as the number of rounds between
+            two evaluations. Defaults to 1, i.e., evaluate the model at each round.
+        evaluators (list[Evaluator]): A list of evaluators to combine.
 
     Attributes:
-        eval_every (int): The evaluation frequency.
-        n_classes (int): The number of classes.
+        evaluators (list[Evaluator]): The list of evaluators to combine.
     """
 
-    def __init__(self, eval_every: int, n_classes: int, **metrics: Metric):
-        super().__init__(eval_every=eval_every)
-        self.n_classes: int = n_classes
+    def __init__(self, eval_every: int = 1, *evaluators: Evaluator):
+        super().__init__(eval_every)
+        self.evaluators = list(evaluators)
 
-        self.metrics = {}
+    def add_evaluator(self, evaluator: Evaluator) -> None:
+        """Add an evaluator to the compound evaluator."""
+        self.evaluators.append(evaluator)
 
-        # if kwargs is empty
-        if not metrics:
-            self.metrics = {
-                "accuracy": Accuracy(task="multiclass", num_classes=self.n_classes, top_k=1),
-                "macro_precision": Precision(
-                    task="multiclass",
-                    num_classes=self.n_classes,
-                    top_k=1,
-                    average="macro",
-                ),
-                "macro_recall": Recall(
-                    task="multiclass",
-                    num_classes=self.n_classes,
-                    top_k=1,
-                    average="macro",
-                ),
-                "macro_f1": F1Score(
-                    task="multiclass",
-                    num_classes=self.n_classes,
-                    top_k=1,
-                    average="macro",
-                ),
-                "micro_precision": Precision(
-                    task="multiclass",
-                    num_classes=self.n_classes,
-                    top_k=1,
-                    average="micro",
-                ),
-                "micro_recall": Recall(
-                    task="multiclass",
-                    num_classes=self.n_classes,
-                    top_k=1,
-                    average="micro",
-                ),
-                "micro_f1": F1Score(
-                    task="multiclass",
-                    num_classes=self.n_classes,
-                    top_k=1,
-                    average="micro",
-                ),
-            }
-        else:
-            self.metrics = metrics
-
-    def add_metric(self, name: str, metric: Metric) -> None:
-        """Add a metric to the evaluator.
-
-        Args:
-            name (str): The name of the metric.
-            metric (Metric): The metric to add.
-        """
-        if name in self.metrics:
-            raise ValueError(f"Metric {name} already exists.")
-        self.metrics[name] = metric
-
-    @torch.no_grad()
     def evaluate(
         self,
         round: int,
@@ -182,109 +224,30 @@ class ClassificationEval(Evaluator):
         additional_metrics: Optional[dict[str, Metric]] = None,
         device: torch.device = torch.device("cpu"),
     ) -> dict:
-        """Evaluate the model. The metrics computed are ``accuracy``, ``precision``, ``recall``,
-        ``f1`` and the loss according to the provided loss function ``loss_fn``. Metrics are
-        computed both in a micro and macro fashion.
+        """Evaluate the model using all evaluators."""
+        results = {}
+        for evaluator in self.evaluators:
+            results.update(
+                evaluator.evaluate(
+                    round=round,
+                    model=model,
+                    eval_data_loader=eval_data_loader,
+                    loss_fn=loss_fn,
+                    additional_metrics=additional_metrics,
+                    device=device,
+                )
+            )
+        return results
 
-        Warning:
-            The loss function ``loss_fn`` should be defined on the same device as the model.
-            Moreover, it is assumed that the only arguments of the loss function are the predicted
-            values and the true values.
-
-        Args:
-            round (int): The current round.
-            model (torch.nn.Module): The model to evaluate. If ``None``, the method returns an
-                empty dictionary.
-            eval_data_loader (Union[FastDataLoader, Collection[FastDataLoader]]):
-                The data loader(s) to use for evaluation. If ``None``, the method returns an empty
-                dictionary.
-            loss_fn (torch.nn.Module, optional): The loss function to use for evaluation.
-            additional_metrics (dict[str, Metric], optional): Additional metrics to use for
-                evaluation. If provided, they are added to the default metrics.
-            device (torch.device, optional): The device to use for evaluation. Defaults to "cpu".
-
-        Returns:
-            dict: A dictionary containing the computed metrics.
-        """
-        from .utils import clear_cuda_cache  # NOQA
-
-        if (round != 1) and (round % self.eval_every != 0):
-            return {}
-
-        if (model is None) or (eval_data_loader is None):
-            return {}
-
-        model_device = torch.device("cpu")
-        if next(model.parameters(), None) is not None:
-            model_device = next(model.parameters()).device
-        model.eval()
-        model.to(device)
-        losses = []
-        matrics_values = {k: [] for k in self.metrics.keys()}
-        loss, cnt = 0, 0
-
-        if additional_metrics is None:
-            additional_metrics = {}
-
-        add_metric_values = {k: [] for k in additional_metrics.keys()}
-
-        if not isinstance(eval_data_loader, list):
-            eval_data_loader = [eval_data_loader]
-
-        for data_loader in eval_data_loader:
-            for metric in self.metrics.values():
-                metric.reset()
-
-            for metric in additional_metrics.values():
-                metric.reset()
-
-            loss = 0
-            for X, y in data_loader:
-                X, y = X.to(device), y.to(device)
-                with torch.no_grad():
-                    y_hat = model(X)
-                    if loss_fn is not None:
-                        loss += loss_fn(y_hat, y).item()
-
-                for metric in self.metrics.values():
-                    metric.update(y_hat.cpu(), y.cpu())
-
-                if additional_metrics:
-                    for metric in additional_metrics.values():
-                        metric.update(y_hat.cpu(), y.cpu())
-
-            cnt += len(data_loader)
-
-            for k, v in self.metrics.items():
-                matrics_values[k].append(v.compute().item())
-
-            if additional_metrics:
-                for k, v in additional_metrics.items():
-                    add_metric_values[k].append(v.compute().item())
-
-            losses.append(loss / cnt)
-
-        model.to(model_device)
-        clear_cuda_cache()
-
-        result = {m: np.round(sum(v) / len(v), 5).item() for m, v in matrics_values.items()}
-        result.update(
-            {m: np.round(sum(v) / len(v), 5).item() for m, v in add_metric_values.items()}
-        )
-
-        if loss_fn is not None:
-            result["loss"] = np.round(sum(losses) / len(losses), 5).item()
-
-        return result
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __str__(self) -> str:
         return (
-            f"{self.__class__.__name__}(eval_every={self.eval_every}"
-            + f", n_classes={self.n_classes})[{', '.join(self.metrics.keys())}]"
+            f"{self.__class__.__name__}(eval_every={self.eval_every}, "
+            + f"n_evaluators={len(self.evaluators)})"
+            + f"[{', '.join([str(e) for e in self.evaluators])}]"
         )
-
-    def __repr__(self) -> str:
-        return str(self)
 
 
 def _compute_mean(evals: dict[str, float]) -> dict[str, float]:

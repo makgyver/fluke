@@ -15,7 +15,7 @@ from fluke.client import Client  # NOQA
 from fluke.comm import Channel  # NOQA
 from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
-from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.evaluation.classification import ClassificationEval  # NOQA
 from fluke.server import Server, EarlyStopping  # NOQA
 from fluke.utils import ServerObserver  # NOQA
 

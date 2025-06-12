@@ -16,6 +16,7 @@ sys.path.append(".")
 from . import __version__  # NOQA
 from .config import Configuration, ConfigurationError, OptimizerConfigurator  # NOQA
 from .utils import get_class_from_qualified_name, get_loss, get_model, plot_distribution  # NOQA
+from .algorithms.fairness import make_fair_eval  # NOQA
 
 console = Console()
 app = typer.Typer()
@@ -58,7 +59,7 @@ def centralized(
     from . import FlukeENV  # NOQA
     from .data import FastDataLoader  # NOQA
     from .data.datasets import Datasets  # NOQA
-    from .evaluation import ClassificationEval  # NOQA
+    from .evaluation.classification import ClassificationEval  # NOQA
     from .utils.log import get_logger  # NOQA
 
     cfg = Configuration(exp_cfg, alg_cfg)
@@ -181,16 +182,31 @@ def _run_federation(cfg: Configuration, resume: str | None = None) -> None:
     from . import FlukeENV  # NOQA
     from .data import DataSplitter  # NOQA
     from .data.datasets import Datasets  # NOQA
-    from .evaluation import ClassificationEval  # NOQA
+    from .evaluation import CompoundEvaluator  # NOQA
+    from .evaluation.classification import ClassificationEval  # NOQA
+    from .evaluation.fairness import FairnessEval  # NOQA
     from .utils.log import get_logger  # NOQA
 
+    # Load configuration
     FlukeENV().configure(cfg)
     data_container = Datasets.get(**cfg.data.dataset)
-    evaluator = ClassificationEval(
-        eval_every=cfg.eval.eval_every, n_classes=data_container.num_classes
-    )
+
+    # Evaluation setup
+    if not isinstance(cfg.eval.task, list):
+        cfg.eval.task = [cfg.eval.task]
+
+    task2eval = {
+        "classification": ClassificationEval(
+            eval_every=cfg.eval.eval_every, n_classes=data_container.num_classes
+        ),
+        "fairness": FairnessEval(eval_every=cfg.eval.eval_every),
+    }
+
+    evaluators = [task2eval[t] for t in cfg.eval.task if t in task2eval]
+    evaluator = CompoundEvaluator(cfg.eval.eval_every, *evaluators)
     FlukeENV().set_evaluator(evaluator)
 
+    # Data setup
     data_splitter = DataSplitter(
         dataset=data_container,
         distribution=cfg.data.distribution.name,
@@ -198,7 +214,10 @@ def _run_federation(cfg: Configuration, resume: str | None = None) -> None:
         **cfg.data.exclude("dataset", "distribution"),
     )
 
+    # Algorithm setup
     fl_algo_class = get_class_from_qualified_name(cfg.method.name)
+    if cfg.eval.task == "fairness" or "fairness" in cfg.eval.task:
+        fl_algo_class = make_fair_eval(fl_algo_class)
     fl_algo = fl_algo_class(cfg.protocol.n_clients, data_splitter, cfg.method.hyperparameters)
 
     if cfg.save and cfg.save.path:
@@ -248,7 +267,7 @@ def clients_only(
     from . import FlukeENV  # NOQA
     from .data import DataSplitter  # NOQA
     from .data.datasets import Datasets  # NOQA
-    from .evaluation import ClassificationEval  # NOQA
+    from .evaluation.classification import ClassificationEval  # NOQA
     from .utils.log import get_logger  # NOQA
 
     cfg = Configuration(exp_cfg, alg_cfg)

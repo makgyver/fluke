@@ -48,6 +48,7 @@ __all__ = [
     "flatten_dict",
     "import_module_from_str",
     "memory_usage",
+    "num_accepted_args",
     "plot_distribution",
     "retrieve_obj",
     "safe_train_test_split",
@@ -617,3 +618,20 @@ def flatten_dict(nested_dict: dict, sep: str = ".") -> dict:
 
     """
     return _flatten_dict(nested_dict, sep=sep)
+
+
+def num_accepted_args(func: Any) -> int:
+    """Count the number of accepted arguments of a function.
+    This function counts the number of arguments that a function accepts, excluding `self` and
+    `cls` if they are present.
+
+    Args:
+        func (Any): The function to inspect.
+
+    Returns:
+        int: The number of accepted arguments.
+    """
+    from inspect import signature
+
+    sig = signature(func)
+    return len([p for p in sig.parameters.values() if p.name not in ("self", "cls")])

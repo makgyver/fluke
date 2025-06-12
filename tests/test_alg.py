@@ -18,7 +18,7 @@ from fluke.comm import ChannelObserver, Message  # NOQA
 from fluke.config import Configuration  # NOQA
 from fluke.data import DataSplitter  # NOQA
 from fluke.data.datasets import Datasets  # NOQA
-from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.evaluation.classification import ClassificationEval  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
 from fluke.server import Server  # NOQA
 from fluke.utils import ClientObserver, ServerObserver, get_class_from_qualified_name  # NOQA

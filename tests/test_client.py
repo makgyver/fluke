@@ -12,7 +12,7 @@ from fluke import DDict, FlukeENV  # NOQA
 from fluke.client import Client, PFLClient  # NOQA
 from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
-from fluke.evaluation import ClassificationEval  # NOQA
+from fluke.evaluation.classification import ClassificationEval  # NOQA
 from fluke.server import Server  # NOQA
 
 
@@ -49,19 +49,9 @@ def _test_client(inmemory):
     ytr = torch.tensor([target_function(x) for x in Xtr])
     Xte = torch.rand((100, 10))
     yte = torch.tensor([target_function(x) for x in Xte])
-    train_set = FastDataLoader(
-        Xtr, ytr,
-        num_labels=2,
-        batch_size=10,
-        shuffle=True
-    )
+    train_set = FastDataLoader(Xtr, ytr, num_labels=2, batch_size=10, shuffle=True)
 
-    test_set = FastDataLoader(
-        Xte, yte,
-        num_labels=2,
-        batch_size=10,
-        shuffle=True
-    )
+    test_set = FastDataLoader(Xte, yte, num_labels=2, batch_size=10, shuffle=True)
 
     client = Client(
         index=0,
@@ -73,7 +63,7 @@ def _test_client(inmemory):
             scheduler_cfg=DDict(step_size=1, gamma=0.1),
         ),
         loss_fn=CrossEntropyLoss(),
-        local_epochs=10
+        local_epochs=10,
     )
 
     assert client.index == 0
@@ -81,11 +71,7 @@ def _test_client(inmemory):
     assert client.test_set == test_set
     assert client.n_examples == 100
 
-    server = Server(
-        model=Model(),
-        test_set=None,
-        clients=[client]
-    )
+    server = Server(model=Model(), test_set=None, clients=[client])
 
     client.set_channel(server.channel)
     assert client.channel == server.channel
@@ -146,7 +132,7 @@ def _test_client(inmemory):
             scheduler_cfg=DDict(step_size=1, gamma=0.1),
         ),
         loss_fn=CrossEntropyLoss(),
-        local_epochs=10
+        local_epochs=10,
     )
     client2.load("tmp/client", Model())
     assert torch.all(client2.model.weight.data == client.model.weight.data)
@@ -168,12 +154,7 @@ def test_pflclient():
 
     Xtr = torch.rand((100, 10))
     ytr = torch.tensor([target_function(x) for x in Xtr])
-    train_set = FastDataLoader(
-        Xtr, ytr,
-        num_labels=2,
-        batch_size=10,
-        shuffle=True
-    )
+    train_set = FastDataLoader(Xtr, ytr, num_labels=2, batch_size=10, shuffle=True)
 
     client = PFLClient(
         index=0,
@@ -181,11 +162,10 @@ def test_pflclient():
         train_set=train_set,
         test_set=train_set,
         optimizer_cfg=OptimizerConfigurator(
-            optimizer_cfg=DDict(name=SGD, lr=0.1),
-            scheduler_cfg=DDict(step_size=1, gamma=0.1)
+            optimizer_cfg=DDict(name=SGD, lr=0.1), scheduler_cfg=DDict(step_size=1, gamma=0.1)
         ),
         loss_fn=CrossEntropyLoss(),
-        local_epochs=10
+        local_epochs=10,
     )
 
     assert client.model is None
@@ -199,16 +179,13 @@ def test_pflclient():
     client.test_set = None  # THIS IS NOT ALLOWED
     assert client.evaluate(evaluator, client.test_set) == {}
 
-    server = Server(
-        model=Model(),
-        test_set=None,
-        clients=[client]
-    )
+    server = Server(model=Model(), test_set=None, clients=[client])
 
     client.set_channel(server.channel)
     client.pers_optimizer = SGD(client.personalized_model.parameters(), lr=0.1)
     client.pers_scheduler = torch.optim.lr_scheduler.StepLR(
-        client.pers_optimizer, step_size=1, gamma=0.1)
+        client.pers_optimizer, step_size=1, gamma=0.1
+    )
     server.broadcast_model([client])
     client.local_update(1)
     client.save("tmp/pflclient")
@@ -220,17 +197,16 @@ def test_pflclient():
         train_set=train_set,
         test_set=train_set,
         optimizer_cfg=OptimizerConfigurator(
-            optimizer_cfg=DDict(name=SGD, lr=0.1),
-            scheduler_cfg=DDict(step_size=1, gamma=0.1)
+            optimizer_cfg=DDict(name=SGD, lr=0.1), scheduler_cfg=DDict(step_size=1, gamma=0.1)
         ),
         loss_fn=CrossEntropyLoss(),
-        local_epochs=10
+        local_epochs=10,
     )
     client2.load("tmp/pflclient", Model())
-    assert torch.all(client2.personalized_model.weight.data ==
-                     client.personalized_model.weight.data)
-    assert torch.all(client2.model.weight.data ==
-                     client.model.weight.data)
+    assert torch.all(
+        client2.personalized_model.weight.data == client.personalized_model.weight.data
+    )
+    assert torch.all(client2.model.weight.data == client.model.weight.data)
 
 
 if __name__ == "__main__":

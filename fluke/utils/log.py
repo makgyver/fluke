@@ -218,6 +218,14 @@ class Log(ServerObserver, ChannelObserver, ClientObserver):
         """Close the logger."""
         pass
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __str__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(tracker={self.tracker}, current_round={self.current_round})"
+        )
+
 
 class DebugLog(Log):
     """Debug Logger.

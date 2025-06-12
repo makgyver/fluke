@@ -358,6 +358,7 @@ class FlukeENV(metaclass=Singleton):
     # evaluation settings
     _evaluator: Evaluator = None
     _eval_cfg: dict = {
+        "task": "classification",
         "pre_fit": False,
         "post_fit": False,
         "locals": False,

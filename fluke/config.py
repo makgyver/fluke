@@ -257,10 +257,9 @@ class Configuration(DDict):
             "type": "dict",
             "schema": {
                 "task": {
-                    "type": "string",
+                    "type": ["string", "list"],
                     "required": False,
                     "default": "classification",
-                    "allowed": ["classification"],
                 },
                 "eval_every": {
                     "type": "integer",

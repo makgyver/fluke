@@ -199,7 +199,7 @@ class FedRODClient(Client):
                 RODModel(self.model, self.inner_model),
                 test_set,
                 device=self.device,
-                loss_fn=None
+                loss_fn=None,
             )
         return {}
 
