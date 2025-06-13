@@ -518,9 +518,10 @@ class Client(ObserverSubject):
         """
         state = torch.load(path, weights_only=True)
         if state["modopt"]["model"] is not None:
-            self.model = model
+            self.model = model.to(self.device)
             self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
             self._modopt.load_state_dict(state["modopt"])
+            self.model.cpu()
         else:
             self.model = None
 
