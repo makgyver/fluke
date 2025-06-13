@@ -290,7 +290,6 @@ class Client(ObserverSubject):
         Args:
             current_round (int): The current round of the federated learning process.
         """
-        self._last_round = current_round
         self._load_from_cache()
         self.receive_model()
 
@@ -318,6 +317,8 @@ class Client(ObserverSubject):
                 self._dataparallel_to_model()
             self._check_persistency()
             raise KeyboardInterrupt()
+
+        self._last_round = current_round
 
         self.notify(
             "end_fit",
@@ -541,7 +542,7 @@ class Client(ObserverSubject):
         return (
             f"{clsname}(\n"
             + optcfg_str
-            + f"{indentstr}batch_size = {self.train_set.batch_size}{hpstr})"
+            + f"{indentstr}batch_size={self.train_set.batch_size}{hpstr})"
         )
 
     def __repr__(self, indent: int = 0) -> str:

@@ -30,7 +30,7 @@ These configurations are related to how the experiment is run. Specifically the 
 
 **Activate caching**: `inmemory: false`.
 
-In `fluke`, caching means that only the "active" models are stored in memory, while the others are stored on disk. 
+In `fluke`, caching means that only the "active" models are stored in memory, while the others are stored on disk.
 If not differently defined in the algorithm, at each point in time `fluke` keeps in memory only the global model and the models (+ additional data) of the client that is currently training. Using caching can save a lot of memory, especially when the number of clients is high and models are large. However, it can significantly slow down the training process, as the models need to be loaded from disk when needed.
 
 
@@ -52,7 +52,7 @@ To save the models, the user must specify the following parameters:
 - `save_every`: the frequency of saving the models (in rounds);
 - `global_only`: whether to save only the global model.
 
-Models are saved using the following naming convention: 
+Models are saved using the following naming convention:
 - for clients: `r{round}_client_{id}.pth` where `{round}` is the round number and `{id}` is the client id. E.g., `r10_client_1.pth` is the model of client 1 at round 10;
 - for the server (i.e., global model): `r{round}_server.pth` where `{round}` is the round number. E.g., `r10_server.pth` is the model of the server at round 10.
 
@@ -75,5 +75,6 @@ The FL protocol can be specified using the following parameters:
 
     config_data
     config_log
+    config_eval
 
 ```

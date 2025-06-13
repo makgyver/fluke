@@ -336,13 +336,13 @@ class CentralizedFL(ServerObserver):
         if "net_args" in self.hyper_params:
             algo_hp += ", ".join([f"{k}={v}" for k, v in self.hyper_params.net_args.items()])
         algo_hp += ")"
-        algo_hp += ",\n\t".join(
-            [
-                f"{h}={v.__str__(indent=indent + 4)}"
-                for h, v in self.hyper_params.items()
-                if h not in ["client", "server", "model", "net_args"]
-            ]
-        )
+        extra_hp = [
+            f"{h}={v}"
+            for h, v in self.hyper_params.items()
+            if h not in ["client", "server", "model", "net_args"]
+        ]
+        if extra_hp:
+            algo_hp += "\n\t" + ",\n\t".join(extra_hp)
         algo_hp = f"\t{algo_hp}," if algo_hp else ""
 
         if self.clients is None:
