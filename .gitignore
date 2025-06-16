@@ -22,3 +22,4 @@ chk_*
 logs/
 *.lock
 *coverage*
+models_*/
