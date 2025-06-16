@@ -2,12 +2,12 @@
 
 # `fluke` CLI
 
-The package provides a command line interface (CLI) to run federated learning experiments. 
+The package provides a command line interface (CLI) to run federated learning experiments.
 The two main commands are `fluke` and `fluke-get`.
 
 ## `fluke`
 
-The `fluke` command is used to run federated learning experiments. It requires two configuration files: 
+The `fluke` command is used to run federated learning experiments. It requires two configuration files:
 - `EXP_CONFIG_FILE`: the experiment configuration file (independent from the algorithm);
 - `ALG_CONFIG_FILE`: the algorithm configuration file.
 
@@ -31,9 +31,9 @@ The structure of the command is the following:
 fluke <experiment_type> <EXP_CONFIG_FILE> <ALG_CONFIG_FILE> [OPTIONS]
 ```
 
-where: 
+where:
 - `<EXP_CONFIG_FILE>` is the path to the experiment configuration file;
-- `<ALG_CONFIG_FILE>` is the path to the algorithm configuration file. 
+- `<ALG_CONFIG_FILE>` is the path to the algorithm configuration file.
 
 
 ### Federated learning
@@ -41,10 +41,14 @@ where:
 To run a the federated learning algorithm, use the following command:
 
 ```bash
-fluke federation <EXP_CONFIG_FILE> <ALG_CONFIG_FILE> [--resume=<PATH>] 
+fluke federation <EXP_CONFIG_FILE> <ALG_CONFIG_FILE> [--resume=<PATH>] [--show-dist]
 ```
 
-where `--resume=<PATH>: <PATH>` must be the path to a directory where the state of a previous experiment is saved. If specified, the experiment will resume from the saved state. If not specified, the experiment starts from scratch.
+where:
+- `--resume=<PATH>` must be the path to a directory where the state of a previous experiment is saved.
+  If specified, the experiment will resume from the saved state. If not specified, the experiment starts from scratch.
+  To resume an experiment, the previous run must have been saved with `global_only: false` in the saving configuration section of the experiment configuration file.
+- `--show-dist` is an optional flag that, if specified, plots the training data distribution of the clients at the beginning of the experiment.
 
 ### Battery of FL experiments
 

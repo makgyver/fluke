@@ -130,6 +130,9 @@ def federation(
     overrides: Optional[List[str]] = typer.Argument(
         None, help='Overrides for the configuration, e.g. "exp.seed=10"'
     ),
+    show_dist: bool = typer.Option(
+        False, "--show-dist", "-d", help="Show the data distribution plot"
+    ),
     resume: str = typer.Option(None, help="Path to the checkpoint file to load."),
 ) -> None:
     """Run a federated learning experiment."""
@@ -151,7 +154,7 @@ def federation(
     except Exception as e:
         raise e
 
-    _run_federation(cfg, resume)
+    _run_federation(cfg, resume, show_dist)
 
 
 @app.command()
@@ -173,7 +176,7 @@ def sweep(
                 continue
 
 
-def _run_federation(cfg: Configuration, resume: str | None = None) -> None:
+def _run_federation(cfg: Configuration, resume: str | None = None, show_dist: bool = False) -> None:
     import yaml
     from rich.panel import Panel
     from rich.pretty import Pretty
@@ -214,6 +217,9 @@ def _run_federation(cfg: Configuration, resume: str | None = None) -> None:
     fl_algo.set_callbacks([log])
     FlukeENV().set_logger(log)
     console.print(Panel(Pretty(fl_algo), title="FL algorithm", width=100))
+
+    if show_dist:
+        plot_distribution(fl_algo.clients)
 
     if resume is not None:
         fl_algo.load(resume)

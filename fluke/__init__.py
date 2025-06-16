@@ -65,7 +65,7 @@ __all__ = [
     "Singleton",
 ]
 
-__version__ = "0.7.9"
+__version__ = "0.7.10"
 __author__ = "Mirko Polato"
 __email__ = "mirko.polato@unito.it"
 __license__ = "LGPLv2.1"
