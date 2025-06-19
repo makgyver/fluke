@@ -4,7 +4,9 @@ The module :mod:`fluke.server` provides the base classes for the servers in :mod
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Generator, Sequence
+import functools
+import warnings
+from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
 
 import numpy as np
 import torch
@@ -22,7 +24,19 @@ if TYPE_CHECKING:
 
 __all__ = ["Server", "EarlyStopping"]
 
-# torch.serialization.add_safe_globals([set])
+
+def deprecated(reason=None):
+    def decorator(func):
+        msg = reason or f"{func.__name__} is deprecated and may be removed in the future."
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class EarlyStopping(Exception):
@@ -94,11 +108,16 @@ class Server(ObserverSubject):
         self.model: torch.nn.Module = model
         self.clients: Sequence[Client] = clients
         self.n_clients: int = len(clients)
-        self.rounds: int = 0
+        self._rounds: int = 0
         self.test_set: FastDataLoader = test_set
 
         self._channel: Channel = Channel()
-        self._participants: set[int] = set()
+        self._participants: set[int] = set()  # deprecated
+
+    @property
+    @deprecated("'rounds' is deprecated and will be removed in a future version.")
+    def rounds(self):
+        return self._rounds
 
     @property
     def channel(self) -> Channel:
@@ -141,6 +160,7 @@ class Server(ObserverSubject):
             Message(self.model, "model", "server", inmemory=None), [c.index for c in eligible]
         )
 
+    @deprecated("The federated learning algorithm is now managed by the `CentralizedFL` class.")
     def fit(
         self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
     ) -> None:
@@ -200,6 +220,7 @@ class Server(ObserverSubject):
             self.finalize()
         self.notify(event="finished", round=self.rounds + 1)
 
+    @deprecated("The federated learning algorithm is now managed by the `CentralizedFL` class.")
     def _compute_evaluation(self, round: int, eligible: Sequence[Client]) -> None:
         evaluator = FlukeENV().get_evaluator()
 
@@ -229,6 +250,7 @@ class Server(ObserverSubject):
             )
         return {}
 
+    @deprecated("The federated learning algorithm is now managed by the `CentralizedFL` class.")
     def finalize(self) -> None:
         """Finalize the federated learning process.
         The finalize method is called at the end of the federated learning process. The client-side
@@ -369,8 +391,8 @@ class Server(ObserverSubject):
         """
         return {
             "model": self.model.state_dict() if self.model is not None else None,
-            "rounds": self.rounds,
-            "participants": tuple(self._participants),
+            # "rounds": self.rounds,
+            # "participants": tuple(self._participants),
         }
 
     def save(self, path: str) -> None:
@@ -393,6 +415,6 @@ class Server(ObserverSubject):
         state = torch.load(path, weights_only=True)
         if self.model is not None:
             self.model.load_state_dict(state["model"])
-        self.rounds = state["rounds"]
-        self._participants = set(state["participants"])
+        # self.rounds = state["rounds"]
+        # self._participants = set(state["participants"])
         return state

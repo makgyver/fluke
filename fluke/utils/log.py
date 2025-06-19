@@ -23,12 +23,12 @@ from .. import DDict  # NOQA
 from ..comm import ChannelObserver, Message  # NOQA
 from ..evaluation import PerformanceTracker  # NOQA
 from ..utils import bytes2human, get_class_from_qualified_name  # NOQA
-from . import ClientObserver, ServerObserver, get_class_from_str  # NOQA
+from . import ClientObserver, ServerObserver, FederationObserver, get_class_from_str  # NOQA
 
 __all__ = ["Log", "DebugLog", "TensorboardLog", "WandBLog", "ClearMLLog", "get_logger"]
 
 
-class Log(ServerObserver, ChannelObserver, ClientObserver):
+class Log(ServerObserver, ChannelObserver, FederationObserver, ClientObserver):
     """Basic logger.
     This class is used to log the performance of the global model and the communication costs during
     the federated learning process. The logging happens in the console.

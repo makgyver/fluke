@@ -65,17 +65,17 @@ class Message:
         sender: Optional[Any] = None,
         inmemory: Optional[bool] = None,
     ):
-        self.__id: str = str(uuid.uuid4().hex)
-        self.__msg_type: str = msg_type
-        self.__payload: Any = payload
-        self.__sender: Optional[Any] = sender
-        self.__size: int = self.__get_size(payload)
-        self.__inmemory: bool = inmemory if inmemory is not None else True
+        self._id: str = str(uuid.uuid4().hex)
+        self._msg_type: str = msg_type
+        self._payload: Any = payload
+        self._sender: Optional[Any] = sender
+        self._size: int = self.__get_size(payload)
+        self._inmemory: bool = inmemory if inmemory is not None else True
 
         if not FlukeENV().is_inmemory() and not inmemory:
             if isinstance(payload, (torch.nn.Module, FlukeCache.ObjectRef, torch.Tensor)):
-                self.__payload = cache_obj(payload, f"{self.__id}")
-                self.__inmemory = False
+                self._payload = cache_obj(payload, f"{self._id}")
+                self._inmemory = False
 
     @property
     def id(self) -> str:
@@ -84,7 +84,7 @@ class Message:
         Returns:
             str: The unique identifier of the message.
         """
-        return self.__id
+        return self._id
 
     @property
     def msg_type(self) -> str:
@@ -93,7 +93,7 @@ class Message:
         Returns:
             str: The type of the message.
         """
-        return self.__msg_type
+        return self._msg_type
 
     @property
     def payload(self) -> Any:
@@ -106,11 +106,11 @@ class Message:
         Returns:
             Any: The payload of the message.
         """
-        if not self.__inmemory:
-            self.__payload = retrieve_obj(f"{self.__id}")
-            self.__inmemory = True
+        if not self._inmemory:
+            self._payload = retrieve_obj(f"{self._id}")
+            self._inmemory = True
 
-        return self.__payload
+        return self._payload
 
     @property
     def sender(self) -> Optional[Any]:
@@ -119,7 +119,7 @@ class Message:
         Returns:
             Optional[Any]: The sender of the message.
         """
-        return self.__sender
+        return self._sender
 
     def __get_size(self, obj: Any) -> int:
         if obj is None or isinstance(obj, (int, float, bool, np.generic)):
@@ -157,8 +157,8 @@ class Message:
         Returns:
             Message: The cloned message.
         """
-        msg = Message(deepcopy(self.__payload), self.msg_type, self.sender, inmemory)
-        msg.__size = self.__size
+        msg = Message(deepcopy(self._payload), self.msg_type, self.sender, inmemory)
+        msg._size = self._size
         return msg
 
     @property
@@ -186,23 +186,23 @@ class Message:
                 message = Message(None, "ack", client)
                 print(message.size)  # 1
         """
-        return self.__size
+        return self._size
 
     def __eq__(self, other: Message) -> bool:
         return (
-            self.__payload == other.__payload
+            self._payload == other._payload
             and self.msg_type == other.msg_type
             and self.sender == other.sender
         )
 
     def __str__(self, indent: int = 0) -> str:
-        strname = f"Message[{self.id}]"
+        strname = f"{self.__class__.__name__}[{self.id}]"
         indentstr = " " * (indent + len(strname) + 1)
         tostr = f"{strname}(type={self.msg_type},"
         tostr += f"{indentstr}from={self.sender}, "
-        tostr += f"{indentstr}payload={self.__payload}, "
+        tostr += f"{indentstr}payload={self._payload}, "
         tostr += f"{indentstr}size={self.size}, "
-        tostr += f"{indentstr}inmemory={self.__inmemory})"
+        tostr += f"{indentstr}inmemory={self._inmemory})"
         return tostr
 
     def __repr__(self, indent: int = 0) -> str:
@@ -215,9 +215,9 @@ class Message:
         Returns:
             bool: ``True`` if the payload is moved to memory, ``False`` otherwise.
         """
-        if not self.__inmemory:
-            self.__payload = retrieve_obj(f"{self.__id}")
-            self.__inmemory = True
+        if not self._inmemory:
+            self._payload = retrieve_obj(f"{self._id}")
+            self._inmemory = True
             return True
         return False
 
@@ -228,12 +228,31 @@ class Message:
         Returns:
             bool: ``True`` if the payload is moved to the cache, ``False`` otherwise.
         """
-        if self.__inmemory:
-            if isinstance(self.__payload, (torch.nn.Module, FlukeCache.ObjectRef, torch.Tensor)):
-                self.__payload = cache_obj(self.__payload, f"{self.__id}")
-                self.__inmemory = False
+        if self._inmemory:
+            if isinstance(self._payload, (torch.nn.Module, FlukeCache.ObjectRef, torch.Tensor)):
+                self._payload = cache_obj(self._payload, f"{self._id}")
+                self._inmemory = False
                 return True
         return False
+
+
+class TimedMessage(Message):
+
+    def __init__(self, *args, timestamp: int, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timestamp = timestamp
+
+    def clone(self, inmemory: Optional[bool] = None) -> TimedMessage:
+        msg = TimedMessage(
+            deepcopy(self._payload), self.msg_type, self.sender, inmemory, timestamp=self.timestamp
+        )
+        msg._size = self._size
+        return msg
+
+    def __str__(self, indent: int = 0) -> str:
+        strname = super().__str__(indent=indent)[:-1]  # remove the last parenthesis
+        tostr = f"{strname}, timestamp={self.timestamp})"
+        return tostr
 
 
 class ChannelObserver:
@@ -321,6 +340,22 @@ class Channel(ObserverSubject):
         """
         return self._buffer
 
+    def has_messages(self, mbox: Any, msg_type: str | None) -> bool:
+        """Check if there are messages in the message box of the receiver with the given message
+        type. If ``msg_type`` is None, it checks if there are any messages in the message box.
+
+        Args:
+            mbox (Any): The receiver.
+            msg_type (str | None): The type of the message.
+
+        Returns:
+            bool: True if there are messages in the message box, False otherwise.
+        """
+        if msg_type is None:
+            return len(self._buffer[mbox]) > 0
+
+        return any(msg.msg_type == msg_type for msg in self._buffer[mbox])
+
     def send(self, message: Message, mbox: Any) -> None:
         """Send a copy of the message to a receiver.
         To any sent message should correspond a received message. The receiver should call the
@@ -372,10 +407,20 @@ class Channel(ObserverSubject):
                 channel = Channel()
                 message = channel.receive(client, server, "greeting")
         """
-        if sender is None and msg_type is None:
-            msg = self._buffer[mbox].pop()
-            self.notify(event="message_received", message=msg, by=mbox)
-            return msg
+        if sender is None:
+            if msg_type is None:
+                msg = self._buffer[mbox].pop()
+                self.notify(event="message_received", message=msg, by=mbox)
+                return msg
+            else:
+                # find the first message with the given msg_type
+                for i, msg in enumerate(self._buffer[mbox]):
+                    if msg.msg_type == msg_type:
+                        msg = self._buffer[mbox].pop(i)
+                        self.notify(event="message_received", message=msg, by=mbox)
+                        return msg
+
+            return None
 
         for i, msg in enumerate(self._buffer[mbox]):
             if sender is None or msg.sender == sender:  # match sender
@@ -385,6 +430,30 @@ class Channel(ObserverSubject):
                     return msg
 
         raise ValueError(f"Message from {sender} with msg type {msg_type} not found in {mbox}")
+
+    def receive_all(self, mbox: Any, msg_type: str = None) -> list[Message]:
+        """Receive all messages from the message box of the receiver with the given message type.
+        If ``msg_type`` is None, all messages are returned.
+
+        Args:
+            mbox (Any): The receiver.
+            msg_type (str): The type of the message.
+
+        Returns:
+            list[Message]: The list of received messages.
+        """
+        if msg_type is None:
+            msgs = self._buffer[mbox]
+            self._buffer[mbox].clear()
+            for msg in msgs:
+                self.notify(event="message_received", message=msg, by=mbox)
+            return msgs
+
+        msgs = [msg for msg in self._buffer[mbox] if msg.msg_type == msg_type]
+        for msg in msgs:
+            self._buffer[mbox].remove(msg)
+            self.notify(event="message_received", message=msg, by=mbox)
+        return msgs
 
     def broadcast(self, message: Message, to: list[Any]) -> None:
         """Send a copy of the message to a list of receivers.
