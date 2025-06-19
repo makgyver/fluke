@@ -17,12 +17,12 @@ from fluke.config import OptimizerConfigurator  # NOQA
 from fluke.data import FastDataLoader  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.server import Server, EarlyStopping  # NOQA
-from fluke.utils import ServerObserver  # NOQA
+from fluke.utils import ServerObserver, FederationObserver  # NOQA
 
 
 def test_server():
 
-    class Observer(ServerObserver):
+    class Observer(FederationObserver, ServerObserver):
 
         def start_round(self, round, global_model):
             assert round == 1

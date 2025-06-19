@@ -3,31 +3,32 @@ algorithms."""
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Collection, Union, Sequence
+from typing import Any, Callable, Collection, Sequence, Union
 
 import torch
-
-from ..utils import ServerObserver, get_loss, get_model
+from rich.progress import track
 
 sys.path.append(".")
 sys.path.append("..")
 
-from .. import DDict, FlukeENV, custom_formatwarning  # NOQA
+from .. import DDict, FlukeENV, ObserverSubject, custom_formatwarning  # NOQA
 from ..client import Client  # NOQA
 from ..comm import ChannelObserver  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import DataSplitter, FastDataLoader  # NOQA
-from ..server import Server  # NOQA
-from ..utils import ClientObserver  # NOQA
+from ..server import Server, EarlyStopping  # NOQA
+from ..utils import ClientObserver, FederationObserver, ServerObserver, get_loss, get_model  # NOQA
 
 warnings.formatwarning = custom_formatwarning
 
 __all__ = [
+    "decentralized",
     "CentralizedFL",
     "PersonalizedFL",
     "apfl",
@@ -69,7 +70,7 @@ __all__ = [
 ]
 
 
-class CentralizedFL(ServerObserver):
+class CentralizedFL(ObserverSubject):
     """Centralized Federated Learning algorithm.
     This class is a generic implementation of a centralized federated learning algorithm that
     follows the Federated Averaging workflow. This class represents the entry point to the
@@ -122,11 +123,11 @@ class CentralizedFL(ServerObserver):
         server: Server = None,
         **kwargs,
     ):
-
+        super().__init__(**kwargs)
         if (clients is not None and server is None) or (clients is None and server is not None):
             raise ValueError("Both clients and server must be provided or neither of them.")
 
-        self._id = str(uuid.uuid4().hex)
+        self._id: str = str(uuid.uuid4().hex)
         FlukeENV().open_cache(self._id)
 
         if clients is not None:
@@ -172,6 +173,9 @@ class CentralizedFL(ServerObserver):
 
         for client in self.clients:
             client.set_channel(self.server.channel)
+
+        self._participants: set = set()
+        self.rounds: int = 0
 
     @property
     def id(self) -> str:
@@ -317,6 +321,8 @@ class CentralizedFL(ServerObserver):
         for client in self.clients:
             client.attach([c for c in callbacks if isinstance(c, ClientObserver)])
 
+        self.attach([c for c in callbacks if isinstance(c, FederationObserver)])
+
     def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs) -> None:
         """Run the federated algorithm.
         This method will call the :meth:`Server.fit` method which will orchestrate the training
@@ -329,7 +335,91 @@ class CentralizedFL(ServerObserver):
                 Defaults to ``True``.
             **kwargs (dict[str, Any]): Additional keyword arguments.
         """
-        self.server.fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize, **kwargs)
+        # self.server.fit(n_rounds=n_rounds,
+        #     eligible_perc=eligible_perc,
+        #     finalize=finalize,
+        #     **kwargs)
+
+        with FlukeENV().get_live_renderer():
+            progress_fl = FlukeENV().get_progress_bar("FL")
+            progress_client = FlukeENV().get_progress_bar("clients")
+            client_x_round = int(self.n_clients * eligible_perc)
+            task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds * client_x_round)
+            task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
+
+            total_rounds = self.rounds + n_rounds
+            for rnd in range(self.rounds, total_rounds):
+                try:
+                    self.notify(event="start_round", round=rnd + 1, global_model=self.server.model)
+                    eligible = self.server.get_eligible_clients(eligible_perc)
+                    self.notify(event="selected_clients", round=rnd + 1, clients=eligible)
+                    self.server.broadcast_model(eligible)
+
+                    for c, client in enumerate(eligible):
+                        client.local_update(rnd + 1)
+                        self._participants.update([client.index])  # fixme
+                        progress_client.update(task_id=task_local, completed=c + 1)
+                        progress_fl.update(task_id=task_rounds, advance=1)
+
+                    client_models = self.server.receive_client_models(eligible, state_dict=False)
+                    self.server.aggregate(eligible, client_models)
+                    self._compute_evaluation(rnd, eligible)
+                    self.notify(event="end_round", round=rnd + 1)
+                    self.rounds += 1
+
+                    path, freq, g_only = FlukeENV().get_save_options()
+                    if freq > 0 and rnd % freq == 0:
+                        self.save(path, g_only, rnd)
+
+                except KeyboardInterrupt:
+                    self.notify(event="interrupted")
+                    break
+
+                except EarlyStopping:
+                    self.notify(event="early_stop")
+                    break
+
+            progress_fl.remove_task(task_rounds)
+            progress_client.remove_task(task_local)
+
+        self.finalize()
+        self.notify(event="finished", round=self.rounds + 1)
+
+    def finalize(self) -> None:
+        """Finalize the federated learning process.
+        The finalize method is called at the end of the federated learning process. The client-side
+        evaluation is only done if the client has participated in at least one round.
+        """
+        if self.rounds > 0:
+            self._compute_evaluation(self.rounds - 1, self.clients)
+            client_to_eval = [
+                client for client in self.clients if client.index in self._participants
+            ]
+            self.server.broadcast_model(client_to_eval)
+            for client in track(client_to_eval, "Finalizing federation...", transient=True):
+                client.finalize()
+
+            path, freq, g_only = FlukeENV().get_save_options()
+            if freq == -1:
+                self.save(path, g_only, round - 1)
+
+        FlukeENV().close_cache()
+
+    def _compute_evaluation(self, round: int, eligible: Sequence[Client]) -> None:
+        evaluator = FlukeENV().get_evaluator()
+
+        if FlukeENV().get_eval_cfg().locals:
+            client_evals = {
+                client.index: client.evaluate(evaluator, self.server.test_set)
+                for client in eligible
+            }
+            self.notify(
+                event="server_evaluation", round=round + 1, eval_type="locals", evals=client_evals
+            )
+
+        if FlukeENV().get_eval_cfg().server:
+            evals = self.server.evaluate(evaluator, self.server.test_set)
+            self.notify(event="server_evaluation", round=round + 1, eval_type="global", evals=evals)
 
     def __str__(self, indent: int = 0) -> str:
         algo_hp = f"\n\tmodel={str(self.hyper_params.model)}("
@@ -383,7 +473,7 @@ class CentralizedFL(ServerObserver):
         Returns:
             str: Path to the folder where the algorithm state was saved.
         """
-        path = f"{path}_{self._id}"
+        path = f"{path}_{self._id}" if path else self._id
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -392,6 +482,13 @@ class CentralizedFL(ServerObserver):
         if not global_only:
             for i, client in enumerate(self.clients):
                 client.save(os.path.join(path, f"{prefix}client_{i}.pth"))
+
+        with open(os.path.join(path, "federation.json"), "w") as f:
+            f.write(
+                json.dumps(
+                    {"rounds": self.rounds, "participants": list(self._participants)}, indent=4
+                )
+            )
 
         return path
 
@@ -419,18 +516,10 @@ class CentralizedFL(ServerObserver):
         for i, client in enumerate(self.clients):
             client.load(os.path.join(path, f"{prefix}client_{i}.pth"), deepcopy(self.server.model))
 
-    # ServerObserver methods
-    def end_round(self, round: int) -> None:
-        path, freq, g_only = FlukeENV().get_save_options()
-        if freq > 0 and round % freq == 0:
-            self.save(path, g_only, round)
-
-    # ServerObserver methods
-    def finished(self, round: int) -> None:
-        FlukeENV().close_cache()
-        path, freq, g_only = FlukeENV().get_save_options()
-        if freq == -1:
-            self.save(path, g_only, round - 1)
+        with open(os.path.join(path, "federation.json"), "r") as f:
+            federation_info = json.load(f)
+            self.rounds = federation_info.get("rounds", 0)
+            self._participants = set(federation_info.get("participants", []))
 
 
 class PersonalizedFL(CentralizedFL):

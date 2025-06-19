@@ -33,6 +33,7 @@ warnings.formatwarning = custom_formatwarning
 __all__ = [
     "log",
     "model",
+    "FederationObserver",
     "ClientObserver",
     "ServerObserver",
     "bytes2human",
@@ -52,6 +53,52 @@ __all__ = [
     "retrieve_obj",
     "safe_train_test_split",
 ]
+
+
+class FederationObserver:
+    """Federation observer interface.
+    This interface is used to observe the federated learning process.
+    For example, it can be used to log the performance of the global model and the communication
+    costs, as it is done by the ``Log`` class.
+    """
+
+    def start_round(self, round: int, global_model: Any) -> None:
+        """This method is called when a new round starts.
+
+        Args:
+            round (int): The round number.
+            global_model (Any): The current global model.
+        """
+        pass
+
+    def end_round(self, round: int) -> None:
+        """This method is called when a round ends.
+
+        Args:
+            round (int): The round number.
+        """
+        pass
+
+    def finished(self, round: int) -> None:
+        """This method is called when the federated learning process has ended.
+
+        Args:
+            round (int): The last round number.
+        """
+        pass
+
+    def interrupted(self) -> None:
+        """This method is called when the federated learning process has been interrupted."""
+        pass
+
+    def early_stop(self, round: int) -> None:
+        """This method is called when the federated learning process has been stopped due to an
+        early stopping criterion.
+
+        Args:
+            round (int): The last round number.
+        """
+        pass
 
 
 class ClientObserver:
@@ -128,23 +175,6 @@ class ServerObserver:
     costs, as it is done by the ``Log`` class.
     """
 
-    def start_round(self, round: int, global_model: Any) -> None:
-        """This method is called when a new round starts.
-
-        Args:
-            round (int): The round number.
-            global_model (Any): The current global model.
-        """
-        pass
-
-    def end_round(self, round: int) -> None:
-        """This method is called when a round ends.
-
-        Args:
-            round (int): The round number.
-        """
-        pass
-
     def selected_clients(self, round: int, clients: Collection) -> None:
         """This method is called when the clients have been selected for the current round.
 
@@ -173,27 +203,6 @@ class ServerObserver:
                 of 'global' evaluation, it is a dictionary with the evaluation metrics. In case of
                 'locals' evaluation, it is a dictionary of dictionaries where the keys are the
                 client IDs and the values are the evaluation metrics.
-        """
-        pass
-
-    def finished(self, round: int) -> None:
-        """This method is called when the federated learning process has ended.
-
-        Args:
-            round (int): The last round number.
-        """
-        pass
-
-    def interrupted(self) -> None:
-        """This method is called when the federated learning process has been interrupted."""
-        pass
-
-    def early_stop(self, round: int) -> None:
-        """This method is called when the federated learning process has been stopped due to an
-        early stopping criterion.
-
-        Args:
-            round (int): The last round number.
         """
         pass
 
