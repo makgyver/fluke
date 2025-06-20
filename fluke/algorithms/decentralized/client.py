@@ -154,6 +154,10 @@ class GossipClient(AbstractDFLClient):
         assert policy in ["random", "aggregate", "last", "best"], f"Invalid policy {policy}."
         super().__init__(*args, **kwargs)
         self.hyper_params.update(policy=policy)
+        if "eta" in kwargs:
+            self.hyper_params.update(eta=kwargs["eta"])
+        else:
+            self.hyper_params.update(eta=1.0)
 
     def send_model(self) -> None:
         recipient = choice(self.neighbours)
@@ -170,15 +174,22 @@ class GossipClient(AbstractDFLClient):
             msg = choice(messages)
             return msg.payload, msg.timestamp
         elif self.hyper_params.policy == "aggregate":
+            # keeponly the last message from each sender
+            senders_set = set()
+            retained_messages = []
+            for msg in messages[::-1]:
+                if msg.sender not in senders_set:
+                    senders_set.add(msg.sender)
+                    retained_messages.append(msg)
             return (
                 aggregate_models(
                     self.model,
-                    (msg.payload for msg in messages),
-                    np.ones(len(messages)) / len(messages),
-                    eta=1,
+                    (msg.payload for msg in retained_messages),
+                    np.ones(len(retained_messages)) / len(retained_messages),
+                    eta=self.hyper_params.eta,
                     inplace=False,
                 ),
-                max(msg.timestamp for msg in messages),
+                max(msg.timestamp for msg in retained_messages),
             )
         elif self.hyper_params.policy == "last":
             last = 0
