@@ -202,13 +202,14 @@ class GossipClient(AbstractDFLClient):
         elif self.hyper_params.policy == "best":
             best_acc = -1
             best_msg = None
+            evaluator = FlukeENV().get_evaluator()
             for msg in messages:
-                acc = self.evaluate(msg.payload, self.test_set)["accuracy"]
+                acc = evaluator.evaluate(
+                    msg.timestamp, msg.payload, self.test_set, device=self.device, loss_fn=None
+                )["accuracy"]
                 if acc >= best_acc:
                     best_acc = acc
                     best_msg = msg
-
-                del msg.payload  # Free memory
             return best_msg.payload, best_msg.timestamp
 
     def receive_model(self) -> None:
