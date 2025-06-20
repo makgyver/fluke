@@ -4,6 +4,7 @@ from typing import Generator, Literal
 import numpy as np
 from torch.nn import Module
 
+from ... import FlukeENV  # NOQA
 from ...client import Client  # NOQA
 from ...comm import TimedMessage  # NOQA
 from ...config import OptimizerConfigurator  # NOQA
@@ -88,11 +89,40 @@ class AbstractDFLClient(Client):
         raise NotImplementedError()
 
     def local_update(self, round: int) -> None:
-        super().local_update(round)
-        self._num_updates += 1
+        if self._num_updates == 0 or self.channel.has_messages(self.index, "model"):
+            super().local_update(round)
+            self._num_updates += 1
+        elif self._num_updates > 0:
+            self.send_model()
 
     def finalize(self) -> None:
-        return
+        self._load_from_cache()
+        evaluator = FlukeENV().get_evaluator()
+
+        if FlukeENV().get_eval_cfg().pre_fit:
+            metrics = self.evaluate(evaluator, self.test_set)
+            if metrics:
+                self.notify(
+                    "client_evaluation",
+                    round=-1,
+                    client_id=self.index,
+                    phase="pre-fit",
+                    evals=metrics,
+                )
+
+        if FlukeENV().get_eval_cfg().post_fit:
+            self.fit()
+            metrics = self.evaluate(evaluator, self.test_set)
+            if metrics:
+                self.notify(
+                    "client_evaluation",
+                    round=-1,
+                    client_id=self.index,
+                    phase="post-fit",
+                    evals=metrics,
+                )
+
+        self._save_to_cache()
 
 
 class GossipClient(AbstractDFLClient):

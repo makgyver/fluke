@@ -1,18 +1,22 @@
+from __future__ import annotations
+
 import json
 import os
 import uuid
 import warnings
+from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Callable, Collection, Union
+from typing import Any, Callable, Collection, Optional, Union
 
 import networkx
 import numpy as np
+from rich.progress import track
 from torch.nn import Module
-from collections import defaultdict
+from torch.utils.data import DataLoader
 
 from ... import DDict, FlukeENV, ObserverSubject  # NOQA
-from ...config import OptimizerConfigurator  # NOQA
 from ...comm import Channel, ChannelObserver  # NOQA
+from ...config import OptimizerConfigurator  # NOQA
 from ...data import DataSplitter, FastDataLoader  # NOQA
 from ...server import EarlyStopping  # NOQA
 from ...utils import (
@@ -27,14 +31,49 @@ __all__ = ["DecentralizedFL", "GossipDFL", "Topology", "client"]
 
 
 class Topology:
-    def __init__(self, graph: networkx.Graph = None, num_nodes: int = None):
-        if graph:
-            self.graph = graph
-        elif num_nodes is not None:
-            # Create a fully connected (complete) graph with num_nodes
-            self.graph = networkx.complete_graph(num_nodes)
-        else:
-            raise ValueError("Either a graph or number of nodes must be provided.")
+
+    @staticmethod
+    def fully_connected(num_nodes: int) -> Topology:
+        """Create a fully connected (complete) graph with num_nodes nodes.
+
+        Args:
+            num_nodes (int): The number of nodes in the graph.
+
+        Returns:
+            Topology: A fully connected graph.
+        """
+        return Topology(networkx.complete_graph(num_nodes))
+
+    @staticmethod
+    def ring(num_nodes: int) -> Topology:
+        """Create a ring topology graph with num_nodes nodes.
+
+        Args:
+            num_nodes (int): The number of nodes in the graph.
+
+        Returns:
+            Topology: A ring topology graph.
+        """
+        graph = networkx.DiGraph()
+        for i in range(num_nodes):
+            graph.add_edge(i, (i + 1) % num_nodes)
+        return Topology(graph)
+
+    @staticmethod
+    def random(num_nodes: int, p: float = 0.5) -> Topology:
+        """Create a random d-regular graph with num_nodes nodes and edge probability p.
+
+        Args:
+            num_nodes (int): The number of nodes in the graph.
+            p (float): The probability of creating an edge between any two nodes.
+
+        Returns:
+            Topology: A random d-regular graph.
+        """
+        return Topology(networkx.random_regular_graph(d=int(p * num_nodes), n=num_nodes))
+
+    def __init__(self, graph: networkx.Graph):
+        self.graph: networkx.Graph = graph
 
     def __getitem__(self, node: int) -> list[int]:
         """Get the neighbors of a node in the topology graph.
@@ -46,6 +85,15 @@ class Topology:
             list[int]: A list of neighboring nodes.
         """
         return list(self.graph.neighbors(node))
+
+    @property
+    def num_nodes(self) -> int:
+        """Get the number of nodes in the topology graph.
+
+        Returns:
+            int: The number of nodes.
+        """
+        return self.graph.number_of_nodes()
 
     def add_node(self, node: int) -> None:
         """Add a node to the topology graph.
@@ -107,6 +155,31 @@ class Topology:
         """
         return list(self.graph.edges)
 
+    def draw(self, **kwargs) -> None:
+        """Draw the topology graph using networkx's draw function.
+
+        Args:
+            **kwargs: Additional keyword arguments passed to the networkx draw function.
+        """
+        import matplotlib.pyplot as plt
+
+        pos = networkx.kamada_kawai_layout(self.graph)
+
+        plt.figure(figsize=(8, 6))
+        networkx.draw(
+            self.graph,
+            pos,
+            with_labels=True,
+            node_color="lightcoral",
+            node_size=300,
+            edge_color="gray",
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=20,
+        )
+        plt.title("Topology")
+        plt.show()
+
 
 class DecentralizedFL(ObserverSubject):
 
@@ -116,7 +189,8 @@ class DecentralizedFL(ObserverSubject):
         data_splitter: DataSplitter,
         hyper_params: DDict | dict[str, Any],
         topology: Topology = None,
-        clients: list[AbstractDFLClient] = None,
+        clients: Optional[list[AbstractDFLClient]] = None,
+        test_data: Optional[FastDataLoader | DataLoader] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -135,12 +209,22 @@ class DecentralizedFL(ObserverSubject):
                     + f"the number of clients to {self.n_clients}."
                 )
 
-            # TODO: something else
+            self.topology: Topology = (
+                topology if topology is not None else Topology.fully_connected(n_clients)
+            )
+            assert (
+                self.topology.num_nodes == self.n_clients
+            ), "Topology must have the same number of nodes as clients."
 
         else:
             if isinstance(hyper_params, dict):
                 hyper_params = DDict(hyper_params)
 
+            if test_data is not None:
+                warnings.warn(
+                    "The provided `test_data` will be ignored and replaced by the one"
+                    + " generated by the `data_splitter`."
+                )
             self.hyper_params = hyper_params
             self.n_clients = n_clients
             (clients_tr_data, clients_te_data), test_data = data_splitter.assign(
@@ -148,7 +232,7 @@ class DecentralizedFL(ObserverSubject):
             )
 
             self.topology: Topology = (
-                topology if topology is not None else Topology(num_nodes=self.n_clients)
+                topology if topology is not None else Topology.fully_connected(n_clients)
             )
 
             # Federated model
@@ -165,7 +249,7 @@ class DecentralizedFL(ObserverSubject):
                 model, self.topology, clients_tr_data, clients_te_data, hyper_params.client
             )
 
-            self.test_data = test_data
+        self.test_data: Optional[FastDataLoader | DataLoader] = test_data
         self.rounds: int = 0
         self._participants: dict[int, set[int]] = defaultdict(set)
 
@@ -319,21 +403,36 @@ class DecentralizedFL(ObserverSubject):
             federation_info = json.load(f)
             self.rounds = federation_info.get("rounds", 0)
 
-    def _compute_evaluation(self, round: int) -> None:
+    def _compute_evaluation(self, round: int | None = None) -> None:
         evaluator = FlukeENV().get_evaluator()
 
         if FlukeENV().get_eval_cfg().locals:
+            clients = (
+                self._participants[round]
+                if round is not None
+                else set.union(*self._participants.values())
+            )
             client_evals = {
-                index: self.clients[index].evaluate(evaluator, self.test_data)
-                for index in self._participants[round]
+                index: self.clients[index].evaluate(evaluator, self.test_data) for index in clients
             }
+            if round is None:
+                round = self.rounds
             self.notify(
                 event="server_evaluation", round=round, eval_type="locals", evals=client_evals
             )
 
     def finalize(self) -> None:
-        # TODO
-        pass
+        if self.rounds > 0:
+            self._compute_evaluation()
+            client_to_eval = set.union(*self._participants.values())
+            for cid in track(client_to_eval, "Finalizing federation...", transient=True):
+                self.clients[cid].finalize()
+
+            path, freq, g_only = FlukeENV().get_save_options()
+            if freq == -1:
+                self.save(path, g_only, self.rounds - 1)
+
+        FlukeENV().close_cache()
 
 
 class GossipDFL(DecentralizedFL):
@@ -357,12 +456,8 @@ class GossipDFL(DecentralizedFL):
                     perm_idx = np.random.permutation(self.n_clients)
                     for c, cid in enumerate(perm_idx):
                         client = self.clients[cid]
-                        has_msg = self.channel.has_messages(client.index, "model")
                         if client.is_active(rnd):
-                            if has_msg or rnd == 0:
-                                client.local_update(rnd + 1)
-                            else:
-                                client.send_model()
+                            client.local_update(rnd + 1)
                             self._participants[rnd + 1].add(client.index)
                         progress_client.update(task_id=task_local, completed=c + 1)
                         progress_fl.update(task_id=task_rounds, advance=1)
