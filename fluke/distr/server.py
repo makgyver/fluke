@@ -136,7 +136,7 @@ class ParallelServer(Server):
                     self.clients[client.index]._modopt = c_modopt
 
                     for k, evals in c_results:
-                        self._notify(
+                        self.notify(
                             "client_evaluation",
                             round=rnd + 1,
                             client_id=client.index,
@@ -155,7 +155,7 @@ class ParallelServer(Server):
                 break
 
             except EarlyStopping:
-                self.notify(event="early_stop")
+                self.notify(event="early_stop", round=self.rounds + 1)
                 break
 
         if finalize:
