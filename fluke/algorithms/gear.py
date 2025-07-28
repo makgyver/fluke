@@ -150,7 +150,14 @@ class GEARClient(Client):
         for _ in range(epochs):
             for _, (X, y) in enumerate(self.train_set):
                 X, y = X.to(self.device), y.to(self.device)
-                X_adv = self.generate_adversarial(self.model, X, y)
+                X_adv = self.generate_adversarial(
+                    self.model,
+                    X,
+                    y,
+                    self.hyper_params.eps,
+                    self.hyper_params.alpha,
+                    self.hyper_params.adv_iters,
+                )
                 self.optimizer.zero_grad()
                 y_hat = self.model(X_adv)
                 loss = self.hyper_params.loss_fn(y_hat, y)

@@ -376,7 +376,7 @@ class CentralizedFL(ObserverSubject):
                     break
 
                 except EarlyStopping:
-                    self.notify(event="early_stop")
+                    self.notify(event="early_stop", round=self.rounds + 1)
                     break
 
             progress_fl.remove_task(task_rounds)
