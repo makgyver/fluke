@@ -101,6 +101,9 @@ For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 `fluke` has been presented at the [ECML-PKDD 2024](https://ecmlpkdd2024.org/) conference in the [Workshop on Advancements in Federated Learning](https://wafl2024.di.unito.it). The slides of the presentation are available [here](slides/fluke_ecmlpkdd2024.pdf).
 
+## `fluke` @ ECAI 2025
+On 25th October, we will deliver a tutorial on `fluke` at the 28th European Conference on Artificial Intelligence (ECAI). [Here](https://sites.google.com/view/fluketutorialecai25/home) the website of the tutorial. 
+
 ## Citing `fluke`
 ``fluke`` is a research tool, and we kindly ask you to cite it in your research papers if you use it. You can use the following BibTeX entry:
 
