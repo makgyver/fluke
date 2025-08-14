@@ -412,7 +412,11 @@ class Client(ObserverSubject):
         model = self.model  # ensure to call the retrieve_obj only once
         if test_set is not None and model is not None:
             evaluation = evaluator.evaluate(
-                self._last_round, model, test_set, device=self.device, loss_fn=None
+                self._last_round,
+                model,
+                test_set,
+                device=self.device,
+                # loss_fn=self.hyper_params.loss_fn,
             )
             return evaluation
         return {}
@@ -713,7 +717,7 @@ class PFLClient(Client):
                 self.personalized_model,
                 test_set,
                 device=self.device,
-                loss_fn=None,
+                # loss_fn=CrossEntropyLoss(),
             )
         return {}
 

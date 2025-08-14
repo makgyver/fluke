@@ -152,6 +152,9 @@ class GossipClient(AbstractDFLClient):
         self, *args, policy: str = Literal["random", "aggregate", "last", "best"], **kwargs
     ):
         assert policy in ["random", "aggregate", "last", "best"], f"Invalid policy {policy}."
+        assert (
+            policy == "best" and self.test_set is not None
+        ), "The 'best' policy requires a test set to evaluate model accuracy."
         super().__init__(*args, **kwargs)
         self.hyper_params.update(policy=policy)
         if "eta" in kwargs:
