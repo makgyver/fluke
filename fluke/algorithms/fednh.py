@@ -288,10 +288,12 @@ class FedNHServer(Server):
             self.model.prototypes.data, dim=1
         )  # .clamp(min=1e-12)
 
-    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+    def evaluate(
+        self, evaluator: Evaluator, test_set: FastDataLoader, round: int
+    ) -> dict[str, float]:
         if self.test_set is not None:
             model = ArgMaxModule(self.model)
-            return evaluator.evaluate(self.rounds + 1, model, self.test_set, device=self.device)
+            return evaluator.evaluate(round, model, self.test_set, device=self.device)
         return {}
 
 

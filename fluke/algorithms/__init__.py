@@ -418,7 +418,7 @@ class CentralizedFL(ObserverSubject):
             )
 
         if FlukeENV().get_eval_cfg().server:
-            evals = self.server.evaluate(evaluator, self.server.test_set)
+            evals = self.server.evaluate(evaluator, self.server.test_set, round=round + 1)
             self.notify(event="server_evaluation", round=round + 1, eval_type="global", evals=evals)
 
     def __str__(self, indent: int = 0) -> str:
