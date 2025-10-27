@@ -62,11 +62,9 @@ At the end of the [fit](#fluke.server.Server.fit) method, the [Server](#fluke.se
 As mentioned above, the [Server](#fluke.server.Server) class triggers notifications to the observers that have been registered to the server.
 The default notifications are:
 
-- [start_round](#fluke.utils.ServerObserver.start_round): triggered at the beginning of each round.
 - [selected_clients](#fluke.utils.ServerObserver.selected_clients): triggered after the clients have been selected for the round.
-- [end_round](#fluke.utils.ServerObserver.end_round): triggered at the end a round.
 - [server_evaluation](#fluke.utils.ServerObserver.server_evaluation): it should be triggered after an evaluation has been performed.
-- [finished](#fluke.utils.ServerObserver.finished): triggered at the end of the [finalize](#fluke.server.Server.finalize) method.
+- [track_item](#fluke.utils.ServerObserver.track_item): it should be triggered to track any item of interest.
 
 :::{hint}
 
