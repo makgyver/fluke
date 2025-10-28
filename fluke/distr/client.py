@@ -71,6 +71,20 @@ class ParallelClient(Client):
         postfit: bool,
         evaluator: Evaluator,
     ) -> tuple[Module, float, int]:
+        """
+        Perform a local update on the [Parallel] client.
+        
+        Args:
+            current_round (int): The current round of training.
+            current_model_sd (dict): The state dictionary of the current model.
+            device (str): The device to use for training.
+            prefit (bool): Whether to evaluate the model before fitting.
+            postfit (bool): Whether to evaluate the model after fitting.
+            evaluator (Evaluator): The evaluator to use for evaluation.
+        
+        Returns:
+            tuple: A tuple containing the updated model, the loss, the client index, and evaluation results.
+        """
         self.device = device
 
         self._last_round = current_round
