@@ -225,27 +225,7 @@ class FedHPServer(Server):
 
     def fit(self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True) -> None:
         if self.rounds == 0:
-            self.anchors = self._hyperspherical_embedding().data
-            self.channel.broadcast(
-                Message(self.anchors, "anchors", "server"), [c.index for c in self.clients]
-            )
-            self.prototypes = copy.deepcopy(self.anchors)
-            client = {c.index: c.train_set.tensors[1] for c in self.clients}
-            # Count the occurrences of each class for each client.
-            # This is "illegal" in fluke :)
-            n_classes = self.clients[0].train_set.num_labels
-            class_counts = {
-                client_idx: torch.bincount(client_data, minlength=n_classes).tolist()
-                for client_idx, client_data in enumerate(client.values())
-            }
-            if self.hyper_params.weighted:
-                tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))
-                for ind, val in enumerate(class_counts.values()):
-                    tensor_class_counts[:, ind] = torch.tensor(val)
-                col_sums = tensor_class_counts.sum(dim=0, keepdim=True)
-                self.clients_class_weights = tensor_class_counts / col_sums
-            else:
-                self.clients_class_weights = torch.ones((len(class_counts[0]), self.n_clients))
+            self._broadcast_anchors()
 
         return super().fit(n_rounds=n_rounds, eligible_perc=eligible_perc, finalize=finalize)
 
@@ -300,6 +280,32 @@ class FedHPServer(Server):
             avg_proto += client_proto * clients_weights[i, :].unsqueeze(-1)
         avg_proto /= clients_weights.sum(dim=0).unsqueeze(-1)
         self.prototypes = avg_proto
+    
+    def _broadcast_anchors(self) -> None:
+        self.anchors = self._hyperspherical_embedding().data
+
+        self.channel.broadcast(
+            Message(self.anchors, "anchors", "server"), [c.index for c in self.clients]
+        )
+
+        self.prototypes = copy.deepcopy(self.anchors)
+        client = {c.index: c.train_set.tensors[1] for c in self.clients}
+        # Count the occurrences of each class for each client.
+        # This is "illegal" in fluke :)
+        n_classes = self.clients[0].train_set.num_labels
+        class_counts = {
+            client_idx: torch.bincount(client_data, minlength=n_classes).tolist()
+            for client_idx, client_data in enumerate(client.values())
+        }
+
+        if self.hyper_params.weighted:
+            tensor_class_counts = torch.empty((len(class_counts[0]), self.n_clients))
+            for ind, val in enumerate(class_counts.values()):
+                tensor_class_counts[:, ind] = torch.tensor(val)
+            col_sums = tensor_class_counts.sum(dim=0, keepdim=True)
+            self.clients_class_weights = tensor_class_counts / col_sums
+        else:
+            self.clients_class_weights = torch.ones((len(class_counts[0]), self.n_clients))
 
 
 class FedHP(PersonalizedFL):
@@ -312,3 +318,6 @@ class FedHP(PersonalizedFL):
 
     def get_optimizer_class(self) -> type[Optimizer]:
         return torch.optim.Adam
+
+    def _round_zero(self, *args, **kwargs):
+        self.server._broadcast_anchors()

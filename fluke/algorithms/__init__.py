@@ -323,6 +323,17 @@ class CentralizedFL(ObserverSubject):
 
         self.attach([c for c in callbacks if isinstance(c, FederationObserver)])
 
+    def _round_zero(self, *args, **kwargs) -> None:
+        """Perform the round zero operations.
+        This method should be defined by the subclasses to implement any operation that should be
+        performed before starting the federated learning rounds.
+
+        Args:
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
+        pass
+
     def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs) -> None:
         """Run the federated algorithm.
         This method will call the :meth:`Server.fit` method which will orchestrate the training
@@ -348,6 +359,7 @@ class CentralizedFL(ObserverSubject):
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
             total_rounds = self.rounds + n_rounds
+            self._round_zero()
             for rnd in range(self.rounds, total_rounds):
                 try:
                     self.notify(event="start_round", round=rnd + 1, global_model=self.server.model)
