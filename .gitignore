@@ -24,3 +24,4 @@ logs/
 *coverage*
 models_*/
 models/*
+uv*

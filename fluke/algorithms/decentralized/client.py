@@ -62,7 +62,6 @@ class AbstractDFLClient(Client):
             persistency=persistency,
             **kwargs,
         )
-
         self.hyper_params.update(activation_rate=activation_rate)
         self.model = model
         self.neighbours: list[int] = neighbours
@@ -151,11 +150,10 @@ class GossipClient(AbstractDFLClient):
     def __init__(
         self, *args, policy: str = Literal["random", "aggregate", "last", "best"], **kwargs
     ):
-        assert policy in ["random", "aggregate", "last", "best"], f"Invalid policy {policy}."
-        assert (
-            policy == "best" and self.test_set is not None
-        ), "The 'best' policy requires a test set to evaluate model accuracy."
         super().__init__(*args, **kwargs)
+        assert policy in ["random", "aggregate", "last", "best"], f"Invalid policy {policy}."
+        if policy == "best":
+            assert self.test_set is not None, "The 'best' policy requires a test set to evaluate model accuracy."
         self.hyper_params.update(policy=policy)
         if "eta" in kwargs:
             self.hyper_params.update(eta=kwargs["eta"])
