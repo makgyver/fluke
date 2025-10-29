@@ -166,7 +166,7 @@ class CCVRServer(Server):
             optimizer.step()
         self.model.cpu()
 
-    def finalize(self) -> None:
+    def _finalize(self) -> None:
         """In the CCVR Server, at the end of the learning the model is calibrated according to the
         data distributions of the clients.
         """
@@ -184,3 +184,7 @@ class CCVR(CentralizedFL):
 
     def get_server_class(self) -> type[Server]:
         return CCVRServer
+    
+    def finalize(self):
+        self.server._finalize()
+        return super().finalize()
