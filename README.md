@@ -108,14 +108,16 @@ On 25th October, we will deliver a tutorial on `fluke` at the 28th European Conf
 ``fluke`` is a research tool, and we kindly ask you to cite it in your research papers if you use it. You can use the following BibTeX entry:
 
 ```bibtex
-@misc{polato2024fluke,
-      title={fluke: Federated Learning Utility frameworK for Experimentation and research},
-      author={Mirko Polato},
-      year={2024},
-      eprint={2412.15728},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2412.15728},
+@article{fluke2025fgcs,
+	title = {Fluke: Federated learning utility framework for experimentation and research},
+	journal = {Future Generation Computer Systems},
+	volume = {177},
+	pages = {108241},
+	year = {2026},
+	issn = {0167-739X},
+	doi = {https://doi.org/10.1016/j.future.2025.108241},
+	url = {https://www.sciencedirect.com/science/article/pii/S0167739X25005357},
+	author = {Mirko Polato}
 }
 ```
 
