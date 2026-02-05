@@ -495,7 +495,7 @@ def test_superfed():
 if __name__ == "__main__":
     # test_centralized_fl()
     # test_apfl()
-    # test_ccvr()
+    test_ccvr()
     # test_ditto()
     # test_fat()
     # test_fedamp()
@@ -506,7 +506,7 @@ if __name__ == "__main__":
     # test_fedbn()
     # test_feddyn()
     # test_fedexp()
-    test_fedhp()
+    # test_fedhp()
     # test_fedlc()
     # test_fedld()
     # test_fednh()

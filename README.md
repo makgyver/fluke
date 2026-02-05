@@ -2,7 +2,8 @@
 <a href="https://makgyver.github.io/fluke"><img src="https://img.shields.io/github/actions/workflow/status/makgyver/fluke/doc-publish.yml?style=for-the-badge&label=DOCUMENTATION"/></a>
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fluke-fl?style=for-the-badge&logo=python&logoColor=yellow)
 ![GitHub License](https://img.shields.io/github/license/makgyver/fluke?style=for-the-badge)
-[![arXiv](https://img.shields.io/badge/arxiv-2412.15728-b31b1b.svg?style=for-the-badge&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2412.15728)
+<!-- [![arXiv](https://img.shields.io/badge/arxiv-2412.15728-b31b1b.svg?style=for-the-badge&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2412.15728) -->
+[![FGCS](https://img.shields.io/badge/-Elsevier-FF6C00?style=for-the-badge&logo=elsevier&logoColor=white)](https://www.sciencedirect.com/science/article/pii/S0167739X25005357)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
 # **fluke**: **f**ederated **l**earning **u**tility framewor**k** for **e**xperimentation and research
@@ -101,18 +102,23 @@ For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 `fluke` has been presented at the [ECML-PKDD 2024](https://ecmlpkdd2024.org/) conference in the [Workshop on Advancements in Federated Learning](https://wafl2024.di.unito.it). The slides of the presentation are available [here](slides/fluke_ecmlpkdd2024.pdf).
 
+## `fluke` @ ECAI 2025
+On 25th October, we will deliver a tutorial on `fluke` at the 28th European Conference on Artificial Intelligence (ECAI). [Here](https://sites.google.com/view/fluketutorialecai25/home) the website of the tutorial. 
+
 ## Citing `fluke`
 ``fluke`` is a research tool, and we kindly ask you to cite it in your research papers if you use it. You can use the following BibTeX entry:
 
 ```bibtex
-@misc{polato2024fluke,
-      title={fluke: Federated Learning Utility frameworK for Experimentation and research},
-      author={Mirko Polato},
-      year={2024},
-      eprint={2412.15728},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2412.15728},
+@article{fluke2025fgcs,
+	title = {Fluke: Federated learning utility framework for experimentation and research},
+	journal = {Future Generation Computer Systems},
+	volume = {177},
+	pages = {108241},
+	year = {2026},
+	issn = {0167-739X},
+	doi = {https://doi.org/10.1016/j.future.2025.108241},
+	url = {https://www.sciencedirect.com/science/article/pii/S0167739X25005357},
+	author = {Mirko Polato}
 }
 ```
 
