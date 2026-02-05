@@ -132,17 +132,14 @@ class FedBABUServer(Server):
     ):
         super().__init__(model=model, test_set=None, clients=clients, weighted=weighted)
 
-    def finalize(self) -> None:
+    def fine_tune(self) -> None:
 
         with Progress(transient=True) as progress:
             task = progress.add_task("[cyan]Client's fine tuning", total=len(self._participants))
             clients_ft = [client for client in self.clients if client.index in self._participants]
             for client in clients_ft:
                 client.fine_tune()
-                client.finalize()
                 progress.update(task, advance=1)
-
-        self.notify(event="finalize", round=self.rounds + 1)
 
 
 class FedBABU(PersonalizedFL):
@@ -152,3 +149,7 @@ class FedBABU(PersonalizedFL):
 
     def get_server_class(self) -> type[Server]:
         return FedBABUServer
+
+    def finalize(self) -> None:
+        self.server.fine_tune()
+        return super().finalize()
