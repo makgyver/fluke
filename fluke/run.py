@@ -306,6 +306,8 @@ def clients_only(
         evaluator = ClassificationEval(
             eval_every=cfg.eval.eval_every, n_classes=data_container.num_classes
         )
+        client_local_eval = None
+        client_shared_eval = None
         for e in track(range(epochs), description="Training...", transient=True):
             model.to(device)
             model.train()

@@ -390,7 +390,9 @@ class Client(ObserverSubject):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= epochs * len(self.train_set)
+        train_batches = epochs * len(self.train_set)
+        if train_batches > 0:
+            running_loss /= train_batches
         self.model.cpu()
         clear_cuda_cache()
         return running_loss
@@ -634,7 +636,7 @@ class PFLClient(Client):
         Returns:
             torch.nn.Module: The personalized model.
         """
-        if isinstance(self._modopt, FlukeCache.ObjectRef):
+        if isinstance(self._personalized_modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).model
         return self._personalized_modopt.model
 
@@ -654,7 +656,7 @@ class PFLClient(Client):
         Returns:
             torch.optim.Optimizer: The optimizer.
         """
-        if isinstance(self._modopt, FlukeCache.ObjectRef):
+        if isinstance(self._personalized_modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).optimizer
         return self._personalized_modopt.optimizer
 
@@ -674,7 +676,7 @@ class PFLClient(Client):
         Returns:
             torch.optim.lr_scheduler.LRScheduler: The learning rate scheduler.
         """
-        if isinstance(self._modopt, FlukeCache.ObjectRef):
+        if isinstance(self._personalized_modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).scheduler
         return self._personalized_modopt.scheduler
 

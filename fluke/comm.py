@@ -380,7 +380,8 @@ class Channel(ObserverSubject):
         for i, msg in enumerate(self._buffer[mbox]):
             if sender is None or msg.sender == sender:  # match sender
                 if msg_type is None or msg.msg_type == msg_type:  # match msg_type
-                    msg = self._buffer[mbox].pop(i)
+                    # Remove the message from the buffer
+                    del self._buffer[mbox][i]
                     self.notify(event="message_received", message=msg, by=mbox)
                     return msg
 
