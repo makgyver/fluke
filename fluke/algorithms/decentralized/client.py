@@ -1,3 +1,5 @@
+"""This module implements clients for decentralized federated learning (DFL) algorithms."""
+
 from random import choice
 from typing import Generator, Literal
 

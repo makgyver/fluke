@@ -462,6 +462,11 @@ class DecentralizedFL(ObserverSubject):
 
 
 class GossipDFL(DecentralizedFL):
+    """Gossip Decentralized Federated Learning (GossipDFL) is a specific implementation of a
+    decentralized FL algorithm where clients communicate with their neighbors in a gossip-like
+    manner. In each round, active clients send their model to a randomly chosen neighbor, and
+    then perform local updates based on the received models.
+    """
 
     def get_client_class(self) -> type[GossipClient]:
         return GossipClient

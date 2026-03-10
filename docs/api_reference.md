@@ -410,3 +410,32 @@ In this page you can find the list of modules/submodules defined in `fluke` with
    superfed
 
 ```
+
+
+## [`fluke.algorithms.decentralized`](fluke.algorithms.decentralized.md)
+
+**Classes**
+
+```{eval-rst}
+.. currentmodule:: fluke.algorithms.decentralized
+
+.. autosummary::
+   :nosignatures:
+
+   Topology
+   DecentralizedFL
+   GossipDFL
+
+```
+
+**Submodules**
+
+```{eval-rst}
+
+.. currentmodule:: fluke.algorithms.decentralized
+.. autosummary::
+   :nosignatures:
+
+   client
+
+```

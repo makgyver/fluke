@@ -10,6 +10,18 @@
 
 ```
 
+## Submodules
+
+```{eval-rst}
+
+.. currentmodule:: fluke.algorithms
+
+.. autosummary::
+   :nosignatures:
+
+   decentralized
+
+```
 
 <h3>
 
@@ -41,17 +53,17 @@ Classes included in ``fluke.algorithms``
 
 .. currentmodule:: fluke.algorithms.CentralizedFL
 
-.. autosummary:: 
+.. autosummary::
    :nosignatures:
 
-   
+
 ```
 
 ```{eval-rst}
 
 .. autoclass:: fluke.algorithms.CentralizedFL
    :member-order: bysource
-   :members: 
+   :members:
 
 ```
 
@@ -66,17 +78,17 @@ Classes included in ``fluke.algorithms``
 
 .. currentmodule:: fluke.algorithms.PersonalizedFL
 
-.. autosummary:: 
+.. autosummary::
    :nosignatures:
 
-   
+
 ```
 
 ```{eval-rst}
 
 .. autoclass:: fluke.algorithms.PersonalizedFL
    :member-order: bysource
-   :members: 
+   :members:
 
 ```
 
@@ -86,6 +98,8 @@ Classes included in ``fluke.algorithms``
 .. toctree::
    :maxdepth: 2
    :hidden:
+
+   fluke.algorithms.decentralized
 
    algo/APFL
    algo/CCVR
