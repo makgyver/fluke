@@ -338,7 +338,10 @@ class PerformanceTracker:
             if round not in self._performance[perf_type]:
                 self._performance[perf_type][round] = {}
             if perf_type != "global":
-                self._performance[perf_type][round][client_id] = metrics
+                if client_id is None:
+                    self._performance[perf_type][round] = metrics
+                else:
+                    self._performance[perf_type][round][client_id] = metrics
             else:
                 self._performance[perf_type][round] = metrics
 

@@ -21,7 +21,12 @@ from fluke.data.datasets import Datasets  # NOQA
 from fluke.evaluation import ClassificationEval  # NOQA
 from fluke.nets import MNIST_2NN  # NOQA
 from fluke.server import Server  # NOQA
-from fluke.utils import ClientObserver, ServerObserver, get_class_from_qualified_name  # NOQA
+from fluke.utils import (
+    ClientObserver,
+    ServerObserver,
+    FederationObserver,
+    get_class_from_qualified_name,
+)  # NOQA
 from fluke.utils.log import Log  # NOQA
 
 FlukeENV().set_evaluator(ClassificationEval(1, 10))
@@ -78,7 +83,7 @@ def test_centralized_fl():
     assert fl.get_client_class() == Client
     assert fl.get_server_class() == Server
 
-    class Observer(ClientObserver, ServerObserver, ChannelObserver):
+    class Observer(ClientObserver, ServerObserver, FederationObserver, ChannelObserver):
         def __init__(self):
             super().__init__()
             self.called_start = False
@@ -490,7 +495,7 @@ def test_superfed():
 if __name__ == "__main__":
     # test_centralized_fl()
     # test_apfl()
-    # test_ccvr()
+    test_ccvr()
     # test_ditto()
     # test_fat()
     # test_fedamp()
@@ -513,7 +518,7 @@ if __name__ == "__main__":
     # test_fedrep()
     # test_fedrod()
     # test_fedrs()
-    test_fedsam()
+    # test_fedsam()
     # test_fedsgd()
     # test_gear()
     # test_kafe()

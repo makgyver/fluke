@@ -23,7 +23,6 @@ from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
 from ..nets import EncoderHeadNet, HeadGlobalEncoderLocalNet  # NOQA
 from ..server import Server  # NOQA
-from ..utils import get_model  # NOQA
 from ..utils.model import safe_load_state_dict  # NOQA
 
 __all__ = ["LGFedAVGClient", "LGFedAVGServer", "LGFedAVG"]

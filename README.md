@@ -2,7 +2,8 @@
 <a href="https://makgyver.github.io/fluke"><img src="https://img.shields.io/github/actions/workflow/status/makgyver/fluke/doc-publish.yml?style=for-the-badge&label=DOCUMENTATION"/></a>
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/fluke-fl?style=for-the-badge&logo=python&logoColor=yellow)
 ![GitHub License](https://img.shields.io/github/license/makgyver/fluke?style=for-the-badge)
-[![arXiv](https://img.shields.io/badge/arxiv-2412.15728-b31b1b.svg?style=for-the-badge&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2412.15728)
+<!-- [![arXiv](https://img.shields.io/badge/arxiv-2412.15728-b31b1b.svg?style=for-the-badge&logo=arxiv&logoColor=red)](https://arxiv.org/abs/2412.15728) -->
+[![FGCS](https://img.shields.io/badge/-Elsevier-FF6C00?style=for-the-badge&logo=elsevier&logoColor=white)](https://www.sciencedirect.com/science/article/pii/S0167739X25005357)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
 # **fluke**: **f**ederated **l**earning **u**tility framewor**k** for **e**xperimentation and research

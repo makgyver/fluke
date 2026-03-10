@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
-include = ["fluke", "fluke.data", "fluke.utils", "fluke.algorithms", "fluke.distr"]  # package names should match these glob patterns (["*"] by default)
+include = ["fluke", "fluke.data", "fluke.utils", "fluke.algorithms", "fluke.distr", "fluke.algorithms.decentralized"]  # package names should match these glob patterns (["*"] by default)
 exclude = []  # exclude packages matching these glob patterns (empty by default)
 namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 
@@ -12,21 +12,22 @@ namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
 license = "LGPL-2.1-or-later"
 license-files = ["LICENSE"]
 name = "fluke-fl"
-version = "0.7.9"
+version = "0.8.1"
 authors = [
-  { name="Mirko Polato", email="mirko.polato@unito.it" }
+    { name="Mirko Polato", email="mirko.polato@unito.it" }
 ]
 description = "Federated Learning Utility framework for Experimentation and research."
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 keywords = ["federated learning", "deep learning", "pytorch"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent"
 ]
 
@@ -52,7 +53,9 @@ dependencies = [
     "hydra-core",
     "requests",
     "pyyaml",
-    "omegaconf"
+    "omegaconf",
+    "coverage",
+    "pytest",
 ]
 
 [project.scripts]

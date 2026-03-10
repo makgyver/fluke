@@ -4,7 +4,9 @@ The module :mod:`fluke.server` provides the base classes for the servers in :mod
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Generator, Sequence
+import functools
+import warnings
+from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
 
 import numpy as np
 import torch
@@ -22,7 +24,19 @@ if TYPE_CHECKING:
 
 __all__ = ["Server", "EarlyStopping"]
 
-# torch.serialization.add_safe_globals([set])
+
+def deprecated(reason=None):
+    def decorator(func):
+        msg = reason or f"{func.__name__} is deprecated and may be removed in the future."
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class EarlyStopping(Exception):
@@ -94,11 +108,16 @@ class Server(ObserverSubject):
         self.model: torch.nn.Module = model
         self.clients: Sequence[Client] = clients
         self.n_clients: int = len(clients)
-        self.rounds: int = 0
+        self._rounds: int = 0
         self.test_set: FastDataLoader = test_set
 
         self._channel: Channel = Channel()
-        self._participants: set[int] = set()
+        self._participants: set[int] = set()  # deprecated
+
+    @property
+    @deprecated("'rounds' is deprecated and will be removed in a future version.")
+    def rounds(self):
+        return self._rounds
 
     @property
     def channel(self) -> Channel:
@@ -141,6 +160,7 @@ class Server(ObserverSubject):
             Message(self.model, "model", "server", inmemory=None), [c.index for c in eligible]
         )
 
+    @deprecated("The federated learning algorithm is now managed by the `CentralizedFL` class.")
     def fit(
         self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
     ) -> None:
@@ -165,8 +185,8 @@ class Server(ObserverSubject):
             task_rounds = progress_fl.add_task("[red]FL Rounds", total=n_rounds * client_x_round)
             task_local = progress_client.add_task("[green]Local Training", total=client_x_round)
 
-            total_rounds = self.rounds + n_rounds
-            for rnd in range(self.rounds, total_rounds):
+            total_rounds = self._rounds + n_rounds
+            for rnd in range(self._rounds, total_rounds):
                 try:
                     self.notify(event="start_round", round=rnd + 1, global_model=self.model)
                     eligible = self.get_eligible_clients(eligible_perc)
@@ -183,14 +203,14 @@ class Server(ObserverSubject):
                     self.aggregate(eligible, client_models)
                     self._compute_evaluation(rnd, eligible)
                     self.notify(event="end_round", round=rnd + 1)
-                    self.rounds += 1
+                    self._rounds += 1
 
                 except KeyboardInterrupt:
                     self.notify(event="interrupted")
                     break
 
                 except EarlyStopping:
-                    self.notify(event="early_stop")
+                    self.notify(event="early_stop", round=self._rounds + 1)
                     break
 
             progress_fl.remove_task(task_rounds)
@@ -198,8 +218,9 @@ class Server(ObserverSubject):
 
         if finalize:
             self.finalize()
-        self.notify(event="finished", round=self.rounds + 1)
+        self.notify(event="finished", round=self._rounds + 1)
 
+    @deprecated("The federated learning algorithm is now managed by the `CentralizedFL` class.")
     def _compute_evaluation(self, round: int, eligible: Sequence[Client]) -> None:
         evaluator = FlukeENV().get_evaluator()
 
@@ -212,31 +233,37 @@ class Server(ObserverSubject):
             )
 
         if FlukeENV().get_eval_cfg().server:
-            evals = self.evaluate(evaluator, self.test_set)
+            evals = self.evaluate(evaluator, self.test_set, round + 1)
             self.notify(event="server_evaluation", round=round + 1, eval_type="global", evals=evals)
 
-    def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
+    def evaluate(
+        self, evaluator: Evaluator, test_set: FastDataLoader, round: int
+    ) -> dict[str, float]:
         """Evaluate the global federated model on the :attr:`test_set`.
         If the test set is not set, the method returns an empty dictionary.
+
+        Args:
+            evaluator (Evaluator): The evaluator to use for the evaluation.
+            test_set (FastDataLoader): The test data to evaluate the model.
+            round (int): The current round number.
 
         Returns:
             dict[str, float]: The evaluation results. The keys are the metrics and the values are
                 the results.
         """
         if test_set is not None:
-            return evaluator.evaluate(
-                self.rounds + 1, self.model, test_set, loss_fn=None, device=self.device
-            )
+            return evaluator.evaluate(round, self.model, test_set, loss_fn=None, device=self.device)
         return {}
 
+    @deprecated("The federated learning algorithm is now managed by the `CentralizedFL` class.")
     def finalize(self) -> None:
         """Finalize the federated learning process.
         The finalize method is called at the end of the federated learning process. The client-side
         evaluation is only done if the client has participated in at least one round.
         """
-        if self.rounds == 0:
+        if self._rounds == 0:
             return
-        self._compute_evaluation(self.rounds - 1, self.clients)
+        self._compute_evaluation(self._rounds - 1, self.clients)
         client_to_eval = [client for client in self.clients if client.index in self._participants]
         self.broadcast_model(client_to_eval)
         for client in track(client_to_eval, "Finalizing federation...", transient=True):
@@ -369,8 +396,8 @@ class Server(ObserverSubject):
         """
         return {
             "model": self.model.state_dict() if self.model is not None else None,
-            "rounds": self.rounds,
-            "participants": tuple(self._participants),
+            # "rounds": self._rounds,
+            # "participants": tuple(self._participants),
         }
 
     def save(self, path: str) -> None:
@@ -393,6 +420,6 @@ class Server(ObserverSubject):
         state = torch.load(path, weights_only=True)
         if self.model is not None:
             self.model.load_state_dict(state["model"])
-        self.rounds = state["rounds"]
-        self._participants = set(state["participants"])
+        # self._rounds = state["rounds"]
+        # self._participants = set(state["participants"])
         return state

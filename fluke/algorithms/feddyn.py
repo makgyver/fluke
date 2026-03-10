@@ -22,7 +22,7 @@ from ..client import Client  # NOQA
 from ..comm import Message  # NOQA
 from ..config import OptimizerConfigurator  # NOQA
 from ..data import FastDataLoader  # NOQA
-from ..server import Server  # NOQA
+from ..server import Server, EarlyStopping  # NOQA
 from ..utils import clear_cuda_cache  # NOQA
 from ..utils.model import aggregate_models, safe_load_state_dict  # NOQA
 from . import CentralizedFL  # NOQA
@@ -196,6 +196,7 @@ class FedDynServer(Server):
             Message((self.model, self.cld_mdl), "model", "server"), [c.index for c in eligible]
         )
 
+    ## Deprecated
     def fit(
             self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
     ) -> None:
@@ -247,6 +248,20 @@ class FedDynServer(Server):
             self.cld_mdl,
             get_all_params_of(self.model).to(self.device) + avg_grad.to(self.device),
         )
+    
+    def _receive_weights(self) -> np.ndarray:
+        weights = np.array(
+            [
+                self.channel.receive("server", client.index, msg_type="weight").payload
+                for client in self.clients
+            ]
+        )
+        weights = weights / np.sum(weights) * self.n_clients
+        return weights
+    
+    def _send_weights(self, weights: np.ndarray) -> None:
+        for i, client in enumerate(self.clients):
+            self.channel.send(Message(weights[i], "weight", "server"), client.index)
 
 
 class FedDyn(CentralizedFL):
@@ -256,3 +271,13 @@ class FedDyn(CentralizedFL):
 
     def get_server_class(self) -> type[Server]:
         return FedDynServer
+    
+    def _round_zero(self, *args, **kwargs):
+        for client in self.clients:
+            client._send_weight()
+
+        weights = self.server._receive_weights()
+        self.server._send_weights(weights)
+
+        for client in self.clients:
+            client._receive_weights()

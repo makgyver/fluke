@@ -22,3 +22,6 @@ chk_*
 logs/
 *.lock
 *coverage*
+models_*/
+models/*
+uv*

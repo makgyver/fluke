@@ -662,10 +662,10 @@ def test_mixing():
 
 def test_serverobs():
     sobs = ServerObserver()
-    sobs.start_round(1, None)
+    # sobs.start_round(1, None)
     sobs.server_evaluation(1, "global", {"accuracy": 1})
-    sobs.end_round(1)
-    sobs.finished(1)
+    # sobs.end_round(1)
+    # sobs.finished(1)
     sobs.selected_clients(1, [1, 2, 3])
 
 

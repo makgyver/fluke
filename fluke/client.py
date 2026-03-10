@@ -290,7 +290,6 @@ class Client(ObserverSubject):
         Args:
             current_round (int): The current round of the federated learning process.
         """
-        self._last_round = current_round
         self._load_from_cache()
         self.receive_model()
 
@@ -318,6 +317,8 @@ class Client(ObserverSubject):
                 self._dataparallel_to_model()
             self._check_persistency()
             raise KeyboardInterrupt()
+
+        self._last_round = current_round
 
         self.notify(
             "end_fit",
@@ -390,7 +391,10 @@ class Client(ObserverSubject):
                 running_loss += loss.item()
             self.scheduler.step()
 
-        running_loss /= epochs * len(self.train_set)
+        train_batches = epochs * len(self.train_set)
+        if train_batches > 0:
+            running_loss /= train_batches
+
         self.model.cpu()
         clear_cuda_cache()
         return running_loss
@@ -411,7 +415,11 @@ class Client(ObserverSubject):
         model = self.model  # ensure to call the retrieve_obj only once
         if test_set is not None and model is not None:
             evaluation = evaluator.evaluate(
-                self._last_round, model, test_set, device=self.device, loss_fn=None
+                self._last_round,
+                model,
+                test_set,
+                device=self.device,
+                # loss_fn=self.hyper_params.loss_fn,
             )
             return evaluation
         return {}
@@ -517,9 +525,10 @@ class Client(ObserverSubject):
         """
         state = torch.load(path, weights_only=True)
         if state["modopt"]["model"] is not None:
-            self.model = model
+            self.model = model.to(self.device)
             self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
             self._modopt.load_state_dict(state["modopt"])
+            self.model.cpu()
         else:
             self.model = None
 
@@ -541,7 +550,7 @@ class Client(ObserverSubject):
         return (
             f"{clsname}(\n"
             + optcfg_str
-            + f"{indentstr}batch_size = {self.train_set.batch_size}{hpstr})"
+            + f"{indentstr}batch_size={self.train_set.batch_size}{hpstr})"
         )
 
     def __repr__(self, indent: int = 0) -> str:
@@ -634,7 +643,7 @@ class PFLClient(Client):
         Returns:
             torch.nn.Module: The personalized model.
         """
-        if isinstance(self._modopt, FlukeCache.ObjectRef):
+        if isinstance(self._personalized_modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).model
         return self._personalized_modopt.model
 
@@ -654,7 +663,7 @@ class PFLClient(Client):
         Returns:
             torch.optim.Optimizer: The optimizer.
         """
-        if isinstance(self._modopt, FlukeCache.ObjectRef):
+        if isinstance(self._personalized_modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).optimizer
         return self._personalized_modopt.optimizer
 
@@ -674,7 +683,7 @@ class PFLClient(Client):
         Returns:
             torch.optim.lr_scheduler.LRScheduler: The learning rate scheduler.
         """
-        if isinstance(self._modopt, FlukeCache.ObjectRef):
+        if isinstance(self._personalized_modopt, FlukeCache.ObjectRef):
             return retrieve_obj("_personalized_modopt", self, pop=False).scheduler
         return self._personalized_modopt.scheduler
 
@@ -711,7 +720,7 @@ class PFLClient(Client):
                 self.personalized_model,
                 test_set,
                 device=self.device,
-                loss_fn=None,
+                # loss_fn=CrossEntropyLoss(),
             )
         return {}
 

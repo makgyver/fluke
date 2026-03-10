@@ -74,7 +74,7 @@ class ParallelServer(Server):
         self.available_gpus = [f"cuda:{i}" for i in FlukeENV().get_device_ids()]
         result_queue = self.manager.Queue()
         current_model = deepcopy(self.model.state_dict())
-        current_round = self.rounds + 1
+        current_round = self._rounds + 1
         result_dict = {}
         while not trainer_queue.empty() or self.running_processes:
             while self.available_gpus and not trainer_queue.empty():
@@ -116,15 +116,15 @@ class ParallelServer(Server):
 
     def evaluate(self, evaluator: Evaluator, test_set: FastDataLoader) -> dict[str, float]:
         if test_set is not None:
-            return evaluator.evaluate(self.rounds + 1, self.model, test_set, device=self.device[0])
+            return evaluator.evaluate(self._rounds + 1, self.model, test_set, device=self.device[0])
         return {}
 
     def fit(
         self, n_rounds: int = 10, eligible_perc: float = 0.1, finalize: bool = True, **kwargs
     ) -> None:
 
-        total_rounds = self.rounds + n_rounds
-        for rnd in range(self.rounds, total_rounds):
+        total_rounds = self._rounds + n_rounds
+        for rnd in range(self._rounds, total_rounds):
             try:
                 self.notify(event="start_round", round=rnd + 1, global_model=self.model)
                 eligible = self.get_eligible_clients(eligible_perc)
@@ -136,7 +136,7 @@ class ParallelServer(Server):
                     self.clients[client.index]._modopt = c_modopt
 
                     for k, evals in c_results:
-                        self._notify(
+                        self.notify(
                             "client_evaluation",
                             round=rnd + 1,
                             client_id=client.index,
@@ -148,14 +148,14 @@ class ParallelServer(Server):
                 self.aggregate(eligible, client_models)
                 self._compute_evaluation(rnd, eligible)
                 self.notify(event="end_round", round=rnd + 1)
-                self.rounds += 1
+                self._rounds += 1
 
             except KeyboardInterrupt:
                 self.notify(event="interrupted")
                 break
 
             except EarlyStopping:
-                self.notify(event="early_stop")
+                self.notify(event="early_stop", round=self._rounds + 1)
                 break
 
         if finalize:
