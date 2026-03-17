@@ -53,36 +53,27 @@ class VanillaSL(CentralizedFL):
 
         return server
 
-    def _compute_evaluation(self, round: int, eligible: Sequence[Client]) -> None:
-        return None
-
-    def _compute_evaluation_full_model(self, round: int) -> None:
-        evaluator = FlukeENV().get_evaluator()
-        if FlukeENV().get_eval_cfg().server:
-            evals = self.server.evaluate(evaluator, self.server.test_set, round=round + 1)
-            self.notify(event="server_evaluation", round=round + 1, eval_type="global", evals=evals)
-
-    def finalize(self) -> None:
-        if self.rounds > 0:
-            self._compute_evaluation_full_model(self.rounds - 1)
-
-        FlukeENV().close_cache()
-
     def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs) -> None:
-        total_rounds = self.rounds + n_rounds
-        self._round_zero()
-
         with FlukeENV().get_live_renderer():
             progress_fl = FlukeENV().get_progress_bar("FL")
             progress_client = FlukeENV().get_progress_bar("clients")
-
             client_x_round = int(self.n_clients * eligible_perc)
             task_rounds = progress_fl.add_task("[red]SL Rounds", total=n_rounds * client_x_round)
             task_local = progress_client.add_task("[green]Client Updates", total=client_x_round)
 
+            total_rounds = self.rounds + n_rounds
+            self._round_zero()
             for rnd in range(self.rounds, total_rounds):
                 try:
+                    # server.model non è il global_model.
+                    # Comunque non capisco a cosa serve questo parametro.
+                    # Eventualmente dovrebbe essere:
+                    # global_model = torch.nn.Sequential(self.server.client_model, self.server.model)
+                    self.notify(event="start_round", round=rnd + 1, global_model=self.server.model)
+
                     eligible = self.server.get_eligible_clients(eligible_perc)
+
+                    self.notify(event="selected_clients", round=rnd + 1, clients=eligible)
 
                     for c, client in enumerate(eligible):
                         # passa al client il modello client-side corrente
@@ -99,6 +90,8 @@ class VanillaSL(CentralizedFL):
                         progress_client.update(task_id=task_local, completed=c + 1)
                         progress_fl.update(task_id=task_rounds, advance=1)
 
+                    self._compute_evaluation_full_model(rnd)
+                    self.notify(event="end_round", round=rnd + 1)
                     self.rounds += 1
 
                     path, freq, g_only = FlukeENV().get_save_options()

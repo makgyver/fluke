@@ -100,20 +100,12 @@ class ServerSL(Server):
     def aggregate(self, eligible, client_models) -> None: #non serve per SL
         return None
 
-    def evaluate(
-            self, evaluator: Evaluator, test_set: FastDataLoader, round: int
-    ) -> dict[str, float]:
+    def evaluate_full_model(self, evaluator: Evaluator, round: int) -> dict[str, float]:
         # "concateno" le due reti per valutare il modello completo
-        if test_set is not None:
+        if self.test_set is not None:
             full_model = torch.nn.Sequential(
                 self.client_model,
                 self.model
             )
-            return evaluator.evaluate(round, full_model, test_set, loss_fn=None, device=self.device)
+            return evaluator.evaluate(round, full_model, self.test_set, loss_fn=None, device=self.device)
         return {}
-
-    def state_dict(self) -> dict:
-        return {
-            "server_model": self.model.state_dict() if self.model is not None else None,
-            "client_model": self.client_model.state_dict() if self.client_model is not None else None,
-        }
