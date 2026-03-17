@@ -1,25 +1,29 @@
 from copy import deepcopy
+from typing import Sequence
 
 import torch
+from torch.nn import Module
 
+from fluke.config import OptimizerConfigurator
 from fluke.evaluation import Evaluator
 from fluke.comm import Message
 from fluke.data import FastDataLoader
 from fluke.server import Server
 from fluke.utils import clear_cuda_cache
 from fluke.utils.model import safe_load_state_dict
+from playground.clientSL import ClientSL
 
 
 class ServerSL(Server):
 
     def __init__(
         self,
-        model,                 # modello server-side
-        client_model,          # modello client-side  (solo nel caso centralized)
-        test_set,
-        clients,
-        optimizer_cfg,
-        loss_fn,
+        model: torch.nn.Module,                 # modello server-side
+        client_model: torch.nn.Module,          # modello client-side  (solo nel caso centralized)
+        test_set: FastDataLoader | None,
+        clients: Sequence[ClientSL],
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,
         weighted: bool = False,
         lr: float = 1.0,
         clipping: float = 0.0,
@@ -34,7 +38,8 @@ class ServerSL(Server):
             **kwargs,
         )
 
-        self.client_model = deepcopy(client_model) #solo nel caso centralized, nel caso p2p  basterà l'index dell'ultimo client allenato
+        # solo nel caso centralized, nel caso p2p  basterà l'index dell'ultimo client allenato
+        self.client_model = deepcopy(client_model)
         self._optimizer_cfg = optimizer_cfg
         self.optimizer = None
         self.scheduler = None
@@ -61,11 +66,7 @@ class ServerSL(Server):
         if self.hyper_params.clipping > 0:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.hyper_params.clipping)
 
-    def train_on_smashed_data(
-        self,
-        smashed: torch.Tensor,
-        y: torch.Tensor,
-    ) -> tuple[torch.Tensor, float]:
+    def train_on_smashed_data(self, smashed: torch.Tensor, y: torch.Tensor, ) -> tuple[torch.Tensor, float]:
         self.model.train()
         self.model.to(self.device)
 
@@ -89,7 +90,7 @@ class ServerSL(Server):
 
         return grad_cut, float(loss.item())
 
-    def end_round(self) -> None:
+    def end_epoch(self) -> None:
         if self.scheduler is not None:
             self.scheduler.step()
 

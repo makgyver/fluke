@@ -1,10 +1,11 @@
-from typing import Sequence
+from typing import Sequence, Any
 
-from fluke import FlukeENV
+from fluke import FlukeENV, DDict
 from fluke.algorithms import CentralizedFL
 from fluke.client import Client
 from fluke.config import OptimizerConfigurator
-from fluke.server import EarlyStopping
+from fluke.data import FastDataLoader
+from fluke.server import EarlyStopping, Server
 from fluke.utils import get_loss
 from playground.clientSL import ClientSL
 from playground.serverSL import ServerSL
@@ -18,7 +19,7 @@ class VanillaSL(CentralizedFL):
     def get_server_class(self):
         return ServerSL
 
-    def init_server(self, model, data, config):
+    def init_server(self, model:Any, data: FastDataLoader, config:DDict) -> Server:
         """
         model = {"client": client_model, "server": server_model}, dovrei cambiarlo con un DDict
         """
@@ -119,3 +120,19 @@ class VanillaSL(CentralizedFL):
             self.finalize()
 
         self.notify(event="finished", round=self.rounds + 1)
+
+
+    def finalize(self) -> None:
+        if self.rounds > 0:
+            self._compute_evaluation_full_model(self.rounds - 1)
+
+        FlukeENV().close_cache()
+
+    def _compute_evaluation(self, round: int, eligible: Sequence[Client]) -> None:
+        return None
+
+    def _compute_evaluation_full_model(self, round: int) -> None:
+        evaluator = FlukeENV().get_evaluator()
+        if FlukeENV().get_eval_cfg().server:
+            evals = self.server.evaluate_full_model(evaluator, round=round + 1)
+            self.notify(event="server_evaluation", round=round + 1, eval_type="global", evals=evals)

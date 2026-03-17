@@ -1,7 +1,11 @@
 import torch
+from torch.nn import Module
+from torch.utils.data import DataLoader
 
 from fluke.client import Client
 from fluke.comm import Message
+from fluke.config import OptimizerConfigurator
+from fluke.data import FastDataLoader
 from fluke.utils import clear_cuda_cache
 from fluke.utils.model import safe_load_state_dict
 
@@ -9,11 +13,11 @@ from fluke.utils.model import safe_load_state_dict
 class ClientSL(Client):
     def __init__(
         self,
-        index,
-        train_set,
-        test_set,
-        optimizer_cfg,
-        loss_fn,
+        index: int,
+        train_set: FastDataLoader | DataLoader,
+        test_set: FastDataLoader | DataLoader,
+        optimizer_cfg: OptimizerConfigurator,
+        loss_fn: Module,
         local_epochs: int = 1,
         fine_tuning_epochs: int = 0,
         clipping: float = 0,
@@ -91,7 +95,7 @@ class ClientSL(Client):
             if self.scheduler is not None:
                 self.scheduler.step()
 
-            server.end_round() #anche questa è una chiamata diretta
+            server.end_epoch() #anche questa è una chiamata diretta
 
         self._last_round = current_round
 
