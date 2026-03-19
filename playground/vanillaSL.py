@@ -20,14 +20,6 @@ class VanillaSL(CentralizedFL):
         return ServerSL
 
     def init_server(self, model:Any, data: FastDataLoader, config:DDict) -> Server:
-        """
-        model = {"client": client_model, "server": server_model}, dovrei cambiarlo con un DDict
-        """
-        if not isinstance(model, dict):
-            raise TypeError(
-                "Per VanillaSL, hyper_params.model deve essere un dict "
-                "con chiavi 'client' e 'server'."
-            )
         if "client" not in model or "server" not in model:
             raise ValueError("Le chiavi richieste sono 'client' e 'server'.")
 
@@ -39,8 +31,8 @@ class VanillaSL(CentralizedFL):
         loss = get_loss(config.loss) if isinstance(config.loss, str) else config.loss()
 
         server = self.get_server_class()(
-            model=model["server"],
-            client_model=model["client"],
+            model=model.server,
+            client_model=model.client,
             test_set=data,
             clients=self.clients,
             optimizer_cfg=optimizer_cfg,
@@ -65,11 +57,8 @@ class VanillaSL(CentralizedFL):
             self._round_zero()
             for rnd in range(self.rounds, total_rounds):
                 try:
-                    # server.model non è il global_model.
-                    # Comunque non capisco a cosa serve questo parametro.
-                    # Eventualmente dovrebbe essere:
-                    # global_model = torch.nn.Sequential(self.server.client_model, self.server.model)
-                    self.notify(event="start_round", round=rnd + 1, global_model=self.server.model)
+                    # Non capisco a cosa serve global_model
+                    self.notify(event="start_round", round=rnd + 1, global_model=torch.nn.Sequential(self.server.client_model, self.server.model))
 
                     eligible = self.server.get_eligible_clients(eligible_perc)
 
