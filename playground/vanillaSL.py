@@ -1,5 +1,7 @@
 from typing import Sequence, Any
 
+import torch
+
 from fluke import FlukeENV, DDict
 from fluke.algorithms import CentralizedFL
 from fluke.client import Client
