@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Sequence
+from typing import Sequence, Any
 
 import torch
 from torch.nn import Module
@@ -62,11 +62,21 @@ class ServerSL(Server):
         else:
             safe_load_state_dict(self.client_model, incoming_model.state_dict())
 
+    def receive_smashed_data(self, client_index: int) -> tuple[torch.Tensor, torch.Tensor]:
+        msg = self.channel.receive("server", client_index, msg_type="client_smashed_data")
+        smashed, labels =  msg.payload
+        return smashed, labels
+
+    def send_gradients(self, grad_cut: torch.Tensor, loss: float, client_index: int) -> None:
+        self.channel.send(
+            Message((grad_cut, loss), "gradients", "server", inmemory=True), client_index)
+
     def _clip_grads(self) -> None:
         if self.hyper_params.clipping > 0:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.hyper_params.clipping)
 
-    def train_on_smashed_data(self, smashed: torch.Tensor, y: torch.Tensor, ) -> tuple[torch.Tensor, float]:
+    def train_on_smashed_data(self, client_index: int ) -> None:
+        smashed, y = self.receive_smashed_data(client_index)
         self.model.train()
         self.model.to(self.device)
 
@@ -88,7 +98,7 @@ class ServerSL(Server):
         self._clip_grads()
         self.optimizer.step()
 
-        return grad_cut, float(loss.item())
+        self.send_gradients(grad_cut, float(loss.item()), client_index)
 
     def end_epoch(self) -> None:
         if self.scheduler is not None:
