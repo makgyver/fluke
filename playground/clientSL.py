@@ -45,8 +45,17 @@ class ClientSL(Client):
         else:
             safe_load_state_dict(self.model, msg.payload.state_dict())
 
+    def receive_gradients(self) -> tuple[torch.Tensor, float]:
+        msg = self.channel.receive(self.index, "server", msg_type="gradients")
+        grad_cut, loss = msg.payload
+        return grad_cut, loss
+
+
     def send_client_model(self) -> None: #centralized
         self.channel.send(Message(self.model, "client_model", self.index, inmemory=True),"server")
+
+    def send_smashed_data(self, smashed_data, y) -> None: #centralized
+        self.channel.send(Message((smashed_data, y), "client_smashed_data", self.index, inmemory=True),"server")
 
     def forward_to_cut(self, X: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         local_smashed = self.model(X)
@@ -80,9 +89,12 @@ class ClientSL(Client):
                 self.optimizer.zero_grad()
                 local_smashed, remote_smashed = self.forward_to_cut(X)
 
+                self.send_smashed_data(remote_smashed, y)
                 #chiamata diretta al server
                 #forward, backward e update del modello server-side
-                grad_cut, server_loss = server.train_on_smashed_data(remote_smashed, y)
+                server.train_on_smashed_data(self.index)
+
+                grad_cut, server_loss = self.receive_gradients()
 
                 # backward e update del modello client-side
                 local_smashed.backward(grad_cut.to(local_smashed.device))
