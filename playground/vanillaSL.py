@@ -1,19 +1,101 @@
+import uuid
 from typing import Sequence, Any
 
 import torch
+import warnings
 
-from fluke import FlukeENV, DDict
+from fluke import FlukeENV, DDict, ObserverSubject, custom_formatwarning
 from fluke.algorithms import CentralizedFL
 from fluke.client import Client
 from fluke.config import OptimizerConfigurator
-from fluke.data import FastDataLoader
+from fluke.data import FastDataLoader, DataSplitter
 from fluke.server import EarlyStopping, Server
-from fluke.utils import get_loss
+from fluke.utils import get_loss, get_model
 from playground.clientSL import ClientSL
 from playground.serverSL import ServerSL
 
+warnings.formatwarning = custom_formatwarning
+
 
 class VanillaSL(CentralizedFL):
+    def __init__(
+        self,
+        n_clients: int,
+        data_splitter: DataSplitter,
+        hyper_params: DDict | dict[str, Any],
+        clients: list[ClientSL] = None,
+        server: ServerSL = None,
+        **kwargs,
+    ):
+        ObserverSubject.__init__(self, **kwargs) #non va molto bene
+        if (clients is not None and server is None) or (clients is None and server is not None):
+            raise ValueError("Both clients and server must be provided or neither of them.")
+
+        self._id: str = str(uuid.uuid4().hex)
+        FlukeENV().open_cache(self._id)
+
+        if clients is not None:
+            self.clients = clients
+            self.n_clients = len(clients)
+            if self.n_clients != n_clients:
+                warnings.warn(
+                    f"Number of clients provided ({self.n_clients}) is different from"
+                    + f"the number of clients expected ({n_clients}). Overwriting "
+                    + f"the number of clients to {self.n_clients}."
+                )
+            self.server = server
+            if server.model is not None:
+                server_model_name = server.model.__class__.__name__
+            else:
+                raise ValueError("Server model must be provided.")
+            if server.client_model is not None:
+                client_model_name = server.client_model.__class__.__name__
+            else:
+                raise ValueError("Client model must be provided.")
+            self.hyper_params = DDict(
+                client=clients[0].hyper_params, server=server.hyper_params, model=DDict(client=client_model_name,server=server_model_name)
+            )
+
+        else:
+            if isinstance(hyper_params, dict):
+                hyper_params = DDict(hyper_params)
+
+            self.hyper_params = hyper_params
+            self.n_clients = n_clients
+            (clients_tr_data, clients_te_data), server_data = data_splitter.assign(
+                n_clients, hyper_params.client.batch_size
+            )
+
+            client_model = (
+                get_model(
+                    mname=hyper_params.model.client,
+                    **hyper_params.net_args if "net_args" in hyper_params else {},
+                )
+                if isinstance(hyper_params.model.client, str)
+                else hyper_params.model.client
+            )
+
+            server_model = (
+                get_model(
+                    mname=hyper_params.model.server,
+                    **hyper_params.net_args if "net_args" in hyper_params else {},
+                )
+                if isinstance(hyper_params.model.server, str)
+                else hyper_params.model.server
+            )
+
+            model = DDict(
+                client=client_model,
+                server=server_model
+            )
+
+            self.clients = self.init_clients(clients_tr_data, clients_te_data, hyper_params.client)
+            self.server = self.init_server(model, server_data, hyper_params.server)
+
+        for client in self.clients:
+            client.set_channel(self.server.channel)
+
+        self.rounds: int = 0
 
     def get_client_class(self):
         return ClientSL
