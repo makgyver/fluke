@@ -131,18 +131,18 @@ class VanillaSL(CentralizedFL):
 
     def run(self, n_rounds: int, eligible_perc: float, finalize: bool = True, **kwargs) -> None:
         with FlukeENV().get_live_renderer():
-            progress_fl = FlukeENV().get_progress_bar("FL")
+            progress_sl = FlukeENV().get_progress_bar("FL")
             progress_client = FlukeENV().get_progress_bar("clients")
             client_x_round = int(self.n_clients * eligible_perc)
-            task_rounds = progress_fl.add_task("[red]SL Rounds", total=n_rounds * client_x_round)
+            task_rounds = progress_sl.add_task("[red]SL Rounds", total=n_rounds * client_x_round)
             task_local = progress_client.add_task("[green]Client Updates", total=client_x_round)
 
             total_rounds = self.rounds + n_rounds
             self._round_zero()
             for rnd in range(self.rounds, total_rounds):
                 try:
-                    # Non capisco a cosa serve global_model
-                    self.notify(event="start_round", round=rnd + 1, global_model=torch.nn.Sequential(self.server.client_model, self.server.model))
+                    self.notify(event="start_round", round=rnd + 1,
+                                global_model=torch.nn.Sequential(self.server.client_model, self.server.model))
 
                     eligible = self.server.get_eligible_clients(eligible_perc)
 
@@ -152,16 +152,18 @@ class VanillaSL(CentralizedFL):
                         # passa al client il modello client-side corrente
                         self.server.send_client_model(client.index)
 
-                        # local_update si occupa di fare il training vero e proprio,
-                        # fa call dirette al server quindi andrà cambiata
-                        client_loss = client.local_update(rnd + 1, server=self.server)
+                        forward = client.start_training(rnd + 1)
+                        for _ in range(self.hyper_params.client.local_epochs):
+                            for _ in forward:
+                                self.server.train_on_smashed_data(client.index)
+                                client.backward()
+                            client.end_epoch()
+                            self.server.end_epoch()
 
-                        # recupera dal client il modello client-side aggiornata,
-                        # che verrà poi passato al client successivo
-                        self.server.receive_client_model(client.index)
-
+                        client.end_round(rnd + 1)
+                        self.server.end_round(client.index)
                         progress_client.update(task_id=task_local, completed=c + 1)
-                        progress_fl.update(task_id=task_rounds, advance=1)
+                        progress_sl.update(task_id=task_rounds, advance=1)
 
                     self._compute_evaluation_full_model(rnd)
                     self.notify(event="end_round", round=rnd + 1)
@@ -179,14 +181,13 @@ class VanillaSL(CentralizedFL):
                     self.notify(event="early_stop", round=self.rounds + 1)
                     break
 
-            progress_fl.remove_task(task_rounds)
+            progress_sl.remove_task(task_rounds)
             progress_client.remove_task(task_local)
 
         if finalize:
             self.finalize()
 
         self.notify(event="finished", round=self.rounds + 1)
-
 
     def finalize(self) -> None:
         if self.rounds > 0:

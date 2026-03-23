@@ -1,3 +1,5 @@
+from typing import Any, Generator
+
 import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
@@ -36,6 +38,9 @@ class ClientSL(Client):
             persistency=persistency,
             **kwargs,
         )
+        self.n_batches = 0
+        self.running_loss = 0.0
+        self.local_smashed = None
 
     def receive_client_model(self) -> None:
         msg = self.channel.receive(self.index, "server", msg_type="client_model")
@@ -57,18 +62,12 @@ class ClientSL(Client):
     def send_smashed_data(self, smashed_data, y) -> None: #centralized
         self.channel.send(Message((smashed_data, y), "client_smashed_data", self.index, inmemory=True),"server")
 
-    def forward_to_cut(self, X: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        local_smashed = self.model(X)
-        remote_smashed = local_smashed.clone().detach().requires_grad_(True)
-        return local_smashed, remote_smashed
-
-    def local_update(self, current_round: int, server=None) -> float:
-        if server is None:
-            raise ValueError("ClientSL.local_update richiede ServerSL.") #per ora
-
+    def start_training(self, current_round: int) -> Generator:
+        self.n_batches = 0
+        self.running_loss = 0.0
+        self.local_smashed = None
         self._load_from_cache()
         self.receive_client_model()
-
         self.model.train()
         self.model.to(self.device)
 
@@ -76,39 +75,31 @@ class ClientSL(Client):
             self.optimizer, self.scheduler = self._optimizer_cfg(self.model)
 
         self.notify("start_fit", round=current_round, client_id=self.index, model=self.model)
+        return self.forward_to_cut()
 
-        running_loss = 0.0
-        n_batches = 0
+    def forward_to_cut(self):
+        for X, y in self.train_set:
+            X = X.to(self.device)
+            self.optimizer.zero_grad()
+            self.local_smashed = self.model(X)
+            remote_smashed = self.local_smashed.clone().detach().requires_grad_(True)
+            self.send_smashed_data(remote_smashed, y)
+            yield remote_smashed, y
 
-        for _ in range(self.hyper_params.local_epochs):
-            for X, y in self.train_set:
-                X = X.to(self.device)
-                y = y.to(server.device)
 
-                # client-side forward
-                self.optimizer.zero_grad()
-                local_smashed, remote_smashed = self.forward_to_cut(X)
+    def backward(self):
+        grad_cut, server_loss = self.receive_gradients()
+        self.local_smashed.backward(grad_cut.to(self.local_smashed.device))
+        self._clip_grads(self.model)
+        self.optimizer.step()
+        self.running_loss += server_loss
+        self.n_batches += 1
 
-                self.send_smashed_data(remote_smashed, y)
-                #chiamata diretta al server
-                #forward, backward e update del modello server-side
-                server.train_on_smashed_data(self.index)
+    def end_epoch(self) -> None:
+        if self.scheduler is not None:
+            self.scheduler.step()
 
-                grad_cut, server_loss = self.receive_gradients()
-
-                # backward e update del modello client-side
-                local_smashed.backward(grad_cut.to(local_smashed.device))
-                self._clip_grads(self.model)
-                self.optimizer.step()
-
-                running_loss += server_loss
-                n_batches += 1
-
-            if self.scheduler is not None:
-                self.scheduler.step()
-
-            server.end_epoch() #anche questa è una chiamata diretta
-
+    def end_round(self, current_round) -> None:
         self._last_round = current_round
 
         self.notify(
@@ -116,7 +107,7 @@ class ClientSL(Client):
             round=current_round,
             client_id=self.index,
             model=self.model,
-            loss=(running_loss / max(1, n_batches)),
+            loss=(self.running_loss / max(1, self.n_batches)),
         )
 
         self.model.cpu()
@@ -125,8 +116,7 @@ class ClientSL(Client):
         self.send_client_model()
         self._check_persistency()
         self._save_to_cache()
-
-        return running_loss / max(1, n_batches)
+        # return running_loss / max(1, n_batches)
 
     def evaluate(self, evaluator, test_set):
         return {}
