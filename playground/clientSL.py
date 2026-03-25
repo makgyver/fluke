@@ -42,7 +42,7 @@ class ClientSL(Client):
         self.running_loss = 0.0
         self.local_smashed = None
 
-    def receive_client_model(self) -> None:
+    def receive_model(self) -> None:
         msg = self.channel.receive(self.index, "server", msg_type="client_model")
 
         if self.model is None:
@@ -55,8 +55,7 @@ class ClientSL(Client):
         grad_cut, loss = msg.payload
         return grad_cut, loss
 
-
-    def send_client_model(self) -> None: #centralized
+    def send_model(self) -> None: #centralized
         self.channel.send(Message(self.model, "client_model", self.index, inmemory=True),"server")
 
     def send_smashed_data(self, smashed_data, y) -> None: #centralized
@@ -67,7 +66,7 @@ class ClientSL(Client):
         self.running_loss = 0.0
         self.local_smashed = None
         self._load_from_cache()
-        self.receive_client_model()
+        self.receive_model()
         self.model.train()
         self.model.to(self.device)
 
@@ -113,7 +112,7 @@ class ClientSL(Client):
         self.model.cpu()
         clear_cuda_cache()
 
-        self.send_client_model()
+        self.send_model()
         self._check_persistency()
         self._save_to_cache()
         # return running_loss / max(1, n_batches)
