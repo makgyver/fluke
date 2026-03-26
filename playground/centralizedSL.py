@@ -17,7 +17,7 @@ from playground.serverSL import ServerSL
 warnings.formatwarning = custom_formatwarning
 
 
-class VanillaSL(CentralizedFL):
+class CentralizedSL(CentralizedFL):
     def __init__(
         self,
         n_clients: int,
