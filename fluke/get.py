@@ -32,11 +32,11 @@ def list() -> None:
     exp_configs = [x for x in configs if exp_re.match(x)]
     alg_configs = [x for x in configs if not exp_re.match(x)]
 
-    rich_print("[yellow]Available experiments config files:[/]")
+    rich_print("[yellow bold]Available experiment configuration files:[/]")
     for config in exp_configs:
         rich_print(config)
 
-    rich_print("[yellow bold]Available algorithms config files:[/]")
+    rich_print("[yellow bold]Available algorithm configuration files:[/]")
     for config in alg_configs:
         rich_print(config)
 
