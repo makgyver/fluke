@@ -46,8 +46,8 @@ For the purpose of this introductory page, we will use the configuration files p
 
         fluke-get config exp
         fluke-get config fedavg
-    
-    These two file will be downloaded in the "./config" folder.
+
+    These two files will be downloaded in the "./config" folder.
 ```
 
 In particular, we will use the configuration files [exp.yaml](https://github.com/makgyver/fluke/tree/main/configs/exp.yaml)

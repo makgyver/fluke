@@ -6,6 +6,7 @@ import requests
 import typer
 import yaml
 from rich import print as rich_print
+import re
 
 app = typer.Typer()
 
@@ -26,10 +27,18 @@ def list() -> None:
         if file["name"].endswith(".yaml")
     ]
 
-    rich_print("[yellow bold]Available config files:[/]")
-    for config in configs:
+    exp_re = re.compile('^exp.*')
+
+    exp_configs = [x for x in configs if exp_re.match(x)]
+    alg_configs = [x for x in configs if not exp_re.match(x)]
+
+    rich_print("[yellow]Available experiments config files:[/]")
+    for config in exp_configs:
         rich_print(config)
 
+    rich_print("[yellow bold]Available algorithms config files:[/]")
+    for config in alg_configs:
+        rich_print(config)
 
 @app.command()
 def config(name: str, outdir: str = typer.Option("config", help="Output directory")) -> None:
