@@ -56,6 +56,7 @@ def test_env():
 
     env.configure(cfg)
     assert env.get_seed() == 42
+    assert env.get_config() == cfg
 
     env.force_close()
 

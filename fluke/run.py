@@ -100,6 +100,7 @@ def centralized(
     log = get_logger(cfg.logger.name, name=exp_name, **cfg.logger.exclude("name"))
     log.init(**cfg, exp_id=exp_id)
     log.log(f"Centralized Learning [ #Epochs = {epochs} ]\n")
+    FlukeENV().set_logger(log)
 
     for e in range(epochs):
         model.train()
@@ -213,9 +214,10 @@ def _run_federation(cfg: Configuration, resume: str | None = None, show_dist: bo
     log_name = f"{fl_algo.__class__.__name__} [{fl_algo.id}]"
     log = get_logger(cfg.logger.name, name=log_name, **cfg.logger.exclude("name"))
     log.init(**cfg, exp_id=fl_algo.id)
+    FlukeENV().set_logger(log)
 
     fl_algo.set_callbacks([log])
-    FlukeENV().set_logger(log)
+
     console.print(Panel(Pretty(fl_algo), title="FL algorithm", width=100))
 
     if show_dist:

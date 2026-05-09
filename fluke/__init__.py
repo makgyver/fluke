@@ -24,6 +24,7 @@ from rich.progress import Live, Progress
 
 if TYPE_CHECKING:
     from .evaluation import Evaluator
+    from .config import Configuration
 
 
 def custom_formatwarning(msg: str, category: type, filename: str, lineno: int, *args) -> str:
@@ -349,6 +350,7 @@ class FlukeENV(metaclass=Singleton):
     _seed: int = 0
     _inmemory: bool = True
     _cache: FlukeCache | None = None
+    _config: Configuration = None
 
     # saving settings
     _save_path: str = None
@@ -386,17 +388,34 @@ class FlukeENV(metaclass=Singleton):
             )
         )
 
-    def configure(self, cfg: DDict) -> None:
+    def configure(self, cfg: Configuration) -> None:
         """Configure the global settings.
 
         Args:
-            cfg (DDict): The configuration.
+            cfg (Configuration): The configuration.
         """
+        self.set_config(cfg)
         self.set_seed(cfg.exp.seed)
         self.set_device(cfg.exp.device)
         self.set_inmemory(cfg.exp.inmemory)
         self.set_save_options(**cfg.save)
         self.set_eval_cfg(**cfg.eval)
+
+    def get_config(self) -> Configuration | None:
+        """Get the global configuration.
+
+        Returns:
+            Configuration: The global configuration.
+        """
+        return self._config
+
+    def set_config(self, cfg: Configuration) -> None:
+        """Set the global configuration.
+
+        Args:
+            cfg (Configuration): The global configuration.
+        """
+        self._config = cfg
 
     def get_seed(self) -> int:
         """Get the seed.
