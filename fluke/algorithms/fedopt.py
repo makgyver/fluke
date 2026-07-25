@@ -38,6 +38,7 @@ class FedOptServer(Server):
         beta2: float = 0.999,
         tau: float = 0.0001,
         weighted: bool = True,
+        bias_correction: bool = False,
     ):
         super().__init__(model=model, test_set=test_set, clients=clients, weighted=weighted)
         assert mode in {
@@ -48,7 +49,11 @@ class FedOptServer(Server):
         assert 0 <= beta1 < 1, "beta1 must be in [0, 1)"
         assert 0 <= beta2 < 1, "beta2 must be in [0, 1)"
 
-        self.hyper_params.update(mode=mode, lr=lr, beta1=beta1, beta2=beta2, tau=tau)
+        self.hyper_params.update(
+            mode=mode, lr=lr, beta1=beta1, beta2=beta2, tau=tau,
+            bias_correction=bias_correction
+        )
+        self.t = 0
         self._init_moments()
 
     def _init_moments(self) -> None:
@@ -69,6 +74,8 @@ class FedOptServer(Server):
         b1, b2 = self.hyper_params.beta1, self.hyper_params.beta2
         eta, tau = self.hyper_params.lr, self.hyper_params.tau
 
+        self.t += 1
+
         trainable_keys = get_trainable_keys(self.model)
         d_t = {k: aggregated[k] - server_sd[k] for k in trainable_keys}
         self.m_t = {k: b1 * self.m_t[k] + (1 - b1) * d_t[k] for k in trainable_keys}
@@ -85,7 +92,16 @@ class FedOptServer(Server):
         else:
             raise ValueError(f"Unknown mode: {self.hyper_params.mode}")
 
-        update = {k: eta * self.m_t[k] / (torch.sqrt(self.v_t[k]) + tau) for k in trainable_keys}
+        # Bias correction for Adam (Kingma & Ba, 2015)
+        if self.hyper_params.mode == "adam" and self.hyper_params.bias_correction:
+            bc1 = 1 - b1 ** self.t
+            bc2 = 1 - b2 ** self.t
+            update = {k: eta * (self.m_t[k] / bc1) / (torch.sqrt(self.v_t[k] / bc2) + tau)
+                      for k in trainable_keys}
+        else:
+            update = {k: eta * self.m_t[k] / (torch.sqrt(self.v_t[k]) + tau)
+                      for k in trainable_keys}
+
         agg_model_sd = {k: server_sd[k] + update[k] for k in trainable_keys}
         self.model.load_state_dict(agg_model_sd, strict=False)
 
