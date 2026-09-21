@@ -22,7 +22,7 @@ from .config import OptimizerConfigurator  # NOQA
 from .data import FastDataLoader  # NOQA
 from .evaluation import Evaluator  # NOQA
 from .utils import cache_obj, clear_cuda_cache, retrieve_obj  # NOQA
-from .utils.model import ModOpt, safe_load_state_dict  # NOQA
+from .utils.model import ModOpt, optimizer_to, safe_load_state_dict  # NOQA
 
 __all__ = ["Client", "PFLClient"]
 
@@ -313,10 +313,14 @@ class Client(ObserverSubject):
         try:
             loss = self.fit()
         except KeyboardInterrupt:
+            self._check_persistency()
+            raise
+        except Exception:
+            self._check_persistency()
+            raise
+        finally:
             if fluke_env.is_parallel_client():
                 self._dataparallel_to_model()
-            self._check_persistency()
-            raise KeyboardInterrupt()
 
         self._last_round = current_round
 
@@ -338,9 +342,6 @@ class Client(ObserverSubject):
                     phase="post-fit",
                     evals=metrics,
                 )
-
-        if fluke_env.is_parallel_client():
-            self._dataparallel_to_model()
 
         self.send_model()
         self._check_persistency()
@@ -396,6 +397,8 @@ class Client(ObserverSubject):
             running_loss /= train_batches
 
         self.model.cpu()
+        if self.optimizer is not None:
+            optimizer_to(self.optimizer, "cpu")
         clear_cuda_cache()
         return running_loss
 
