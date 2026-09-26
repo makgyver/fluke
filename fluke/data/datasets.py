@@ -450,6 +450,10 @@ class Datasets:
         train_data = _apply_transforms(train_data, transforms)
         test_data = _apply_transforms(test_data, transforms)
 
+        if transforms is None:
+            train_data.data = train_data.data / 255.0
+            test_data.data = test_data.data / 255.0
+
         return DataContainer(
             train_data.data,
             train_data.targets,
