@@ -40,7 +40,7 @@ alg_settings = [
      "lr": 0.01,
      "gamma": 1,
      "step_size": 1,
-     "model": "LeNet5",
+     "model": "MNIST_2NN",
      "weighted": "true"
      },
      {"batch_size": 32, 
@@ -49,7 +49,25 @@ alg_settings = [
      "lr": 0.01,
      "gamma": 1,
      "step_size": 1,
-     "model": "LeNet5",
+     "model": "MNIST_2NN",
+     "weighted": "true"
+     },    
+     {"batch_size": 10, 
+     "local_epochs": 10, 
+     "loss": "CrossEntropyLoss", 
+     "lr": 0.01,
+     "gamma": 1,
+     "step_size": 1,
+     "model": "ResNet18",
+     "weighted": "true"
+     },
+     {"batch_size": 32, 
+     "local_epochs": 10, 
+     "loss": "CrossEntropyLoss", 
+     "lr": 0.01,
+     "gamma": 1,
+     "step_size": 1,
+     "model": "ResNet18",
      "weighted": "true"
      }
 ]
@@ -149,7 +167,15 @@ def main():
                 settings.set_seed(exp_setting['exp_seed'])
                 settings.set_evaluator(evaluator=evaluator)
 
-                # Overwrite the hyperparameters
+                # Overwrite the hyperparameters for logging and execution
+                cfg.data.dataset.name=str(exp_setting['dataset_name'])
+                cfg.data.sampling_perc=int(exp_setting['sampling_perc'])
+                cfg.data.client_split=int(exp_setting['client_split'])
+                cfg.data.keep_test=bool(exp_setting['keep_test'])
+                cfg.data.server_test=bool(exp_setting['server_test'])
+                cfg.data.server_split=int(exp_setting['server_split'])
+                cfg.data.uniform_test=bool(exp_setting['uniform_test'])
+
                 cfg.protocol.eligible_perc=exp_setting['eligible_perc']
                 cfg.protocol.n_clients=exp_setting['n_clients']
                 cfg.protocol.n_rounds=exp_setting['n_rounds']
