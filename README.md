@@ -41,13 +41,13 @@ You can use this library directly inside a Docker container — no installation 
 docker build -t fluke_container .
 ```
 
-Then, you can run an interactive session with
+alternatively:
 
-```bash
-docker run --rm fluke_container fluke [ARGS]
+```
+docker pull 00uno00/fluke_benchmark:latest
 ```
 
-where `ARGS` are the arguments you want to pass to the `fluke` command as described in the next section.
+for further information on how to use this image see the [tutorial](/DockerTutorial.md)
 
 ## Run a federated algorithm
 
